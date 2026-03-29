@@ -1,0 +1,13 @@
+appId: com.turbosuslik.quizerudit
+---
+- launchApp
+- assertVisible: "Coat of Arms Quiz"
+- assertVisible: "Test your knowledge of world heraldry"
+- assertVisible: "10"
+- assertVisible: "20"
+- assertVisible: "50"
+- assertVisible: "English"
+- assertVisible: "Russian"
+- assertVisible: "Spanish"
+- assertVisible: "Start Quiz"
+- takeScreenshot: home-screen

@@ -27,6 +27,15 @@ export const Colors = {
   },
 };
 
+export const QuizColors = {
+  correct: '#22c55e',
+  correctLight: '#dcfce7',
+  wrong: '#ef4444',
+  wrongLight: '#fee2e2',
+  neutral: '#e5e7eb',
+  neutralDark: '#374151',
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

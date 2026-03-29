@@ -1,0 +1,39 @@
+appId: com.turbosuslik.quizerudit
+---
+- launchApp
+- assertVisible: "Start Quiz"
+- tapOn: "Start Quiz"
+
+# Wait for questions to load from API
+- extendedWaitUntil:
+    visible: "1 /"
+    timeout: 15000
+
+# Verify quiz UI elements
+- assertVisible:
+    id: "option-button-0"
+- assertVisible:
+    id: "option-button-1"
+- assertVisible:
+    id: "option-button-2"
+- assertVisible:
+    id: "option-button-3"
+
+# Take screenshot of quiz screen with question
+- takeScreenshot: quiz-question
+
+# Tap an answer option
+- tapOn:
+    id: "option-button-0"
+
+# After answering, Next button should appear
+- extendedWaitUntil:
+    visible: "Next"
+    timeout: 3000
+
+- takeScreenshot: quiz-answered
+
+# Advance to next question
+- tapOn: "Next"
+- assertVisible: "2 /"
+- takeScreenshot: quiz-question-2
