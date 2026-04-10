@@ -17,6 +17,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useQuizSession } from '@/hooks/use-quiz-session';
 import { fetchRandomQuestions } from '@/api/questions';
+import { APP_SLUG } from '@/api/client';
 
 export default function QuizScreen() {
   const { count, locale } = useLocalSearchParams<{ count: string; locale: string }>();
@@ -71,7 +72,7 @@ export default function QuizScreen() {
     dispatch({ type: 'SET_LOADING' });
     try {
       const data = await fetchRandomQuestions(
-        'coat-of-arms',
+        APP_SLUG,
         locale ?? 'en',
         parseInt(count ?? '10', 10)
       );
