@@ -44,3 +44,5 @@ app-example
 /android
 .ssh/
 CLAUDE.md
+/screenshots/*
+!/screenshots/.gitkeep
