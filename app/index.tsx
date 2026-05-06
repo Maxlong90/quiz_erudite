@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,7 +7,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
-import { useOnboarding } from '@/hooks/use-onboarding';
 
 const COUNT_OPTIONS = [10, 20, 50] as const;
 const LOCALE_OPTIONS: { value: SupportedLocale; label: string }[] = [
@@ -21,13 +20,6 @@ export default function HomeScreen() {
   const tint = Colors[theme].tint;
   const { locale, changeLocale } = useLocale();
   const [count, setCount] = useState<number>(10);
-  const { hasSeen } = useOnboarding();
-
-  useEffect(() => {
-    if (hasSeen === false) {
-      router.replace('/onboarding');
-    }
-  }, [hasSeen]);
 
   const handleStart = () => {
     router.push({

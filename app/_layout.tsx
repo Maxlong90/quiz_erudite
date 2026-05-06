@@ -10,7 +10,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack initialRouteName="splash">
+        <Stack.Screen
+          name="splash"
+          options={{ headerShown: false, gestureEnabled: false, animation: 'none' }}
+        />
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen
           name="onboarding"
