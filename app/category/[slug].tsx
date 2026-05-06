@@ -18,6 +18,7 @@ import { APP_SLUG } from '@/api/client';
 import { useLocale } from '@/hooks/use-locale';
 import { useTranslation } from '@/hooks/use-translation';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
+import { localizeCategoryName } from '@/i18n/categories';
 
 const DEFAULT_QUESTIONS = 10;
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
@@ -97,7 +98,7 @@ export default function CategoryScreen() {
           <View style={styles.headerCenter}>
             <Text style={styles.headerEmoji}>{visual.emoji}</Text>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {parent?.name ?? ''}
+              {parent ? localizeCategoryName(parent.slug, locale, parent.name) : ''}
             </Text>
           </View>
           <View style={styles.iconButton} />
@@ -127,6 +128,7 @@ export default function CategoryScreen() {
                   key={sub.slug}
                   parentGradient={visual.gradient}
                   subcategory={sub}
+                  displayName={localizeCategoryName(sub.slug, locale, sub.name)}
                   onPress={() => startQuiz(sub)}
                 />
               ))}
@@ -141,10 +143,11 @@ export default function CategoryScreen() {
 interface TileProps {
   parentGradient: readonly [string, string];
   subcategory: Category;
+  displayName: string;
   onPress: () => void;
 }
 
-function SubcategoryTile({ parentGradient, subcategory, onPress }: TileProps) {
+function SubcategoryTile({ parentGradient, subcategory, displayName, onPress }: TileProps) {
   const { t } = useTranslation();
   const total = subcategory.total_questions_count ?? 0;
   const isEmpty = total === 0;
@@ -163,7 +166,7 @@ function SubcategoryTile({ parentGradient, subcategory, onPress }: TileProps) {
         style={[styles.tile, isEmpty && styles.tileEmpty]}
       >
         <Text style={styles.tileName} numberOfLines={3}>
-          {subcategory.name}
+          {displayName}
         </Text>
         <Text style={styles.tileMeta}>
           {isEmpty ? t('home.tile.soon') : t('home.tile.meta', { questions: total, topics: 0 }).replace(/ ·.*$/, '')}

@@ -18,6 +18,7 @@ import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
+import { localizeCategoryName } from '@/i18n/categories';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -141,8 +142,9 @@ interface TileProps {
 }
 
 function CategoryTile({ category, onPress }: TileProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const visual = CATEGORY_VISUALS[category.slug] ?? FALLBACK_VISUAL;
+  const displayName = localizeCategoryName(category.slug, locale, category.name);
   const total = category.total_questions_count ?? 0;
   const subs = category.subcategories_count ?? 0;
   const isEmpty = total === 0;
@@ -162,7 +164,7 @@ function CategoryTile({ category, onPress }: TileProps) {
       >
         <Text style={styles.tileEmoji}>{visual.emoji}</Text>
         <Text style={styles.tileName} numberOfLines={2}>
-          {category.name}
+          {displayName}
         </Text>
         <Text style={styles.tileMeta}>
           {isEmpty
