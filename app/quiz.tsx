@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import Animated, {
@@ -13,6 +13,8 @@ import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { ProgressBar } from '@/components/quiz/progress-bar';
 import { QuestionCard } from '@/components/quiz/question-card';
+import { ReportButton } from '@/components/quiz/report-button';
+import { ReportModal } from '@/components/quiz/report-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useQuizSession } from '@/hooks/use-quiz-session';
@@ -38,6 +40,7 @@ export default function QuizScreen() {
   } = useQuizSession();
 
   const nextButtonOpacity = useSharedValue(0);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     loadQuestions();
@@ -142,11 +145,18 @@ export default function QuizScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: Colors[theme].background }]}>
-      <ProgressBar
-        progress={progress}
-        currentIndex={currentIndex}
-        total={questions.length}
-      />
+      <View style={styles.headerRow}>
+        <View style={styles.progressWrap}>
+          <ProgressBar
+            progress={progress}
+            currentIndex={currentIndex}
+            total={questions.length}
+          />
+        </View>
+        <View style={styles.reportSlot}>
+          <ReportButton onPress={() => setReportOpen(true)} />
+        </View>
+      </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <QuestionCard
           question={currentQuestion}
@@ -167,6 +177,13 @@ export default function QuizScreen() {
           )}
         </Animated.View>
       </ScrollView>
+      <ReportModal
+        visible={reportOpen}
+        contentType="question"
+        contentId={currentQuestion.id}
+        locale={locale ?? 'en'}
+        onClose={() => setReportOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -215,6 +232,16 @@ const styles = StyleSheet.create({
   homeLinkText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressWrap: {
+    flex: 1,
+  },
+  reportSlot: {
+    paddingRight: 16,
   },
   scroll: {
     flexGrow: 1,
