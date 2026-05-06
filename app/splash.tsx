@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useLocale } from '@/hooks/use-locale';
 import { useOnboarding } from '@/hooks/use-onboarding';
 
 const SPLASH_DURATION_MS = 3000;
@@ -18,6 +19,7 @@ const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
   const { hasSeen } = useOnboarding();
+  const { hasPicked } = useLocale();
 
   const wordmarkOpacity = useSharedValue(0);
   const wordmarkScale = useSharedValue(0.92);
@@ -29,15 +31,24 @@ export default function SplashScreen() {
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
     const t = setTimeout(() => {
-      // Decide where to send the user once their splash time is up.
-      // Default to onboarding for safety if the AsyncStorage read hasn't
-      // resolved yet (treat unknown state as "first launch").
-      router.replace(hasSeen ? '/' : '/onboarding');
+      // Treat unresolved AsyncStorage reads as "first launch" so we
+      // never accidentally drop the user past first-time setup.
+      if (hasPicked === false) {
+        router.replace('/language');
+      } else if (hasSeen === false) {
+        router.replace('/onboarding');
+      } else if (hasPicked && hasSeen) {
+        router.replace('/');
+      } else {
+        // Still loading — fall through to language picker, the safest
+        // first-time destination.
+        router.replace('/language');
+      }
     }, SPLASH_DURATION_MS);
 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSeen]);
+  }, [hasSeen, hasPicked]);
 
   const wordmarkStyle = useAnimatedStyle(() => ({
     opacity: wordmarkOpacity.value,

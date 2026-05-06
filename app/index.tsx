@@ -4,21 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { useLocale } from '@/hooks/use-locale';
 
 const COUNT_OPTIONS = [10, 20, 50] as const;
-const LOCALE_OPTIONS: { value: SupportedLocale; label: string }[] = [
-  { value: 'en', label: 'English' },
-  { value: 'ru', label: 'Russian' },
-  { value: 'es', label: 'Spanish' },
-];
 
 export default function HomeScreen() {
   const theme = useColorScheme() ?? 'light';
   const tint = Colors[theme].tint;
-  const { locale, changeLocale } = useLocale();
+  const { locale } = useLocale();
   const [count, setCount] = useState<number>(10);
 
   const handleStart = () => {
@@ -30,6 +26,18 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: Colors[theme].background }]}>
+      <View style={styles.topBar}>
+        <View style={styles.topSpacer} />
+        <Pressable
+          onPress={() => router.push('/settings')}
+          hitSlop={12}
+          style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
+          testID="settings-button"
+          accessibilityLabel="Open settings"
+        >
+          <IconSymbol name="gearshape.fill" size={24} color={Colors[theme].text} />
+        </Pressable>
+      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.heroSection}>
           <ThemedText style={styles.emoji}>🏰</ThemedText>
@@ -65,37 +73,6 @@ export default function HomeScreen() {
                   ]}
                 >
                   {opt}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            Language
-          </ThemedText>
-          <View style={styles.pillRow}>
-            {LOCALE_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.value}
-                onPress={() => changeLocale(opt.value)}
-                style={[
-                  styles.pill,
-                  styles.localePill,
-                  {
-                    backgroundColor: locale === opt.value ? tint : 'transparent',
-                    borderColor: locale === opt.value ? tint : Colors[theme].icon,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={[
-                    styles.pillText,
-                    { color: locale === opt.value ? '#fff' : Colors[theme].text },
-                  ]}
-                >
-                  {opt.label}
                 </ThemedText>
               </Pressable>
             ))}
@@ -160,9 +137,23 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: 'center',
   },
-  localePill: {
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    minWidth: 90,
+    paddingVertical: 8,
+  },
+  topSpacer: {
+    flex: 1,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsPressed: {
+    opacity: 0.5,
   },
   pillText: {
     fontSize: 16,

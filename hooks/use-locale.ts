@@ -1,24 +1,45 @@
+import { useCallback, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
-import { useState, useCallback } from 'react';
 
 const SUPPORTED_LOCALES = ['en', 'ru', 'es'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
-export function useLocale() {
-  const deviceLocales = getLocales();
-  const deviceLanguage = deviceLocales[0]?.languageCode ?? 'en';
+const STORAGE_KEY = 'app.locale.v1';
 
-  const defaultLocale: SupportedLocale = SUPPORTED_LOCALES.includes(
-    deviceLanguage as SupportedLocale
-  )
+function detectDeviceLocale(): SupportedLocale {
+  const deviceLanguage = getLocales()[0]?.languageCode ?? 'en';
+  return SUPPORTED_LOCALES.includes(deviceLanguage as SupportedLocale)
     ? (deviceLanguage as SupportedLocale)
     : 'en';
+}
 
-  const [locale, setLocale] = useState<SupportedLocale>(defaultLocale);
+export function useLocale() {
+  const [locale, setLocale] = useState<SupportedLocale>(detectDeviceLocale());
+  const [hasPicked, setHasPicked] = useState<boolean | null>(null);
 
-  const changeLocale = useCallback((newLocale: SupportedLocale) => {
-    setLocale(newLocale);
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((v) => {
+        if (v && (SUPPORTED_LOCALES as readonly string[]).includes(v)) {
+          setLocale(v as SupportedLocale);
+          setHasPicked(true);
+        } else {
+          setHasPicked(false);
+        }
+      })
+      .catch(() => setHasPicked(false));
   }, []);
 
-  return { locale, changeLocale, supportedLocales: SUPPORTED_LOCALES };
+  const changeLocale = useCallback(async (newLocale: SupportedLocale) => {
+    setLocale(newLocale);
+    setHasPicked(true);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, newLocale);
+    } catch {
+      // Persisting is best-effort; UI state is the authoritative read.
+    }
+  }, []);
+
+  return { locale, changeLocale, hasPicked, supportedLocales: SUPPORTED_LOCALES };
 }

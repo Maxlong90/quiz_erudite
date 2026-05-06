@@ -15,10 +15,18 @@ export default function RootLayout() {
           name="splash"
           options={{ headerShown: false, gestureEnabled: false, animation: 'none' }}
         />
+        <Stack.Screen
+          name="language"
+          options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
+        />
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen
           name="onboarding"
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="quiz"
