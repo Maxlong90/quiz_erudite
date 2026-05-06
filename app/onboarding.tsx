@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
+  Image,
+  ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -14,37 +16,57 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { useTranslation } from '@/hooks/use-translation';
+import type { StringKey } from '@/i18n/strings';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-interface Page {
-  emojiCenter: string;
-  emojiOrbit: string[];
-  title: string;
-  subtitle: string;
+interface PageDef {
+  iconCenter: ImageSourcePropType;
+  iconOrbit: ImageSourcePropType[];
+  titleKey: StringKey;
+  subtitleKey: StringKey;
 }
 
-const PAGES: Page[] = [
+const PAGES: PageDef[] = [
   {
-    emojiCenter: '🏆',
-    emojiOrbit: ['💡', '📚', '❓', '✨', '🧠', '⭐'],
-    title: 'Прокачай эрудицию',
-    subtitle:
-      'Узнавай новое и проверяй знания в самых интересных темах каждый день.',
+    iconCenter: require('@/assets/onboarding/trophy.png'),
+    iconOrbit: [
+      require('@/assets/onboarding/light-bulb.png'),
+      require('@/assets/onboarding/books.png'),
+      require('@/assets/onboarding/question.png'),
+      require('@/assets/onboarding/sparkles.png'),
+      require('@/assets/onboarding/brain.png'),
+      require('@/assets/onboarding/star.png'),
+    ],
+    titleKey: 'onboarding.page1.title',
+    subtitleKey: 'onboarding.page1.subtitle',
   },
   {
-    emojiCenter: '🌍',
-    emojiOrbit: ['🎨', '⚛️', '📖', '🏛️', '🎬', '⚽'],
-    title: 'Выбирай любимые темы',
-    subtitle:
-      'География, история, наука, искусство, спорт и не только — играй в то, что нравится.',
+    iconCenter: require('@/assets/onboarding/globe.png'),
+    iconOrbit: [
+      require('@/assets/onboarding/palette.png'),
+      require('@/assets/onboarding/atom.png'),
+      require('@/assets/onboarding/open-book.png'),
+      require('@/assets/onboarding/classical-building.png'),
+      require('@/assets/onboarding/clapper.png'),
+      require('@/assets/onboarding/soccer.png'),
+    ],
+    titleKey: 'onboarding.page2.title',
+    subtitleKey: 'onboarding.page2.subtitle',
   },
   {
-    emojiCenter: '📊',
-    emojiOrbit: ['🔥', '⭐', '🥇', '🎯', '💎', '🚀'],
-    title: 'Следи за прогрессом',
-    subtitle:
-      'Зарабатывай очки, удерживай серию и поднимайся в рейтинге эрудитов.',
+    iconCenter: require('@/assets/onboarding/bar-chart.png'),
+    iconOrbit: [
+      require('@/assets/onboarding/fire.png'),
+      require('@/assets/onboarding/star.png'),
+      require('@/assets/onboarding/medal.png'),
+      require('@/assets/onboarding/target.png'),
+      require('@/assets/onboarding/gem.png'),
+      require('@/assets/onboarding/rocket.png'),
+    ],
+    titleKey: 'onboarding.page3.title',
+    subtitleKey: 'onboarding.page3.subtitle',
   },
 ];
 
@@ -52,6 +74,7 @@ export default function OnboardingScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const { markSeen } = useOnboarding();
+  const { t } = useTranslation();
 
   const isLast = page === PAGES.length - 1;
 
@@ -87,7 +110,7 @@ export default function OnboardingScreen() {
       <StatusBar style="light" />
 
       <Pressable onPress={onSkip} style={styles.skip} hitSlop={10}>
-        <Text style={styles.skipText}>Пропустить</Text>
+        <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
       </Pressable>
 
       <ScrollView
@@ -121,7 +144,9 @@ export default function OnboardingScreen() {
             style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
             testID="onboarding-primary"
           >
-            <Text style={styles.buttonText}>{isLast ? 'Начать' : 'Далее'}</Text>
+            <Text style={styles.buttonText}>
+              {isLast ? t('onboarding.start') : t('onboarding.next')}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -131,36 +156,42 @@ export default function OnboardingScreen() {
   );
 }
 
-function PageView({ page }: { page: Page }) {
+function PageView({ page }: { page: PageDef }) {
+  const { t } = useTranslation();
+  const orbits = useMemo(
+    () =>
+      page.iconOrbit.map((src, i) => {
+        const angle = (i / page.iconOrbit.length) * Math.PI * 2 - Math.PI / 2;
+        const radius = 120;
+        return {
+          src,
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+        };
+      }),
+    [page.iconOrbit],
+  );
+
   return (
     <View style={[styles.page, { width: SCREEN_WIDTH }]}>
       <View style={styles.illustration}>
-        <Text style={styles.centerEmoji}>{page.emojiCenter}</Text>
-        {page.emojiOrbit.map((e, i) => {
-          const angle = (i / page.emojiOrbit.length) * Math.PI * 2 - Math.PI / 2;
-          const radius = 110;
-          return (
-            <Text
-              key={i}
-              style={[
-                styles.orbitEmoji,
-                {
-                  transform: [
-                    { translateX: Math.cos(angle) * radius },
-                    { translateY: Math.sin(angle) * radius },
-                  ],
-                },
-              ]}
-            >
-              {e}
-            </Text>
-          );
-        })}
+        <Image source={page.iconCenter} style={styles.centerIcon} resizeMode="contain" />
+        {orbits.map((o, i) => (
+          <Image
+            key={i}
+            source={o.src}
+            style={[
+              styles.orbitIcon,
+              { transform: [{ translateX: o.x }, { translateY: o.y }] },
+            ]}
+            resizeMode="contain"
+          />
+        ))}
       </View>
 
       <View style={styles.copy}>
-        <Text style={styles.title}>{page.title}</Text>
-        <Text style={styles.subtitle}>{page.subtitle}</Text>
+        <Text style={styles.title}>{t(page.titleKey)}</Text>
+        <Text style={styles.subtitle}>{t(page.subtitleKey)}</Text>
       </View>
     </View>
   );
@@ -233,17 +264,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   illustration: {
-    width: 260,
-    height: 260,
+    width: 280,
+    height: 280,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  centerEmoji: {
-    fontSize: 96,
+  centerIcon: {
+    width: 140,
+    height: 140,
   },
-  orbitEmoji: {
+  orbitIcon: {
     position: 'absolute',
-    fontSize: 28,
+    width: 56,
+    height: 56,
   },
   copy: {
     alignItems: 'center',

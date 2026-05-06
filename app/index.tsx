@@ -16,6 +16,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { useLocale } from '@/hooks/use-locale';
+import { useTranslation } from '@/hooks/use-translation';
 
 const DEFAULT_QUESTIONS = 10;
 
@@ -36,6 +37,7 @@ const FALLBACK_VISUAL = { emoji: '📚', gradient: ['#5a5fb8', '#3a3f8a'] as [st
 
 export default function HomeScreen() {
   const { locale } = useLocale();
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -49,10 +51,10 @@ export default function HomeScreen() {
         setCategories(cats);
         setPhase('ready');
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return;
         setPhase('error');
-        setErrorText(err instanceof Error ? err.message : 'Failed to load categories');
+        setErrorText(t('home.error.load'));
       });
     return () => {
       cancelled = true;
@@ -125,6 +127,7 @@ export default function HomeScreen() {
                   onPress={() => startQuiz(cat)}
                 />
               ))}
+              <ComingSoonTile />
             </View>
           </ScrollView>
         )}
@@ -149,6 +152,7 @@ interface TileProps {
 }
 
 function CategoryTile({ category, onPress }: TileProps) {
+  const { t } = useTranslation();
   const visual = CATEGORY_VISUALS[category.slug] ?? FALLBACK_VISUAL;
   const total = category.total_questions_count ?? 0;
   const subs = category.subcategories_count ?? 0;
@@ -172,10 +176,27 @@ function CategoryTile({ category, onPress }: TileProps) {
           {category.name}
         </Text>
         <Text style={styles.tileMeta}>
-          {isEmpty ? 'Скоро' : `${total} вопросов · ${subs} тем`}
+          {isEmpty
+            ? t('home.tile.soon')
+            : t('home.tile.meta', { questions: total, topics: subs })}
         </Text>
       </LinearGradient>
     </Pressable>
+  );
+}
+
+function ComingSoonTile() {
+  const { t } = useTranslation();
+  return (
+    <View style={[styles.tileWrap, styles.tileWrapComing]} testID="category-coming-soon">
+      <View style={styles.tileComing}>
+        <Text style={styles.tileEmoji}>✨</Text>
+        <Text style={styles.tileName} numberOfLines={2}>
+          {t('home.tile.coming.title')}
+        </Text>
+        <Text style={styles.tileMeta}>{t('home.tile.coming.meta')}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -270,6 +291,18 @@ const styles = StyleSheet.create({
   },
   tileEmpty: {
     opacity: 0.45,
+  },
+  tileWrapComing: {
+    borderWidth: 1,
+    borderColor: '#ffffff22',
+    borderStyle: 'dashed',
+    backgroundColor: '#ffffff08',
+  },
+  tileComing: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+    opacity: 0.7,
   },
   tileEmoji: {
     fontSize: 44,

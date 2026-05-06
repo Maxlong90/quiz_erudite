@@ -13,6 +13,7 @@ import Animated, {
 
 import { useLocale } from '@/hooks/use-locale';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { useTranslation } from '@/hooks/use-translation';
 
 const SPLASH_DURATION_MS = 3000;
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
@@ -20,6 +21,7 @@ const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 export default function SplashScreen() {
   const { hasSeen } = useOnboarding();
   const { hasPicked } = useLocale();
+  const { t } = useTranslation();
 
   const wordmarkOpacity = useSharedValue(0);
   const wordmarkScale = useSharedValue(0.92);
@@ -85,7 +87,7 @@ export default function SplashScreen() {
         </Animated.View>
 
         <Animated.Text style={[styles.tagline, taglineStyle]}>
-          Прокачай эрудицию
+          {t('splash.tagline')}
         </Animated.Text>
       </View>
 

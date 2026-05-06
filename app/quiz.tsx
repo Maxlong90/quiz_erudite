@@ -18,6 +18,7 @@ import { ReportModal } from '@/components/quiz/report-modal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useQuizSession } from '@/hooks/use-quiz-session';
+import { useTranslation } from '@/hooks/use-translation';
 import { fetchRandomQuestions } from '@/api/questions';
 import { APP_SLUG } from '@/api/client';
 
@@ -25,6 +26,7 @@ export default function QuizScreen() {
   const { count, locale } = useLocalSearchParams<{ count: string; locale: string }>();
   const theme = useColorScheme() ?? 'light';
   const tint = Colors[theme].tint;
+  const { t } = useTranslation();
 
   const {
     questions,
@@ -115,7 +117,7 @@ export default function QuizScreen() {
     return (
       <SafeAreaView style={[styles.centered, { backgroundColor: Colors[theme].background }]}>
         <ActivityIndicator size="large" color={tint} />
-        <ThemedText style={styles.loadingText}>Loading questions...</ThemedText>
+        <ThemedText style={styles.loadingText}>{t('quiz.loading')}</ThemedText>
       </SafeAreaView>
     );
   }
@@ -125,17 +127,17 @@ export default function QuizScreen() {
       <SafeAreaView style={[styles.centered, { backgroundColor: Colors[theme].background }]}>
         <ThemedText style={styles.emoji}>😕</ThemedText>
         <ThemedText type="subtitle" style={styles.errorTitle}>
-          Something went wrong
+          {t('quiz.error.title')}
         </ThemedText>
         <ThemedText style={styles.errorText}>{error}</ThemedText>
         <Pressable
           onPress={loadQuestions}
           style={[styles.retryButton, { backgroundColor: tint }]}
         >
-          <ThemedText style={styles.retryButtonText}>Try Again</ThemedText>
+          <ThemedText style={styles.retryButtonText}>{t('quiz.error.retry')}</ThemedText>
         </Pressable>
         <Pressable onPress={() => router.replace('/')} style={styles.homeLink}>
-          <ThemedText style={[styles.homeLinkText, { color: tint }]}>Go Home</ThemedText>
+          <ThemedText style={[styles.homeLinkText, { color: tint }]}>{t('quiz.error.home')}</ThemedText>
         </Pressable>
       </SafeAreaView>
     );
@@ -171,7 +173,7 @@ export default function QuizScreen() {
               testID="next-button"
             >
               <ThemedText style={styles.nextButtonText}>
-                {currentIndex === questions.length - 1 ? 'See Results' : 'Next'}
+                {currentIndex === questions.length - 1 ? t('quiz.results') : t('quiz.next')}
               </ThemedText>
             </Pressable>
           )}

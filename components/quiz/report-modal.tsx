@@ -13,19 +13,21 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   submitReport,
   type ReportContentType,
   type ReportReason,
 } from '@/api/reports';
+import type { StringKey } from '@/i18n/strings';
 
-const REASONS: { id: ReportReason; label: string }[] = [
-  { id: 'incorrect_answer', label: 'Incorrect answer' },
-  { id: 'unclear_wording', label: 'Unclear or poorly worded' },
-  { id: 'inappropriate', label: 'Inappropriate content' },
-  { id: 'broken_media', label: "Image or audio doesn't load" },
-  { id: 'translation_issue', label: 'Translation issue' },
-  { id: 'other', label: 'Other' },
+const REASONS: { id: ReportReason; labelKey: StringKey }[] = [
+  { id: 'incorrect_answer', labelKey: 'report.reason.incorrect_answer' },
+  { id: 'unclear_wording', labelKey: 'report.reason.unclear_wording' },
+  { id: 'inappropriate', labelKey: 'report.reason.inappropriate' },
+  { id: 'broken_media', labelKey: 'report.reason.broken_media' },
+  { id: 'translation_issue', labelKey: 'report.reason.translation_issue' },
+  { id: 'other', labelKey: 'report.reason.other' },
 ];
 
 interface Props {
@@ -41,6 +43,7 @@ type Phase = 'idle' | 'submitting' | 'success' | 'error';
 export function ReportModal({ visible, contentType, contentId, locale, onClose }: Props) {
   const theme = useColorScheme() ?? 'light';
   const palette = Colors[theme];
+  const { t } = useTranslation();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [comment, setComment] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -67,9 +70,9 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
         locale,
       });
       setPhase('success');
-    } catch (err) {
+    } catch {
       setPhase('error');
-      setErrorText(err instanceof Error ? err.message : 'Could not send the report.');
+      setErrorText(t('report.error'));
     }
   }
 
@@ -85,25 +88,25 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
           {phase === 'success' ? (
             <View style={styles.successBox}>
               <ThemedText type="subtitle" style={styles.successTitle}>
-                Thanks for the report
+                {t('report.successTitle')}
               </ThemedText>
               <ThemedText style={styles.successBody}>
-                We'll review it and clean up the content.
+                {t('report.successBody')}
               </ThemedText>
               <Pressable
                 style={[styles.primaryButton, { backgroundColor: palette.tint }]}
                 onPress={handleClose}
               >
-                <ThemedText style={styles.primaryButtonText}>Close</ThemedText>
+                <ThemedText style={styles.primaryButtonText}>{t('report.cancel')}</ThemedText>
               </Pressable>
             </View>
           ) : (
             <>
               <ThemedText type="subtitle" style={styles.title}>
-                Report a problem
+                {t('report.title')}
               </ThemedText>
               <ThemedText style={styles.subtitle}>
-                What's wrong with this item?
+                {t('report.subtitle')}
               </ThemedText>
 
               <View style={styles.reasons}>
@@ -128,7 +131,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                           <View style={[styles.radioDot, { backgroundColor: palette.tint }]} />
                         )}
                       </View>
-                      <ThemedText style={styles.reasonLabel}>{r.label}</ThemedText>
+                      <ThemedText style={styles.reasonLabel}>{t(r.labelKey)}</ThemedText>
                     </Pressable>
                   );
                 })}
@@ -139,7 +142,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                   styles.commentInput,
                   { color: palette.text, borderColor: palette.text + '33' },
                 ]}
-                placeholder="Add details (optional)"
+                placeholder={t('report.commentPlaceholder')}
                 placeholderTextColor={palette.text + '88'}
                 value={comment}
                 onChangeText={setComment}
@@ -159,7 +162,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                   disabled={phase === 'submitting'}
                 >
                   <ThemedText style={[styles.secondaryButtonText, { color: palette.text }]}>
-                    Cancel
+                    {t('report.cancel')}
                   </ThemedText>
                 </Pressable>
                 <Pressable
@@ -173,7 +176,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                   {phase === 'submitting' ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <ThemedText style={styles.primaryButtonText}>Send report</ThemedText>
+                    <ThemedText style={styles.primaryButtonText}>{t('report.submit')}</ThemedText>
                   )}
                 </Pressable>
               </View>

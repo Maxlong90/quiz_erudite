@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LanguagePicker } from '@/components/language-picker';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { useTranslation } from '@/hooks/use-translation';
 
 export default function LanguageScreen() {
   const { locale, changeLocale } = useLocale();
   const { hasSeen } = useOnboarding();
+  const { t } = useTranslation();
 
   async function handlePick(picked: SupportedLocale) {
     await changeLocale(picked);
@@ -30,8 +32,8 @@ export default function LanguageScreen() {
       <SafeAreaView style={styles.flex}>
         <View style={styles.content}>
           <View style={styles.heading}>
-            <Text style={styles.title}>Choose language</Text>
-            <Text style={styles.subtitle}>Elige idioma · Выберите язык</Text>
+            <Text style={styles.title}>{t('language.title')}</Text>
+            <Text style={styles.subtitle}>{t('language.subtitle')}</Text>
           </View>
           <LanguagePicker selected={locale} onPick={handlePick} />
         </View>

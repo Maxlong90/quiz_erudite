@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 
@@ -14,7 +23,16 @@ function detectDeviceLocale(): SupportedLocale {
     : 'en';
 }
 
-export function useLocale() {
+interface LocaleContextValue {
+  locale: SupportedLocale;
+  hasPicked: boolean | null;
+  changeLocale: (locale: SupportedLocale) => Promise<void>;
+  supportedLocales: typeof SUPPORTED_LOCALES;
+}
+
+const LocaleContext = createContext<LocaleContextValue | null>(null);
+
+export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<SupportedLocale>(detectDeviceLocale());
   const [hasPicked, setHasPicked] = useState<boolean | null>(null);
 
@@ -41,5 +59,18 @@ export function useLocale() {
     }
   }, []);
 
-  return { locale, changeLocale, hasPicked, supportedLocales: SUPPORTED_LOCALES };
+  const value = useMemo<LocaleContextValue>(
+    () => ({ locale, hasPicked, changeLocale, supportedLocales: SUPPORTED_LOCALES }),
+    [locale, hasPicked, changeLocale],
+  );
+
+  return createElement(LocaleContext.Provider, { value }, children);
+}
+
+export function useLocale(): LocaleContextValue {
+  const ctx = useContext(LocaleContext);
+  if (!ctx) {
+    throw new Error('useLocale must be used inside <LocaleProvider>');
+  }
+  return ctx;
 }

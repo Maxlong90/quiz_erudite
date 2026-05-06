@@ -7,9 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LanguagePicker } from '@/components/language-picker';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { useTranslation } from '@/hooks/use-translation';
 
 export default function SettingsScreen() {
   const { locale, changeLocale } = useLocale();
+  const { t } = useTranslation();
 
   function handlePick(picked: SupportedLocale) {
     changeLocale(picked);
@@ -31,12 +33,12 @@ export default function SettingsScreen() {
           >
             <IconSymbol name="chevron.right" size={24} color="#fff" style={styles.backIcon} />
           </Pressable>
-          <Text style={styles.headerTitle}>Settings</Text>
+          <Text style={styles.headerTitle}>{t('settings.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.sectionLabel}>Language</Text>
+          <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
           <LanguagePicker selected={locale} onPick={handlePick} />
         </View>
       </SafeAreaView>
