@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
   async function onPrimaryPress() {
     if (isLast) {
       await markSeen();
-      router.replace('/');
+      router.replace('/paywall');
       return;
     }
     const next = page + 1;
@@ -98,7 +98,7 @@ export default function OnboardingScreen() {
 
   async function onSkip() {
     await markSeen();
-    router.replace('/');
+    router.replace('/paywall');
   }
 
   return (

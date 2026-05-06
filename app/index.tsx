@@ -16,10 +16,12 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
+import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
+  const { isPremium } = usePremium();
   const [categories, setCategories] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -61,13 +63,25 @@ export default function HomeScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
-          <View style={styles.topSpacer} />
+          <View style={styles.topLeft}>
+            {isPremium === false && (
+              <Pressable
+                onPress={() => router.push('/paywall')}
+                hitSlop={12}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
+                testID="crown-button"
+                accessibilityLabel="Get Premium"
+              >
+                <IconSymbol name="crown.fill" size={24} color="#ffd23a" />
+              </Pressable>
+            )}
+          </View>
           <Wordmark />
           <View style={styles.topRight}>
             <Pressable
               onPress={() => router.push('/settings')}
               hitSlop={12}
-              style={({ pressed }) => [styles.settingsButton, pressed && styles.iconPressed]}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
               testID="settings-button"
               accessibilityLabel="Open settings"
             >
@@ -185,14 +199,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  topSpacer: {
+  topLeft: {
     flex: 1,
+    alignItems: 'flex-start',
   },
   topRight: {
     flex: 1,
     alignItems: 'flex-end',
   },
-  settingsButton: {
+  iconButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',

@@ -5,12 +5,14 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LocaleProvider } from '@/hooks/use-locale';
+import { PremiumProvider } from '@/hooks/use-premium';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <LocaleProvider>
+      <PremiumProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack initialRouteName="splash">
         <Stack.Screen
@@ -35,6 +37,10 @@ export default function RootLayout() {
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="paywall"
+          options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
+        />
+        <Stack.Screen
           name="quiz"
           options={{ headerShown: false, gestureEnabled: false }}
         />
@@ -45,6 +51,7 @@ export default function RootLayout() {
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
+      </PremiumProvider>
     </LocaleProvider>
   );
 }

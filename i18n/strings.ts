@@ -52,7 +52,18 @@ export type StringKey =
   | 'report.reason.inappropriate'
   | 'report.reason.broken_media'
   | 'report.reason.translation_issue'
-  | 'report.reason.other';
+  | 'report.reason.other'
+  // paywall
+  | 'paywall.title'
+  | 'paywall.subtitle'
+  | 'paywall.feature.unlimited'
+  | 'paywall.feature.adfree'
+  | 'paywall.feature.alllanguages'
+  | 'paywall.feature.exclusive'
+  | 'paywall.cta'
+  | 'paywall.continueFree'
+  | 'paywall.disclaimer'
+  | 'paywall.thanks';
 
 type Bundle = Record<StringKey, string>;
 
@@ -111,6 +122,17 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'report.reason.broken_media': "Image or audio doesn't load",
     'report.reason.translation_issue': 'Translation issue',
     'report.reason.other': 'Other',
+
+    'paywall.title': 'Quizzzes Premium',
+    'paywall.subtitle': 'Unlock the full experience',
+    'paywall.feature.unlimited': 'Unlimited quizzes every day',
+    'paywall.feature.adfree': 'Ad-free, distraction-free',
+    'paywall.feature.alllanguages': 'All languages and topics',
+    'paywall.feature.exclusive': 'Exclusive premium-only categories',
+    'paywall.cta': 'Try Premium',
+    'paywall.continueFree': 'Maybe later',
+    'paywall.disclaimer': 'Cancel anytime in App Store settings.',
+    'paywall.thanks': 'Welcome to Premium 🎉',
   },
   es: {
     'splash.tagline': 'Afina tu mente',
@@ -166,6 +188,17 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'report.reason.broken_media': 'La imagen o el audio no carga',
     'report.reason.translation_issue': 'Problema de traducción',
     'report.reason.other': 'Otro',
+
+    'paywall.title': 'Quizzzes Premium',
+    'paywall.subtitle': 'Desbloquea la experiencia completa',
+    'paywall.feature.unlimited': 'Quizzes ilimitados cada día',
+    'paywall.feature.adfree': 'Sin anuncios, sin distracciones',
+    'paywall.feature.alllanguages': 'Todos los idiomas y temas',
+    'paywall.feature.exclusive': 'Categorías exclusivas para Premium',
+    'paywall.cta': 'Probar Premium',
+    'paywall.continueFree': 'Quizá más tarde',
+    'paywall.disclaimer': 'Cancela cuando quieras en los ajustes del App Store.',
+    'paywall.thanks': 'Bienvenido a Premium 🎉',
   },
   ru: {
     'splash.tagline': 'Прокачай эрудицию',
@@ -221,6 +254,17 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'report.reason.broken_media': 'Не загружается картинка или звук',
     'report.reason.translation_issue': 'Проблема с переводом',
     'report.reason.other': 'Другое',
+
+    'paywall.title': 'Quizzzes Premium',
+    'paywall.subtitle': 'Открой полный опыт',
+    'paywall.feature.unlimited': 'Безлимит квизов каждый день',
+    'paywall.feature.adfree': 'Без рекламы и отвлечений',
+    'paywall.feature.alllanguages': 'Все языки и темы',
+    'paywall.feature.exclusive': 'Эксклюзивные категории для Premium',
+    'paywall.cta': 'Попробовать Premium',
+    'paywall.continueFree': 'Может, позже',
+    'paywall.disclaimer': 'Отмена в любой момент в настройках App Store.',
+    'paywall.thanks': 'Добро пожаловать в Premium 🎉',
   },
 };
 
