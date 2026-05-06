@@ -15,28 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
-import { useLocale } from '@/hooks/use-locale';
+import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
 import { useTranslation } from '@/hooks/use-translation';
 
-const DEFAULT_QUESTIONS = 10;
-
-// Visual identity per top-level category. Slug-based so backend can
-// reorder/rename without breaking icons (only an explicit slug change
-// would).
-const CATEGORY_VISUALS: Record<string, { emoji: string; gradient: [string, string] }> = {
-  geography: { emoji: '🌍', gradient: ['#4f6df5', '#7c5cff'] },
-  history: { emoji: '🏛️', gradient: ['#c97a3f', '#8a4a2a'] },
-  'science-and-nature': { emoji: '🔬', gradient: ['#3aa37a', '#1f6f55'] },
-  'arts-literature': { emoji: '🎨', gradient: ['#e0529c', '#a23ad6'] },
-  sports: { emoji: '⚽', gradient: ['#f59f3a', '#d6533a'] },
-  entertainment: { emoji: '🎬', gradient: ['#7c5cff', '#3aa6ff'] },
-  'general-knowledge': { emoji: '💡', gradient: ['#ffd23a', '#f59f3a'] },
-};
-
-const FALLBACK_VISUAL = { emoji: '📚', gradient: ['#5a5fb8', '#3a3f8a'] as [string, string] };
-
 export default function HomeScreen() {
-  const { locale } = useLocale();
   const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -61,20 +43,13 @@ export default function HomeScreen() {
     };
   }, []);
 
-  function startQuiz(category: Category) {
+  function openCategory(category: Category) {
     if ((category.total_questions_count ?? 0) === 0) {
-      // Empty category — bail out silently for now; we'll add a "coming
-      // soon" affordance later.
+      // Empty category — no destination yet; tile is rendered as
+      // disabled, but guard here too.
       return;
     }
-    router.push({
-      pathname: '/quiz',
-      params: {
-        count: String(DEFAULT_QUESTIONS),
-        locale,
-        category: category.slug,
-      },
-    });
+    router.push(`/category/${category.slug}` as const);
   }
 
   return (
@@ -124,7 +99,7 @@ export default function HomeScreen() {
                 <CategoryTile
                   key={cat.slug}
                   category={cat}
-                  onPress={() => startQuiz(cat)}
+                  onPress={() => openCategory(cat)}
                 />
               ))}
               <ComingSoonTile />

@@ -31,6 +31,10 @@ export default function RootLayout() {
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="category/[slug]"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="quiz"
           options={{ headerShown: false, gestureEnabled: false }}
         />

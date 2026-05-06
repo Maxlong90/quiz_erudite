@@ -11,7 +11,12 @@ export interface Category {
   questions_count?: number;
 }
 
-export async function fetchCategories(appSlug: string): Promise<Category[]> {
-  const { data } = await apiClient.get(`/apps/${appSlug}/categories`);
+export async function fetchCategories(
+  appSlug: string,
+  options: { parent?: string } = {},
+): Promise<Category[]> {
+  const params: Record<string, string> = {};
+  if (options.parent) params.parent = options.parent;
+  const { data } = await apiClient.get(`/apps/${appSlug}/categories`, { params });
   return Array.isArray(data) ? data : data.data;
 }
