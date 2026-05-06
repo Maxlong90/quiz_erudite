@@ -20,6 +20,8 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'flag': 'flag',
   'gearshape.fill': 'settings',
+  'xmark': 'close',
+  'crown.fill': 'workspace-premium',
 } as IconMapping;
 
 /**

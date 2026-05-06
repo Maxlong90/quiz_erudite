@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -10,22 +12,24 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import { ThemedText } from '@/components/themed-text';
 import { ProgressBar } from '@/components/quiz/progress-bar';
 import { QuestionCard } from '@/components/quiz/question-card';
 import { ReportButton } from '@/components/quiz/report-button';
 import { ReportModal } from '@/components/quiz/report-modal';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useQuizSession } from '@/hooks/use-quiz-session';
 import { useTranslation } from '@/hooks/use-translation';
 import { fetchRandomQuestions } from '@/api/questions';
 import { APP_SLUG } from '@/api/client';
 
+const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
+
 export default function QuizScreen() {
-  const { count, locale } = useLocalSearchParams<{ count: string; locale: string }>();
-  const theme = useColorScheme() ?? 'light';
-  const tint = Colors[theme].tint;
+  const { count, locale, category } = useLocalSearchParams<{
+    count: string;
+    locale: string;
+    category?: string;
+  }>();
   const { t } = useTranslation();
 
   const {
@@ -79,7 +83,8 @@ export default function QuizScreen() {
       const data = await fetchRandomQuestions(
         APP_SLUG,
         locale ?? 'en',
-        parseInt(count ?? '10', 10)
+        parseInt(count ?? '10', 10),
+        category,
       );
       dispatch({ type: 'SET_QUESTIONS', payload: data });
     } catch (err) {
@@ -109,89 +114,116 @@ export default function QuizScreen() {
     dispatch({ type: 'NEXT' });
   }
 
+  function handleClose() {
+    router.replace('/');
+  }
+
   const nextButtonStyle = useAnimatedStyle(() => ({
     opacity: nextButtonOpacity.value,
   }));
 
   if (status === 'loading') {
     return (
-      <SafeAreaView style={[styles.centered, { backgroundColor: Colors[theme].background }]}>
-        <ActivityIndicator size="large" color={tint} />
-        <ThemedText style={styles.loadingText}>{t('quiz.loading')}</ThemedText>
-      </SafeAreaView>
+      <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.centered}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>{t('quiz.loading')}</Text>
+        </SafeAreaView>
+      </LinearGradient>
     );
   }
 
   if (status === 'error') {
     return (
-      <SafeAreaView style={[styles.centered, { backgroundColor: Colors[theme].background }]}>
-        <ThemedText style={styles.emoji}>😕</ThemedText>
-        <ThemedText type="subtitle" style={styles.errorTitle}>
-          {t('quiz.error.title')}
-        </ThemedText>
-        <ThemedText style={styles.errorText}>{error}</ThemedText>
-        <Pressable
-          onPress={loadQuestions}
-          style={[styles.retryButton, { backgroundColor: tint }]}
-        >
-          <ThemedText style={styles.retryButtonText}>{t('quiz.error.retry')}</ThemedText>
-        </Pressable>
-        <Pressable onPress={() => router.replace('/')} style={styles.homeLink}>
-          <ThemedText style={[styles.homeLinkText, { color: tint }]}>{t('quiz.error.home')}</ThemedText>
-        </Pressable>
-      </SafeAreaView>
+      <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.centered}>
+          <Text style={styles.emoji}>😕</Text>
+          <Text style={styles.errorTitle}>{t('quiz.error.title')}</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <Pressable onPress={loadQuestions} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{t('quiz.error.retry')}</Text>
+          </Pressable>
+          <Pressable onPress={() => router.replace('/')} style={styles.homeLink}>
+            <Text style={styles.homeLinkText}>{t('quiz.error.home')}</Text>
+          </Pressable>
+        </SafeAreaView>
+      </LinearGradient>
     );
   }
 
   if (!currentQuestion) return null;
 
+  const isLastQuestion = currentIndex === questions.length - 1;
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: Colors[theme].background }]}>
-      <View style={styles.headerRow}>
-        <View style={styles.progressWrap}>
-          <ProgressBar
-            progress={progress}
-            currentIndex={currentIndex}
-            total={questions.length}
+    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.flex}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={handleClose}
+            hitSlop={12}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            accessibilityLabel={t('quiz.error.home')}
+            testID="close-quiz"
+          >
+            <IconSymbol name="xmark" size={22} color="#ffffffcc" />
+          </Pressable>
+          <View style={styles.progressWrap}>
+            <ProgressBar
+              progress={progress}
+              currentIndex={currentIndex}
+              total={questions.length}
+            />
+          </View>
+          <View style={styles.iconButton}>
+            <ReportButton onPress={() => setReportOpen(true)} />
+          </View>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <QuestionCard
+            question={currentQuestion}
+            selectedOption={selectedAnswer}
+            onSelectOption={handleSelectOption}
           />
-        </View>
-        <View style={styles.reportSlot}>
-          <ReportButton onPress={() => setReportOpen(true)} />
-        </View>
-      </View>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <QuestionCard
-          question={currentQuestion}
-          selectedOption={selectedAnswer}
-          onSelectOption={handleSelectOption}
+          <Animated.View style={[styles.nextContainer, nextButtonStyle]}>
+            {isAnswered && (
+              <Pressable
+                onPress={handleNext}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  styles.nextButton,
+                  pressed && styles.nextButtonPressed,
+                ]}
+                testID="next-button"
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isLastQuestion ? t('quiz.results') : t('quiz.next')}
+                </Text>
+              </Pressable>
+            )}
+          </Animated.View>
+        </ScrollView>
+        <ReportModal
+          visible={reportOpen}
+          contentType="question"
+          contentId={currentQuestion.id}
+          locale={locale ?? 'en'}
+          onClose={() => setReportOpen(false)}
         />
-        <Animated.View style={[styles.nextContainer, nextButtonStyle]}>
-          {isAnswered && (
-            <Pressable
-              onPress={handleNext}
-              style={[styles.nextButton, { backgroundColor: tint }]}
-              testID="next-button"
-            >
-              <ThemedText style={styles.nextButtonText}>
-                {currentIndex === questions.length - 1 ? t('quiz.results') : t('quiz.next')}
-              </ThemedText>
-            </Pressable>
-          )}
-        </Animated.View>
-      </ScrollView>
-      <ReportModal
-        visible={reportOpen}
-        contentType="question"
-        contentId={currentQuestion.id}
-        locale={locale ?? 'en'}
-        onClose={() => setReportOpen(false)}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  flex: {
     flex: 1,
   },
   centered: {
@@ -204,63 +236,84 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    opacity: 0.7,
+    color: '#ffffffcc',
   },
   emoji: {
     fontSize: 48,
     marginBottom: 8,
   },
   errorTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
   },
   errorText: {
+    color: '#ffffffaa',
     textAlign: 'center',
-    opacity: 0.7,
+    fontSize: 14,
     marginBottom: 8,
-  },
-  retryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   homeLink: {
     marginTop: 8,
   },
   homeLinkText: {
+    color: '#a78bff',
     fontSize: 16,
     fontWeight: '500',
   },
-  headerRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconButtonPressed: {
+    opacity: 0.5,
   },
   progressWrap: {
     flex: 1,
   },
-  reportSlot: {
-    paddingRight: 16,
-  },
   scroll: {
     flexGrow: 1,
+    paddingTop: 28,
     paddingBottom: 32,
   },
   nextContainer: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#7c5cff',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 28,
+    alignItems: 'center',
+    shadowColor: '#7c5cff',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   nextButton: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 0,
   },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
+  nextButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
 });
