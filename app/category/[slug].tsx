@@ -17,7 +17,7 @@ import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { useLocale } from '@/hooks/use-locale';
 import { useTranslation } from '@/hooks/use-translation';
-import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
+import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
 import { localizeCategoryName } from '@/i18n/categories';
 
 const DEFAULT_QUESTIONS = 10;
@@ -127,6 +127,7 @@ export default function CategoryScreen() {
                 <SubcategoryTile
                   key={sub.slug}
                   parentGradient={visual.gradient}
+                  parentEmoji={visual.emoji}
                   subcategory={sub}
                   displayName={localizeCategoryName(sub.slug, locale, sub.name)}
                   onPress={() => startQuiz(sub)}
@@ -142,15 +143,23 @@ export default function CategoryScreen() {
 
 interface TileProps {
   parentGradient: readonly [string, string];
+  parentEmoji: string;
   subcategory: Category;
   displayName: string;
   onPress: () => void;
 }
 
-function SubcategoryTile({ parentGradient, subcategory, displayName, onPress }: TileProps) {
+function SubcategoryTile({
+  parentGradient,
+  parentEmoji,
+  subcategory,
+  displayName,
+  onPress,
+}: TileProps) {
   const { t } = useTranslation();
   const total = subcategory.total_questions_count ?? 0;
   const isEmpty = total === 0;
+  const emoji = SUBCATEGORY_EMOJI[subcategory.slug] ?? parentEmoji;
 
   return (
     <Pressable
@@ -165,7 +174,8 @@ function SubcategoryTile({ parentGradient, subcategory, displayName, onPress }: 
         end={{ x: 1, y: 1 }}
         style={[styles.tile, isEmpty && styles.tileEmpty]}
       >
-        <Text style={styles.tileName} numberOfLines={3}>
+        <Text style={styles.tileEmoji}>{emoji}</Text>
+        <Text style={styles.tileName} numberOfLines={2}>
           {displayName}
         </Text>
         <Text style={styles.tileMeta}>
@@ -258,6 +268,9 @@ const styles = StyleSheet.create({
   },
   tileEmpty: {
     opacity: 0.4,
+  },
+  tileEmoji: {
+    fontSize: 40,
   },
   tileName: {
     color: '#fff',
