@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
@@ -108,6 +109,18 @@ export default function OnboardingScreen() {
       style={styles.flex}
     >
       <StatusBar style="light" />
+
+      {page === 0 && (
+        <Pressable
+          onPress={() => router.replace('/language')}
+          style={styles.back}
+          hitSlop={10}
+          accessibilityLabel="Back to language picker"
+          testID="onboarding-back"
+        >
+          <IconSymbol name="chevron.left" size={26} color="#ffffffcc" />
+        </Pressable>
+      )}
 
       <Pressable onPress={onSkip} style={styles.skip} hitSlop={10}>
         <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
@@ -234,6 +247,16 @@ function Stars() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  back: {
+    position: 'absolute',
+    top: 56,
+    left: 14,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   skip: {
     position: 'absolute',
