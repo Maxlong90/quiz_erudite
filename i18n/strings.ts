@@ -37,6 +37,9 @@ export type StringKey =
   | 'results.scoreLabel'
   | 'results.playAgain'
   | 'results.home'
+  | 'results.messageExcellent'
+  | 'results.messageGood'
+  | 'results.messageKeepGoing'
   // report
   | 'report.title'
   | 'report.subtitle'
@@ -102,10 +105,13 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.next': 'Next',
     'quiz.results': 'See Results',
 
-    'results.title': 'Quiz finished',
+    'results.title': 'Quiz Complete!',
     'results.scoreLabel': '{score} of {total}',
     'results.playAgain': 'Play Again',
     'results.home': 'Home',
+    'results.messageExcellent': "Excellent! You're a true erudite!",
+    'results.messageGood': 'Good job! Keep learning.',
+    'results.messageKeepGoing': "Keep practicing, you'll get there!",
 
     'report.title': 'Report a problem',
     'report.subtitle': "What's wrong with this item?",
@@ -168,10 +174,13 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.next': 'Siguiente',
     'quiz.results': 'Ver resultados',
 
-    'results.title': 'Quiz terminado',
+    'results.title': '¡Quiz terminado!',
     'results.scoreLabel': '{score} de {total}',
     'results.playAgain': 'Volver a jugar',
     'results.home': 'Inicio',
+    'results.messageExcellent': '¡Excelente! Eres un verdadero erudito.',
+    'results.messageGood': '¡Buen trabajo! Sigue aprendiendo.',
+    'results.messageKeepGoing': '¡Sigue practicando, lo lograrás!',
 
     'report.title': 'Reportar un problema',
     'report.subtitle': '¿Qué tiene de malo este elemento?',
@@ -234,10 +243,13 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.next': 'Дальше',
     'quiz.results': 'Результат',
 
-    'results.title': 'Квиз завершён',
+    'results.title': 'Квиз завершён!',
     'results.scoreLabel': '{score} из {total}',
     'results.playAgain': 'Сыграть снова',
     'results.home': 'На главную',
+    'results.messageExcellent': 'Великолепно! Настоящий эрудит.',
+    'results.messageGood': 'Хороший результат! Продолжай учиться.',
+    'results.messageKeepGoing': 'Тренируйся ещё — у тебя получится!',
 
     'report.title': 'Сообщить о проблеме',
     'report.subtitle': 'Что не так с этим вопросом?',

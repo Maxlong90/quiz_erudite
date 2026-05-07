@@ -62,6 +62,7 @@ export default function QuizScreen() {
           total: String(questions.length),
           count: count ?? '10',
           locale: locale ?? 'en',
+          ...(category ? { category } : {}),
         },
       });
     }
