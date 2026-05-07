@@ -64,17 +64,10 @@ export default function CategoryScreen() {
   );
 
   function startQuiz(sub: Category) {
-    if ((sub.total_questions_count ?? 0) === 0) {
+    if ((sub.total_questions_count ?? 0) === 0 && (sub.total_flashcards_count ?? 0) === 0) {
       return;
     }
-    router.push({
-      pathname: '/quiz',
-      params: {
-        count: String(DEFAULT_QUESTIONS),
-        locale,
-        category: sub.slug,
-      },
-    });
+    router.push(`/quiz-mode/${sub.slug}` as const);
   }
 
   return (

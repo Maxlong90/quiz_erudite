@@ -15,6 +15,7 @@ type QuizAction =
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'ANSWER'; payload: number }
   | { type: 'NEXT' }
+  | { type: 'FINISH' }
   | { type: 'RESET' };
 
 const initialState: QuizState = {
@@ -53,6 +54,8 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
       }
       return { ...state, currentIndex: nextIndex };
     }
+    case 'FINISH':
+      return { ...state, status: 'finished' };
     case 'RESET':
       return initialState;
     default:

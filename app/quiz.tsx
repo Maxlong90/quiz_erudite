@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 
 import { ProgressBar } from '@/components/quiz/progress-bar';
 import { QuestionCard } from '@/components/quiz/question-card';
+import { QuizTimer } from '@/components/quiz/quiz-timer';
 import { ReportButton } from '@/components/quiz/report-button';
 import { ReportModal } from '@/components/quiz/report-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -24,12 +25,24 @@ import { APP_SLUG } from '@/api/client';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
+type QuizMode = 'daily' | 'quick' | 'timed' | 'survival';
+
 export default function QuizScreen() {
-  const { count, locale, category } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     count: string;
     locale: string;
     category?: string;
+    mode?: string;
+    timer?: string;
   }>();
+  const count = params.count;
+  const locale = params.locale;
+  const category = params.category;
+  const mode = ((params.mode ?? 'quick') as QuizMode);
+  const timerSeconds = parseInt(params.timer ?? '0', 10) || 0;
+  const isTimed = mode === 'timed' && timerSeconds > 0;
+  const isSurvival = mode === 'survival';
+
   const { t } = useTranslation();
 
   const {
@@ -47,6 +60,7 @@ export default function QuizScreen() {
 
   const nextButtonOpacity = useSharedValue(0);
   const [reportOpen, setReportOpen] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
 
   useEffect(() => {
     loadQuestions();
@@ -55,14 +69,19 @@ export default function QuizScreen() {
 
   useEffect(() => {
     if (status === 'finished') {
+      // For survival, "total" is the number of questions the user
+      // actually saw (= currentIndex + 1) since the run ended early.
+      const totalForResults = isSurvival ? currentIndex + 1 : questions.length;
       router.replace({
         pathname: '/results',
         params: {
           score: String(score),
-          total: String(questions.length),
+          total: String(totalForResults),
           count: count ?? '10',
           locale: locale ?? 'en',
+          mode,
           ...(category ? { category } : {}),
+          ...(isTimed ? { timer: String(timerSeconds) } : {}),
         },
       });
     }
@@ -77,6 +96,39 @@ export default function QuizScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAnswered]);
+
+  // Survival: end the run on the first wrong answer. Brief delay so
+  // the player gets to see the correct option highlighted.
+  useEffect(() => {
+    if (!isSurvival || !isAnswered || !currentQuestion) return;
+    if (selectedAnswer !== currentQuestion.correct_option) {
+      const t = setTimeout(() => dispatch({ type: 'FINISH' }), 1500);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnswered, selectedAnswer, isSurvival, currentQuestion?.id]);
+
+  // Timed mode: reset the per-question countdown whenever we land on a
+  // new question.
+  useEffect(() => {
+    if (!isTimed) return;
+    setSecondsLeft(timerSeconds);
+  }, [currentIndex, isTimed, timerSeconds]);
+
+  // Timed mode: tick down each second. When the timer hits 0 on an
+  // unanswered question, auto-mark it timed-out (-1, never matches the
+  // correct option) and let the standard reveal flow take it from
+  // there.
+  useEffect(() => {
+    if (!isTimed || isAnswered) return;
+    if (secondsLeft <= 0) {
+      dispatch({ type: 'ANSWER', payload: -1 });
+      return;
+    }
+    const id = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, isAnswered, isTimed]);
 
   async function loadQuestions() {
     dispatch({ type: 'SET_LOADING' });
@@ -183,6 +235,10 @@ export default function QuizScreen() {
             <ReportButton onPress={() => setReportOpen(true)} />
           </View>
         </View>
+
+        {isTimed && (
+          <QuizTimer secondsLeft={secondsLeft} totalSeconds={timerSeconds} />
+        )}
 
         <ScrollView
           contentContainerStyle={styles.scroll}

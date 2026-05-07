@@ -66,7 +66,27 @@ export type StringKey =
   | 'paywall.cta'
   | 'paywall.continueFree'
   | 'paywall.disclaimer'
-  | 'paywall.thanks';
+  | 'paywall.thanks'
+  // quiz mode picker
+  | 'mode.title'
+  | 'mode.daily.title'
+  | 'mode.daily.subtitle'
+  | 'mode.quick.title'
+  | 'mode.quick.subtitle'
+  | 'mode.timed.title'
+  | 'mode.timed.subtitle'
+  | 'mode.timed.questionsLabel'
+  | 'mode.timed.startCta'
+  | 'mode.survival.title'
+  | 'mode.survival.subtitle'
+  | 'mode.flashcards.title'
+  | 'mode.flashcards.subtitle'
+  | 'mode.lockedSoon'
+  // timed quiz
+  | 'quiz.timeUp'
+  // survival
+  | 'quiz.survival.streak'
+  | 'quiz.survival.over';
 
 type Bundle = Record<StringKey, string>;
 
@@ -139,6 +159,25 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.continueFree': 'Maybe later',
     'paywall.disclaimer': 'Cancel anytime in App Store settings.',
     'paywall.thanks': 'Welcome to Premium 🎉',
+
+    'mode.title': 'Choose a mode',
+    'mode.daily.title': "Today's question",
+    'mode.daily.subtitle': 'A single question to keep you sharp',
+    'mode.quick.title': 'Quick quiz',
+    'mode.quick.subtitle': '10 questions, no time limit',
+    'mode.timed.title': 'Timed quiz',
+    'mode.timed.subtitle': '30 seconds per question',
+    'mode.timed.questionsLabel': 'Questions',
+    'mode.timed.startCta': 'Start',
+    'mode.survival.title': 'Survival',
+    'mode.survival.subtitle': 'One mistake and the run is over',
+    'mode.flashcards.title': 'Flashcards',
+    'mode.flashcards.subtitle': 'Browse cards to study at your pace',
+    'mode.lockedSoon': 'Coming soon',
+
+    'quiz.timeUp': "Time's up!",
+    'quiz.survival.streak': 'Streak',
+    'quiz.survival.over': 'Run ended at question {n}',
   },
   es: {
     'splash.tagline': 'Afina tu mente',
@@ -208,6 +247,25 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.continueFree': 'Quizá más tarde',
     'paywall.disclaimer': 'Cancela cuando quieras en los ajustes del App Store.',
     'paywall.thanks': 'Bienvenido a Premium 🎉',
+
+    'mode.title': 'Elige un modo',
+    'mode.daily.title': 'Pregunta del día',
+    'mode.daily.subtitle': 'Una pregunta para entrenar la mente',
+    'mode.quick.title': 'Quiz rápido',
+    'mode.quick.subtitle': '10 preguntas, sin límite de tiempo',
+    'mode.timed.title': 'Quiz cronometrado',
+    'mode.timed.subtitle': '30 segundos por pregunta',
+    'mode.timed.questionsLabel': 'Preguntas',
+    'mode.timed.startCta': 'Empezar',
+    'mode.survival.title': 'Supervivencia',
+    'mode.survival.subtitle': 'Un error y se acabó',
+    'mode.flashcards.title': 'Flashcards',
+    'mode.flashcards.subtitle': 'Estudia tarjetas a tu ritmo',
+    'mode.lockedSoon': 'Próximamente',
+
+    'quiz.timeUp': '¡Se acabó el tiempo!',
+    'quiz.survival.streak': 'Racha',
+    'quiz.survival.over': 'Racha terminada en la pregunta {n}',
   },
   ru: {
     'splash.tagline': 'Прокачай эрудицию',
@@ -277,6 +335,25 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.continueFree': 'Может, позже',
     'paywall.disclaimer': 'Отмена в любой момент в настройках App Store.',
     'paywall.thanks': 'Добро пожаловать в Premium 🎉',
+
+    'mode.title': 'Выберите режим',
+    'mode.daily.title': 'Вопрос дня',
+    'mode.daily.subtitle': 'Один вопрос, чтобы держать форму',
+    'mode.quick.title': 'Быстрый квиз',
+    'mode.quick.subtitle': '10 вопросов без таймера',
+    'mode.timed.title': 'На время',
+    'mode.timed.subtitle': '30 секунд на вопрос',
+    'mode.timed.questionsLabel': 'Вопросов',
+    'mode.timed.startCta': 'Начать',
+    'mode.survival.title': 'На выживание',
+    'mode.survival.subtitle': 'Одна ошибка — и игра окончена',
+    'mode.flashcards.title': 'Карточки',
+    'mode.flashcards.subtitle': 'Изучай карточки в своём темпе',
+    'mode.lockedSoon': 'Скоро',
+
+    'quiz.timeUp': 'Время вышло!',
+    'quiz.survival.streak': 'Серия',
+    'quiz.survival.over': 'Серия прервана на вопросе №{n}',
   },
 };
 

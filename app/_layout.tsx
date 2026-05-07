@@ -37,6 +37,10 @@ export default function RootLayout() {
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="quiz-mode/[slug]"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="paywall"
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
         />

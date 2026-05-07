@@ -8,6 +8,7 @@ export interface Category {
   should_have_audio: boolean;
   subcategories_count?: number;
   total_questions_count?: number;
+  total_flashcards_count?: number;
   questions_count?: number;
 }
 
