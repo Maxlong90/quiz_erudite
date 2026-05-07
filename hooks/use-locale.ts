@@ -27,6 +27,7 @@ interface LocaleContextValue {
   locale: SupportedLocale;
   hasPicked: boolean | null;
   changeLocale: (locale: SupportedLocale) => Promise<void>;
+  resetLocale: () => Promise<void>;
   supportedLocales: typeof SUPPORTED_LOCALES;
 }
 
@@ -59,9 +60,19 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetLocale = useCallback(async () => {
+    setLocale(detectDeviceLocale());
+    setHasPicked(false);
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const value = useMemo<LocaleContextValue>(
-    () => ({ locale, hasPicked, changeLocale, supportedLocales: SUPPORTED_LOCALES }),
-    [locale, hasPicked, changeLocale],
+    () => ({ locale, hasPicked, changeLocale, resetLocale, supportedLocales: SUPPORTED_LOCALES }),
+    [locale, hasPicked, changeLocale, resetLocale],
   );
 
   return createElement(LocaleContext.Provider, { value }, children);

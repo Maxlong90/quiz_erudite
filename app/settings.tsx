@@ -8,12 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LanguagePicker } from '@/components/language-picker';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 
-const RESET_KEYS = ['app.locale.v1', 'onboarding.seen.v1', 'app.premium.v1'];
+const ONBOARDING_KEY = 'onboarding.seen.v1';
 
 export default function SettingsScreen() {
-  const { locale, changeLocale } = useLocale();
+  const { locale, changeLocale, resetLocale } = useLocale();
+  const { resetPremium } = usePremium();
   const { t } = useTranslation();
 
   function handlePick(picked: SupportedLocale) {
@@ -21,9 +23,14 @@ export default function SettingsScreen() {
   }
 
   async function handleReset() {
-    await AsyncStorage.multiRemove(RESET_KEYS);
-    // Drop the back stack so the user re-enters from splash → language
-    // → onboarding → paywall.
+    // Wipe persisted flags AND in-memory provider state, otherwise the
+    // splash screen reads the old hasPicked/isPremium from context and
+    // skips straight back to home.
+    await Promise.all([
+      AsyncStorage.removeItem(ONBOARDING_KEY),
+      resetLocale(),
+      resetPremium(),
+    ]);
     router.replace('/splash');
   }
 

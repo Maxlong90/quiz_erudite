@@ -15,6 +15,7 @@ const STORAGE_KEY = 'app.premium.v1';
 interface PremiumContextValue {
   isPremium: boolean | null; // null while loading
   setPremium: (value: boolean) => Promise<void>;
+  resetPremium: () => Promise<void>;
 }
 
 const PremiumContext = createContext<PremiumContextValue | null>(null);
@@ -37,7 +38,19 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ isPremium, setPremium }), [isPremium, setPremium]);
+  const resetPremium = useCallback(async () => {
+    setIsPremium(false);
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const value = useMemo(
+    () => ({ isPremium, setPremium, resetPremium }),
+    [isPremium, setPremium, resetPremium],
+  );
 
   return createElement(PremiumContext.Provider, { value }, children);
 }
