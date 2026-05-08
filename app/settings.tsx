@@ -10,8 +10,10 @@ import { LanguagePicker } from '@/components/language-picker';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
+import { clearCache as clearContentCache } from '@/lib/content-cache';
 
 const ONBOARDING_KEY = 'onboarding.seen.v1';
+const SEEN_PREFIX = 'quiz.seen.v1.';
 
 export default function SettingsScreen() {
   const { locale, changeLocale, resetLocale } = useLocale();
@@ -26,8 +28,12 @@ export default function SettingsScreen() {
     // Wipe persisted flags AND in-memory provider state, otherwise the
     // splash screen reads the old hasPicked/isPremium from context and
     // skips straight back to home.
+    const allKeys = await AsyncStorage.getAllKeys();
+    const seenKeys = allKeys.filter((k) => k.startsWith(SEEN_PREFIX));
     await Promise.all([
       AsyncStorage.removeItem(ONBOARDING_KEY),
+      seenKeys.length ? AsyncStorage.multiRemove(seenKeys) : Promise.resolve(),
+      clearContentCache(),
       resetLocale(),
       resetPremium(),
     ]);

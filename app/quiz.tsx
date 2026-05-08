@@ -18,14 +18,108 @@ import { QuizTimer } from '@/components/quiz/quiz-timer';
 import { ReportButton } from '@/components/quiz/report-button';
 import { ReportModal } from '@/components/quiz/report-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { useQuizSession } from '@/hooks/use-quiz-session';
 import { useTranslation } from '@/hooks/use-translation';
 import { fetchRandomQuestions } from '@/api/questions';
 import { APP_SLUG } from '@/api/client';
+import { resolveLocalImage } from '@/lib/content-cache';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 type QuizMode = 'daily' | 'quick' | 'timed' | 'survival';
+
+const SEEN_KEY_PREFIX = 'quiz.seen.v1.';
+
+interface SeenStore {
+  ids: number[];
+}
+
+async function readSeen(category: string | undefined): Promise<Set<number>> {
+  if (!category) return new Set();
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const raw = await AsyncStorage.getItem(SEEN_KEY_PREFIX + category);
+    const parsed: SeenStore = raw ? JSON.parse(raw) : { ids: [] };
+    return new Set(parsed.ids);
+  } catch {
+    return new Set();
+  }
+}
+
+async function writeSeen(category: string | undefined, ids: number[]): Promise<void> {
+  if (!category) return;
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem(SEEN_KEY_PREFIX + category, JSON.stringify({ ids }));
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Pick `wanted` questions from the local snapshot for the given
+ * category. Drops IDs already in `seen`; if there aren't enough fresh
+ * ones left, signals the caller to reset the seen set so subsequent
+ * sessions still get full pools. Image URLs are rewritten to local
+ * file paths when available so the quiz works offline.
+ */
+interface CachePick {
+  id: number;
+  question: string;
+  options: string[];
+  correct_option: number;
+  explanation: string | null;
+  image_url: string | null;
+}
+
+function pickQuestionsFromCache(
+  snapshot: ReturnType<typeof useContentCache>['snapshot'],
+  categorySlug: string | undefined,
+  wanted: number,
+  seen: Set<number>,
+): { picks: CachePick[]; resetSeen: boolean } {
+  if (!snapshot) return { picks: [], resetSeen: false };
+
+  // Match the slug as either a top-level (include every subcat
+  // question) or a leaf.
+  const allowed = new Set<string>();
+  if (categorySlug) {
+    const top = snapshot.categories.find((c) => c.slug === categorySlug);
+    if (top) {
+      allowed.add(top.slug);
+      for (const sub of top.subcategories) allowed.add(sub.slug);
+    } else {
+      allowed.add(categorySlug);
+    }
+  }
+
+  const pool = snapshot.questions.filter(
+    (q) => allowed.size === 0 || (q.category_slug && allowed.has(q.category_slug)),
+  );
+  if (pool.length === 0) return { picks: [], resetSeen: false };
+
+  let unseen = pool.filter((q) => !seen.has(q.id));
+  let resetSeen = false;
+  // If the unseen tail can't fill a full quiz, treat the cycle as
+  // done: reset the tracker and pull from the full pool again.
+  if (unseen.length < wanted) {
+    resetSeen = true;
+    unseen = pool;
+  }
+
+  const shuffled = [...unseen].sort(() => Math.random() - 0.5);
+  const sliced = shuffled.slice(0, Math.min(wanted, shuffled.length));
+  const picks = sliced.map((q) => ({
+    id: q.id,
+    question: q.question ?? '',
+    options: q.options ?? [],
+    correct_option: q.correct_option,
+    explanation: q.explanation,
+    image_url: resolveLocalImage(snapshot, q.image_url),
+  }));
+  return { picks, resetSeen };
+}
 
 export default function QuizScreen() {
   const params = useLocalSearchParams<{
@@ -44,6 +138,7 @@ export default function QuizScreen() {
   const isSurvival = mode === 'survival';
 
   const { t } = useTranslation();
+  const { snapshot } = useContentCache();
 
   const {
     questions,
@@ -132,11 +227,28 @@ export default function QuizScreen() {
 
   async function loadQuestions() {
     dispatch({ type: 'SET_LOADING' });
+    const wanted = parseInt(count ?? '10', 10);
+    const wantLocale = locale ?? 'en';
+
+    // Prefer the local snapshot when it's ready: that way the quiz
+    // works offline AND we get cross-session "no repeats" via the
+    // persisted seen set.
+    if (snapshot && snapshot.locale === wantLocale) {
+      const seen = await readSeen(category);
+      const { picks, resetSeen } = pickQuestionsFromCache(snapshot, category, wanted, seen);
+      if (picks.length > 0) {
+        dispatch({ type: 'SET_QUESTIONS', payload: picks });
+        const baseSeen = resetSeen ? [] : Array.from(seen);
+        await writeSeen(category, [...baseSeen, ...picks.map((q) => q.id)]);
+        return;
+      }
+    }
+
     try {
       const data = await fetchRandomQuestions(
         APP_SLUG,
-        locale ?? 'en',
-        parseInt(count ?? '10', 10),
+        wantLocale,
+        wanted,
         category,
       );
       dispatch({ type: 'SET_QUESTIONS', payload: data });

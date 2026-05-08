@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ContentCacheProvider } from '@/hooks/use-content-cache';
 import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 
@@ -13,6 +14,7 @@ export default function RootLayout() {
   return (
     <LocaleProvider>
       <PremiumProvider>
+      <ContentCacheProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack initialRouteName="splash">
         <Stack.Screen
@@ -55,6 +57,7 @@ export default function RootLayout() {
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
+      </ContentCacheProvider>
       </PremiumProvider>
     </LocaleProvider>
   );

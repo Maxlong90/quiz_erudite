@@ -16,6 +16,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { localizeCategoryName } from '@/i18n/categories';
@@ -23,11 +24,38 @@ import { localizeCategoryName } from '@/i18n/categories';
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { isPremium } = usePremium();
+  const { snapshot } = useContentCache();
   const [categories, setCategories] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
+    // Prefer the cached snapshot — it ships with totals, so we can
+    // render instantly without a network round-trip on every cold
+    // start. Fall back to the live API only when the cache hasn't
+    // arrived yet.
+    if (snapshot) {
+      const fromCache: Category[] = snapshot.categories.map((c) => {
+        const totalQ = snapshot.questions.filter((q) => {
+          if (q.category_slug === c.slug) return true;
+          return c.subcategories.some((s) => s.slug === q.category_slug);
+        }).length;
+        return {
+          slug: c.slug,
+          name: c.name,
+          sort_order: c.sort_order,
+          should_have_images: false,
+          should_have_audio: false,
+          subcategories_count: c.subcategories.length,
+          total_questions_count: totalQ,
+          total_flashcards_count: 0,
+        };
+      });
+      setCategories(fromCache);
+      setPhase('ready');
+      return;
+    }
+
     let cancelled = false;
     setPhase('loading');
     fetchCategories(APP_SLUG)
@@ -44,7 +72,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [snapshot, t]);
 
   function openCategory(category: Category) {
     if ((category.total_questions_count ?? 0) === 0) {

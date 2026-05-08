@@ -15,7 +15,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
 
-const SPLASH_DURATION_MS = 3000;
+const SPLASH_DURATION_MS = 5000;
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
