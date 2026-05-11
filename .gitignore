@@ -46,3 +46,4 @@ app-example
 CLAUDE.md
 /screenshots/*
 !/screenshots/.gitkeep
+AGENTS.md
