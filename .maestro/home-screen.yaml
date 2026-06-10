@@ -1,4 +1,4 @@
-appId: com.turbosuslik.quizerudit
+appId: com.quizzzes.erudite
 ---
 - launchApp
 - assertVisible: "Coat of Arms Quiz"

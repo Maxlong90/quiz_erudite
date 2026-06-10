@@ -2,15 +2,20 @@
   "expo": {
     "name": "quiz-erudit",
     "slug": "quiz-erudit",
+    "owner": "quizzzess-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "quizerudit",
     "userInterfaceStyle": "automatic",
+    "androidNavigationBar": {
+      "backgroundColor": "#1a1a47",
+      "barStyle": "light-content"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.turbosuslik.quizerudit"
+      "bundleIdentifier": "com.quizzzes.erudite"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +26,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.turbosuslik.quizerudit"
+      "package": "com.quizzzes.erudite"
     },
     "web": {
       "output": "static",
@@ -46,6 +51,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0a83f1d3-35b1-4026-9e39-022bccc5442d"
+      }
     }
   }
 }

@@ -9,11 +9,25 @@ import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
 
-const FEATURES: { icon: string; key: StringKey }[] = [
-  { icon: '∞', key: 'paywall.feature.unlimited' },
-  { icon: '🚫', key: 'paywall.feature.adfree' },
-  { icon: '🌐', key: 'paywall.feature.alllanguages' },
-  { icon: '🔒', key: 'paywall.feature.exclusive' },
+// Comparison rows. `free`/`premium` are either an i18n key (resolved
+// via t()) or the literal check / cross marks rendered as-is.
+const CHECK = '✓';
+const CROSS = '✕';
+
+interface CompareRow {
+  labelKey: StringKey;
+  // Either an i18n key (t() resolves it), a literal number string, or
+  // the CHECK / CROSS marks.
+  free: string;
+  premium: string;
+}
+
+const COMPARE_ROWS: CompareRow[] = [
+  { labelKey: 'paywall.row.lives', free: 'paywall.row.lives.free', premium: 'paywall.row.lives.premium' },
+  { labelKey: 'paywall.row.ad', free: 'paywall.row.ad.free', premium: 'paywall.row.ad.premium' },
+  { labelKey: 'paywall.row.modes', free: '3', premium: '9' },
+  { labelKey: 'paywall.row.flashcards', free: CROSS, premium: CHECK },
+  { labelKey: 'paywall.row.stats', free: 'paywall.row.stats.free', premium: 'paywall.row.stats.premium' },
 ];
 
 export default function PaywallScreen() {
@@ -62,13 +76,30 @@ export default function PaywallScreen() {
           <Text style={styles.subtitle}>{t('paywall.subtitle')}</Text>
         </View>
 
-        <View style={styles.features}>
-          {FEATURES.map((f) => (
-            <View key={f.key} style={styles.featureRow}>
-              <View style={styles.bullet}>
-                <Text style={styles.bulletText}>{f.icon}</Text>
+        <View style={styles.table}>
+          {/* Column headers */}
+          <View style={styles.tableHeaderRow}>
+            <View style={styles.featureCol} />
+            <View style={styles.valueCol}>
+              <Text style={styles.colHeaderFree}>{t('paywall.col.free')}</Text>
+            </View>
+            <View style={[styles.valueCol, styles.premiumCol]}>
+              <Text style={styles.colHeaderPremium}>{t('paywall.col.premium')}</Text>
+            </View>
+          </View>
+
+          {COMPARE_ROWS.map((row, idx) => (
+            <View
+              key={row.labelKey}
+              style={[styles.tableRow, idx < COMPARE_ROWS.length - 1 && styles.rowDivider]}
+            >
+              <Text style={styles.featureLabel}>{t(row.labelKey)}</Text>
+              <View style={styles.valueCol}>
+                <CompareCell value={row.free} />
               </View>
-              <Text style={styles.featureText}>{t(f.key)}</Text>
+              <View style={[styles.valueCol, styles.premiumCol]}>
+                <CompareCell value={row.premium} premium />
+              </View>
             </View>
           ))}
         </View>
@@ -90,6 +121,21 @@ export default function PaywallScreen() {
         </View>
       </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+function CompareCell({ value, premium }: { value: string; premium?: boolean }) {
+  const { t } = useTranslation();
+  if (value === CHECK) {
+    return <Text style={[styles.cellCheck, premium && styles.cellCheckPremium]}>{CHECK}</Text>;
+  }
+  if (value === CROSS) {
+    return <Text style={styles.cellCross}>{CROSS}</Text>;
+  }
+  // Numeric literals ('3', '9') pass through t() unchanged; real keys
+  // resolve to localized strings.
+  return (
+    <Text style={[styles.cellText, premium && styles.cellTextPremium]}>{t(value as StringKey)}</Text>
   );
 }
 
@@ -117,13 +163,13 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingTop: 8,
-    gap: 12,
+    paddingTop: 0,
+    gap: 10,
   },
   trophy: {
-    width: 140,
-    height: 140,
-    marginBottom: 8,
+    width: 96,
+    height: 96,
+    marginBottom: 2,
   },
   title: {
     fontSize: 30,
@@ -140,35 +186,88 @@ const styles = StyleSheet.create({
     color: '#ffffffcc',
     textAlign: 'center',
   },
-  features: {
-    paddingHorizontal: 32,
-    paddingTop: 28,
-    gap: 14,
+  table: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 24,
+    borderRadius: 18,
+    backgroundColor: '#ffffff0d',
+    borderWidth: 1,
+    borderColor: '#ffffff14',
+    overflow: 'hidden',
   },
-  featureRow: {
+  tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ffffff22',
   },
-  bullet: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#7c5cff33',
-    borderWidth: 1,
-    borderColor: '#7c5cff66',
-    justifyContent: 'center',
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  rowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ffffff14',
+  },
+  featureCol: {
+    flex: 1.4,
+  },
+  featureLabel: {
+    flex: 1.4,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  valueCol: {
+    flex: 1,
     alignItems: 'center',
   },
-  bulletText: {
-    fontSize: 18,
+  // Gold wash down the Premium column to set it apart as the paid tier.
+  premiumCol: {
+    backgroundColor: '#ffd23a14',
   },
-  featureText: {
-    flex: 1,
-    color: '#fff',
+  colHeaderFree: {
+    color: '#ffffff99',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  colHeaderPremium: {
+    color: '#ffd23a',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  cellText: {
+    color: '#ffffffcc',
+    fontSize: 15,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+  },
+  cellTextPremium: {
+    color: '#ffd23a',
+    fontWeight: '800',
+  },
+  cellCheck: {
+    color: '#22c55e',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  cellCheckPremium: {
+    color: '#ffd23a',
+  },
+  cellCross: {
+    color: '#ffffff44',
     fontSize: 16,
-    fontWeight: '500',
-    lineHeight: 22,
+    fontWeight: '800',
   },
   actions: {
     marginTop: 'auto',

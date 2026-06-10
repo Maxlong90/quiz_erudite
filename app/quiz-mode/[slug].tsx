@@ -17,6 +17,7 @@ import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
 import { useLocale } from '@/hooks/use-locale';
+import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { localizeCategoryName } from '@/i18n/categories';
 
@@ -27,6 +28,8 @@ export default function QuizModeScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { locale } = useLocale();
   const { t } = useTranslation();
+  const { isPremium } = usePremium();
+  const lockedByPremium = !isPremium;
   const [sub, setSub] = useState<Category | null>(null);
   const [parentSlug, setParentSlug] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -149,6 +152,7 @@ export default function QuizModeScreen() {
             <TimedModeCard
               gradient={visual.gradient}
               disabled={!hasQuestions}
+              premiumLocked={lockedByPremium}
               questionsCount={questionsCount}
               selected={timedCount}
               onSelectCount={setTimedCount}
@@ -156,11 +160,12 @@ export default function QuizModeScreen() {
             />
 
             <ModeCard
-              icon="🔥"
+              icon="💀"
               title={t('mode.survival.title')}
               subtitle={t('mode.survival.subtitle')}
               gradient={visual.gradient}
               disabled={!hasQuestions}
+              premiumLocked={lockedByPremium}
               // Pull a healthy buffer; quiz ends on first wrong anyway.
               onPress={() => startQuiz('survival', Math.min(50, Math.max(20, questionsCount)))}
             />
@@ -189,14 +194,31 @@ interface ModeCardProps {
   subtitle: string;
   gradient: readonly [string, string];
   disabled?: boolean;
+  premiumLocked?: boolean;
   onPress: () => void;
   lockLabel?: string;
 }
 
-function ModeCard({ icon, title, subtitle, gradient, disabled, onPress, lockLabel }: ModeCardProps) {
+function ModeCard({
+  icon,
+  title,
+  subtitle,
+  gradient,
+  disabled,
+  premiumLocked,
+  onPress,
+  lockLabel,
+}: ModeCardProps) {
+  function handlePress() {
+    if (premiumLocked) {
+      router.push('/paywall');
+      return;
+    }
+    onPress();
+  }
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled}
       style={({ pressed }) => [styles.cardWrap, pressed && !disabled && styles.cardPressed]}
     >
@@ -206,6 +228,11 @@ function ModeCard({ icon, title, subtitle, gradient, disabled, onPress, lockLabe
         end={{ x: 1, y: 1 }}
         style={[styles.card, disabled && styles.cardDisabled]}
       >
+        {premiumLocked && (
+          <View style={styles.crownBadge}>
+            <IconSymbol name="crown.fill" size={16} color="#ffd23a" />
+          </View>
+        )}
         <Text style={styles.cardIcon}>{icon}</Text>
         <View style={styles.cardCopy}>
           <Text style={styles.cardTitle}>{title}</Text>
@@ -219,6 +246,7 @@ function ModeCard({ icon, title, subtitle, gradient, disabled, onPress, lockLabe
 interface TimedModeCardProps {
   gradient: readonly [string, string];
   disabled: boolean;
+  premiumLocked?: boolean;
   questionsCount: number;
   selected: number;
   onSelectCount: (n: number) => void;
@@ -228,6 +256,7 @@ interface TimedModeCardProps {
 function TimedModeCard({
   gradient,
   disabled,
+  premiumLocked,
   questionsCount,
   selected,
   onSelectCount,
@@ -235,6 +264,14 @@ function TimedModeCard({
 }: TimedModeCardProps) {
   const { t } = useTranslation();
   const options = TIMED_COUNT_OPTIONS.filter((n) => n <= Math.max(questionsCount, 10));
+
+  function handleStart() {
+    if (premiumLocked) {
+      router.push('/paywall');
+      return;
+    }
+    onStart();
+  }
 
   return (
     <View style={styles.cardWrap}>
@@ -244,6 +281,11 @@ function TimedModeCard({
         end={{ x: 1, y: 1 }}
         style={[styles.card, styles.cardTall, disabled && styles.cardDisabled]}
       >
+        {premiumLocked && (
+          <View style={styles.crownBadge}>
+            <IconSymbol name="crown.fill" size={16} color="#ffd23a" />
+          </View>
+        )}
         <View style={styles.timedHeader}>
           <Text style={styles.cardIcon}>⏱️</Text>
           <View style={styles.cardCopy}>
@@ -271,7 +313,7 @@ function TimedModeCard({
         </View>
 
         <Pressable
-          onPress={onStart}
+          onPress={handleStart}
           disabled={disabled}
           style={({ pressed }) => [styles.startBtn, pressed && styles.startBtnPressed]}
         >
@@ -353,6 +395,18 @@ const styles = StyleSheet.create({
   },
   cardDisabled: {
     opacity: 0.45,
+  },
+  crownBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#00000066',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   cardIcon: {
     fontSize: 36,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -152,7 +153,10 @@ function SubcategoryTile({
   const { t } = useTranslation();
   const total = subcategory.total_questions_count ?? 0;
   const isEmpty = total === 0;
-  const emoji = SUBCATEGORY_EMOJI[subcategory.slug] ?? parentEmoji;
+  const iconUrl = subcategory.icon_url ?? null;
+  const emoji = subcategory.icon_emoji
+    || SUBCATEGORY_EMOJI[subcategory.slug]
+    || parentEmoji;
 
   return (
     <Pressable
@@ -167,13 +171,19 @@ function SubcategoryTile({
         end={{ x: 1, y: 1 }}
         style={[styles.tile, isEmpty && styles.tileEmpty]}
       >
-        <Text style={styles.tileEmoji}>{emoji}</Text>
-        <Text style={styles.tileName} numberOfLines={2}>
-          {displayName}
-        </Text>
-        <Text style={styles.tileMeta}>
-          {isEmpty ? t('home.tile.soon') : t('home.tile.meta', { questions: total, topics: 0 }).replace(/ ·.*$/, '')}
-        </Text>
+        {iconUrl ? (
+          <Image source={{ uri: iconUrl }} style={styles.tileIcon} resizeMode="contain" />
+        ) : (
+          <Text style={styles.tileEmoji}>{emoji}</Text>
+        )}
+        <View style={styles.tileFooter}>
+          <Text style={styles.tileName} numberOfLines={2}>
+            {displayName}
+          </Text>
+          <Text style={styles.tileMeta} numberOfLines={2}>
+            {isEmpty ? t('home.tile.soon') : t('home.tile.meta', { questions: total, topics: 0 }).replace(/ ·.*$/, '')}
+          </Text>
+        </View>
       </LinearGradient>
     </Pressable>
   );
@@ -257,23 +267,35 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     padding: 16,
-    justifyContent: 'space-between',
   },
   tileEmpty: {
     opacity: 0.4,
   },
+  tileFooter: {
+    marginTop: 'auto',
+    gap: 4,
+  },
   tileEmoji: {
     fontSize: 40,
+    lineHeight: 48,
+  },
+  tileIcon: {
+    width: 48,
+    height: 48,
   },
   tileName: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
+    lineHeight: 21,
+    minHeight: 42,
   },
   tileMeta: {
     color: '#ffffffcc',
     fontSize: 12,
     fontWeight: '500',
+    lineHeight: 16,
+    minHeight: 32,
   },
 });

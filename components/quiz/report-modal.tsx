@@ -6,13 +6,11 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTranslation } from '@/hooks/use-translation';
 import {
   submitReport,
@@ -30,6 +28,19 @@ const REASONS: { id: ReportReason; labelKey: StringKey }[] = [
   { id: 'other', labelKey: 'report.reason.other' },
 ];
 
+const COLORS = {
+  sheet: '#1f1949',
+  text: '#fff',
+  textMuted: '#ffffffaa',
+  border: '#ffffff1f',
+  rowBackground: '#ffffff0d',
+  accent: '#7c5cff',
+  accentSoft: '#7c5cff33',
+  inputBorder: '#ffffff33',
+  placeholder: '#ffffff66',
+  error: '#ff8a8a',
+};
+
 interface Props {
   visible: boolean;
   contentType: ReportContentType;
@@ -41,8 +52,6 @@ interface Props {
 type Phase = 'idle' | 'submitting' | 'success' | 'error';
 
 export function ReportModal({ visible, contentType, contentId, locale, onClose }: Props) {
-  const theme = useColorScheme() ?? 'light';
-  const palette = Colors[theme];
   const { t } = useTranslation();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [comment, setComment] = useState('');
@@ -84,30 +93,28 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
-        <View style={[styles.sheet, { backgroundColor: palette.background }]}>
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+
           {phase === 'success' ? (
             <View style={styles.successBox}>
-              <ThemedText type="subtitle" style={styles.successTitle}>
-                {t('report.successTitle')}
-              </ThemedText>
-              <ThemedText style={styles.successBody}>
-                {t('report.successBody')}
-              </ThemedText>
+              <Text style={styles.title}>{t('report.successTitle')}</Text>
+              <Text style={styles.subtitle}>{t('report.successBody')}</Text>
               <Pressable
-                style={[styles.primaryButton, { backgroundColor: palette.tint }]}
                 onPress={handleClose}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  styles.primaryButtonFull,
+                  pressed && styles.pressed,
+                ]}
               >
-                <ThemedText style={styles.primaryButtonText}>{t('report.cancel')}</ThemedText>
+                <Text style={styles.primaryButtonText}>{t('report.done')}</Text>
               </Pressable>
             </View>
           ) : (
             <>
-              <ThemedText type="subtitle" style={styles.title}>
-                {t('report.title')}
-              </ThemedText>
-              <ThemedText style={styles.subtitle}>
-                {t('report.subtitle')}
-              </ThemedText>
+              <Text style={styles.title}>{t('report.title')}</Text>
+              <Text style={styles.subtitle}>{t('report.subtitle')}</Text>
 
               <View style={styles.reasons}>
                 {REASONS.map((r) => {
@@ -118,32 +125,29 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                       onPress={() => setReason(r.id)}
                       style={[
                         styles.reasonRow,
-                        selected && { backgroundColor: palette.tint + '22', borderColor: palette.tint },
+                        selected
+                          ? { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accent }
+                          : { backgroundColor: COLORS.rowBackground, borderColor: COLORS.border },
                       ]}
                     >
                       <View
                         style={[
                           styles.radio,
-                          { borderColor: selected ? palette.tint : palette.text + '55' },
+                          { borderColor: selected ? COLORS.accent : COLORS.textMuted },
                         ]}
                       >
-                        {selected && (
-                          <View style={[styles.radioDot, { backgroundColor: palette.tint }]} />
-                        )}
+                        {selected && <View style={styles.radioDot} />}
                       </View>
-                      <ThemedText style={styles.reasonLabel}>{t(r.labelKey)}</ThemedText>
+                      <Text style={styles.reasonLabel}>{t(r.labelKey)}</Text>
                     </Pressable>
                   );
                 })}
               </View>
 
               <TextInput
-                style={[
-                  styles.commentInput,
-                  { color: palette.text, borderColor: palette.text + '33' },
-                ]}
+                style={styles.commentInput}
                 placeholder={t('report.commentPlaceholder')}
-                placeholderTextColor={palette.text + '88'}
+                placeholderTextColor={COLORS.placeholder}
                 value={comment}
                 onChangeText={setComment}
                 multiline
@@ -151,32 +155,29 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                 editable={phase !== 'submitting'}
               />
 
-              {errorText && (
-                <ThemedText style={styles.errorText}>{errorText}</ThemedText>
-              )}
+              {errorText && <Text style={styles.errorText}>{errorText}</Text>}
 
               <View style={styles.actions}>
                 <Pressable
                   onPress={handleClose}
-                  style={styles.secondaryButton}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
                   disabled={phase === 'submitting'}
                 >
-                  <ThemedText style={[styles.secondaryButtonText, { color: palette.text }]}>
-                    {t('report.cancel')}
-                  </ThemedText>
+                  <Text style={styles.secondaryButtonText}>{t('report.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSubmit}
                   disabled={!reason || phase === 'submitting'}
-                  style={[
+                  style={({ pressed }) => [
                     styles.primaryButton,
-                    { backgroundColor: palette.tint, opacity: !reason || phase === 'submitting' ? 0.5 : 1 },
+                    (!reason || phase === 'submitting') && styles.disabled,
+                    pressed && styles.pressed,
                   ]}
                 >
                   {phase === 'submitting' ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <ThemedText style={styles.primaryButtonText}>{t('report.submit')}</ThemedText>
+                    <Text style={styles.primaryButtonText}>{t('report.submit')}</Text>
                   )}
                 </Pressable>
               </View>
@@ -191,22 +192,36 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: COLORS.sheet,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
+    paddingTop: 12,
     paddingBottom: 32,
     gap: 12,
   },
+  handle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ffffff33',
+    marginBottom: 8,
+  },
   title: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
+    color: COLORS.textMuted,
+    fontSize: 14,
     textAlign: 'center',
-    opacity: 0.7,
   },
   reasons: {
     gap: 8,
@@ -220,7 +235,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   radio: {
     width: 20,
@@ -234,22 +248,29 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    backgroundColor: COLORS.accent,
   },
   reasonLabel: {
+    color: COLORS.text,
     fontSize: 15,
     flexShrink: 1,
   },
   commentInput: {
+    color: COLORS.text,
+    backgroundColor: COLORS.rowBackground,
+    borderColor: COLORS.inputBorder,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     minHeight: 80,
     textAlignVertical: 'top',
     marginTop: 4,
+    fontSize: 15,
   },
   errorText: {
-    color: '#d24545',
+    color: COLORS.error,
     textAlign: 'center',
+    fontSize: 13,
   },
   actions: {
     flexDirection: 'row',
@@ -261,8 +282,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   secondaryButtonText: {
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -271,23 +296,28 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent,
+  },
+  primaryButtonFull: {
+    flex: undefined,
+    alignSelf: 'stretch',
+    marginTop: 4,
   },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
+  disabled: {
+    opacity: 0.4,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
   successBox: {
     alignItems: 'center',
     gap: 12,
     paddingVertical: 12,
-  },
-  successTitle: {
-    textAlign: 'center',
-  },
-  successBody: {
-    textAlign: 'center',
-    opacity: 0.7,
-    marginBottom: 8,
   },
 });

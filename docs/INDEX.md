@@ -14,7 +14,7 @@ A mobile quiz app built with React Native and Expo. Users test their knowledge o
 | Item | Value |
 |------|-------|
 | Platform | iOS, Android, Web |
-| Bundle ID | com.turbosuslik.quizerudit |
+| Bundle ID | com.quizzzes.erudite |
 | Backend | quiz-erudit-backend.turbosuslik.online |
 | Languages | English, Russian, Spanish |
 

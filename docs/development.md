@@ -34,7 +34,7 @@ Uses ESLint with the `eslint-config-expo` preset.
 
 ## E2E Tests (Maestro)
 
-Maestro test flows live in `.maestro/`. The bundle ID for both platforms is `com.turbosuslik.quizerudit`.
+Maestro test flows live in `.maestro/`. The bundle ID for both platforms is `com.quizzzes.erudite`.
 
 ```
 maestro test .maestro/home-screen.yaml    # Verify home screen elements

@@ -23,6 +23,21 @@ const MAPPING = {
   'xmark': 'close',
   'crown.fill': 'workspace-premium',
   'chevron.left': 'chevron-left',
+  'chart.bar.fill': 'bar-chart',
+  'lock.fill': 'lock',
+  'doc.text.fill': 'description',
+  'envelope.fill': 'mail',
+  'square.and.arrow.up': 'ios-share',
+  'arrow.clockwise': 'refresh',
+  'creditcard.fill': 'credit-card',
+  'moon.fill': 'dark-mode',
+  'star.fill': 'star',
+  'globe': 'language',
+  'person.fill': 'person',
+  'bag.fill': 'shopping-bag',
+  'heart.fill': 'favorite',
+  'lightbulb.fill': 'lightbulb',
+  'house.fill': 'home',
 } as IconMapping;
 
 /**

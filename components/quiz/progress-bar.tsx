@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -6,21 +6,21 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
 
-import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
 interface ProgressBarProps {
   progress: number;
   currentIndex: number;
   total: number;
 }
 
-export function ProgressBar({ progress, currentIndex, total }: ProgressBarProps) {
-  const theme = useColorScheme() ?? 'light';
-  const tintColor = Colors[theme].tint;
-  const trackColor = Colors[theme].icon + '33';
+// Quiz screen always sits on the dark purple gradient regardless of
+// the device's system theme, so the bar and counter use fixed white /
+// violet colors. Routing them through Colors[theme] made them
+// invisible on devices in light mode.
+const FILL_COLOR = '#a78bff';
+const TRACK_COLOR = '#ffffff22';
+const LABEL_COLOR = '#ffffffd9';
 
+export function ProgressBar({ progress, currentIndex, total }: ProgressBarProps) {
   const animatedProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -35,14 +35,12 @@ export function ProgressBar({ progress, currentIndex, total }: ProgressBarProps)
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
-        <ThemedText style={styles.label} testID="progress-text">
+        <Text style={styles.label} testID="progress-text">
           {currentIndex + 1} / {total}
-        </ThemedText>
+        </Text>
       </View>
-      <View style={[styles.track, { backgroundColor: trackColor }]}>
-        <Animated.View
-          style={[styles.fill, { backgroundColor: tintColor }, fillStyle]}
-        />
+      <View style={styles.track}>
+        <Animated.View style={[styles.fill, fillStyle]} />
       </View>
     </View>
   );
@@ -60,6 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   label: {
+    color: LABEL_COLOR,
     fontSize: 14,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
@@ -68,9 +67,11 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
+    backgroundColor: TRACK_COLOR,
   },
   fill: {
     height: '100%',
     borderRadius: 3,
+    backgroundColor: FILL_COLOR,
   },
 });

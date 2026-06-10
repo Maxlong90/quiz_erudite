@@ -1,7 +1,13 @@
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { apiClient, APP_SLUG } from '@/api/client';
+
+// On web there's no writable filesystem (FileSystem.documentDirectory is
+// null), so we skip the local image cache entirely — the browser caches
+// images itself and resolveLocalImage falls back to the remote URL.
+const IS_WEB = Platform.OS === 'web';
 
 const SNAPSHOT_KEY = 'content.snapshot.v1';
 const VERSION_KEY = 'content.snapshot.version.v1';
@@ -13,6 +19,8 @@ export interface SnapshotCategory {
   slug: string;
   name: string;
   sort_order: number;
+  icon_emoji?: string | null;
+  icon_url?: string | null;
   subcategories: SnapshotSubcategory[];
 }
 
@@ -20,6 +28,8 @@ export interface SnapshotSubcategory {
   slug: string;
   name: string;
   sort_order: number;
+  icon_emoji?: string | null;
+  icon_url?: string | null;
 }
 
 export interface SnapshotQuestion {
@@ -53,6 +63,7 @@ export interface ContentSnapshot {
 interface SnapshotResponse extends Omit<ContentSnapshot, 'imageMap' | 'syncedAt'> {}
 
 async function ensureImageDir() {
+  if (IS_WEB) return;
   const info = await FileSystem.getInfoAsync(IMAGE_DIR);
   if (!info.exists) {
     await FileSystem.makeDirectoryAsync(IMAGE_DIR, { intermediates: true });
@@ -75,6 +86,13 @@ async function downloadImagesWithLimit(
   urls: string[],
   onProgress: (p: DownloadProgress) => void,
 ): Promise<Record<string, string>> {
+  // Web: no local download — report complete immediately and let the
+  // UI render images straight from their remote URLs.
+  if (IS_WEB) {
+    onProgress({ total: urls.length, done: urls.length });
+    return {};
+  }
+
   const map: Record<string, string> = {};
   let done = 0;
   const total = urls.length;
@@ -125,6 +143,7 @@ export async function getCachedVersion(): Promise<number | null> {
 
 export async function clearCache() {
   await AsyncStorage.multiRemove([SNAPSHOT_KEY, VERSION_KEY]);
+  if (IS_WEB) return;
   try {
     await FileSystem.deleteAsync(IMAGE_DIR, { idempotent: true });
   } catch {
@@ -173,8 +192,15 @@ export async function syncContent({
   );
   report(0.2);
 
+  const categoryIconUrls = data.categories.flatMap((cat) => [
+    cat.icon_url,
+    ...cat.subcategories.map((sub) => sub.icon_url),
+  ]);
   const urls = Array.from(new Set(
-    data.questions.map((q) => q.image_url).filter((u): u is string => !!u),
+    [
+      ...data.questions.map((q) => q.image_url),
+      ...categoryIconUrls,
+    ].filter((u): u is string => !!u),
   ));
 
   const imageMap = await downloadImagesWithLimit(urls, ({ total, done }) => {

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,28 +13,79 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BottomBar } from '@/components/bottom-bar';
+import { ClaimLivesModal } from '@/components/lives/claim-lives-modal';
+import { HardModeModal } from '@/components/home/hard-mode-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { fetchCategories, type Category } from '@/api/categories';
+import { useLives } from '@/hooks/use-lives';
+import { claimDaily } from '@/lib/lives';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
+import { QuizConfigModal } from '@/components/home/quiz-config-modal';
+import { TimeLimitModal } from '@/components/home/time-limit-modal';
 import { useContentCache } from '@/hooks/use-content-cache';
+import { useLocale } from '@/hooks/use-locale';
+import { useMistakes } from '@/hooks/use-mistakes';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { localizeCategoryName } from '@/i18n/categories';
+import type { StringKey } from '@/i18n/strings';
+
+type Tab = 'categories' | 'modes';
+type ConfigKind = 'byTopic' | 'timed' | 'flashcards' | null;
+
+// Module-scoped so the tab choice survives a round-trip through the
+// quiz screen — the spec is that returning from a Modes-launched quiz
+// lands you back on Modes, not Categories. We deliberately don't
+// persist this across full app restarts: a fresh launch should open on
+// the default Categories view.
+let rememberedTab: Tab = 'categories';
+
+interface ModeDef {
+  id: string;
+  titleKey: StringKey;
+  subtitleKey: StringKey;
+  emoji: string;
+  gradient: readonly [string, string];
+  available: boolean;
+  disabledLabelKey?: StringKey;
+  /** Behind the premium paywall — tile shows a crown badge. */
+  premium?: boolean;
+  onPress?: () => void;
+}
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-  const { isPremium } = usePremium();
+  const { locale } = useLocale();
   const { snapshot } = useContentCache();
+  const { count: mistakeCount } = useMistakes();
+  const { isPremium } = usePremium();
   const [categories, setCategories] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [tab, setTabState] = useState<Tab>(() => rememberedTab);
+  const setTab = (next: Tab) => {
+    rememberedTab = next;
+    setTabState(next);
+  };
+  const [configKind, setConfigKind] = useState<ConfigKind>(null);
+  const [timeLimitOpen, setTimeLimitOpen] = useState(false);
+  const [hardOpen, setHardOpen] = useState(false);
+  const { canClaim, reload: reloadLives } = useLives();
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [claimDismissed, setClaimDismissed] = useState(false);
+
+  // Surface the daily-claim modal the first time Home is reached after
+  // the per-day flag flips. The user can dismiss it (Skip for now);
+  // we don't re-trigger again in the same session if they did.
+  useEffect(() => {
+    if (canClaim && !claimDismissed) {
+      setClaimOpen(true);
+    }
+  }, [canClaim, claimDismissed]);
 
   useEffect(() => {
-    // Prefer the cached snapshot — it ships with totals, so we can
-    // render instantly without a network round-trip on every cold
-    // start. Fall back to the live API only when the cache hasn't
-    // arrived yet.
     if (snapshot) {
       const fromCache: Category[] = snapshot.categories.map((c) => {
         const totalQ = snapshot.questions.filter((q) => {
@@ -76,12 +128,194 @@ export default function HomeScreen() {
 
   function openCategory(category: Category) {
     if ((category.total_questions_count ?? 0) === 0) {
-      // Empty category — no destination yet; tile is rendered as
-      // disabled, but guard here too.
       return;
     }
     router.push(`/category/${category.slug}` as const);
   }
+
+  // Quick router helpers — kept inline so each mode tile reads as a
+  // one-liner intent ("today's question goes here").
+  function startTodayQuestion() {
+    router.push({
+      pathname: '/quiz',
+      params: { count: '1', locale, mode: 'daily' },
+    });
+  }
+
+  function startRandom10() {
+    router.push({
+      pathname: '/quiz',
+      params: { count: '10', locale, mode: 'quick' },
+    });
+  }
+
+  function startSurvival() {
+    router.push({
+      pathname: '/quiz',
+      params: { count: '10', locale, mode: 'survival' },
+    });
+  }
+
+  function startMistakes() {
+    router.push({
+      pathname: '/quiz',
+      params: { count: '10', locale, mode: 'quick', source: 'mistakes' },
+    });
+  }
+
+  function startHard(variant: 'typing' | 'letters') {
+    setHardOpen(false);
+    router.push({
+      pathname: '/quiz',
+      params: { count: '10', locale, mode: 'hard', hardVariant: variant },
+    });
+  }
+
+  function startTimeLimit(totalSeconds: number) {
+    setTimeLimitOpen(false);
+    router.push({
+      pathname: '/quiz',
+      params: {
+        count: '50',
+        locale,
+        mode: 'quick',
+        totalSeconds: String(totalSeconds),
+      },
+    });
+  }
+
+  function startConfigured(config: {
+    categorySlugs: string[];
+    count: number;
+    perQuestionSeconds?: number;
+  }) {
+    const kind = configKind;
+    setConfigKind(null);
+    const params: Record<string, string> = {
+      count: String(config.count),
+      locale,
+      mode: config.perQuestionSeconds && config.perQuestionSeconds > 0 ? 'timed' : 'quick',
+    };
+    if (config.categorySlugs.length > 0) {
+      params.categorySlugs = config.categorySlugs.join(',');
+    }
+    if (config.perQuestionSeconds && config.perQuestionSeconds > 0) {
+      params.timer = String(config.perQuestionSeconds);
+    }
+    if (kind === 'flashcards') {
+      // Flashcards screen lands here when the dedicated route exists;
+      // for now route to the regular quiz so Start always does
+      // *something* visible to the player.
+      params.mode = 'quick';
+    }
+    router.push({ pathname: '/quiz', params });
+  }
+
+  // Modes definitions. "Today's Question" and "Time Limit" come first
+  // per spec; Mistakes is data-gated (disabled with "no mistakes yet"
+  // when the player hasn't failed anything yet).
+  const modes: ModeDef[] = useMemo(
+    () => [
+      {
+        id: 'today',
+        titleKey: 'home.mode.today.title',
+        subtitleKey: 'home.mode.today.subtitle',
+        emoji: '🌅',
+        gradient: ['#ffd23a', '#f59f3a'],
+        available: true,
+        onPress: startTodayQuestion,
+      },
+      {
+        id: 'timeLimit',
+        titleKey: 'home.mode.timeLimit.title',
+        subtitleKey: 'home.mode.timeLimit.subtitle',
+        emoji: '⏳',
+        gradient: ['#3aa6ff', '#4f6df5'],
+        available: true,
+        onPress: () => setTimeLimitOpen(true),
+      },
+      {
+        id: 'random10',
+        titleKey: 'home.mode.random10.title',
+        subtitleKey: 'home.mode.random10.subtitle',
+        emoji: '🎲',
+        gradient: ['#7c5cff', '#3aa6ff'],
+        available: true,
+        onPress: startRandom10,
+      },
+      {
+        id: 'byTopic',
+        titleKey: 'home.mode.byTopic.title',
+        subtitleKey: 'home.mode.byTopic.subtitle',
+        emoji: '📚',
+        gradient: ['#3aa37a', '#1f6f55'],
+        available: true,
+        premium: true,
+        onPress: () => setConfigKind('byTopic'),
+      },
+      {
+        id: 'timed',
+        titleKey: 'home.mode.timed.title',
+        subtitleKey: 'home.mode.timed.subtitle',
+        emoji: '⏱️',
+        gradient: ['#f59f3a', '#d6533a'],
+        available: true,
+        premium: true,
+        onPress: () => setConfigKind('timed'),
+      },
+      {
+        id: 'challenge',
+        titleKey: 'home.mode.challenge.title',
+        subtitleKey: 'home.mode.challenge.subtitle',
+        emoji: '🏆',
+        gradient: ['#ffd23a', '#f59f3a'],
+        available: false,
+        premium: true,
+      },
+      {
+        id: 'survival',
+        titleKey: 'home.mode.survival.title',
+        subtitleKey: 'home.mode.survival.subtitle',
+        emoji: '💀',
+        gradient: ['#c97a3f', '#8a4a2a'],
+        available: true,
+        premium: true,
+        onPress: startSurvival,
+      },
+      {
+        id: 'mistakes',
+        titleKey: 'home.mode.mistakes.title',
+        subtitleKey: 'home.mode.mistakes.subtitle',
+        emoji: '🔁',
+        gradient: ['#e0529c', '#a23ad6'],
+        available: mistakeCount > 0,
+        premium: true,
+        disabledLabelKey: 'home.mode.mistakes.empty',
+        onPress: startMistakes,
+      },
+      {
+        id: 'hard',
+        titleKey: 'home.mode.hard.title',
+        subtitleKey: 'home.mode.hard.subtitle',
+        emoji: '🔥',
+        gradient: ['#d6533a', '#7a1f1f'],
+        available: true,
+        premium: true,
+        onPress: () => setHardOpen(true),
+      },
+      {
+        id: 'flashcards',
+        titleKey: 'home.mode.flashcards.title',
+        subtitleKey: 'home.mode.flashcards.subtitle',
+        emoji: '🃏',
+        gradient: ['#3aa6ff', '#4f6df5'],
+        available: false,
+        premium: true,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mistakeCount, locale],
+  );
 
   return (
     <LinearGradient
@@ -91,32 +325,17 @@ export default function HomeScreen() {
     >
       <StatusBar style="light" />
       <SafeAreaView style={styles.flex}>
-        <View style={styles.topBar}>
-          <View style={styles.topLeft}>
-            {isPremium === false && (
-              <Pressable
-                onPress={() => router.push('/paywall')}
-                hitSlop={12}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
-                testID="crown-button"
-                accessibilityLabel="Get Premium"
-              >
-                <IconSymbol name="crown.fill" size={24} color="#ffd23a" />
-              </Pressable>
-            )}
-          </View>
+        <View style={styles.wordmarkRow}>
           <Wordmark />
-          <View style={styles.topRight}>
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={12}
-              style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
-              testID="settings-button"
-              accessibilityLabel="Open settings"
-            >
-              <IconSymbol name="gearshape.fill" size={24} color="#fff" />
-            </Pressable>
-          </View>
+        </View>
+
+        <View style={styles.tabsRow}>
+          <SegmentedTabs
+            tab={tab}
+            onChange={setTab}
+            leftLabel={t('home.tabs.categories')}
+            rightLabel={t('home.tabs.modes')}
+          />
         </View>
 
         {phase === 'loading' && (
@@ -132,7 +351,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {phase === 'ready' && (
+        {phase === 'ready' && tab === 'categories' && (
           <ScrollView
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
@@ -149,8 +368,97 @@ export default function HomeScreen() {
             </View>
           </ScrollView>
         )}
+
+        {phase === 'ready' && tab === 'modes' && (
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.grid}>
+              {modes.map((m) => (
+                <ModeTile
+                  key={m.id}
+                  mode={m}
+                  premiumLocked={!!m.premium && !isPremium}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        )}
+
+        <BottomBar current="home" />
       </SafeAreaView>
+
+      <QuizConfigModal
+        visible={configKind === 'byTopic'}
+        title={t('home.config.byTopic.title')}
+        onClose={() => setConfigKind(null)}
+        onStart={startConfigured}
+      />
+      <QuizConfigModal
+        visible={configKind === 'timed'}
+        title={t('home.config.timed.title')}
+        withTimer
+        onClose={() => setConfigKind(null)}
+        onStart={startConfigured}
+      />
+      <TimeLimitModal
+        visible={timeLimitOpen}
+        onClose={() => setTimeLimitOpen(false)}
+        onStart={startTimeLimit}
+      />
+      <HardModeModal
+        visible={hardOpen}
+        onClose={() => setHardOpen(false)}
+        onPick={startHard}
+      />
+      <ClaimLivesModal
+        visible={claimOpen}
+        onClaim={async () => {
+          await claimDaily();
+          await reloadLives();
+          setClaimOpen(false);
+          setClaimDismissed(true);
+        }}
+        onClose={() => {
+          setClaimOpen(false);
+          setClaimDismissed(true);
+        }}
+      />
     </LinearGradient>
+  );
+}
+
+interface SegmentedTabsProps {
+  tab: Tab;
+  onChange: (next: Tab) => void;
+  leftLabel: string;
+  rightLabel: string;
+}
+
+function SegmentedTabs({ tab, onChange, leftLabel, rightLabel }: SegmentedTabsProps) {
+  const isLeft = tab === 'categories';
+  return (
+    <View style={styles.segmented}>
+      <Pressable
+        onPress={() => onChange('categories')}
+        style={[styles.segment, isLeft && styles.segmentActive]}
+        testID="tab-categories"
+      >
+        <Text style={[styles.segmentLabel, isLeft && styles.segmentLabelActive]}>
+          {leftLabel}
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onChange('modes')}
+        style={[styles.segment, !isLeft && styles.segmentActive]}
+        testID="tab-modes"
+      >
+        <Text style={[styles.segmentLabel, !isLeft && styles.segmentLabelActive]}>
+          {rightLabel}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -176,6 +484,8 @@ function CategoryTile({ category, onPress }: TileProps) {
   const total = category.total_questions_count ?? 0;
   const subs = category.subcategories_count ?? 0;
   const isEmpty = total === 0;
+  const iconUrl = category.icon_url ?? null;
+  const emoji = category.icon_emoji || visual.emoji;
 
   return (
     <Pressable
@@ -190,15 +500,68 @@ function CategoryTile({ category, onPress }: TileProps) {
         end={{ x: 1, y: 1 }}
         style={[styles.tile, isEmpty && styles.tileEmpty]}
       >
-        <Text style={styles.tileEmoji}>{visual.emoji}</Text>
-        <Text style={styles.tileName} numberOfLines={2}>
-          {displayName}
-        </Text>
-        <Text style={styles.tileMeta}>
-          {isEmpty
-            ? t('home.tile.soon')
-            : t('home.tile.meta', { questions: total, topics: subs })}
-        </Text>
+        {iconUrl ? (
+          <Image source={{ uri: iconUrl }} style={styles.tileIcon} resizeMode="contain" />
+        ) : (
+          <Text style={styles.tileEmoji}>{emoji}</Text>
+        )}
+        <View style={styles.tileFooter}>
+          <Text style={styles.tileName} numberOfLines={2}>
+            {displayName}
+          </Text>
+          <Text style={styles.tileMeta} numberOfLines={2}>
+            {isEmpty
+              ? t('home.tile.soon')
+              : t('home.tile.meta', { questions: total, topics: subs })}
+          </Text>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boolean }) {
+  const { t } = useTranslation();
+  const isLocked = !mode.available;
+  const lockedLabel = mode.disabledLabelKey ? t(mode.disabledLabelKey) : t('home.tile.soon');
+
+  function handlePress() {
+    // Tap on a premium-locked tile sends the player to the paywall
+    // instead of opening the (still inaccessible) mode.
+    if (premiumLocked) {
+      router.push('/paywall');
+      return;
+    }
+    mode.onPress?.();
+  }
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      disabled={isLocked}
+      style={({ pressed }) => [styles.tileWrap, pressed && !isLocked && styles.tilePressed]}
+      testID={`mode-${mode.id}`}
+    >
+      <LinearGradient
+        colors={mode.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.tile, isLocked && styles.tileEmpty]}
+      >
+        {premiumLocked && (
+          <View style={styles.crownBadge}>
+            <IconSymbol name="crown.fill" size={16} color="#ffd23a" />
+          </View>
+        )}
+        <Text style={styles.tileEmoji}>{mode.emoji}</Text>
+        <View style={styles.tileFooter}>
+          <Text style={styles.tileName} numberOfLines={2}>
+            {t(mode.titleKey)}
+          </Text>
+          <Text style={styles.tileMeta} numberOfLines={2}>
+            {isLocked ? lockedLabel : t(mode.subtitleKey)}
+          </Text>
+        </View>
       </LinearGradient>
     </Pressable>
   );
@@ -210,10 +573,14 @@ function ComingSoonTile() {
     <View style={[styles.tileWrap, styles.tileWrapComing]} testID="category-coming-soon">
       <View style={styles.tileComing}>
         <Text style={styles.tileEmoji}>✨</Text>
-        <Text style={styles.tileName} numberOfLines={2}>
-          {t('home.tile.coming.title')}
-        </Text>
-        <Text style={styles.tileMeta}>{t('home.tile.coming.meta')}</Text>
+        <View style={styles.tileFooter}>
+          <Text style={styles.tileName} numberOfLines={2}>
+            {t('home.tile.coming.title')}
+          </Text>
+          <Text style={styles.tileMeta} numberOfLines={2}>
+            {t('home.tile.coming.meta')}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -223,19 +590,26 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  topBar: {
+  wordmarkRow: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  controlsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 8,
+    paddingBottom: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ffffff1f',
   },
-  topLeft: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  topRight: {
-    flex: 1,
-    alignItems: 'flex-end',
+  tabsRow: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+    alignItems: 'center',
   },
   iconButton: {
     width: 40,
@@ -252,21 +626,48 @@ const styles = StyleSheet.create({
   },
   wordmarkLight: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
     textShadowColor: 'rgba(124, 92, 255, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   wordmarkAccent: {
     color: '#a78bff',
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
     textShadowColor: 'rgba(167, 139, 255, 0.85)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: '#7c5cff',
+    borderRadius: 999,
+    padding: 4,
+    alignSelf: 'center',
+  },
+  segment: {
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 999,
+    minWidth: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: {
+    backgroundColor: '#fff',
+  },
+  segmentLabel: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  segmentLabelActive: {
+    color: '#7c5cff',
   },
   center: {
     flex: 1,
@@ -285,7 +686,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 4,
     paddingBottom: 32,
   },
   grid: {
@@ -307,10 +708,24 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     padding: 16,
-    justifyContent: 'space-between',
   },
   tileEmpty: {
     opacity: 0.45,
+  },
+  // Crown lock badge for premium-gated mode tiles: sits in the top-
+  // right corner, dark pill, gold crown — small enough not to crowd
+  // the tile artwork but readable at a glance.
+  crownBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#00000066',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   tileWrapComing: {
     borderWidth: 1,
@@ -321,21 +736,37 @@ const styles = StyleSheet.create({
   tileComing: {
     flex: 1,
     padding: 16,
-    justifyContent: 'space-between',
     opacity: 0.7,
+  },
+  // marginTop: 'auto' pushes the title+meta block to the bottom of the
+  // tile regardless of whatever the emoji glyph's intrinsic height is.
+  // Title and meta both reserve enough vertical space for two lines so
+  // 1-line and 2-line variants in adjacent tiles still bottom-align.
+  tileFooter: {
+    marginTop: 'auto',
+    gap: 4,
   },
   tileEmoji: {
     fontSize: 44,
+    lineHeight: 52,
+  },
+  tileIcon: {
+    width: 52,
+    height: 52,
   },
   tileName: {
     color: '#fff',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
+    lineHeight: 22,
+    minHeight: 44,
   },
   tileMeta: {
     color: '#ffffffcc',
     fontSize: 12,
     fontWeight: '500',
+    lineHeight: 16,
+    minHeight: 32,
   },
 });

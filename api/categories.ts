@@ -4,6 +4,8 @@ export interface Category {
   slug: string;
   name: string;
   sort_order: number;
+  icon_emoji?: string | null;
+  icon_url?: string | null;
   should_have_images: boolean;
   should_have_audio: boolean;
   subcategories_count?: number;

@@ -1,38 +1,68 @@
+import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BottomBar } from '@/components/bottom-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { LanguagePicker } from '@/components/language-picker';
+import { LanguageModal } from '@/components/settings/language-modal';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { clearCache as clearContentCache } from '@/lib/content-cache';
+import type { StringKey } from '@/i18n/strings';
 
 const ONBOARDING_KEY = 'onboarding.seen.v1';
-const SEEN_PREFIX = 'quiz.seen.v1.';
+// All gameplay state lives under the "quiz." namespace: seen-sets,
+// stats, achievements, mistakes, lives, hints, today's question.
+const QUIZ_PREFIX = 'quiz.';
+
+// External URLs and bundle identifiers — kept in one place so a future
+// real Privacy/Terms page or App Store listing is a one-line change.
+const PRIVACY_URL = 'https://quizzes.com/privacy';
+const TERMS_URL = 'https://quizzes.com/terms';
+const SUPPORT_EMAIL = 'support@quizzes.com';
+const APP_BUNDLE_ID = 'com.quizzzes.erudite';
+const IOS_APP_ID = '0000000000'; // placeholder until the App Store listing is live
+const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
+const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
+
+const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
+  en: 'English',
+  es: 'Español',
+  ru: 'Русский',
+};
 
 export default function SettingsScreen() {
   const { locale, changeLocale, resetLocale } = useLocale();
   const { resetPremium } = usePremium();
   const { t } = useTranslation();
-
-  function handlePick(picked: SupportedLocale) {
-    changeLocale(picked);
-  }
+  // Dark mode is presentational for now — the whole UI is fixed dark.
+  const [darkMode, setDarkMode] = useState(true);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   async function handleReset() {
-    // Wipe persisted flags AND in-memory provider state, otherwise the
-    // splash screen reads the old hasPicked/isPremium from context and
-    // skips straight back to home.
     const allKeys = await AsyncStorage.getAllKeys();
-    const seenKeys = allKeys.filter((k) => k.startsWith(SEEN_PREFIX));
+    // Wipe every gameplay key (stats, achievements, mistakes, lives,
+    // hints, seen-sets, today's question) plus the onboarding flag.
+    const quizKeys = allKeys.filter((k) => k.startsWith(QUIZ_PREFIX));
     await Promise.all([
       AsyncStorage.removeItem(ONBOARDING_KEY),
-      seenKeys.length ? AsyncStorage.multiRemove(seenKeys) : Promise.resolve(),
+      quizKeys.length ? AsyncStorage.multiRemove(quizKeys) : Promise.resolve(),
       clearContentCache(),
       resetLocale(),
       resetPremium(),
@@ -46,14 +76,67 @@ export default function SettingsScreen() {
         'Reset app?',
         'Wipe language, onboarding and premium flags and start from scratch.',
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           { text: 'Reset', style: 'destructive', onPress: handleReset },
         ],
       );
     } else {
-      // Web fallback (Alert is a no-op in web Expo).
       handleReset();
     }
+  }
+
+  function openUrl(url: string) {
+    Linking.openURL(url).catch(() => {});
+  }
+
+  function handleContactUs() {
+    const subject = 'Quizzes — feedback';
+    const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+    Linking.openURL(mailto).catch(() => {
+      Alert.alert('Email', SUPPORT_EMAIL);
+    });
+  }
+
+  async function handleRecommend() {
+    const url = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+    try {
+      await Share.share({ message: `${t('settings.recommend.text')} ${url}` });
+    } catch {
+      // user cancelled
+    }
+  }
+
+  function handleRateUs() {
+    const target = Platform.OS === 'ios'
+      ? `itms-apps://itunes.apple.com/app/id${IOS_APP_ID}?action=write-review`
+      : `market://details?id=${APP_BUNDLE_ID}`;
+    Linking.openURL(target).catch(() => {
+      openUrl(Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL);
+    });
+  }
+
+  function handleSubscriptionManagement() {
+    const url = Platform.OS === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : `https://play.google.com/store/account/subscriptions?package=${APP_BUNDLE_ID}`;
+    openUrl(url);
+  }
+
+  function handleRestorePurchases() {
+    Alert.alert(
+      t('settings.restorePurchases.titleAlert'),
+      t('settings.restorePurchases.messageAlert'),
+      [{ text: t('settings.restorePurchases.dismiss') }],
+    );
+  }
+
+  function handleSignIn() {
+    // Optional account / cross-device sync — UI placeholder for now.
+    Alert.alert(
+      t('settings.signIn.titleAlert'),
+      t('settings.signIn.messageAlert'),
+      [{ text: t('settings.restorePurchases.dismiss') }],
+    );
   }
 
   return (
@@ -65,24 +148,93 @@ export default function SettingsScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            style={styles.backButton}
-          >
-            <IconSymbol name="chevron.right" size={24} color="#fff" style={styles.backIcon} />
-          </Pressable>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
-          <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
-          <LanguagePicker selected={locale} onPick={handlePick} />
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionLabel labelKey="settings.section.share" />
+          <View style={styles.card}>
+            <Row
+              icon="square.and.arrow.up"
+              label={t('settings.recommend')}
+              onPress={handleRecommend}
+            />
+            <Divider />
+            <Row
+              icon="star.fill"
+              label={t('settings.rateUs')}
+              onPress={handleRateUs}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.preferences" />
+          <View style={styles.card}>
+            <SwitchRow
+              icon="moon.fill"
+              label={t('settings.darkMode')}
+              value={darkMode}
+              onValueChange={setDarkMode}
+            />
+            <Divider />
+            <Row
+              icon="globe"
+              label={t('settings.language')}
+              value={LANGUAGE_LABEL[locale]}
+              onPress={() => setLanguageOpen(true)}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.account" />
+          <View style={styles.card}>
+            <Row
+              icon="person.fill"
+              label={t('settings.signIn')}
+              onPress={handleSignIn}
+            />
+            <Divider />
+            <Row
+              icon="arrow.clockwise"
+              label={t('settings.restorePurchases')}
+              onPress={handleRestorePurchases}
+            />
+            <Divider />
+            <Row
+              icon="creditcard.fill"
+              label={t('settings.subscriptionManagement')}
+              onPress={handleSubscriptionManagement}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.help" />
+          <View style={styles.card}>
+            <Row
+              icon="envelope.fill"
+              label={t('settings.contactUs')}
+              onPress={handleContactUs}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.about" />
+          <View style={styles.card}>
+            <Row
+              icon="lock.fill"
+              label={t('settings.privacyPolicy')}
+              onPress={() => openUrl(PRIVACY_URL)}
+            />
+            <Divider />
+            <Row
+              icon="doc.text.fill"
+              label={t('settings.termsOfUse')}
+              onPress={() => openUrl(TERMS_URL)}
+            />
+          </View>
 
           {__DEV__ && (
             <View style={styles.devSection}>
-              <Text style={styles.sectionLabel}>Developer</Text>
+              <Text style={styles.devSectionLabel}>Developer</Text>
               <Pressable
                 onPress={confirmReset}
                 style={({ pressed }) => [styles.devButton, pressed && styles.devButtonPressed]}
@@ -95,10 +247,80 @@ export default function SettingsScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </ScrollView>
+
+        <BottomBar current="settings" />
       </SafeAreaView>
+
+      <LanguageModal
+        visible={languageOpen}
+        selected={locale}
+        onClose={() => setLanguageOpen(false)}
+        onPick={(picked) => changeLocale(picked)}
+      />
     </LinearGradient>
   );
+}
+
+function SectionLabel({ labelKey }: { labelKey: StringKey }) {
+  const { t } = useTranslation();
+  return <Text style={styles.sectionLabel}>{t(labelKey)}</Text>;
+}
+
+interface RowProps {
+  icon: React.ComponentProps<typeof IconSymbol>['name'];
+  label: string;
+  /** Optional right-aligned value (e.g. current language). */
+  value?: string;
+  onPress: () => void;
+}
+
+function Row({ icon, label, value, onPress }: RowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <View style={styles.rowIcon}>
+        <IconSymbol name={icon} size={20} color="#a78bff" />
+      </View>
+      <Text style={styles.rowLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      {value && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
+      <IconSymbol name="chevron.right" size={18} color="#ffffff66" />
+    </Pressable>
+  );
+}
+
+interface SwitchRowProps {
+  icon: React.ComponentProps<typeof IconSymbol>['name'];
+  label: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}
+
+function SwitchRow({ icon, label, value, onValueChange }: SwitchRowProps) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowIcon}>
+        <IconSymbol name={icon} size={20} color="#a78bff" />
+      </View>
+      <Text style={styles.rowLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: '#ffffff22', true: '#7c5cff' }}
+        thumbColor="#fff"
+      />
+    </View>
+  );
+}
+
+function Divider() {
+  return <View style={styles.divider} />;
 }
 
 const styles = StyleSheet.create({
@@ -106,52 +328,86 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+    paddingVertical: 14,
     alignItems: 'center',
-  },
-  backIcon: {
-    transform: [{ rotate: '180deg' }],
   },
   headerTitle: {
-    flex: 1,
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
     textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
+    letterSpacing: 0.3,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#ffffff99',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
-    marginLeft: 8,
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    backgroundColor: '#ffffff0f',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ffffff14',
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  rowPressed: {
+    backgroundColor: '#ffffff0a',
+  },
+  rowIcon: {
+    width: 28,
+    alignItems: 'center',
+  },
+  rowLabel: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rowValue: {
+    color: '#ffffff99',
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#ffffff1f',
+    marginLeft: 58,
   },
   devSection: {
-    marginTop: 32,
+    marginTop: 28,
     gap: 10,
+  },
+  devSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff66',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    paddingHorizontal: 4,
   },
   devButton: {
     backgroundColor: '#ef4444',
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
   },
   devButtonPressed: {

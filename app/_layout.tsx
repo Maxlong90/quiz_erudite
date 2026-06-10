@@ -1,22 +1,52 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ContentCacheProvider } from '@/hooks/use-content-cache';
 import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+// Force the system root-view background to match the app gradient so
+// the Android navigation bar (which sits over edge-to-edge content
+// and shows the root bg through translucent system buttons) stays
+// dark even when a Modal pops its own window on top.
+SystemUI.setBackgroundColorAsync('#1a1a47').catch(() => {});
 
+// Every screen in the app sits on a hardcoded dark purple gradient,
+// so we force a navigator theme whose card background also matches
+// that base color. Without this, devices in light system mode flash
+// the navigator's white card behind sliding screens.
+const NAV_THEME = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#1a1a47',
+    card: '#1a1a47',
+  },
+};
+
+export default function RootLayout() {
   return (
     <LocaleProvider>
       <PremiumProvider>
       <ContentCacheProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack initialRouteName="splash">
+      <ThemeProvider value={NAV_THEME}>
+        <View style={{ flex: 1, backgroundColor: '#1a1a47' }}>
+        <Stack
+          initialRouteName="splash"
+          screenOptions={{
+            // Underneath every screen, react-navigation renders a card
+            // whose background is white by default. During slide
+            // transitions that white card peeks through behind the
+            // outgoing/incoming screens. Tint it dark so it blends with
+            // the app gradient and the navigation animation reads as a
+            // smooth purple-to-purple slide.
+            contentStyle: { backgroundColor: '#1a1a47' },
+          }}
+        >
         <Stack.Screen
           name="splash"
           options={{ headerShown: false, gestureEnabled: false, animation: 'none' }}
@@ -54,8 +84,21 @@ export default function RootLayout() {
           name="results"
           options={{ headerShown: false, gestureEnabled: false }}
         />
+        <Stack.Screen
+          name="stats"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="shop"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="account"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style="light" />
+        </View>
       </ThemeProvider>
       </ContentCacheProvider>
       </PremiumProvider>

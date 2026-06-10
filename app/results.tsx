@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,22 +6,81 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { AchievementUnlockModal } from '@/components/achievements/achievement-unlock-modal';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
+import {
+  ACHIEVEMENTS,
+  computeProgress,
+  gatherMetrics,
+  type AchievementProgress,
+} from '@/lib/achievements';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 export default function ResultsScreen() {
-  const { score: scoreStr, total: totalStr, count, locale, category } =
-    useLocalSearchParams<{
-      score: string;
-      total: string;
-      count: string;
-      locale: string;
-      category?: string;
-    }>();
+  const {
+    score: scoreStr,
+    total: totalStr,
+    count,
+    locale,
+    category,
+    categorySlugs,
+    mode,
+    timer,
+    totalSeconds,
+    source,
+    hardVariant,
+    unlocked,
+  } = useLocalSearchParams<{
+    score: string;
+    total: string;
+    count: string;
+    locale: string;
+    category?: string;
+    categorySlugs?: string;
+    mode?: string;
+    timer?: string;
+    totalSeconds?: string;
+    source?: string;
+    hardVariant?: string;
+    unlocked?: string;
+  }>();
 
   const { t } = useTranslation();
+  const { snapshot } = useContentCache();
+  const [unlockQueue, setUnlockQueue] = useState<AchievementProgress[]>([]);
+
+  // Hydrate the modal queue from the comma-separated id list the quiz
+  // screen passed in. We re-compute progress from current metrics so
+  // the modal shows the level we just reached, not whatever number the
+  // URL might have if the user pulls the route up later.
+  useEffect(() => {
+    if (!unlocked) return;
+    const ids = unlocked.split(',').map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    gatherMetrics(snapshot ?? null)
+      .then((metrics) => {
+        if (cancelled) return;
+        const progress = computeProgress(metrics);
+        const idSet = new Set(ids);
+        // Preserve catalog order so the queue feels deterministic.
+        const queue = ACHIEVEMENTS
+          .map((def) => progress.find((p) => p.def.id === def.id))
+          .filter((p): p is AchievementProgress => !!p && idSet.has(p.def.id));
+        setUnlockQueue(queue);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [unlocked, snapshot]);
+
+  function dismissCurrentUnlock() {
+    setUnlockQueue((q) => q.slice(1));
+  }
 
   const score = parseInt(scoreStr ?? '0', 10);
   const total = parseInt(totalStr ?? '0', 10);
@@ -48,6 +108,12 @@ export default function ResultsScreen() {
         count: count ?? '10',
         locale: locale ?? 'en',
         ...(category ? { category } : {}),
+        ...(categorySlugs ? { categorySlugs } : {}),
+        ...(mode ? { mode } : {}),
+        ...(timer ? { timer } : {}),
+        ...(totalSeconds ? { totalSeconds } : {}),
+        ...(source ? { source } : {}),
+        ...(hardVariant ? { hardVariant } : {}),
       },
     });
   }
@@ -102,6 +168,12 @@ export default function ResultsScreen() {
           </Animated.View>
         </View>
       </SafeAreaView>
+
+      <AchievementUnlockModal
+        visible={unlockQueue.length > 0}
+        progress={unlockQueue[0] ?? null}
+        onDismiss={dismissCurrentUnlock}
+      />
     </LinearGradient>
   );
 }

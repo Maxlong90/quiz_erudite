@@ -47,3 +47,6 @@ CLAUDE.md
 /screenshots/*
 !/screenshots/.gitkeep
 AGENTS.md
+
+# Playwright MCP session logs
+.playwright-mcp/
