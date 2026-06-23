@@ -1,74 +1,126 @@
 # Data Model
 
-The app consumes question data from a backend API. It does not store questions locally or maintain any persistent state between sessions. All domain entities originate from the backend; the frontend defines TypeScript interfaces to match the API response shape.
+The app consumes content from a backend API and stores all player progress on the device. Content entities (categories, subcategories, questions) originate from the backend and are mirrored into an on-device snapshot. Progress entities (lives, hints, mistakes, stats, achievements) exist only locally and never leave the device. The frontend defines TypeScript interfaces to match each shape.
 
 ## Domain Entities
 
 ### Question
 
-A question represents a single multiple-choice quiz item about a coat of arms. Each question has exactly four options, one of which is correct. Questions may include an image (typically the coat of arms being asked about) and an explanation revealed after answering.
+A question is a single multiple-choice item. Each has exactly four options, one of which is correct, and may carry an image and an after-answer explanation. Defined as `Question` in `api/types.ts` and, in snapshot form, as `SnapshotQuestion` in `lib/content-cache.ts` (which adds the owning subcategory slug).
 
 | Field | Business Meaning |
 |-------|-----------------|
-| question | The question text displayed to the user |
-| options | Four answer choices (always exactly four) |
+| id | Stable identifier; drives no-repeat tracking and mistake logging |
+| question | The prompt shown to the player |
+| options | Four answer choices |
 | correct_option | Zero-based index (0--3) of the correct option |
-| explanation | Context shown after answering (nullable) |
-| image_url | URL to the coat of arms image (nullable) |
+| explanation | Context revealed after answering (nullable) |
+| image_url | Illustration for the question (nullable) |
+| category_slug | Owning subcategory slug (snapshot questions only, nullable) |
 
-### Content Category
+### Category and Subcategory
 
-Represents a topic or subject area for quiz content. Defined in `api/types.ts` with `id`, `name`, and `slug` fields. Currently unused in the frontend -- the app hardcodes the `coat-of-arms` slug. This type exists for future multi-category support.
+A category is a top-level subject (geography, history, and so on); a subcategory is a child topic within it. Both are the same backend entity differentiated by a parent link. The live API returns them as `Category` (`api/categories.ts`); the snapshot nests them as `SnapshotCategory` with an embedded `subcategories` array of `SnapshotSubcategory`.
 
-### App Config
+| Field | Business Meaning |
+|-------|-----------------|
+| slug | Stable key used for navigation, icon lookup, and seen-set buckets |
+| name | Localized display name |
+| sort_order | Display order within its level |
+| icon_emoji | DB-provided emoji icon (nullable; falls back to the local map) |
+| icon_url | DB-provided icon image (nullable; falls back to the emoji) |
+| subcategories_count, total_questions_count | Tile counters (live API, top level) |
+| should_have_images, should_have_audio | Content-shape hints from the backend |
 
-Represents application-level configuration from the backend, including the app's name, slug, and supported locales. Defined but not fetched by the current frontend.
+### Content Snapshot
+
+The snapshot is the offline mirror of everything the app needs for one language: the app descriptor, every category with its subcategories, and the full question pool. Defined as `ContentSnapshot` in `lib/content-cache.ts`. After download the client augments it with two client-only fields — `imageMap` (remote URL → local file URI) and `syncedAt` (the millisecond timestamp used for the 24-hour freshness check). See [Content and Offline](content-and-offline.md).
+
+### Local Progress Stores
+
+These entities live in AsyncStorage and model the player's gamification state. None are sent to the backend.
+
+| Entity | Store key | Represents |
+|--------|-----------|------------|
+| Lives | `quiz.lives.v1` | Currency spent on wrong answers; daily claim date |
+| Hints | `quiz.hints.v1` | Counts of four hint kinds |
+| Mistakes | `quiz.mistakes.v1` | Up to 200 recently-missed question IDs (most recent first) |
+| Quiz stats | `quiz.stats.v1` | Career totals: quizzes, seconds, questions, correct, perfect runs |
+| Seen sets | `quiz.seen.v1.{bucket}` | Question IDs already served, bucketed by mode/category |
+| Achievements | `quiz.achievements.seenLevels.v1` | Highest achievement level already celebrated |
+| Today's pick | `quiz.today.v1` | The daily question's date, locale, and ID |
+| Locale | `app.locale.v1` | Last chosen language |
+| Premium | `app.premium.v1` | Premium flag (`'0'` / `'1'`) |
+
+The lives, hints, mistakes, stats, and achievement stores carry their own business rules; see [Gamification](gamification.md). The seen sets drive cross-session no-repeats; see [Content and Offline](content-and-offline.md).
 
 ## Entity Relationships
 
 ```
-┌──────────────┐       ┌──────────────────┐
-│  AppConfig   │       │ ContentCategory  │
-│              │       │                  │
-│  slug ───────┼──→    │  slug            │
-│  locales     │  used │  name            │
-│              │  as   └──────────────────┘
-└──────┬───────┘  query
-       │          param    (not used yet)
-       │
-       ↓
-┌──────────────────────────────────────┐
-│             Question                 │
-│                                      │
-│  question, options, correct_option   │
-│  explanation, image_url              │
-└──────────────────────────────────────┘
+┌───────────────┐   parent_id   ┌──────────────────┐
+│   Category    │──────────────→│   Subcategory    │
+│  (top-level)  │   (children)  │                  │
+│  slug, name   │               │  slug, name      │
+│  icon_emoji   │               │  icon_emoji      │
+│  icon_url     │               │  icon_url        │
+└───────┬───────┘               └────────┬─────────┘
+        │                                │
+        │        category_slug           │
+        └──────────────┬─────────────────┘
+                       ↓
+        ┌──────────────────────────────────┐
+        │            Question               │
+        │  id, question, options,           │
+        │  correct_option, explanation,     │
+        │  image_url                        │
+        └───────────────┬───────────────────┘
+                        │ id referenced by
+            ┌───────────┼────────────┐
+            ↓           ↓            ↓
+     ┌──────────┐ ┌──────────┐ ┌──────────┐
+     │ Seen set │ │ Mistakes │ │  Today   │
+     │ (no-rep) │ │ (review) │ │  (pick)  │
+     └──────────┘ └──────────┘ └──────────┘
 ```
+
+## Category Icons
+
+Every category and subcategory tile renders an icon, resolved through a cascade that lets the backend override a built-in default without ever leaving a tile blank. The hardcoded maps live in `constants/category-visuals.ts`: `CATEGORY_VISUALS` keys each top-level slug to an emoji plus a brand gradient, `SUBCATEGORY_EMOJI` keys each subcategory slug to an emoji, and `FALLBACK_VISUAL` covers anything unknown.
+
+For a top-level category (home screen, `app/index.tsx`):
+
+1. If the API gave an `icon_url`, render that image.
+2. Otherwise render `icon_emoji` from the API, or the slug's emoji from `CATEGORY_VISUALS`, or the fallback emoji.
+
+For a subcategory (`app/category/[slug].tsx` and `app/quiz-mode/[slug].tsx`):
+
+1. If the API gave an `icon_url`, render that image.
+2. Otherwise render `icon_emoji`, then `SUBCATEGORY_EMOJI[slug]`, then the parent category's emoji.
+
+The backend stores the same emoji values in its `content_categories.icon_emoji` column, backfilled from these maps, so the admin can view and edit each icon and later upload custom artwork via `icon_url`. The maps remain in the app as the guaranteed fallback for categories the backend has not populated. Because lookup is by slug, the backend can rename a display name freely; only a slug change would require touching these maps.
 
 ## API Contract
 
-The app communicates with a single endpoint:
+The base URL is `quiz-erudit-backend.turbosuslik.online/api/v1` (overridable via `EXPO_PUBLIC_API_URL`). The app slug is `erudite-quiz` (overridable via `EXPO_PUBLIC_APP_SLUG`). The Axios client (`api/client.ts`) uses a 15-second timeout and no authentication.
 
-**GET** `/api/v1/apps/{appSlug}/questions/random`
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /apps/{slug}/snapshot?locale=` | Full offline bundle for one language |
+| `GET /apps/{slug}/categories?parent=` | Top-level categories, or one category's children |
+| `GET /apps/{slug}/questions/random?count=&locale=&category=` | Random questions, optionally scoped to a category |
+| `POST /reports` | Submit a content report for a question |
 
-Query parameters:
-- `count` -- Number of questions to return (10, 20, or 50)
-- `locale` -- Language code (en, ru, or es)
-
-The `fetchRandomQuestions` function in `api/questions.ts` handles response normalization. The backend may return either a bare array of questions or a wrapped response `{ data: [...] }`. The client handles both formats transparently.
-
-The API client in `api/client.ts` uses Axios with a 15-second timeout and no authentication. The base URL points to `quiz-erudit-backend.turbosuslik.online/api/v1`.
+Each read endpoint tolerates either a bare array or a `{ data: [...] }` wrapper; `fetchCategories` and `fetchRandomQuestions` normalize both. Reports (`api/reports.ts`) carry a content type, content ID, a reason from a fixed set (incorrect answer, unclear wording, inappropriate, broken media, translation issue, other), an optional comment, and the locale.
 
 ## Data Lifecycle
 
-Questions have no client-side lifecycle. They are:
-1. Fetched from the API at the start of each quiz session
-2. Held in memory by the `useQuizSession` reducer during gameplay
-3. Discarded when the user navigates away from the quiz
+Content has a 24-hour cached lifecycle: the snapshot is fetched on first need, reused while fresh, and re-fetched when stale or when the language changes. Questions drawn into a session are filtered against the seen sets so the player rarely repeats a question across sessions, and the seen set resets only when a bucket is exhausted. See [Content and Offline](content-and-offline.md).
 
-No caching, offline storage, or local persistence exists. Each "Play Again" action triggers a fresh API call, which means the user gets a different random set of questions each time.
+Progress stores accumulate monotonically as the player plays — stats and seen sets grow, lives and hints rise and fall, mistakes ring-buffer at 200 entries. The settings screen's reset clears every `quiz.*` key, the premium flag, the onboarding flag, and the content cache, returning the app to a first-launch state.
 
 ## See Also
 
-- [Quiz Flow](quiz-flow.md) -- How questions are used during gameplay
-- [Architecture](architecture.md) -- System structure and API integration
+- [Content and Offline](content-and-offline.md) -- Snapshot cache, images, and no-repeats
+- [Gamification](gamification.md) -- Lives, hints, mistakes, stats, achievements
+- [Quiz Flow](quiz-flow.md) -- How entities are used during gameplay
+- [Architecture](architecture.md) -- System structure and providers

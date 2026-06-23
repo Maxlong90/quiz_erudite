@@ -1,0 +1,59 @@
+# Content and Offline
+
+The app is offline-first: rather than fetch questions per session, it downloads the entire content set for one language as a single snapshot, caches it on the device with its images, and serves gameplay from that cache. This makes play resilient to a poor or absent connection and keeps quiz starts instant. A separate seen-set mechanism, also on-device, ensures players rarely see the same question twice across sessions.
+
+## The Content Snapshot
+
+The snapshot is one bundle holding everything a language needs: the app descriptor, every category with its nested subcategories, and the full question pool. It is fetched from `GET /apps/{slug}/snapshot?locale=` and managed by `lib/content-cache.ts`, with the React context in `hooks/use-content-cache.ts` exposing the current snapshot, a sync status (idle, syncing, ready, error), and a 0..1 progress value.
+
+`syncContent` drives the download. It runs when the active locale changes and can be forced from settings. The flow is:
+
+1. If a cached snapshot exists, matches the requested locale, and is under 24 hours old, return it without touching the network.
+2. Otherwise fetch the snapshot JSON (progress 0 → 20%).
+3. Collect every image URL — question images plus category and subcategory icons — deduplicate them, and download with up to six concurrent workers (progress 20 → 100%).
+4. Persist the snapshot (with its image map and sync timestamp) to AsyncStorage and store the version number separately.
+
+```
+locale change / forced resync
+            │
+            ↓
+   cached & fresh (<24h)? ──yes──→ return cached snapshot
+            │ no
+            ↓
+   fetch snapshot JSON ──→ collect image URLs ──→ download (6 workers)
+            │                                            │
+            └──────────────→ persist snapshot + images ←─┘
+```
+
+## Image Caching
+
+On native, downloaded images are written to a `snapshot-images/` directory under the app's document directory, and the snapshot's `imageMap` records each remote URL against its local file URI. During gameplay, `resolveLocalImage` swaps a remote URL for its cached local path when one exists, so the UI renders from disk. A failed download is simply skipped — the map omits that URL and the UI falls back to fetching it remotely, so a single bad download never blocks a quiz.
+
+The web platform has no writable filesystem, so it skips the local image cache entirely: downloads are reported complete immediately and `resolveLocalImage` returns the remote URL for the browser to cache itself.
+
+## Cache Freshness
+
+The snapshot carries a `syncedAt` timestamp, and a 24-hour TTL governs reuse. A snapshot older than that, or one whose locale no longer matches the active language, is re-fetched on the next sync. Clearing the cache (from settings reset) removes both AsyncStorage keys and deletes the image directory.
+
+## Cross-Session No-Repeats
+
+To stop the same questions recurring, the app records which question IDs a player has already been served and excludes them from future pools. The records live in AsyncStorage under keys prefixed `quiz.seen.v1.`, one bucket per context:
+
+- `__all__` for whole-pool modes such as Random 10 and Time Limit.
+- One bucket per requested category/subcategory slug combination for topic-scoped modes.
+- A variant suffix for hard mode, so a "hard typing" run does not exhaust the questions a normal run would draw.
+
+When the quiz screen builds a pool, it drops any ID already in the relevant bucket. If too few unseen questions remain to fill the request, it resets that bucket and reuses the full pool, so a player who exhausts a topic simply starts the cycle over rather than hitting an empty quiz. After picking, the served IDs are written back into the bucket.
+
+These same seen sets do double duty for progression: `getAllSeenIds` unions every bucket into one set, which the stats screen and the Explorer achievement use to resolve how many distinct subjects a player has touched. Bucketing alone could not answer that — the `__all__` bucket has no subject — so the IDs are resolved back to subjects through the snapshot. See [Gamification](gamification.md#career-stats).
+
+## Today's Question
+
+The daily question (`lib/today-question.ts`) picks one question ID and pins it for the local calendar day, stored with its date and locale under `quiz.today.v1`. The pick rolls over at the player's midnight and is recomputed when the date or language changes, giving every player a stable "question of the day" without a server round-trip. Opening it does not pad career stats.
+
+## See Also
+
+- [Quiz Flow](quiz-flow.md) -- How pools are filtered and questions served
+- [Data Model](data-model.md) -- Snapshot and seen-set shapes
+- [Gamification](gamification.md) -- Stats and achievements built on seen sets
+- [Architecture](architecture.md) -- The content cache provider
