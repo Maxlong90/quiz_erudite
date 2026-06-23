@@ -262,6 +262,15 @@ export type StringKey =
   | 'paywall.row.stats'
   | 'paywall.row.stats.free'
   | 'paywall.row.stats.premium'
+  | 'paywall.reviewAccess'
+  | 'paywall.review.title'
+  | 'paywall.review.subtitle'
+  | 'paywall.review.login'
+  | 'paywall.review.password'
+  | 'paywall.review.submit'
+  | 'paywall.review.cancel'
+  | 'paywall.review.invalid'
+  | 'paywall.review.networkError'
   // quiz mode picker
   | 'mode.title'
   | 'mode.daily.title'
@@ -554,6 +563,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.row.stats': 'Stats',
     'paywall.row.stats.free': 'Basic',
     'paywall.row.stats.premium': 'Advanced',
+    'paywall.reviewAccess': 'App reviewer access — unlock to test premium',
+    'paywall.review.title': 'Reviewer access',
+    'paywall.review.subtitle': 'Enter the credentials from the review instructions to unlock premium.',
+    'paywall.review.login': 'Login',
+    'paywall.review.password': 'Password',
+    'paywall.review.submit': 'Unlock',
+    'paywall.review.cancel': 'Cancel',
+    'paywall.review.invalid': 'Invalid login or password.',
+    'paywall.review.networkError': 'Connection error. Please try again.',
 
     'mode.title': 'Choose a mode',
     'mode.daily.title': "Today's question",
@@ -842,6 +860,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.row.stats': 'Estadísticas',
     'paywall.row.stats.free': 'Básicas',
     'paywall.row.stats.premium': 'Avanzadas',
+    'paywall.reviewAccess': 'Acceso para revisor — desbloquear para probar premium',
+    'paywall.review.title': 'Acceso para revisor',
+    'paywall.review.subtitle': 'Introduce las credenciales de las instrucciones de revisión para desbloquear premium.',
+    'paywall.review.login': 'Usuario',
+    'paywall.review.password': 'Contraseña',
+    'paywall.review.submit': 'Desbloquear',
+    'paywall.review.cancel': 'Cancelar',
+    'paywall.review.invalid': 'Usuario o contraseña no válidos.',
+    'paywall.review.networkError': 'Error de conexión. Inténtalo de nuevo.',
 
     'mode.title': 'Elige un modo',
     'mode.daily.title': 'Pregunta del día',
@@ -1130,6 +1157,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.row.stats': 'Статистика',
     'paywall.row.stats.free': 'Basic',
     'paywall.row.stats.premium': 'Advanced',
+    'paywall.reviewAccess': 'Доступ для проверяющего — открыть премиум для теста',
+    'paywall.review.title': 'Доступ для проверяющего',
+    'paywall.review.subtitle': 'Введите логин и пароль из инструкции для проверки, чтобы открыть премиум.',
+    'paywall.review.login': 'Логин',
+    'paywall.review.password': 'Пароль',
+    'paywall.review.submit': 'Открыть',
+    'paywall.review.cancel': 'Отмена',
+    'paywall.review.invalid': 'Неверный логин или пароль.',
+    'paywall.review.networkError': 'Ошибка соединения. Попробуйте ещё раз.',
 
     'mode.title': 'Выберите режим',
     'mode.daily.title': 'Вопрос дня',

@@ -24,6 +24,7 @@ import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { clearCache as clearContentCache } from '@/lib/content-cache';
+import { Sentry, sentryEnabled } from '@/lib/sentry';
 import type { StringKey } from '@/i18n/strings';
 
 const ONBOARDING_KEY = 'onboarding.seen.v1';
@@ -68,6 +69,25 @@ export default function SettingsScreen() {
       resetPremium(),
     ]);
     router.replace('/splash');
+  }
+
+  // Show the temporary Sentry test button whenever debug reporting is on,
+  // regardless of __DEV__ — so a normal Preview APK can verify it too.
+  const showSentryTest = process.env.EXPO_PUBLIC_SENTRY_DEBUG === '1';
+
+  // Temporary verification helper: forces an error to Sentry so we can
+  // confirm the DSN/build pipeline works end-to-end. Remove once verified.
+  function triggerTestCrash() {
+    const err = new Error('Sentry test crash from Settings (manual verification)');
+    Sentry.captureException(err);
+    if (typeof Alert?.alert === 'function') {
+      Alert.alert(
+        'Sentry test',
+        sentryEnabled
+          ? 'Test error sent to Sentry. Check the Issues dashboard in a few seconds.'
+          : 'Sentry is OFF (no DSN, or disabled in this build). Nothing was sent.',
+      );
+    }
   }
 
   function confirmReset() {
@@ -244,6 +264,25 @@ export default function SettingsScreen() {
               </Pressable>
               <Text style={styles.devHint}>
                 Wipes language pick, onboarding seen, and premium flag, then sends you back to the splash screen.
+              </Text>
+            </View>
+          )}
+
+          {/* TEMPORARY Sentry verification block. Shown in ANY build (not just
+              __DEV__) while EXPO_PUBLIC_SENTRY_DEBUG=1, so a normal Preview APK
+              can be used to confirm crash reporting. Remove after verifying. */}
+          {showSentryTest && (
+            <View style={styles.devSection}>
+              <Text style={styles.devSectionLabel}>Sentry check</Text>
+              <Pressable
+                onPress={triggerTestCrash}
+                style={({ pressed }) => [styles.devButton, pressed && styles.devButtonPressed]}
+                testID="dev-sentry-test"
+              >
+                <Text style={styles.devButtonText}>Send Sentry test error</Text>
+              </Pressable>
+              <Text style={styles.devHint}>
+                Sentry: {sentryEnabled ? 'ON' : 'OFF (no DSN)'}. Temporary — remove after verifying.
               </Text>
             </View>
           )}

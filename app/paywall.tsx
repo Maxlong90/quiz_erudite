@@ -1,10 +1,13 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ReviewerUnlockModal } from '@/components/paywall/reviewer-unlock-modal';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
@@ -33,6 +36,30 @@ const COMPARE_ROWS: CompareRow[] = [
 export default function PaywallScreen() {
   const { t } = useTranslation();
   const { setPremium } = usePremium();
+  const { snapshot } = useContentCache();
+
+  // Backend-controlled, per-app flag (Nova: "Show Paywall Review Button").
+  // Turned on only while a build is under Google Play review.
+  const showReviewButton =
+    Platform.OS === 'android' && snapshot?.app.show_paywall_review_button === true;
+
+  // Backend-controlled, per-app (Nova: "Seconds Before Quit Button Shown").
+  // Both paywall exits — the close ✕ and the "continue free" link — stay
+  // hidden for this many seconds, forcing the offer to be seen first.
+  // 0 / absent = exits shown immediately. Applies on all platforms.
+  const quitDelaySec = snapshot?.app.seconds_before_quit_button_shown ?? 0;
+  const [canQuit, setCanQuit] = useState(quitDelaySec <= 0);
+
+  useEffect(() => {
+    if (quitDelaySec <= 0) {
+      setCanQuit(true);
+      return;
+    }
+    // Re-arm whenever the configured delay changes (e.g. snapshot resync).
+    setCanQuit(false);
+    const timer = setTimeout(() => setCanQuit(true), quitDelaySec * 1000);
+    return () => clearTimeout(timer);
+  }, [quitDelaySec]);
 
   async function handleSubscribe() {
     // MVP: locally mark the user as premium. Replace with the
@@ -42,6 +69,23 @@ export default function PaywallScreen() {
   }
 
   function handleDismiss() {
+    router.replace('/');
+  }
+
+  // Android-only review-access flow. Google Play reviewers cannot run a real
+  // purchase during review, so the app would otherwise fail the "verify the
+  // paid functionality" check. Tapping the button opens a login/password
+  // dialog; the backend validates the credentials (set per-app in Nova and
+  // shared via the store review instructions) and only then is premium
+  // unlocked locally — without payment, and without shipping the password to
+  // the client. Kept out of iOS, where App Store review uses sandbox
+  // purchases. NOTE: intentionally NOT gated by __DEV__ — reviewers test a
+  // release build where __DEV__ is false.
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+
+  async function handleReviewUnlocked() {
+    setReviewModalVisible(false);
+    await setPremium(true);
     router.replace('/');
   }
 
@@ -55,15 +99,17 @@ export default function PaywallScreen() {
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <View style={styles.spacer} />
-          <Pressable
-            onPress={handleDismiss}
-            hitSlop={12}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
-            accessibilityLabel="Close paywall"
-            testID="paywall-close"
-          >
-            <IconSymbol name="xmark" size={22} color="#ffffffcc" />
-          </Pressable>
+          {canQuit && (
+            <Pressable
+              onPress={handleDismiss}
+              hitSlop={12}
+              style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+              accessibilityLabel="Close paywall"
+              testID="paywall-close"
+            >
+              <IconSymbol name="xmark" size={22} color="#ffffffcc" />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.hero}>
@@ -113,12 +159,33 @@ export default function PaywallScreen() {
             <Text style={styles.ctaText}>{t('paywall.cta')}</Text>
           </Pressable>
 
-          <Pressable onPress={handleDismiss} hitSlop={10} testID="paywall-dismiss">
-            <Text style={styles.dismissText}>{t('paywall.continueFree')}</Text>
-          </Pressable>
+          {canQuit && (
+            <Pressable onPress={handleDismiss} hitSlop={10} testID="paywall-dismiss">
+              <Text style={styles.dismissText}>{t('paywall.continueFree')}</Text>
+            </Pressable>
+          )}
 
           <Text style={styles.disclaimer}>{t('paywall.disclaimer')}</Text>
+
+          {showReviewButton && (
+            <Pressable
+              onPress={() => setReviewModalVisible(true)}
+              hitSlop={10}
+              style={({ pressed }) => [styles.reviewAccess, pressed && styles.reviewAccessPressed]}
+              testID="paywall-review-access"
+            >
+              <Text style={styles.reviewAccessText}>{t('paywall.reviewAccess')}</Text>
+            </Pressable>
+          )}
         </View>
+
+        {showReviewButton && (
+          <ReviewerUnlockModal
+            visible={reviewModalVisible}
+            onClose={() => setReviewModalVisible(false)}
+            onUnlocked={handleReviewUnlocked}
+          />
+        )}
       </SafeAreaView>
     </LinearGradient>
   );
@@ -309,5 +376,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 12,
+  },
+  // Discreet review-access affordance (Android only). Bordered pill so a
+  // reviewer can find it, but visually subordinate to the real CTA.
+  reviewAccess: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ffffff33',
+  },
+  reviewAccessPressed: {
+    opacity: 0.6,
+  },
+  reviewAccessText: {
+    color: '#ffffff88',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

@@ -8,6 +8,8 @@ import 'react-native-reanimated';
 import { ContentCacheProvider } from '@/hooks/use-content-cache';
 import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
+// Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
+import { Sentry, sentryEnabled } from '@/lib/sentry';
 
 // Force the system root-view background to match the app gradient so
 // the Android navigation bar (which sits over edge-to-edge content
@@ -28,7 +30,7 @@ const NAV_THEME = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <LocaleProvider>
       <PremiumProvider>
@@ -105,3 +107,7 @@ export default function RootLayout() {
     </LocaleProvider>
   );
 }
+
+// Wrap with Sentry's touch/navigation instrumentation only when active;
+// otherwise export the plain component so a DSN-less build is untouched.
+export default sentryEnabled ? Sentry.wrap(RootLayout) : RootLayout;

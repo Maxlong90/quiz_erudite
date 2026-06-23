@@ -47,6 +47,20 @@ export interface ContentSnapshot {
     slug: string;
     name: string;
     supported_locales: string[];
+    /**
+     * When true, the Android paywall shows a discreet "reviewer access"
+     * button that unlocks premium without a purchase, so a Google Play
+     * reviewer can verify the paid functionality. Toggled per-app in the
+     * backend admin; absent on older snapshots (treat as false).
+     */
+    show_paywall_review_button?: boolean;
+    /**
+     * Seconds the paywall hides BOTH exits (the close ✕ and the
+     * "continue free" link) before revealing them, forcing the user to
+     * view the offer first. 0 / absent = exits shown immediately.
+     * Backend-controlled per-app; applies on all platforms.
+     */
+    seconds_before_quit_button_shown?: number;
   };
   locale: string;
   version: number;
