@@ -51,7 +51,17 @@ A single premium flag (`hooks/use-premium.ts`, stored as `app.premium.v1`) gates
 
 Billing runs through RevenueCat / Google Play on Android device builds (`lib/revenuecat.ts`). The paywall presents the `default` offering — annual is the headline package — and only flips the local flag once the `premium` entitlement is active; it also offers **Restore Purchases**. On launch the premium provider syncs from the live entitlement, but only ever *upgrades* (a returning subscriber stays premium); it never downgrades offline, where the entitlement is treated as unknown. The Android reviewer-unlock flow (a backend-validated login that grants premium without a real purchase) is unchanged and still gated by the `show_paywall_review_button` app flag.
 
-The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives and hint bundles whose ids are the Google Play product ids. On Android device builds, tapping a bundle runs the real purchase and only credits the contents locally on success (cancellation is a no-op; store errors surface as a failure); displayed prices are hydrated from store metadata when available. The catalog spans single-currency lives packs, multi-kind hint packs, and a combined power bundle.
+The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives, hints, and combo bundles whose ids are the Google Play product ids. On Android device builds, tapping a bundle runs the real purchase and only credits the contents locally on success (cancellation is a no-op; store errors surface as a failure); displayed prices are hydrated from store metadata when available.
+
+The catalog is a fixed nine-product contract shared with the backend, which provisions the same ids as Google Play managed (consumable) products and registers them in RevenueCat. Changing an id here without changing it there breaks purchasing, so the ids are treated as immutable. The nine products fall into three categories the shop renders as separate sections — three lives packs, three hint packs, and three combos:
+
+| Category | Bundles | Grants |
+|----------|---------|--------|
+| lives | `lives.10`, `lives.30`, `lives.100` | 10 / 30 / 100 lives |
+| hints | `hints.5`, `hints.10`, `hints.20` | 5 / 10 / 20 of each of the four hint kinds |
+| combo | `combo.10.5`, `combo.30.10`, `combo.100.20` | lives plus hints together (10+5, 30+10, 100+20) |
+
+The out-of-lives modal (`components/lives/buy-lives-modal.tsx`) reuses this catalog but filters to `category === 'lives'`, so it offers only the three lives packs.
 
 RevenueCat is **Android only** for now (no iOS key yet) and degrades gracefully: in Expo Go, on web, on iOS, or whenever the native module is missing, it stays disabled and both the shop and the paywall fall back to the original local-grant behavior so the dev flow never breaks. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback.
 
