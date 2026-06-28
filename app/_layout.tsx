@@ -10,6 +10,9 @@ import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 // Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
 import { Sentry, sentryEnabled } from '@/lib/sentry';
+// Side-effect import: configures RevenueCat on supported Android builds; a
+// no-op in Expo Go / web / iOS (see lib/revenuecat.ts).
+import '@/lib/revenuecat';
 
 // Force the system root-view background to match the app gradient so
 // the Android navigation bar (which sits over edge-to-edge content

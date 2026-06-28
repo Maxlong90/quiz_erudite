@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,7 @@ import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
+import { purchasePremium, restorePremium, revenueCatEnabled } from '@/lib/revenuecat';
 
 // Comparison rows. `free`/`premium` are either an i18n key (resolved
 // via t()) or the literal check / cross marks rendered as-is.
@@ -61,11 +62,50 @@ export default function PaywallScreen() {
     return () => clearTimeout(timer);
   }, [quitDelaySec]);
 
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
   async function handleSubscribe() {
-    // MVP: locally mark the user as premium. Replace with the
-    // RevenueCat purchase flow when IAP is wired up.
-    await setPremium(true);
-    router.replace('/');
+    if (purchasing) return;
+
+    // Expo Go / web / iOS: RevenueCat is disabled, keep the MVP local unlock.
+    if (!revenueCatEnabled) {
+      await setPremium(true);
+      router.replace('/');
+      return;
+    }
+
+    setPurchasing(true);
+    try {
+      const result = await purchasePremium();
+      // Cancellation is a silent no-op; only unlock once the entitlement is live.
+      if (result.outcome === 'purchased' && result.premiumActive) {
+        await setPremium(true);
+        router.replace('/');
+      }
+    } catch {
+      Alert.alert(t('paywall.error.title'), t('paywall.error.body'));
+    } finally {
+      setPurchasing(false);
+    }
+  }
+
+  async function handleRestore() {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const active = await restorePremium();
+      if (active) {
+        await setPremium(true);
+        router.replace('/');
+      } else {
+        Alert.alert(t('paywall.restore.none.title'), t('paywall.restore.none.body'));
+      }
+    } catch {
+      Alert.alert(t('paywall.error.title'), t('paywall.error.body'));
+    } finally {
+      setRestoring(false);
+    }
   }
 
   function handleDismiss() {
@@ -153,11 +193,30 @@ export default function PaywallScreen() {
         <View style={styles.actions}>
           <Pressable
             onPress={handleSubscribe}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+            disabled={purchasing}
+            style={({ pressed }) => [
+              styles.cta,
+              pressed && styles.ctaPressed,
+              purchasing && styles.ctaDisabled,
+            ]}
             testID="paywall-subscribe"
           >
-            <Text style={styles.ctaText}>{t('paywall.cta')}</Text>
+            <Text style={styles.ctaText}>{purchasing ? '…' : t('paywall.cta')}</Text>
           </Pressable>
+
+          {/* Restore is only meaningful with a real store account. */}
+          {revenueCatEnabled && (
+            <Pressable
+              onPress={handleRestore}
+              disabled={restoring}
+              hitSlop={10}
+              testID="paywall-restore"
+            >
+              <Text style={styles.restoreText}>
+                {restoring ? '…' : t('paywall.restore')}
+              </Text>
+            </Pressable>
+          )}
 
           {canQuit && (
             <Pressable onPress={handleDismiss} hitSlop={10} testID="paywall-dismiss">
@@ -359,11 +418,20 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
+  ctaDisabled: {
+    opacity: 0.6,
+  },
   ctaText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 0.4,
+  },
+  restoreText: {
+    color: '#ffffffcc',
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 6,
   },
   dismissText: {
     color: '#ffffff99',

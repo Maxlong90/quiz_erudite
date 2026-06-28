@@ -47,9 +47,13 @@ After each quiz, the results screen gathers the current metrics, computes each a
 
 ## Premium and the Shop
 
-A single premium flag (`hooks/use-premium.ts`, stored as `app.premium.v1`) gates the advanced modes. Free players see three open modes; the rest carry a crown and route to the paywall (`app/paywall.tsx`) when tapped. Subscribing currently just sets the flag locally — there is no real billing yet.
+A single premium flag (`hooks/use-premium.ts`, stored as `app.premium.v1`) gates the advanced modes. Free players see three open modes; the rest carry a crown and route to the paywall (`app/paywall.tsx`) when tapped.
 
-The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives and hint bundles. Purchases are stubbed: tapping a bundle grants its contents straight into the local stores without charging anything. The catalog spans single-currency lives packs, multi-kind hint packs, and a combined power bundle. This scaffolds the storefront UI ahead of a real in-app-purchase integration.
+Billing runs through RevenueCat / Google Play on Android device builds (`lib/revenuecat.ts`). The paywall presents the `default` offering — annual is the headline package — and only flips the local flag once the `premium` entitlement is active; it also offers **Restore Purchases**. On launch the premium provider syncs from the live entitlement, but only ever *upgrades* (a returning subscriber stays premium); it never downgrades offline, where the entitlement is treated as unknown. The Android reviewer-unlock flow (a backend-validated login that grants premium without a real purchase) is unchanged and still gated by the `show_paywall_review_button` app flag.
+
+The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives and hint bundles whose ids are the Google Play product ids. On Android device builds, tapping a bundle runs the real purchase and only credits the contents locally on success (cancellation is a no-op; store errors surface as a failure); displayed prices are hydrated from store metadata when available. The catalog spans single-currency lives packs, multi-kind hint packs, and a combined power bundle.
+
+RevenueCat is **Android only** for now (no iOS key yet) and degrades gracefully: in Expo Go, on web, on iOS, or whenever the native module is missing, it stays disabled and both the shop and the paywall fall back to the original local-grant behavior so the dev flow never breaks. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback.
 
 ## See Also
 

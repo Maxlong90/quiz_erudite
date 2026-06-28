@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,7 @@ import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
 import { useTranslation } from '@/hooks/use-translation';
 import { addLives } from '@/lib/lives';
-import { BUNDLES, purchaseBundle, type ShopBundle } from '@/lib/iap';
+import { BUNDLES, getBundleStorePrices, purchaseBundle, type ShopBundle } from '@/lib/iap';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
@@ -24,6 +24,23 @@ export default function ShopScreen() {
   const [watching, setWatching] = useState(false);
   const [livesInfoOpen, setLivesInfoOpen] = useState(false);
   const [hintsInfoOpen, setHintsInfoOpen] = useState(false);
+  // Live store prices keyed by bundle id; empty when RevenueCat is disabled,
+  // in which case the hardcoded bundle.price is used as the fallback.
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    getBundleStorePrices()
+      .then((prices) => {
+        if (!cancelled) setStorePrices(prices);
+      })
+      .catch(() => {
+        // Keep hardcoded fallback prices.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleBuy(bundle: ShopBundle) {
     if (pendingId) return;
@@ -108,6 +125,7 @@ export default function ShopScreen() {
               <BundleCard
                 key={b.id}
                 bundle={b}
+                price={storePrices[b.id] ?? b.price}
                 pending={pendingId === b.id}
                 onBuy={() => handleBuy(b)}
               />
@@ -120,6 +138,7 @@ export default function ShopScreen() {
               <BundleCard
                 key={b.id}
                 bundle={b}
+                price={storePrices[b.id] ?? b.price}
                 pending={pendingId === b.id}
                 onBuy={() => handleBuy(b)}
               />
@@ -172,8 +191,8 @@ function BalanceTile({ emoji, label, value, onPress }: BalanceProps) {
   return <View style={styles.balance}>{content}</View>;
 }
 
-interface CardProps { bundle: ShopBundle; pending: boolean; onBuy: () => void; }
-function BundleCard({ bundle, pending, onBuy }: CardProps) {
+interface CardProps { bundle: ShopBundle; price: string; pending: boolean; onBuy: () => void; }
+function BundleCard({ bundle, price, pending, onBuy }: CardProps) {
   const { t } = useTranslation();
   return (
     <Pressable
@@ -187,7 +206,7 @@ function BundleCard({ bundle, pending, onBuy }: CardProps) {
       <Text style={styles.bundleTitle} numberOfLines={1}>{t(bundle.titleKey)}</Text>
       <Text style={styles.bundleSubtitle} numberOfLines={2}>{t(bundle.subtitleKey)}</Text>
       <View style={styles.buy}>
-        <Text style={styles.buyText}>{pending ? '…' : bundle.price}</Text>
+        <Text style={styles.buyText}>{pending ? '…' : price}</Text>
       </View>
     </Pressable>
   );

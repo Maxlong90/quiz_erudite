@@ -1,11 +1,14 @@
 import { addLives } from '@/lib/lives';
 import { addHintsBundle, type HintKind } from '@/lib/hints';
+import { fetchProductPrices, purchaseConsumable, revenueCatEnabled } from '@/lib/revenuecat';
 
 /**
- * In-app purchases are not wired to a real provider yet. This module
- * stubs the flow: each "buy" simulates a 1-second processing delay
- * and then grants the bundle locally. Swap implementations for
- * expo-in-app-purchases (or RevenueCat) later — keep these IDs.
+ * In-app consumable purchases (lives / hints). On Android device builds these
+ * run through RevenueCat / Google Play (see lib/revenuecat.ts); the bundle ids
+ * below are the Google Play product ids and must not change. In Expo Go, on web
+ * and on iOS (no key yet) RevenueCat is disabled, so the flow falls back to a
+ * local-grant stub — a short delay followed by crediting the bundle locally —
+ * so the dev experience is unchanged.
  */
 
 export interface ShopBundle {
@@ -92,15 +95,41 @@ export const BUNDLES: ShopBundle[] = [
   },
 ];
 
-export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
-  // Pretend we hit the App Store / Play Store. Replace with the real
-  // SDK call when payments are wired.
-  await new Promise((r) => setTimeout(r, 900));
-
+async function grantBundle(bundle: ShopBundle): Promise<void> {
   if (bundle.grants.lives) {
     await addLives(bundle.grants.lives);
   }
   if (bundle.grants.hints) {
     await addHintsBundle(bundle.grants.hints);
   }
+}
+
+/**
+ * Buy a bundle. When RevenueCat is enabled, runs the real Google Play purchase
+ * and only credits the bundle locally on a successful (non-cancelled) purchase;
+ * a user cancellation is a no-op and real store errors propagate so the shop UI
+ * can show a failure. When disabled (Expo Go / web / iOS), keeps the stubbed
+ * delay-then-grant behavior.
+ */
+export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
+  if (revenueCatEnabled) {
+    const outcome = await purchaseConsumable(bundle.id);
+    if (outcome === 'purchased') {
+      await grantBundle(bundle);
+    }
+    // 'cancelled' → no grant, no error.
+    return;
+  }
+
+  // Stub path: pretend we hit the Play Store, then grant locally.
+  await new Promise((r) => setTimeout(r, 900));
+  await grantBundle(bundle);
+}
+
+/**
+ * Resolve live store prices for the catalog, keyed by bundle id. Returns an
+ * empty map when RevenueCat is disabled (callers keep the hardcoded `price`).
+ */
+export function getBundleStorePrices(): Promise<Record<string, string>> {
+  return fetchProductPrices(BUNDLES.map((b) => b.id));
 }

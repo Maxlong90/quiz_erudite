@@ -53,7 +53,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | `quiz` | Quiz | Gameplay: question card, hints, lives, timer |
 | `results` | Results | Score, accuracy, achievement unlocks |
 | `stats` | Stats | Career totals and achievement progress |
-| `shop` | Shop | Lives and hint bundles (purchases stubbed) |
+| `shop` | Shop | Lives and hint bundles (RevenueCat on Android; local-grant fallback elsewhere) |
 | `account` | Account | Sign-up/login UI (not wired to a backend) |
 | `settings` | Settings | Language, dark mode, reset, legal links |
 | `paywall` | Paywall | Premium pitch; tapping a locked mode lands here |
@@ -65,7 +65,7 @@ The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, a
 Three React context providers wrap the whole tree, in this order: `LocaleProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
 
 - **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`). It seeds from the device locale and falls back to English.
-- **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Premium currently unlocks mode tiles only; there is no real billing.
+- **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. On Android device builds it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat / Google Play (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
 
 Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use-quiz-session.ts`), a `useReducer` state machine. See [Quiz Flow](quiz-flow.md).
@@ -80,7 +80,7 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating is purely a client-side flag, appropriate for the current pre-billing stage.
+**Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; on Android it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web / iOS keep the local flag as the source of truth.
 
 ## Component Organization
 
@@ -110,7 +110,8 @@ lib/                    Device-local business logic and persistence
   quiz-stats.ts         Career totals + per-bucket seen sets
   achievements.ts       Achievement catalog and unlock detection
   today-question.ts     Daily-question pick
-  iap.ts                Shop bundle catalog (stubbed purchases)
+  iap.ts                Shop bundle catalog + purchase flow (RevenueCat / local fallback)
+  revenuecat.ts         RevenueCat (Android) wrapper; disabled in Expo Go / web / iOS
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
   theme.ts              Colors and typography

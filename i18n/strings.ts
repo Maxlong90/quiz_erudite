@@ -271,6 +271,11 @@ export type StringKey =
   | 'paywall.review.cancel'
   | 'paywall.review.invalid'
   | 'paywall.review.networkError'
+  | 'paywall.restore'
+  | 'paywall.restore.none.title'
+  | 'paywall.restore.none.body'
+  | 'paywall.error.title'
+  | 'paywall.error.body'
   // quiz mode picker
   | 'mode.title'
   | 'mode.daily.title'
@@ -572,6 +577,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.review.cancel': 'Cancel',
     'paywall.review.invalid': 'Invalid login or password.',
     'paywall.review.networkError': 'Connection error. Please try again.',
+    'paywall.restore': 'Restore Purchases',
+    'paywall.restore.none.title': 'Nothing to restore',
+    'paywall.restore.none.body': 'No active Premium subscription was found for this account.',
+    'paywall.error.title': 'Purchase failed',
+    'paywall.error.body': 'Something went wrong. Please try again.',
 
     'mode.title': 'Choose a mode',
     'mode.daily.title': "Today's question",
@@ -869,6 +879,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.review.cancel': 'Cancelar',
     'paywall.review.invalid': 'Usuario o contraseña no válidos.',
     'paywall.review.networkError': 'Error de conexión. Inténtalo de nuevo.',
+    'paywall.restore': 'Restaurar compras',
+    'paywall.restore.none.title': 'Nada que restaurar',
+    'paywall.restore.none.body': 'No se encontró ninguna suscripción Premium activa para esta cuenta.',
+    'paywall.error.title': 'Error en la compra',
+    'paywall.error.body': 'Algo salió mal. Inténtalo de nuevo.',
 
     'mode.title': 'Elige un modo',
     'mode.daily.title': 'Pregunta del día',
@@ -1166,6 +1181,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.review.cancel': 'Отмена',
     'paywall.review.invalid': 'Неверный логин или пароль.',
     'paywall.review.networkError': 'Ошибка соединения. Попробуйте ещё раз.',
+    'paywall.restore': 'Восстановить покупки',
+    'paywall.restore.none.title': 'Нечего восстанавливать',
+    'paywall.restore.none.body': 'Активная подписка Premium для этого аккаунта не найдена.',
+    'paywall.error.title': 'Ошибка покупки',
+    'paywall.error.body': 'Что-то пошло не так. Попробуйте ещё раз.',
 
     'mode.title': 'Выберите режим',
     'mode.daily.title': 'Вопрос дня',
