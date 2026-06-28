@@ -101,6 +101,7 @@ export type StringKey =
   | 'shop.section.freeLives'
   | 'shop.section.lives'
   | 'shop.section.hints'
+  | 'shop.section.combo'
   | 'shop.freeLives.title'
   | 'shop.freeLives.subtitle'
   | 'shop.freeLives.cta'
@@ -118,10 +119,16 @@ export type StringKey =
   | 'shop.lives.large.subtitle'
   | 'shop.hints.small.title'
   | 'shop.hints.small.subtitle'
+  | 'shop.hints.medium.title'
+  | 'shop.hints.medium.subtitle'
   | 'shop.hints.large.title'
   | 'shop.hints.large.subtitle'
-  | 'shop.hints.power.title'
-  | 'shop.hints.power.subtitle'
+  | 'shop.combo.small.title'
+  | 'shop.combo.small.subtitle'
+  | 'shop.combo.medium.title'
+  | 'shop.combo.medium.subtitle'
+  | 'shop.combo.large.title'
+  | 'shop.combo.large.subtitle'
   // home
   | 'home.tile.soon'
   | 'home.tile.meta'
@@ -405,6 +412,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.section.freeLives': 'Free lives',
     'shop.section.lives': 'Lives bundles',
     'shop.section.hints': 'Hint bundles',
+    'shop.section.combo': 'Combo bundles',
     'shop.freeLives.title': 'Watch a short video',
     'shop.freeLives.subtitle': '+1 life — once per ad break.',
     'shop.freeLives.cta': 'Watch',
@@ -422,10 +430,16 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.subtitle': 'Best value',
     'shop.hints.small.title': '5 of each',
     'shop.hints.small.subtitle': '20 hints across 4 types',
+    'shop.hints.medium.title': '10 of each',
+    'shop.hints.medium.subtitle': '40 hints across 4 types',
     'shop.hints.large.title': '20 of each',
     'shop.hints.large.subtitle': '80 hints across 4 types',
-    'shop.hints.power.title': 'Power pack',
-    'shop.hints.power.subtitle': '50 lives + 30 of every hint',
+    'shop.combo.small.title': '10 lives + 5 hints',
+    'shop.combo.small.subtitle': '10 lives & 5 of each hint',
+    'shop.combo.medium.title': '30 lives + 10 hints',
+    'shop.combo.medium.subtitle': '30 lives & 10 of each hint',
+    'shop.combo.large.title': '100 lives + 20 hints',
+    'shop.combo.large.subtitle': '100 lives & 20 of each hint',
 
     'home.tile.soon': 'Coming soon',
     'home.tile.meta': '{questions} questions · {topics} topics',
@@ -707,6 +721,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.section.freeLives': 'Vidas gratis',
     'shop.section.lives': 'Paquetes de vidas',
     'shop.section.hints': 'Paquetes de pistas',
+    'shop.section.combo': 'Paquetes combo',
     'shop.freeLives.title': 'Mira un vídeo corto',
     'shop.freeLives.subtitle': '+1 vida — una vez por pausa.',
     'shop.freeLives.cta': 'Ver',
@@ -724,10 +739,16 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.subtitle': 'Mejor valor',
     'shop.hints.small.title': '5 de cada',
     'shop.hints.small.subtitle': '20 pistas en 4 tipos',
+    'shop.hints.medium.title': '10 de cada',
+    'shop.hints.medium.subtitle': '40 pistas en 4 tipos',
     'shop.hints.large.title': '20 de cada',
     'shop.hints.large.subtitle': '80 pistas en 4 tipos',
-    'shop.hints.power.title': 'Pack poder',
-    'shop.hints.power.subtitle': '50 vidas + 30 de cada pista',
+    'shop.combo.small.title': '10 vidas + 5 pistas',
+    'shop.combo.small.subtitle': '10 vidas y 5 de cada pista',
+    'shop.combo.medium.title': '30 vidas + 10 pistas',
+    'shop.combo.medium.subtitle': '30 vidas y 10 de cada pista',
+    'shop.combo.large.title': '100 vidas + 20 pistas',
+    'shop.combo.large.subtitle': '100 vidas y 20 de cada pista',
 
     'home.tile.soon': 'Próximamente',
     'home.tile.meta': '{questions} preguntas · {topics} temas',
@@ -1009,6 +1030,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.section.freeLives': 'Бесплатные жизни',
     'shop.section.lives': 'Пакеты жизней',
     'shop.section.hints': 'Пакеты подсказок',
+    'shop.section.combo': 'Комбо-наборы',
     'shop.freeLives.title': 'Посмотри короткое видео',
     'shop.freeLives.subtitle': '+1 жизнь — раз за рекламную паузу.',
     'shop.freeLives.cta': 'Смотреть',
@@ -1026,10 +1048,16 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.subtitle': 'Лучшая цена',
     'shop.hints.small.title': 'По 5 каждой',
     'shop.hints.small.subtitle': '20 подсказок четырёх типов',
+    'shop.hints.medium.title': 'По 10 каждой',
+    'shop.hints.medium.subtitle': '40 подсказок четырёх типов',
     'shop.hints.large.title': 'По 20 каждой',
     'shop.hints.large.subtitle': '80 подсказок четырёх типов',
-    'shop.hints.power.title': 'Power-набор',
-    'shop.hints.power.subtitle': '50 жизней + по 30 каждой подсказки',
+    'shop.combo.small.title': '10 жизней + 5 подсказок',
+    'shop.combo.small.subtitle': '10 жизней и по 5 каждой подсказки',
+    'shop.combo.medium.title': '30 жизней + 10 подсказок',
+    'shop.combo.medium.subtitle': '30 жизней и по 10 каждой подсказки',
+    'shop.combo.large.title': '100 жизней + 20 подсказок',
+    'shop.combo.large.subtitle': '100 жизней и по 20 каждой подсказки',
 
     'home.tile.soon': 'Скоро',
     'home.tile.meta': '{questions} вопросов · {topics} тем',

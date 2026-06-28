@@ -30,7 +30,7 @@ import { BUNDLES, getBundleStorePrices, purchaseBundle } from '@/lib/iap';
 
 const livesBundle = BUNDLES.find((b) => b.id === 'lives.10')!;
 const hintsBundle = BUNDLES.find((b) => b.id === 'hints.5')!;
-const powerBundle = BUNDLES.find((b) => b.id === 'hints.power')!;
+const comboBundle = BUNDLES.find((b) => b.id === 'combo.10.5')!;
 
 beforeEach(() => {
   mockEnabled = false;
@@ -47,8 +47,11 @@ describe('BUNDLES catalog (Google Play product ids must not change)', () => {
       'lives.30',
       'lives.100',
       'hints.5',
+      'hints.10',
       'hints.20',
-      'hints.power',
+      'combo.10.5',
+      'combo.30.10',
+      'combo.100.20',
     ]);
   });
 });
@@ -67,10 +70,10 @@ describe('purchaseBundle — disabled (Expo Go / web stub)', () => {
     expect(mockAddLives).not.toHaveBeenCalled();
   });
 
-  it('grants both lives and hints for the power bundle', async () => {
-    await purchaseBundle(powerBundle);
-    expect(mockAddLives).toHaveBeenCalledWith(50);
-    expect(mockAddHintsBundle).toHaveBeenCalledWith(powerBundle.grants.hints);
+  it('grants both lives and hints for a combo bundle', async () => {
+    await purchaseBundle(comboBundle);
+    expect(mockAddLives).toHaveBeenCalledWith(10);
+    expect(mockAddHintsBundle).toHaveBeenCalledWith(comboBundle.grants.hints);
   });
 });
 
@@ -109,8 +112,11 @@ describe('getBundleStorePrices', () => {
       'lives.30',
       'lives.100',
       'hints.5',
+      'hints.10',
       'hints.20',
-      'hints.power',
+      'combo.10.5',
+      'combo.30.10',
+      'combo.100.20',
     ]);
     expect(prices).toEqual({ 'lives.10': '$0.99' });
   });

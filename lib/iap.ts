@@ -13,7 +13,7 @@ import { fetchProductPrices, purchaseConsumable, revenueCatEnabled } from '@/lib
 
 export interface ShopBundle {
   id: string;
-  category: 'lives' | 'hints';
+  category: 'lives' | 'hints' | 'combo';
   titleKey: ShopStringKey;
   subtitleKey: ShopStringKey;
   emoji: string;
@@ -27,8 +27,11 @@ export type ShopStringKey =
   | 'shop.lives.medium.title' | 'shop.lives.medium.subtitle'
   | 'shop.lives.large.title' | 'shop.lives.large.subtitle'
   | 'shop.hints.small.title' | 'shop.hints.small.subtitle'
+  | 'shop.hints.medium.title' | 'shop.hints.medium.subtitle'
   | 'shop.hints.large.title' | 'shop.hints.large.subtitle'
-  | 'shop.hints.power.title' | 'shop.hints.power.subtitle';
+  | 'shop.combo.small.title' | 'shop.combo.small.subtitle'
+  | 'shop.combo.medium.title' | 'shop.combo.medium.subtitle'
+  | 'shop.combo.large.title' | 'shop.combo.large.subtitle';
 
 export interface BundleGrants {
   lives?: number;
@@ -69,28 +72,61 @@ export const BUNDLES: ShopBundle[] = [
     titleKey: 'shop.hints.small.title',
     subtitleKey: 'shop.hints.small.subtitle',
     emoji: '💡',
-    price: '$1.99',
+    price: '$0.99',
     grants: { hints: { fiftyFifty: 5, statistics: 5, ai: 5, letter: 5 } },
+  },
+  {
+    id: 'hints.10',
+    category: 'hints',
+    titleKey: 'shop.hints.medium.title',
+    subtitleKey: 'shop.hints.medium.subtitle',
+    emoji: '✨',
+    price: '$1.99',
+    grants: { hints: { fiftyFifty: 10, statistics: 10, ai: 10, letter: 10 } },
   },
   {
     id: 'hints.20',
     category: 'hints',
     titleKey: 'shop.hints.large.title',
     subtitleKey: 'shop.hints.large.subtitle',
-    emoji: '✨',
-    price: '$4.99',
+    emoji: '🌟',
+    price: '$2.99',
     grants: { hints: { fiftyFifty: 20, statistics: 20, ai: 20, letter: 20 } },
   },
   {
-    id: 'hints.power',
-    category: 'hints',
-    titleKey: 'shop.hints.power.title',
-    subtitleKey: 'shop.hints.power.subtitle',
-    emoji: '⚡',
-    price: '$9.99',
+    id: 'combo.10.5',
+    category: 'combo',
+    titleKey: 'shop.combo.small.title',
+    subtitleKey: 'shop.combo.small.subtitle',
+    emoji: '🎁',
+    price: '$1.99',
     grants: {
-      lives: 50,
-      hints: { fiftyFifty: 30, statistics: 30, ai: 30, letter: 30 },
+      lives: 10,
+      hints: { fiftyFifty: 5, statistics: 5, ai: 5, letter: 5 },
+    },
+  },
+  {
+    id: 'combo.30.10',
+    category: 'combo',
+    titleKey: 'shop.combo.medium.title',
+    subtitleKey: 'shop.combo.medium.subtitle',
+    emoji: '🎉',
+    price: '$2.99',
+    grants: {
+      lives: 30,
+      hints: { fiftyFifty: 10, statistics: 10, ai: 10, letter: 10 },
+    },
+  },
+  {
+    id: 'combo.100.20',
+    category: 'combo',
+    titleKey: 'shop.combo.large.title',
+    subtitleKey: 'shop.combo.large.subtitle',
+    emoji: '🏆',
+    price: '$5.99',
+    grants: {
+      lives: 100,
+      hints: { fiftyFifty: 20, statistics: 20, ai: 20, letter: 20 },
     },
   },
 ];

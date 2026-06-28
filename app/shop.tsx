@@ -69,6 +69,7 @@ export default function ShopScreen() {
 
   const livesBundles = BUNDLES.filter((b) => b.category === 'lives');
   const hintsBundles = BUNDLES.filter((b) => b.category === 'hints');
+  const comboBundles = BUNDLES.filter((b) => b.category === 'combo');
 
   return (
     <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
@@ -135,6 +136,19 @@ export default function ShopScreen() {
           <SectionLabel labelKey="shop.section.hints" />
           <View style={styles.gridList}>
             {hintsBundles.map((b) => (
+              <BundleCard
+                key={b.id}
+                bundle={b}
+                price={storePrices[b.id] ?? b.price}
+                pending={pendingId === b.id}
+                onBuy={() => handleBuy(b)}
+              />
+            ))}
+          </View>
+
+          <SectionLabel labelKey="shop.section.combo" />
+          <View style={styles.gridList}>
+            {comboBundles.map((b) => (
               <BundleCard
                 key={b.id}
                 bundle={b}
