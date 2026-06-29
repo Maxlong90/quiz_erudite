@@ -55,7 +55,19 @@ Yearly is the featured "best value" option and the default selection. Its card c
 
 A single CTA purchases whichever tier is selected. `purchasePremiumPackage` runs the store purchase for that chosen package and reports whether the `premium` entitlement is active afterwards; the local premium flag only flips once that entitlement is live. A user cancellation is a silent no-op. The paywall also offers **Restore Purchases**, shown only when RevenueCat is enabled.
 
-When RevenueCat is disabled — Expo Go, web, iOS, or a missing native module — and when a tier's package can't be read, the three cards still render from hardcoded fallback prices (weekly $4.99, monthly $12.99, yearly $49.99) and subscribing falls back to the local `setPremium(true)` dev grant, so the paywall never crashes or dead-ends. The trial-enabled and quarterly/semiannual products still exist in Google Play and RevenueCat and stay attached to the `premium` entitlement, but are deliberately excluded from the `default` offering; they are reserved for a future trial A/B-test offering.
+### The free-unlock guard
+
+`handleSubscribe` enforces one invariant: when RevenueCat is enabled, premium is granted **only** through a confirmed store purchase. A production bug once violated this — the local-unlock fallback fired whenever `revenueCatEnabled` was off **or** the selected package was null, so on a real Android build a `default` offering that failed to load left every package null and the CTA granted premium for free, persisted to `app.premium.v1`. The guard now splits the two cases instead of collapsing them:
+
+- **RevenueCat disabled** (Expo Go, web, iOS, or a missing native module) — no real store exists, so the MVP local `setPremium(true)` grant still runs. This keeps the dev flow working and is the only path that flips premium without a purchase.
+- **RevenueCat enabled, package present** — the only production path: it goes through `purchasePremiumPackage` and flips premium only when the entitlement comes back live.
+- **RevenueCat enabled, package null** — a misconfigured or unloaded offering. It surfaces an error alert (`paywall.error.title` / `paywall.error.body`) and bails **without granting premium**. The store is the only way through.
+
+The offering load also fails loudly now. The paywall tracks an `offeringStatus` of `loading` → `ready` / `unavailable`: an empty result or a thrown fetch marks it `unavailable` and reports the error to Sentry rather than silently keeping all-null packages. While the offering is still `loading`, the Subscribe CTA is disabled so a tap can never race ahead of the packages and fall through to an error or a stale grant. Hardcoded fallback prices (weekly $4.99, monthly $12.99, yearly $49.99) still hydrate the three cards for display when a live tier can't be read, but they no longer back a purchase.
+
+> A consequence: until the RevenueCat `default` offering and the Google Play subscription products are fully provisioned, the enabled-Android paywall surfaces the error alert on Subscribe instead of granting premium. That is the intended safe degradation — provisioning the offering is a separate ops task.
+
+The trial-enabled and quarterly/semiannual products still exist in Google Play and RevenueCat and stay attached to the `premium` entitlement, but are deliberately excluded from the `default` offering; they are reserved for a future trial A/B-test offering.
 
 On launch the premium provider syncs from the live entitlement, but only ever *upgrades* (a returning subscriber stays premium); it never downgrades offline, where the entitlement is treated as unknown. Two backend-controlled app flags shape the paywall's exits: `seconds_before_quit_button_shown` hides both the close ✕ and the "continue free" link for a configured delay so the offer is seen first, and `show_paywall_review_button` gates the Android reviewer-unlock flow (a backend-validated login that grants premium without a real purchase).
 
