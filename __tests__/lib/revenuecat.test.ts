@@ -344,3 +344,137 @@ describe('fetchProductPrices', () => {
     await expect(rc.fetchProductPrices(['lives.10'])).resolves.toEqual({});
   });
 });
+
+describe('fetchPremiumPackages', () => {
+  const weekly = { identifier: '$rc_weekly', product: { priceString: '$4.99', price: 4.99 } };
+  const monthly = { identifier: '$rc_monthly', product: { priceString: '$12.99', price: 12.99 } };
+  const annual = { identifier: '$rc_annual', product: { priceString: '$49.99', price: 49.99 } };
+
+  it('maps the three tiers via the offering convenience accessors', async () => {
+    const { rc, purchases } = loadEnabled();
+    const off = { weekly, monthly, annual, availablePackages: [weekly, monthly, annual] };
+    purchases.getOfferings.mockResolvedValue({ all: { default: off }, current: off });
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({ weekly, monthly, annual });
+  });
+
+  it('falls back to availablePackages by lookup_key when an accessor is null', async () => {
+    const { rc, purchases } = loadEnabled();
+    // Accessors null, but the packages are present in availablePackages.
+    const off = {
+      weekly: null,
+      monthly: null,
+      annual: null,
+      availablePackages: [weekly, monthly, annual],
+    };
+    purchases.getOfferings.mockResolvedValue({ all: { default: off }, current: off });
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({ weekly, monthly, annual });
+  });
+
+  it('prefers the default offering over current', async () => {
+    const { rc, purchases } = loadEnabled();
+    const def = { weekly, monthly, annual, availablePackages: [] };
+    const current = { weekly: null, monthly: null, annual: null, availablePackages: [] };
+    purchases.getOfferings.mockResolvedValue({ all: { default: def }, current });
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({ weekly, monthly, annual });
+  });
+
+  it('returns null for individual missing tiers (resilient)', async () => {
+    const { rc, purchases } = loadEnabled();
+    const off = { weekly: null, monthly, annual: null, availablePackages: [monthly] };
+    purchases.getOfferings.mockResolvedValue({ all: { default: off }, current: off });
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({
+      weekly: null,
+      monthly,
+      annual: null,
+    });
+  });
+
+  it('returns all-null when there is no offering', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.getOfferings.mockResolvedValue({ all: {}, current: null });
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({
+      weekly: null,
+      monthly: null,
+      annual: null,
+    });
+  });
+
+  it('returns all-null on error (never throws)', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.getOfferings.mockRejectedValue(new Error('store error'));
+
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({
+      weekly: null,
+      monthly: null,
+      annual: null,
+    });
+  });
+
+  it('returns all-null when disabled', async () => {
+    const rc = loadRevenueCat({ platform: 'web' });
+    await expect(rc.fetchPremiumPackages()).resolves.toEqual({
+      weekly: null,
+      monthly: null,
+      annual: null,
+    });
+  });
+});
+
+describe('purchasePremiumPackage', () => {
+  const pkg = { identifier: '$rc_annual', product: { priceString: '$49.99', price: 49.99 } };
+
+  it('purchases the given package and reports premiumActive true', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.purchasePackage.mockResolvedValue({
+      customerInfo: { entitlements: { active: { premium: {} } } },
+    });
+
+    await expect(rc.purchasePremiumPackage(pkg as never)).resolves.toEqual({
+      outcome: 'purchased',
+      premiumActive: true,
+    });
+    expect(purchases.purchasePackage).toHaveBeenCalledWith(pkg);
+  });
+
+  it('reports premiumActive false when the entitlement is not active after purchase', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.purchasePackage.mockResolvedValue({
+      customerInfo: { entitlements: { active: {} } },
+    });
+
+    await expect(rc.purchasePremiumPackage(pkg as never)).resolves.toEqual({
+      outcome: 'purchased',
+      premiumActive: false,
+    });
+  });
+
+  it('resolves cancelled on user cancellation', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.purchasePackage.mockRejectedValue({ userCancelled: true });
+
+    await expect(rc.purchasePremiumPackage(pkg as never)).resolves.toEqual({
+      outcome: 'cancelled',
+      premiumActive: false,
+    });
+  });
+
+  it('rethrows real store errors', async () => {
+    const { rc, purchases } = loadEnabled();
+    purchases.purchasePackage.mockRejectedValue(new Error('billing unavailable'));
+
+    await expect(rc.purchasePremiumPackage(pkg as never)).rejects.toThrow('billing unavailable');
+  });
+
+  it('resolves cancelled when disabled', async () => {
+    const rc = loadRevenueCat({ platform: 'web' });
+    await expect(rc.purchasePremiumPackage(pkg as never)).resolves.toEqual({
+      outcome: 'cancelled',
+      premiumActive: false,
+    });
+  });
+});
