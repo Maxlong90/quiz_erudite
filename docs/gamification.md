@@ -83,7 +83,7 @@ The catalog is a fixed nine-product contract shared with the backend, which prov
 
 The out-of-lives modal (`components/lives/buy-lives-modal.tsx`) reuses this catalog but filters to `category === 'lives'`, so it offers only the three lives packs.
 
-RevenueCat is **Android only** for now (no iOS key yet) and degrades gracefully: in Expo Go, on web, on iOS, or whenever the native module is missing, it stays disabled and both the shop and the paywall fall back to the original local-grant behavior so the dev flow never breaks. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback.
+RevenueCat is **Android only** for now (no iOS key yet) and degrades gracefully: in Expo Go, on web, on iOS, or whenever the native module is missing, it stays disabled and both the shop and the paywall fall back to the original local-grant behavior so the dev flow never breaks. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback; release builds set it explicitly per profile in `eas.json` (`preview` and `production`). The wired key and the fallback must belong to the same RevenueCat project the backend provisions — a mismatch makes `getOfferings` return an empty `default` offering, which is exactly the all-null-packages condition the free-unlock guard now blocks. See [Development](development.md#configure-the-backend) for the key wiring.
 
 ## See Also
 

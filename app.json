@@ -27,7 +27,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.quizzzes.erudite",
-      "versionCode": 4
+      "versionCode": 4,
+      "allowBackup": false
     },
     "web": {
       "output": "static",

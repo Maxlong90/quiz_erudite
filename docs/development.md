@@ -25,6 +25,8 @@ The app reads these public env vars at build time:
 
 All three keys carry a committed default, so the app builds and runs without an `.env` file. The RevenueCat key is a public SDK key and is safe to commit; it has a literal fallback that matches the in-code default.
 
+For EAS cloud builds the RevenueCat key is also wired explicitly in `eas.json` under the `preview` and `production` profiles, so release builds carry it through EAS env rather than relying on the in-code fallback. The `development` profile leaves it unset and falls back to the committed default. The value across the env wiring and the fallback is the same public Android key — they must point at the RevenueCat project the backend provisions, or the `default` offering comes back empty and the paywall has no packages to sell.
+
 Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set.
 
 ## Run the App
@@ -84,6 +86,7 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 | File | Purpose |
 |------|---------|
 | app.json | Expo project config (bundle ID, plugins, new architecture) |
+| eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key) |
 | package.json | Dependencies and npm scripts |
 | tsconfig.json | TypeScript config with the `@/` path alias |
 | .env / .env.example | Backend URL, app slug, and RevenueCat Android key |
