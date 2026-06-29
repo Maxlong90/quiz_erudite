@@ -13,6 +13,7 @@
  * Native/heavy modules are mocked at their import boundary.
  */
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 // --- mock boundaries ---------------------------------------------------------
@@ -44,6 +45,13 @@ jest.mock('@/hooks/use-content-cache', () => ({
 // Pin the locale so the real useTranslation resolves English strings.
 jest.mock('@/hooks/use-locale', () => ({
   useLocale: () => ({ locale: 'en' }),
+}));
+
+// Stub Sentry so the offering-load failure tracking never pulls in the native
+// @sentry/react-native module during the test run.
+jest.mock('@/lib/sentry', () => ({
+  sentryEnabled: false,
+  Sentry: { captureException: jest.fn(), captureMessage: jest.fn() },
 }));
 
 const mockReplace = jest.fn();
@@ -85,6 +93,11 @@ beforeEach(() => {
   mockRestorePremium.mockReset();
   mockSetPremium.mockClear();
   mockReplace.mockClear();
+  jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  (Alert.alert as jest.Mock).mockRestore();
 });
 
 /** A live `default` offering with all three tiers and store price strings. */
@@ -192,6 +205,28 @@ describe('paywall multi-tier purchasing (RevenueCat enabled)', () => {
     );
     await waitFor(() => expect(mockSetPremium).toHaveBeenCalledWith(true));
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+
+  it('never grants premium when the offering failed to load (no package)', async () => {
+    // Offering resolves empty (the beforeEach default), so the selected package
+    // is null. The pre-fix bug granted premium for free here — it must not.
+    const screen = render(<PaywallScreen />);
+
+    // Wait for the load effect to settle: it was attempted and the CTA is no
+    // longer in its loading state (offering resolved 'unavailable', not 'ready').
+    await waitFor(() => expect(mockFetchPremiumPackages).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('paywall-subscribe').props.accessibilityState?.disabled,
+      ).toBeFalsy(),
+    );
+
+    fireEvent.press(screen.getByTestId('paywall-subscribe'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+    expect(mockSetPremium).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockPurchasePremiumPackage).not.toHaveBeenCalled();
   });
 
   it('does not unlock when the purchase is cancelled', async () => {

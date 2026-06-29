@@ -18,6 +18,7 @@ import {
   revenueCatEnabled,
   type PremiumPackages,
 } from '@/lib/revenuecat';
+import { Sentry } from '@/lib/sentry';
 
 // Comparison rows. `free`/`premium` are either an i18n key (resolved
 // via t()) or the literal check / cross marks rendered as-is.
@@ -130,15 +131,38 @@ export default function PaywallScreen() {
   // Yearly is the featured, default-selected option.
   const [selected, setSelected] = useState<Tier>('annual');
 
+  // Live-offering load status. Only meaningful when RevenueCat is enabled; a
+  // disabled store has nothing to load, so it starts 'ready'. While 'loading'
+  // the Subscribe CTA is disabled so a misconfigured offering can never be
+  // tapped into a free unlock; 'unavailable' means the offering resolved empty
+  // or failed (the CTA then surfaces an error instead of granting premium).
+  const [offeringStatus, setOfferingStatus] = useState<'loading' | 'ready' | 'unavailable'>(
+    revenueCatEnabled ? 'loading' : 'ready',
+  );
+
   useEffect(() => {
     if (!revenueCatEnabled) return;
     let active = true;
     fetchPremiumPackages()
       .then((pkgs) => {
-        if (active) setPackages(pkgs);
+        if (!active) return;
+        setPackages(pkgs);
+        const hasAny = Boolean(pkgs.weekly || pkgs.monthly || pkgs.annual);
+        setOfferingStatus(hasAny ? 'ready' : 'unavailable');
+        if (!hasAny) {
+          // Offering resolved empty/misconfigured. Never silently degrade into a
+          // free unlock — track it so a broken offering is visible in Sentry.
+          Sentry.captureException(
+            new Error('paywall: premium offering loaded with no packages'),
+          );
+        }
       })
-      .catch(() => {
-        // Never break the paywall — keep the hardcoded fallbacks.
+      .catch((err) => {
+        // Don't swallow the failure: keep the hardcoded fallback prices for
+        // display, but mark the offering unavailable and report the error.
+        if (!active) return;
+        setOfferingStatus('unavailable');
+        Sentry.captureException(err);
       });
     return () => {
       active = false;
@@ -157,12 +181,21 @@ export default function PaywallScreen() {
   async function handleSubscribe() {
     if (purchasing) return;
 
-    const pkg = packages[selected];
-    // Expo Go / web / iOS, or the selected package is unavailable: keep the MVP
-    // local unlock so subscribing never crashes or dead-ends.
-    if (!revenueCatEnabled || !pkg) {
+    // Expo Go / web / iOS — no real store exists. Keep the MVP local unlock so
+    // subscribing never crashes or dead-ends on platforms without RevenueCat.
+    if (!revenueCatEnabled) {
       await setPremium(true);
       router.replace('/');
+      return;
+    }
+
+    // RevenueCat is enabled but the selected package failed to load. NEVER grant
+    // premium locally here — that was the production free-unlock bug (commit
+    // fba9061): a misconfigured offering would otherwise unlock everything for
+    // free. Surface an error and bail; the store is the only path to premium.
+    const pkg = packages[selected];
+    if (!pkg) {
+      Alert.alert(t('paywall.error.title'), t('paywall.error.body'));
       return;
     }
 
@@ -219,6 +252,12 @@ export default function PaywallScreen() {
     await setPremium(true);
     router.replace('/');
   }
+
+  // Block the CTA only while the live offering is still loading, so a tap can
+  // never race ahead of the packages. Once loaded it's enabled: an empty/failed
+  // offering then surfaces an error on tap (handleSubscribe) rather than a free
+  // grant. Disabled stores have nothing to load and stay enabled.
+  const ctaLoading = purchasing || (revenueCatEnabled && offeringStatus === 'loading');
 
   return (
     <LinearGradient
@@ -339,15 +378,15 @@ export default function PaywallScreen() {
 
           <Pressable
             onPress={handleSubscribe}
-            disabled={purchasing}
+            disabled={ctaLoading}
             style={({ pressed }) => [
               styles.cta,
               pressed && styles.ctaPressed,
-              purchasing && styles.ctaDisabled,
+              ctaLoading && styles.ctaDisabled,
             ]}
             testID="paywall-subscribe"
           >
-            <Text style={styles.ctaText}>{purchasing ? '…' : t('paywall.cta')}</Text>
+            <Text style={styles.ctaText}>{ctaLoading ? '…' : t('paywall.cta')}</Text>
           </Pressable>
 
           {/* Restore is only meaningful with a real store account. */}
