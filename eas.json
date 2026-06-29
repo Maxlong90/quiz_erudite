@@ -15,12 +15,14 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SENTRY_DSN": "https://e5d07305de29c35df8e95f1cfd1bcd28@o4511615038455808.ingest.us.sentry.io/4511615097438208",
-        "EXPO_PUBLIC_SENTRY_DEBUG": "1"
+        "EXPO_PUBLIC_SENTRY_DEBUG": "1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_SENTRY_DSN": "https://e5d07305de29c35df8e95f1cfd1bcd28@o4511615038455808.ingest.us.sentry.io/4511615097438208"
+        "EXPO_PUBLIC_SENTRY_DSN": "https://e5d07305de29c35df8e95f1cfd1bcd28@o4511615038455808.ingest.us.sentry.io/4511615097438208",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   }
