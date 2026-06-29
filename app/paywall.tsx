@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,7 +11,13 @@ import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
-import { purchasePremium, restorePremium, revenueCatEnabled } from '@/lib/revenuecat';
+import {
+  fetchPremiumPackages,
+  purchasePremiumPackage,
+  restorePremium,
+  revenueCatEnabled,
+  type PremiumPackages,
+} from '@/lib/revenuecat';
 
 // Comparison rows. `free`/`premium` are either an i18n key (resolved
 // via t()) or the literal check / cross marks rendered as-is.
@@ -33,6 +39,55 @@ const COMPARE_ROWS: CompareRow[] = [
   { labelKey: 'paywall.row.flashcards', free: CROSS, premium: CHECK },
   { labelKey: 'paywall.row.stats', free: 'paywall.row.stats.free', premium: 'paywall.row.stats.premium' },
 ];
+
+// The three NO-TRIAL subscription tiers offered on the paywall. Keys match the
+// PremiumPackages shape from lib/revenuecat. Visual order is yearly-first so the
+// featured "best value" option leads; yearly is also the default selection.
+// Hardcoded fallbacks mirror the live catalog and are used whenever RevenueCat
+// is disabled (Expo Go / web / iOS) or a package is missing, so the card and the
+// "save %" badge always render with correct numbers — never NaN.
+type Tier = 'annual' | 'monthly' | 'weekly';
+
+interface TierConfig {
+  tier: Tier;
+  labelKey: StringKey;
+  suffixKey: StringKey;
+  fallbackPriceString: string;
+  fallbackPrice: number;
+  featured: boolean;
+}
+
+const TIERS: TierConfig[] = [
+  {
+    tier: 'annual',
+    labelKey: 'paywall.tier.yearly',
+    suffixKey: 'paywall.price.perYear',
+    fallbackPriceString: '$49.99',
+    fallbackPrice: 49.99,
+    featured: true,
+  },
+  {
+    tier: 'monthly',
+    labelKey: 'paywall.tier.monthly',
+    suffixKey: 'paywall.price.perMonth',
+    fallbackPriceString: '$12.99',
+    fallbackPrice: 12.99,
+    featured: false,
+  },
+  {
+    tier: 'weekly',
+    labelKey: 'paywall.tier.weekly',
+    suffixKey: 'paywall.price.perWeek',
+    fallbackPriceString: '$4.99',
+    fallbackPrice: 4.99,
+    featured: false,
+  },
+];
+
+// Fallback monthly/yearly prices used to keep the "save %" badge correct when
+// the live numeric prices aren't available.
+const FALLBACK_MONTHLY_PRICE = 12.99;
+const FALLBACK_ANNUAL_PRICE = 49.99;
 
 export default function PaywallScreen() {
   const { t } = useTranslation();
@@ -65,11 +120,47 @@ export default function PaywallScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
+  // Live store packages for the three tiers. Stay null when RevenueCat is
+  // disabled — cards then fall back to the hardcoded prices in TIERS.
+  const [packages, setPackages] = useState<PremiumPackages>({
+    weekly: null,
+    monthly: null,
+    annual: null,
+  });
+  // Yearly is the featured, default-selected option.
+  const [selected, setSelected] = useState<Tier>('annual');
+
+  useEffect(() => {
+    if (!revenueCatEnabled) return;
+    let active = true;
+    fetchPremiumPackages()
+      .then((pkgs) => {
+        if (active) setPackages(pkgs);
+      })
+      .catch(() => {
+        // Never break the paywall — keep the hardcoded fallbacks.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // "Save %" of yearly vs 12 months of the monthly plan. Uses live numeric
+  // prices when present, hardcoded fallbacks otherwise, so it's never NaN.
+  const savePercent = useMemo(() => {
+    const monthly = packages.monthly?.product.price ?? FALLBACK_MONTHLY_PRICE;
+    const annual = packages.annual?.product.price ?? FALLBACK_ANNUAL_PRICE;
+    if (monthly <= 0) return 0;
+    return Math.max(0, Math.round((1 - annual / (12 * monthly)) * 100));
+  }, [packages]);
+
   async function handleSubscribe() {
     if (purchasing) return;
 
-    // Expo Go / web / iOS: RevenueCat is disabled, keep the MVP local unlock.
-    if (!revenueCatEnabled) {
+    const pkg = packages[selected];
+    // Expo Go / web / iOS, or the selected package is unavailable: keep the MVP
+    // local unlock so subscribing never crashes or dead-ends.
+    if (!revenueCatEnabled || !pkg) {
       await setPremium(true);
       router.replace('/');
       return;
@@ -77,7 +168,7 @@ export default function PaywallScreen() {
 
     setPurchasing(true);
     try {
-      const result = await purchasePremium();
+      const result = await purchasePremiumPackage(pkg);
       // Cancellation is a silent no-op; only unlock once the entitlement is live.
       if (result.outcome === 'purchased' && result.premiumActive) {
         await setPremium(true);
@@ -152,6 +243,11 @@ export default function PaywallScreen() {
           )}
         </View>
 
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.hero}>
           <Image
             source={require('@/assets/onboarding/trophy.png')}
@@ -189,6 +285,56 @@ export default function PaywallScreen() {
             </View>
           ))}
         </View>
+
+        <View style={styles.tiers}>
+          {TIERS.map((cfg) => {
+            const pkg = packages[cfg.tier];
+            const priceString = pkg?.product.priceString ?? cfg.fallbackPriceString;
+            const isSelected = selected === cfg.tier;
+            return (
+              <Pressable
+                key={cfg.tier}
+                onPress={() => setSelected(cfg.tier)}
+                style={[
+                  styles.tierCard,
+                  cfg.featured && styles.tierCardFeatured,
+                  isSelected && styles.tierCardSelected,
+                ]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                testID={`paywall-tier-${cfg.tier}`}
+              >
+                {cfg.featured && (
+                  <View style={styles.badgeRow}>
+                    <Text style={styles.bestValueBadge}>{t('paywall.badge.bestValue')}</Text>
+                    {savePercent > 0 && (
+                      <Text style={styles.saveBadge}>
+                        {t('paywall.badge.save', { percent: savePercent })}
+                      </Text>
+                    )}
+                  </View>
+                )}
+                <View style={styles.tierRow}>
+                  <View style={styles.tierRadioWrap}>
+                    <View style={[styles.tierRadio, isSelected && styles.tierRadioSelected]}>
+                      {isSelected && <View style={styles.tierRadioDot} />}
+                    </View>
+                    <Text style={[styles.tierLabel, isSelected && styles.tierLabelSelected]}>
+                      {t(cfg.labelKey)}
+                    </Text>
+                  </View>
+                  <View style={styles.tierPriceRow}>
+                    <Text style={[styles.tierPrice, isSelected && styles.tierPriceSelected]}>
+                      {priceString}
+                    </Text>
+                    <Text style={styles.tierSuffix}>{t(cfg.suffixKey)}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+        </ScrollView>
 
         <View style={styles.actions}>
           <Pressable
@@ -395,10 +541,122 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 8,
+  },
+  tiers: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    gap: 10,
+  },
+  tierCard: {
+    width: '100%',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#ffffff22',
+    backgroundColor: '#ffffff0d',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  tierCardFeatured: {
+    borderColor: '#ffd23a55',
+  },
+  tierCardSelected: {
+    borderColor: '#7c5cff',
+    backgroundColor: '#7c5cff26',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  bestValueBadge: {
+    color: '#1a1a47',
+    backgroundColor: '#ffd23a',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  saveBadge: {
+    color: '#fff',
+    backgroundColor: '#22c55e',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tierRadioWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 1,
+  },
+  tierRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#ffffff55',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tierRadioSelected: {
+    borderColor: '#7c5cff',
+  },
+  tierRadioDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: '#7c5cff',
+  },
+  tierLabel: {
+    color: '#ffffffcc',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  tierLabelSelected: {
+    color: '#fff',
+  },
+  tierPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  tierPrice: {
+    color: '#ffffffdd',
+    fontSize: 18,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  tierPriceSelected: {
+    color: '#fff',
+  },
+  tierSuffix: {
+    color: '#ffffff88',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   actions: {
-    marginTop: 'auto',
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingTop: 12,
+    paddingBottom: 28,
     alignItems: 'center',
     gap: 14,
   },

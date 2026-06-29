@@ -135,6 +135,59 @@ export async function purchasePremium(): Promise<PremiumPurchaseResult> {
   }
 }
 
+/** The three Premium subscription packages surfaced on the multi-tier paywall. */
+export interface PremiumPackages {
+  weekly: PurchasesPackage | null;
+  monthly: PurchasesPackage | null;
+  annual: PurchasesPackage | null;
+}
+
+/**
+ * Read the weekly / monthly / annual subscription packages from the `default`
+ * offering for the multi-tier paywall. Each is resolved by its RevenueCat
+ * convenience accessor first, then by package lookup_key (`$rc_weekly` etc.) as
+ * a fallback, so a missing accessor doesn't drop a tier. Returns all-null when
+ * disabled or on any error — the paywall then renders its hardcoded prices.
+ */
+export async function fetchPremiumPackages(): Promise<PremiumPackages> {
+  const empty: PremiumPackages = { weekly: null, monthly: null, annual: null };
+  if (!purchases) return empty;
+  try {
+    const offerings = await purchases.getOfferings();
+    const offering = offerings.all[DEFAULT_OFFERING] ?? offerings.current;
+    if (!offering) return empty;
+    const byLookupKey = (lookupKey: string): PurchasesPackage | null =>
+      offering.availablePackages.find((p) => p.identifier === lookupKey) ?? null;
+    return {
+      weekly: offering.weekly ?? byLookupKey('$rc_weekly'),
+      monthly: offering.monthly ?? byLookupKey('$rc_monthly'),
+      annual: offering.annual ?? byLookupKey('$rc_annual'),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/**
+ * Purchase a specific subscription package chosen on the multi-tier paywall and
+ * report whether the `premium` entitlement is active afterwards. Mirrors
+ * {@link purchasePremium} but for a caller-selected package. Resolves
+ * `outcome: 'cancelled'` for a user cancellation or when disabled; rethrows real
+ * store errors so the UI can show a failure.
+ */
+export async function purchasePremiumPackage(
+  pkg: PurchasesPackage,
+): Promise<PremiumPurchaseResult> {
+  if (!purchases) return { outcome: 'cancelled', premiumActive: false };
+  try {
+    const { customerInfo } = await purchases.purchasePackage(pkg);
+    return { outcome: 'purchased', premiumActive: isPremiumActive(customerInfo) };
+  } catch (error) {
+    if (isUserCancelled(error)) return { outcome: 'cancelled', premiumActive: false };
+    throw error;
+  }
+}
+
 /**
  * Restore previous purchases and report whether Premium is now active.
  * Resolves false when disabled; throws on SDK/network errors.

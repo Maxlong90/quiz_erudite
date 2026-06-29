@@ -253,6 +253,14 @@ export type StringKey =
   | 'paywall.feature.alllanguages'
   | 'paywall.feature.exclusive'
   | 'paywall.cta'
+  | 'paywall.tier.weekly'
+  | 'paywall.tier.monthly'
+  | 'paywall.tier.yearly'
+  | 'paywall.price.perWeek'
+  | 'paywall.price.perMonth'
+  | 'paywall.price.perYear'
+  | 'paywall.badge.bestValue'
+  | 'paywall.badge.save'
   | 'paywall.continueFree'
   | 'paywall.disclaimer'
   | 'paywall.thanks'
@@ -565,7 +573,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Ad-free, distraction-free',
     'paywall.feature.alllanguages': 'All languages and topics',
     'paywall.feature.exclusive': 'Exclusive premium-only categories',
-    'paywall.cta': 'Try Premium',
+    'paywall.cta': 'Subscribe',
+    'paywall.tier.weekly': 'Weekly',
+    'paywall.tier.monthly': 'Monthly',
+    'paywall.tier.yearly': 'Yearly',
+    'paywall.price.perWeek': '/wk',
+    'paywall.price.perMonth': '/mo',
+    'paywall.price.perYear': '/yr',
+    'paywall.badge.bestValue': 'Best value',
+    'paywall.badge.save': 'Save {percent}%',
     'paywall.continueFree': 'Maybe later',
     'paywall.disclaimer': 'Cancel anytime in App Store settings.',
     'paywall.thanks': 'Welcome to Premium 🎉',
@@ -874,7 +890,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Sin anuncios, sin distracciones',
     'paywall.feature.alllanguages': 'Todos los idiomas y temas',
     'paywall.feature.exclusive': 'Categorías exclusivas para Premium',
-    'paywall.cta': 'Probar Premium',
+    'paywall.cta': 'Suscribirse',
+    'paywall.tier.weekly': 'Semanal',
+    'paywall.tier.monthly': 'Mensual',
+    'paywall.tier.yearly': 'Anual',
+    'paywall.price.perWeek': '/sem',
+    'paywall.price.perMonth': '/mes',
+    'paywall.price.perYear': '/año',
+    'paywall.badge.bestValue': 'Mejor valor',
+    'paywall.badge.save': 'Ahorra {percent}%',
     'paywall.continueFree': 'Quizá más tarde',
     'paywall.disclaimer': 'Cancela cuando quieras en los ajustes del App Store.',
     'paywall.thanks': 'Bienvenido a Premium 🎉',
@@ -1183,7 +1207,15 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Без рекламы и отвлечений',
     'paywall.feature.alllanguages': 'Все языки и темы',
     'paywall.feature.exclusive': 'Эксклюзивные категории для Premium',
-    'paywall.cta': 'Попробовать Premium',
+    'paywall.cta': 'Оформить',
+    'paywall.tier.weekly': 'Неделя',
+    'paywall.tier.monthly': 'Месяц',
+    'paywall.tier.yearly': 'Год',
+    'paywall.price.perWeek': '/нед',
+    'paywall.price.perMonth': '/мес',
+    'paywall.price.perYear': '/год',
+    'paywall.badge.bestValue': 'Выгодно',
+    'paywall.badge.save': 'Скидка {percent}%',
     'paywall.continueFree': 'Может, позже',
     'paywall.disclaimer': 'Отмена в любой момент в настройках App Store.',
     'paywall.thanks': 'Добро пожаловать в Premium 🎉',
