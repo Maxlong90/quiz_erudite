@@ -285,7 +285,9 @@ export default function PaywallScreen() {
             </View>
           ))}
         </View>
+        </ScrollView>
 
+        <View style={styles.actions}>
         <View style={styles.tiers}>
           {TIERS.map((cfg) => {
             const pkg = packages[cfg.tier];
@@ -334,9 +336,7 @@ export default function PaywallScreen() {
             );
           })}
         </View>
-        </ScrollView>
 
-        <View style={styles.actions}>
           <Pressable
             onPress={handleSubscribe}
             disabled={purchasing}
@@ -548,8 +548,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   tiers: {
-    marginHorizontal: 20,
-    marginBottom: 8,
+    width: '100%',
+    marginBottom: 4,
     gap: 10,
   },
   tierCard: {
