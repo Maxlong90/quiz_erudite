@@ -11,7 +11,6 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -34,9 +33,9 @@ const QUIZ_PREFIX = 'quiz.';
 
 // External URLs and bundle identifiers — kept in one place so a future
 // real Privacy/Terms page or App Store listing is a one-line change.
-const PRIVACY_URL = 'https://quizzes.com/privacy';
-const TERMS_URL = 'https://quizzes.com/terms';
-const SUPPORT_EMAIL = 'support@quizzes.com';
+const PRIVACY_URL = 'https://quizzzes.com/privacy';
+const TERMS_URL = 'https://quizzzes.com/terms';
+const SUPPORT_EMAIL = 'support@quizzzes.com';
 const APP_BUNDLE_ID = 'com.quizzzes.erudite';
 const IOS_APP_ID = '0000000000'; // placeholder until the App Store listing is live
 const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
@@ -52,8 +51,6 @@ export default function SettingsScreen() {
   const { locale, changeLocale, resetLocale } = useLocale();
   const { resetPremium } = usePremium();
   const { t } = useTranslation();
-  // Dark mode is presentational for now — the whole UI is fixed dark.
-  const [darkMode, setDarkMode] = useState(true);
   const [languageOpen, setLanguageOpen] = useState(false);
 
   async function handleReset() {
@@ -192,13 +189,6 @@ export default function SettingsScreen() {
 
           <SectionLabel labelKey="settings.section.preferences" />
           <View style={styles.card}>
-            <SwitchRow
-              icon="moon.fill"
-              label={t('settings.darkMode')}
-              value={darkMode}
-              onValueChange={setDarkMode}
-            />
-            <Divider />
             <Row
               icon="globe"
               label={t('settings.language')}
@@ -329,32 +319,6 @@ function Row({ icon, label, value, onPress }: RowProps) {
       {value && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
       <IconSymbol name="chevron.right" size={18} color="#ffffff66" />
     </Pressable>
-  );
-}
-
-interface SwitchRowProps {
-  icon: React.ComponentProps<typeof IconSymbol>['name'];
-  label: string;
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-}
-
-function SwitchRow({ icon, label, value, onValueChange }: SwitchRowProps) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowIcon}>
-        <IconSymbol name={icon} size={20} color="#a78bff" />
-      </View>
-      <Text style={styles.rowLabel} numberOfLines={1}>
-        {label}
-      </Text>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: '#ffffff22', true: '#7c5cff' }}
-        thumbColor="#fff"
-      />
-    </View>
   );
 }
 
