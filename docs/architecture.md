@@ -55,7 +55,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | `stats` | Stats | Career totals and achievement progress |
 | `shop` | Shop | Lives and hint bundles (RevenueCat on Android; local-grant fallback elsewhere) |
 | `account` | Account | Sign-up/login UI (not wired to a backend) |
-| `settings` | Settings | Language, dark mode, reset, legal links |
+| `settings` | Settings | Language, reset, legal links |
 | `paywall` | Paywall | Premium pitch; tapping a locked mode lands here |
 
 The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, and settings, and hides itself on the quiz and results screens.
