@@ -3,7 +3,7 @@
     "name": "quiz-erudit",
     "slug": "quiz-erudit",
     "owner": "quizzzess-team",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "quizerudit",
@@ -27,7 +27,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.quizzzes.erudite",
-      "versionCode": 4,
+      "versionCode": 8,
       "allowBackup": false
     },
     "web": {
