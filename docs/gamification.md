@@ -67,6 +67,16 @@ The offering load also fails loudly now. The paywall tracks an `offeringStatus` 
 
 > A consequence: until the RevenueCat `default` offering and the Google Play subscription products are fully provisioned, the enabled-Android paywall surfaces the error alert on Subscribe instead of granting premium. That is the intended safe degradation — provisioning the offering is a separate ops task.
 
+### The forced post-onboarding paywall
+
+The paywall has two kinds of entry. User-initiated entries (tapping a locked mode on the home screen, in `quiz-mode/[slug]`, or via the bottom bar) always work and ignore every flag. The other entry is the *forced* paywall shown automatically once, right after the onboarding carousel finishes — and that one is gated.
+
+`app/onboarding.tsx` decides the destination after `markSeen` runs (both on the final "Start" press and on "Skip"). It shows the paywall only when **both** conditions hold: the platform is Android **and** the per-app backend flag `show_paywall_android` is true. Any other case — a missing or not-yet-loaded snapshot, the flag absent or false, or any non-Android platform (iOS, web) — sends the player straight to home and never forces the paywall. The default is therefore "no forced paywall", which is the reviewer-safe state.
+
+This gate exists for Google Play review. Reviewers run the build with the flag off, so they see a fully usable app with no forced paywall; once the build is approved, the owner flips `show_paywall_android` on in the backend admin (Nova) to start showing the offer to new users. Returning users are unaffected either way — the splash screen routes anyone who has already completed onboarding straight to home, so the forced paywall is only ever a first-launch event.
+
+The flag travels in the content snapshot's `app` descriptor (`show_paywall_android` on the `ContentSnapshot.app` interface in `lib/content-cache.ts`), alongside `show_paywall_review_button` and `seconds_before_quit_button_shown`. Because the client reads the **cached** snapshot, two things are required for a flag change to take effect: the app must re-sync the snapshot (or be reinstalled) after the owner toggles the flag, and shipping the gating logic itself needs a new app build. The current live value is false — the correct default for submitting a build to review.
+
 The trial-enabled and quarterly/semiannual products still exist in Google Play and RevenueCat and stay attached to the `premium` entitlement, but are deliberately excluded from the `default` offering; they are reserved for a future trial A/B-test offering.
 
 On launch the premium provider syncs from the live entitlement, but only ever *upgrades* (a returning subscriber stays premium); it never downgrades offline, where the entitlement is treated as unknown. Two backend-controlled app flags shape the paywall's exits: `seconds_before_quit_button_shown` hides both the close ✕ and the "continue free" link for a configured delay so the offer is seen first, and `show_paywall_review_button` gates the Android reviewer-unlock flow (a backend-validated login that grants premium without a real purchase).

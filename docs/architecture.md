@@ -40,7 +40,7 @@ The app exists to deliver a fast, replayable general-knowledge trivia experience
 
 ## Navigation
 
-Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. A first launch flows splash → language → onboarding → home; returning users land on home directly. Most screens hide their header and ride a hardcoded dark purple gradient. Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
+Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. A first launch flows splash → language → onboarding → home; returning users land on home directly. Onboarding can divert once to a forced paywall before home, but only on Android when the backend flag `show_paywall_android` is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a hardcoded dark purple gradient. Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
 
 | Route | Screen | Role |
 |-------|--------|------|
