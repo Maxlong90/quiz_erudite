@@ -55,6 +55,11 @@ export interface ContentSnapshot {
      */
     show_paywall_review_button?: boolean;
     /**
+     * Per-app backend flag. Gates the forced post-onboarding paywall on
+     * Android; absent/false = do not force the paywall (reviewer-safe default).
+     */
+    show_paywall_android?: boolean;
+    /**
      * Seconds the paywall hides BOTH exits (the close ✕ and the
      * "continue free" link) before revealing them, forcing the user to
      * view the offer first. 0 / absent = exits shown immediately.

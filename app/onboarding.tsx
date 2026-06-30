@@ -5,6 +5,7 @@ import {
   ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
@@ -75,9 +77,19 @@ export default function OnboardingScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const { markSeen } = useOnboarding();
+  const { snapshot } = useContentCache();
   const { t } = useTranslation();
 
   const isLast = page === PAGES.length - 1;
+
+  // The forced post-onboarding paywall is shown ONLY on Android when the
+  // per-app backend flag is true. Default-safe: missing snapshot/flag or any
+  // other platform sends the user straight to home, never the paywall.
+  function destinationAfterOnboarding(): '/paywall' | '/' {
+    const goPaywall =
+      Platform.OS === 'android' && snapshot?.app.show_paywall_android === true;
+    return goPaywall ? '/paywall' : '/';
+  }
 
   function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -89,7 +101,7 @@ export default function OnboardingScreen() {
   async function onPrimaryPress() {
     if (isLast) {
       await markSeen();
-      router.replace('/paywall');
+      router.replace(destinationAfterOnboarding());
       return;
     }
     const next = page + 1;
@@ -99,7 +111,7 @@ export default function OnboardingScreen() {
 
   async function onSkip() {
     await markSeen();
-    router.replace('/paywall');
+    router.replace(destinationAfterOnboarding());
   }
 
   return (
