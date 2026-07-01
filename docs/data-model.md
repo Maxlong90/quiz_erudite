@@ -17,6 +17,9 @@ A question is a single multiple-choice item. Each has exactly four options, one 
 | explanation | Context revealed after answering (nullable) |
 | image_url | Illustration for the question (nullable) |
 | category_slug | Owning subcategory slug (snapshot questions only, nullable) |
+| optionOrder | Display index → canonical backend option index (client-only, absent = identity) |
+
+`optionOrder` is not a backend field. The quiz screen shuffles each question's options per session (`shuffleOptions`) and records the permutation here, so answer reporting and the real-stats hint can translate between the shuffled display order and the backend's canonical order. See [Gamification](gamification.md#hints).
 
 ### Category and Subcategory
 
@@ -53,6 +56,17 @@ These entities live in AsyncStorage and model the player's gamification state. N
 | Premium | `app.premium.v1` | Premium flag (`'0'` / `'1'`) |
 
 The lives, hints, mistakes, stats, and achievement stores carry their own business rules; see [Gamification](gamification.md). The seen sets drive cross-session no-repeats; see [Content and Offline](content-and-offline.md).
+
+### Answer-Statistics Stores
+
+Two more on-device keys back the statistics hint's real-data path (`lib/answer-stats.ts`). Unlike the progress stores above, these hold anonymous telemetry rather than player state, and one of them does leave the device — as aggregate-only counts with no accounts, PII, or device identifiers.
+
+| Entity | Store key | Represents |
+|--------|-----------|------------|
+| Answer queue | `answers.queue.v1` | Outbound anonymous answer picks awaiting batch upload; capped at 500, oldest dropped |
+| Question stats cache | `question.stats.v1` | Cached backend distributions (locale, threshold, per-question counts) read at hint time |
+
+These two keys are **not** `quiz.*`-prefixed, so the settings reset (which wipes `quiz.*` keys) does not clear them; `clearAnswerStats` exists to remove both together but is reserved for an explicit data reset. See [Gamification](gamification.md#hints) and [Content and Offline](content-and-offline.md#answer-statistics-sync).
 
 ## Entity Relationships
 
@@ -120,7 +134,7 @@ The answer-statistics endpoints (`lib/answer-stats.ts`) power the real-data path
 
 Content has a 24-hour cached lifecycle: the snapshot is fetched on first need, reused while fresh, and re-fetched when stale or when the language changes. Questions drawn into a session are filtered against the seen sets so the player rarely repeats a question across sessions, and the seen set resets only when a bucket is exhausted. See [Content and Offline](content-and-offline.md).
 
-Progress stores accumulate monotonically as the player plays — stats and seen sets grow, lives and hints rise and fall, mistakes ring-buffer at 200 entries. The settings screen's reset clears every `quiz.*` key, the premium flag, the onboarding flag, and the content cache, returning the app to a first-launch state.
+Progress stores accumulate monotonically as the player plays — stats and seen sets grow, lives and hints rise and fall, mistakes ring-buffer at 200 entries. The settings screen's reset clears every `quiz.*` key, the premium flag, the onboarding flag, and the content cache, returning the app to a near first-launch state. The anonymous answer-statistics keys survive that reset because they are not `quiz.*`-prefixed; they are harmless aggregate telemetry, not player progress.
 
 ## See Also
 
