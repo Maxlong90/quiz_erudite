@@ -2,15 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'quiz.hints.v1';
 
-export type HintKind = 'fiftyFifty' | 'statistics' | 'ai' | 'letter';
+// The canonical hint set is exactly these three. The former 'ai'
+// (explanation) and 'letter' (reveal-letter) kinds were removed; any
+// persisted counts for them are simply ignored on read.
+export type HintKind = 'fiftyFifty' | 'statistics' | 'replaceQuestion';
 
 export type HintsState = Record<HintKind, number>;
 
 const DEFAULTS: HintsState = {
   fiftyFifty: 3,
   statistics: 2,
-  ai: 1,
-  letter: 2,
+  replaceQuestion: 1,
 };
 
 async function read(): Promise<HintsState> {
@@ -21,8 +23,8 @@ async function read(): Promise<HintsState> {
     return {
       fiftyFifty: typeof parsed.fiftyFifty === 'number' ? parsed.fiftyFifty : DEFAULTS.fiftyFifty,
       statistics: typeof parsed.statistics === 'number' ? parsed.statistics : DEFAULTS.statistics,
-      ai: typeof parsed.ai === 'number' ? parsed.ai : DEFAULTS.ai,
-      letter: typeof parsed.letter === 'number' ? parsed.letter : DEFAULTS.letter,
+      replaceQuestion:
+        typeof parsed.replaceQuestion === 'number' ? parsed.replaceQuestion : DEFAULTS.replaceQuestion,
     };
   } catch {
     return { ...DEFAULTS };

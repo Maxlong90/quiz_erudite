@@ -21,8 +21,7 @@ interface HintRow {
 const HINT_ROWS: HintRow[] = [
   { kind: 'fiftyFifty', emoji: '½', titleKey: 'hintsInfo.fiftyFifty.title', subtitleKey: 'hintsInfo.fiftyFifty.subtitle' },
   { kind: 'statistics', emoji: '📊', titleKey: 'hintsInfo.statistics.title', subtitleKey: 'hintsInfo.statistics.subtitle' },
-  { kind: 'ai', emoji: '🤖', titleKey: 'hintsInfo.ai.title', subtitleKey: 'hintsInfo.ai.subtitle' },
-  { kind: 'letter', emoji: '🔤', titleKey: 'hintsInfo.letter.title', subtitleKey: 'hintsInfo.letter.subtitle' },
+  { kind: 'replaceQuestion', emoji: '🔄', titleKey: 'hintsInfo.replaceQuestion.title', subtitleKey: 'hintsInfo.replaceQuestion.subtitle' },
 ];
 
 interface SourceRow {

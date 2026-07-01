@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 interface Props {
   count: number;
+  /** Premium: lives are unlimited — show a full heart + ∞ instead of N. */
+  unlimited?: boolean;
 }
 
 /**
@@ -9,12 +11,12 @@ interface Props {
  * separate hearts (gets ugly at 20+); just one heart + counter — the
  * same pattern Duolingo / Wordscapes use once lives are abundant.
  */
-export function LivesBar({ count }: Props) {
-  const empty = count <= 0;
+export function LivesBar({ count, unlimited }: Props) {
+  const empty = !unlimited && count <= 0;
   return (
     <View style={[styles.wrap, empty && styles.wrapEmpty]} testID="lives-bar">
       <Text style={styles.heart}>{empty ? '🤍' : '❤️'}</Text>
-      <Text style={styles.count}>{count}</Text>
+      <Text style={styles.count}>{unlimited ? '∞' : count}</Text>
     </View>
   );
 }

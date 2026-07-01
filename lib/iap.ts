@@ -1,14 +1,24 @@
+import { Platform } from 'react-native';
+
 import { addLives } from '@/lib/lives';
 import { addHintsBundle, type HintKind } from '@/lib/hints';
-import { fetchProductPrices, purchaseConsumable, revenueCatEnabled } from '@/lib/revenuecat';
+import {
+  fetchProductPrices,
+  isExpoGo,
+  purchaseConsumable,
+  revenueCatEnabled,
+} from '@/lib/revenuecat';
 
 /**
- * In-app consumable purchases (lives / hints). On Android device builds these
- * run through RevenueCat / Google Play (see lib/revenuecat.ts); the bundle ids
- * below are the Google Play product ids and must not change. In Expo Go, on web
- * and on iOS (no key yet) RevenueCat is disabled, so the flow falls back to a
- * local-grant stub — a short delay followed by crediting the bundle locally —
- * so the dev experience is unchanged.
+ * In-app consumable purchases (lives / hints). On real store builds (Android /
+ * iOS) these run through RevenueCat / Google Play (see lib/revenuecat.ts); the
+ * bundle ids below are the store product ids and must not change.
+ *
+ * Grant policy (mirrors the paywall #568 free-unlock guard): a consumable is
+ * credited ONLY after a resolved real store purchase. The local-grant stub is
+ * permitted exclusively in genuinely non-store dev environments (Expo Go or
+ * web) — never on a real iOS/Android device, where an unavailable store fails
+ * closed with an error and grants nothing.
  */
 
 export interface ShopBundle {
@@ -73,7 +83,7 @@ export const BUNDLES: ShopBundle[] = [
     subtitleKey: 'shop.hints.small.subtitle',
     emoji: '💡',
     price: '$0.99',
-    grants: { hints: { fiftyFifty: 5, statistics: 5, ai: 5, letter: 5 } },
+    grants: { hints: { fiftyFifty: 5, statistics: 5, replaceQuestion: 5 } },
   },
   {
     id: 'hints.10',
@@ -82,7 +92,7 @@ export const BUNDLES: ShopBundle[] = [
     subtitleKey: 'shop.hints.medium.subtitle',
     emoji: '✨',
     price: '$1.99',
-    grants: { hints: { fiftyFifty: 10, statistics: 10, ai: 10, letter: 10 } },
+    grants: { hints: { fiftyFifty: 10, statistics: 10, replaceQuestion: 10 } },
   },
   {
     id: 'hints.20',
@@ -91,7 +101,7 @@ export const BUNDLES: ShopBundle[] = [
     subtitleKey: 'shop.hints.large.subtitle',
     emoji: '🌟',
     price: '$2.99',
-    grants: { hints: { fiftyFifty: 20, statistics: 20, ai: 20, letter: 20 } },
+    grants: { hints: { fiftyFifty: 20, statistics: 20, replaceQuestion: 20 } },
   },
   {
     id: 'combo.10.5',
@@ -102,7 +112,7 @@ export const BUNDLES: ShopBundle[] = [
     price: '$1.99',
     grants: {
       lives: 10,
-      hints: { fiftyFifty: 5, statistics: 5, ai: 5, letter: 5 },
+      hints: { fiftyFifty: 5, statistics: 5, replaceQuestion: 5 },
     },
   },
   {
@@ -114,7 +124,7 @@ export const BUNDLES: ShopBundle[] = [
     price: '$2.99',
     grants: {
       lives: 30,
-      hints: { fiftyFifty: 10, statistics: 10, ai: 10, letter: 10 },
+      hints: { fiftyFifty: 10, statistics: 10, replaceQuestion: 10 },
     },
   },
   {
@@ -126,7 +136,7 @@ export const BUNDLES: ShopBundle[] = [
     price: '$5.99',
     grants: {
       lives: 100,
-      hints: { fiftyFifty: 20, statistics: 20, ai: 20, letter: 20 },
+      hints: { fiftyFifty: 20, statistics: 20, replaceQuestion: 20 },
     },
   },
 ];
@@ -141,11 +151,16 @@ async function grantBundle(bundle: ShopBundle): Promise<void> {
 }
 
 /**
- * Buy a bundle. When RevenueCat is enabled, runs the real Google Play purchase
- * and only credits the bundle locally on a successful (non-cancelled) purchase;
- * a user cancellation is a no-op and real store errors propagate so the shop UI
- * can show a failure. When disabled (Expo Go / web / iOS), keeps the stubbed
- * delay-then-grant behavior.
+ * Buy a bundle. When RevenueCat is enabled, runs the real store purchase and
+ * only credits the bundle locally on a successful (non-cancelled) purchase; a
+ * user cancellation is a no-op and real store errors propagate so the shop UI
+ * can show a failure.
+ *
+ * When RevenueCat is disabled, the local-grant stub runs ONLY in genuine dev
+ * environments (Expo Go or web). On a real store platform (Android / iOS) with
+ * the store unavailable we fail closed: throw so the UI surfaces an error and
+ * NOTHING is granted — a consumable must never be handed out for free on a
+ * device that can actually be charged.
  */
 export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
   if (revenueCatEnabled) {
@@ -157,9 +172,17 @@ export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
     return;
   }
 
-  // Stub path: pretend we hit the Play Store, then grant locally.
-  await new Promise((r) => setTimeout(r, 900));
-  await grantBundle(bundle);
+  // RevenueCat is off. Only Expo Go / web may local-grant (no real store).
+  if (isExpoGo || Platform.OS === 'web') {
+    // Stub path: pretend we hit the store, then grant locally.
+    await new Promise((r) => setTimeout(r, 900));
+    await grantBundle(bundle);
+    return;
+  }
+
+  // Real store platform (android / ios) but the store is unavailable — fail
+  // closed. Grant nothing and let the caller show a purchase error.
+  throw new Error('Store unavailable');
 }
 
 /**

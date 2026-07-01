@@ -14,6 +14,7 @@ type QuizAction =
   | { type: 'SET_QUESTIONS'; payload: Question[] }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'ANSWER'; payload: number }
+  | { type: 'REPLACE_QUESTION'; payload: Question }
   | { type: 'NEXT' }
   | { type: 'FINISH' }
   | { type: 'RESET' };
@@ -46,6 +47,18 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
       const newAnswers = [...state.answers];
       newAnswers[state.currentIndex] = action.payload;
       return { ...state, answers: newAnswers };
+    }
+    case 'REPLACE_QUESTION': {
+      // Swap the CURRENT question in place (replaceQuestion hint). Keeps
+      // the index, the array length (so progress denominator is stable),
+      // status, and every other answer untouched; the swapped-in question
+      // starts unanswered. A no-op once the current question is answered.
+      if (state.answers[state.currentIndex] !== null) return state;
+      const questions = [...state.questions];
+      questions[state.currentIndex] = action.payload;
+      const answers = [...state.answers];
+      answers[state.currentIndex] = null;
+      return { ...state, questions, answers };
     }
     case 'NEXT': {
       const nextIndex = state.currentIndex + 1;

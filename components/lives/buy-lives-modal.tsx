@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
 import { useTranslation } from '@/hooks/use-translation';
@@ -32,7 +32,10 @@ export function BuyLivesModal({ visible, onClose, onPurchased }: Props) {
       await purchaseBundle(bundle);
       onPurchased();
     } catch {
-      // swallow — stub purchase, real errors surface once IAP is wired
+      // A failed / unavailable store must be visible to the player — never
+      // swallow it (that would look like a silent no-op after a tap). Mirror
+      // the shop screen's error alert.
+      Alert.alert(t('shop.error.title'), t('shop.error.body'));
     } finally {
       setPendingId(null);
     }

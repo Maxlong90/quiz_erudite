@@ -26,7 +26,9 @@ export const PREMIUM_ENTITLEMENT = 'premium';
 export const DEFAULT_OFFERING = 'default';
 
 // Expo Go ships no custom native modules, so react-native-purchases is absent.
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Exported so consumables/purchases can tell a genuine dev environment (Expo Go)
+// apart from a real store platform where a failed store must fail closed.
+export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 // Android-only for now: no iOS key yet, and the SDK isn't used on web.
 const isSupportedPlatform = Platform.OS === 'android';
 

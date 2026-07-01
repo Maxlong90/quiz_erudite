@@ -1,22 +1,28 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useTranslation } from '@/hooks/use-translation';
 import type { HintKind, HintsState } from '@/lib/hints';
+import type { StringKey } from '@/i18n/strings';
 
 interface HintDef {
   kind: HintKind;
   emoji: string;
-  label: string;
+  labelKey: StringKey;
 }
 
+// The canonical three. 50/50 and statistics act on multiple-choice
+// options, so they only appear in regular modes; replaceQuestion works
+// in every mode (there is always another question to pull in), which is
+// why it is the sole hint offered in Hard mode — so no purchased hint is
+// ever globally unusable.
 const REGULAR: HintDef[] = [
-  { kind: 'fiftyFifty', emoji: '½', label: '50/50' },
-  { kind: 'statistics', emoji: '📊', label: 'Stats' },
-  { kind: 'ai', emoji: '🤖', label: 'AI' },
+  { kind: 'fiftyFifty', emoji: '½', labelKey: 'hint.fiftyFifty' },
+  { kind: 'statistics', emoji: '📊', labelKey: 'hint.statistics' },
+  { kind: 'replaceQuestion', emoji: '🔄', labelKey: 'hint.replaceQuestion' },
 ];
 
 const HARD: HintDef[] = [
-  { kind: 'letter', emoji: '🔤', label: 'Letter' },
-  { kind: 'ai', emoji: '🤖', label: 'AI' },
+  { kind: 'replaceQuestion', emoji: '🔄', labelKey: 'hint.replaceQuestion' },
 ];
 
 interface Props {
@@ -27,22 +33,25 @@ interface Props {
   disabled?: boolean;
   /** Show the Hard-mode set instead of the regular three. */
   hard?: boolean;
+  /** Premium: hints are unlimited — never gate on the remaining count. */
+  unlimited?: boolean;
   onUse: (kind: HintKind) => void;
 }
 
 /**
  * Row of hint buttons placed under the question. Disabled when the
- * player has 0 of that hint left, or has already used a hint on this
- * question. After answering, the whole bar locks until the next
- * question to keep the post-reveal state clean.
+ * player has 0 of that hint left (unless premium/unlimited), or has
+ * already used a hint on this question. After answering, the whole bar
+ * locks until the next question to keep the post-reveal state clean.
  */
-export function HintBar({ state, used, disabled, hard, onUse }: Props) {
+export function HintBar({ state, used, disabled, hard, unlimited, onUse }: Props) {
+  const { t } = useTranslation();
   const defs = hard ? HARD : REGULAR;
   return (
     <View style={styles.row}>
       {defs.map((d) => {
         const left = state[d.kind] ?? 0;
-        const isOff = disabled || used.has(d.kind) || left <= 0;
+        const isOff = disabled || used.has(d.kind) || (!unlimited && left <= 0);
         return (
           <Pressable
             key={d.kind}
@@ -56,9 +65,9 @@ export function HintBar({ state, used, disabled, hard, onUse }: Props) {
             testID={`hint-${d.kind}`}
           >
             <Text style={styles.emoji}>{d.emoji}</Text>
-            <Text style={[styles.label, isOff && styles.labelOff]}>{d.label}</Text>
+            <Text style={[styles.label, isOff && styles.labelOff]}>{t(d.labelKey)}</Text>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{left}</Text>
+              <Text style={styles.badgeText}>{unlimited ? '∞' : left}</Text>
             </View>
           </Pressable>
         );

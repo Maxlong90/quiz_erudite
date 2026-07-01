@@ -85,14 +85,17 @@ export type StringKey =
   | 'hintsInfo.fiftyFifty.subtitle'
   | 'hintsInfo.statistics.title'
   | 'hintsInfo.statistics.subtitle'
-  | 'hintsInfo.ai.title'
-  | 'hintsInfo.ai.subtitle'
-  | 'hintsInfo.letter.title'
-  | 'hintsInfo.letter.subtitle'
+  | 'hintsInfo.replaceQuestion.title'
+  | 'hintsInfo.replaceQuestion.subtitle'
   | 'hintsInfo.source.ad.title'
   | 'hintsInfo.source.ad.subtitle'
   | 'hintsInfo.source.buy.title'
   | 'hintsInfo.source.buy.subtitle'
+  // in-quiz hint bar (short button labels + feedback)
+  | 'hint.fiftyFifty'
+  | 'hint.statistics'
+  | 'hint.replaceQuestion'
+  | 'hint.replaceQuestion.unavailable'
   | 'shareQuestion.helper'
   | 'shareQuestion.footer'
   | 'shop.title'
@@ -400,17 +403,19 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'hintsInfo.balanceSection': 'What you have left',
     'hintsInfo.sourcesSection': 'How to get more',
     'hintsInfo.fiftyFifty.title': '50/50',
-    'hintsInfo.fiftyFifty.subtitle': 'Removes two wrong options',
-    'hintsInfo.statistics.title': 'Stats',
-    'hintsInfo.statistics.subtitle': 'Shows how often each option is picked',
-    'hintsInfo.ai.title': 'AI hint',
-    'hintsInfo.ai.subtitle': 'A nudge towards the answer, not the answer itself',
-    'hintsInfo.letter.title': 'Letter (Hard mode)',
-    'hintsInfo.letter.subtitle': 'Reveals the next correct letter',
+    'hintsInfo.fiftyFifty.subtitle': 'Removes two wrong options, leaving one right and one wrong',
+    'hintsInfo.statistics.title': 'Player stats',
+    'hintsInfo.statistics.subtitle': 'Shows how often other players pick each option',
+    'hintsInfo.replaceQuestion.title': 'Replace question',
+    'hintsInfo.replaceQuestion.subtitle': 'Swaps in a fresh question from the same topic',
     'hintsInfo.source.ad.title': 'Watch a short ad',
     'hintsInfo.source.ad.subtitle': 'Each rewarded video grants a hint.',
     'hintsInfo.source.buy.title': 'Buy a bundle',
-    'hintsInfo.source.buy.subtitle': 'Hint bundles in the shop pack 5 to 30 of each type.',
+    'hintsInfo.source.buy.subtitle': 'Hint bundles in the shop pack 5 to 20 of each type.',
+    'hint.fiftyFifty': '50/50',
+    'hint.statistics': 'Stats',
+    'hint.replaceQuestion': 'Swap',
+    'hint.replaceQuestion.unavailable': 'No other question to swap in right now.',
     'shareQuestion.helper': 'Share this question',
     'shareQuestion.footer': '📱 Play Quizzzes - Sharpen your Mind — {url}',
 
@@ -437,11 +442,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.title': '100 lives',
     'shop.lives.large.subtitle': 'Best value',
     'shop.hints.small.title': '5 of each',
-    'shop.hints.small.subtitle': '20 hints across 4 types',
+    'shop.hints.small.subtitle': '15 hints across 3 types',
     'shop.hints.medium.title': '10 of each',
-    'shop.hints.medium.subtitle': '40 hints across 4 types',
+    'shop.hints.medium.subtitle': '30 hints across 3 types',
     'shop.hints.large.title': '20 of each',
-    'shop.hints.large.subtitle': '80 hints across 4 types',
+    'shop.hints.large.subtitle': '60 hints across 3 types',
     'shop.combo.small.title': '10 lives + 5 hints',
     'shop.combo.small.subtitle': '10 lives & 5 of each hint',
     'shop.combo.medium.title': '30 lives + 10 hints',
@@ -717,17 +722,19 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'hintsInfo.balanceSection': 'Lo que te queda',
     'hintsInfo.sourcesSection': 'Cómo conseguir más',
     'hintsInfo.fiftyFifty.title': '50/50',
-    'hintsInfo.fiftyFifty.subtitle': 'Quita dos opciones incorrectas',
+    'hintsInfo.fiftyFifty.subtitle': 'Quita dos opciones incorrectas, deja una correcta y una incorrecta',
     'hintsInfo.statistics.title': 'Estadísticas',
-    'hintsInfo.statistics.subtitle': 'Muestra cuánto se elige cada opción',
-    'hintsInfo.ai.title': 'Pista IA',
-    'hintsInfo.ai.subtitle': 'Te acerca a la respuesta, sin darla',
-    'hintsInfo.letter.title': 'Letra (modo difícil)',
-    'hintsInfo.letter.subtitle': 'Revela la siguiente letra correcta',
+    'hintsInfo.statistics.subtitle': 'Muestra cuánto eligen cada opción otros jugadores',
+    'hintsInfo.replaceQuestion.title': 'Cambiar pregunta',
+    'hintsInfo.replaceQuestion.subtitle': 'Trae otra pregunta del mismo tema',
     'hintsInfo.source.ad.title': 'Mira un anuncio corto',
     'hintsInfo.source.ad.subtitle': 'Cada vídeo te da una pista.',
     'hintsInfo.source.buy.title': 'Compra un paquete',
-    'hintsInfo.source.buy.subtitle': 'Los paquetes incluyen de 5 a 30 pistas de cada tipo.',
+    'hintsInfo.source.buy.subtitle': 'Los paquetes incluyen de 5 a 20 pistas de cada tipo.',
+    'hint.fiftyFifty': '50/50',
+    'hint.statistics': 'Datos',
+    'hint.replaceQuestion': 'Cambiar',
+    'hint.replaceQuestion.unavailable': 'No hay otra pregunta para cambiar ahora.',
     'shareQuestion.helper': 'Compartir esta pregunta',
     'shareQuestion.footer': '📱 Play Quizzzes - Sharpen your Mind — {url}',
 
@@ -754,11 +761,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.title': '100 vidas',
     'shop.lives.large.subtitle': 'Mejor valor',
     'shop.hints.small.title': '5 de cada',
-    'shop.hints.small.subtitle': '20 pistas en 4 tipos',
+    'shop.hints.small.subtitle': '15 pistas en 3 tipos',
     'shop.hints.medium.title': '10 de cada',
-    'shop.hints.medium.subtitle': '40 pistas en 4 tipos',
+    'shop.hints.medium.subtitle': '30 pistas en 3 tipos',
     'shop.hints.large.title': '20 de cada',
-    'shop.hints.large.subtitle': '80 pistas en 4 tipos',
+    'shop.hints.large.subtitle': '60 pistas en 3 tipos',
     'shop.combo.small.title': '10 vidas + 5 pistas',
     'shop.combo.small.subtitle': '10 vidas y 5 de cada pista',
     'shop.combo.medium.title': '30 vidas + 10 pistas',
@@ -1034,17 +1041,19 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'hintsInfo.balanceSection': 'Сколько осталось',
     'hintsInfo.sourcesSection': 'Как получить ещё',
     'hintsInfo.fiftyFifty.title': '50/50',
-    'hintsInfo.fiftyFifty.subtitle': 'Убирает два неверных варианта',
+    'hintsInfo.fiftyFifty.subtitle': 'Убирает два неверных варианта — остаётся верный и один неверный',
     'hintsInfo.statistics.title': 'Статистика',
-    'hintsInfo.statistics.subtitle': 'Покажет, как часто выбирают каждый ответ',
-    'hintsInfo.ai.title': 'Подсказка AI',
-    'hintsInfo.ai.subtitle': 'Подведёт к ответу, но не назовёт его',
-    'hintsInfo.letter.title': 'Буква (сложный квиз)',
-    'hintsInfo.letter.subtitle': 'Откроет следующую правильную букву',
+    'hintsInfo.statistics.subtitle': 'Покажет, как часто игроки выбирают каждый ответ',
+    'hintsInfo.replaceQuestion.title': 'Заменить вопрос',
+    'hintsInfo.replaceQuestion.subtitle': 'Подставит другой вопрос той же темы',
     'hintsInfo.source.ad.title': 'Посмотри короткое видео',
     'hintsInfo.source.ad.subtitle': 'Каждая реклама даёт подсказку.',
     'hintsInfo.source.buy.title': 'Купи пакет',
-    'hintsInfo.source.buy.subtitle': 'В магазине пакеты по 5–30 подсказок каждого типа.',
+    'hintsInfo.source.buy.subtitle': 'В магазине пакеты по 5–20 подсказок каждого типа.',
+    'hint.fiftyFifty': '50/50',
+    'hint.statistics': 'Статы',
+    'hint.replaceQuestion': 'Замена',
+    'hint.replaceQuestion.unavailable': 'Сейчас нет другого вопроса для замены.',
     'shareQuestion.helper': 'Поделиться вопросом',
     'shareQuestion.footer': '📱 Play Quizzzes - Sharpen your Mind — {url}',
 
@@ -1071,11 +1080,11 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.lives.large.title': '100 жизней',
     'shop.lives.large.subtitle': 'Лучшая цена',
     'shop.hints.small.title': 'По 5 каждой',
-    'shop.hints.small.subtitle': '20 подсказок четырёх типов',
+    'shop.hints.small.subtitle': '15 подсказок трёх типов',
     'shop.hints.medium.title': 'По 10 каждой',
-    'shop.hints.medium.subtitle': '40 подсказок четырёх типов',
+    'shop.hints.medium.subtitle': '30 подсказок трёх типов',
     'shop.hints.large.title': 'По 20 каждой',
-    'shop.hints.large.subtitle': '80 подсказок четырёх типов',
+    'shop.hints.large.subtitle': '60 подсказок трёх типов',
     'shop.combo.small.title': '10 жизней + 5 подсказок',
     'shop.combo.small.subtitle': '10 жизней и по 5 каждой подсказки',
     'shop.combo.medium.title': '30 жизней + 10 подсказок',

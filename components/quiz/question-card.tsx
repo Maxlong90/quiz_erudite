@@ -7,6 +7,7 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { OptionButton } from '@/components/quiz/option-button';
+import { useTranslation } from '@/hooks/use-translation';
 import type { Question } from '@/api/types';
 
 interface QuestionCardProps {
@@ -15,10 +16,8 @@ interface QuestionCardProps {
   onSelectOption: (index: number) => void;
   /** 50/50 hint: indices to render as visually disabled (faded). */
   hiddenIndices?: Set<number>;
-  /** Stats hint: per-option pick rate (0..100). Shown next to label. */
+  /** Stats hint: per-option pick rate (0..100). Shown under each option. */
   stats?: number[] | null;
-  /** AI hint: short blurb shown above the options. */
-  aiHint?: string | null;
 }
 
 export function QuestionCard({
@@ -27,9 +26,10 @@ export function QuestionCard({
   onSelectOption,
   hiddenIndices,
   stats,
-  aiHint,
 }: QuestionCardProps) {
+  const { t } = useTranslation();
   const isRevealed = selectedOption !== null;
+  const showStats = Array.isArray(stats);
 
   return (
     <Animated.View entering={SlideInRight.duration(300)} key={question.id} style={styles.container}>
@@ -47,10 +47,9 @@ export function QuestionCard({
 
       <ThemedText style={styles.questionText}>{question.question}</ThemedText>
 
-      {aiHint && (
-        <Animated.View entering={FadeInDown.duration(300)} style={styles.aiBox}>
-          <Text style={styles.aiLabel}>🤖 Hint</Text>
-          <Text style={styles.aiText}>{aiHint}</Text>
+      {showStats && (
+        <Animated.View entering={FadeInDown.duration(300)} style={styles.statsHeader}>
+          <Text style={styles.statsHeaderText}>📊 {t('hintsInfo.statistics.subtitle')}</Text>
         </Animated.View>
       )}
 
@@ -70,8 +69,10 @@ export function QuestionCard({
                 disabled={isRevealed || hidden}
               />
               {pct != null && !hidden && (
-                <View style={styles.statsBar}>
-                  <View style={[styles.statsFill, { width: `${pct}%` }]} />
+                <View style={styles.statsRow}>
+                  <View style={styles.statsTrack}>
+                    <View style={[styles.statsFill, { width: `${pct}%` }]} />
+                  </View>
                   <Text style={styles.statsText}>{pct}%</Text>
                 </View>
               )}
@@ -113,26 +114,18 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: '#fff',
   },
-  aiBox: {
+  statsHeader: {
     backgroundColor: '#7c5cff22',
     borderColor: '#7c5cff66',
     borderWidth: 1,
     borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  aiLabel: {
-    color: '#a78bff',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  aiText: {
-    color: '#fff',
-    fontSize: 13,
-    lineHeight: 18,
-    fontStyle: 'italic',
+  statsHeaderText: {
+    color: '#c9bbff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   optionsContainer: {
     gap: 10,
@@ -140,29 +133,33 @@ const styles = StyleSheet.create({
   optionHidden: {
     opacity: 0.25,
   },
-  statsBar: {
-    height: 6,
-    marginTop: 4,
-    backgroundColor: '#ffffff14',
-    borderRadius: 3,
-    overflow: 'hidden',
+  statsRow: {
+    marginTop: 6,
+    marginBottom: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 6,
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  statsTrack: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#ffffff14',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   statsFill: {
     height: '100%',
     backgroundColor: '#7c5cff',
-    borderRadius: 3,
+    borderRadius: 4,
   },
   statsText: {
-    position: 'absolute',
-    right: 6,
-    top: -16,
     color: '#a78bff',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
+    minWidth: 34,
+    textAlign: 'right',
   },
   explanationBox: {
     padding: 14,

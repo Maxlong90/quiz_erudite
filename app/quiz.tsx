@@ -26,8 +26,10 @@ import { ShareQuestionButton } from '@/components/quiz/share-question-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
+import { usePremium } from '@/hooks/use-premium';
 import { addLives, spendLife } from '@/lib/lives';
-import { consumeHint, type HintKind, type HintsState } from '@/lib/hints';
+import { consumeHint, type HintKind } from '@/lib/hints';
+import { findReplacementQuestion } from '@/lib/replace-question';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useQuizSession } from '@/hooks/use-quiz-session';
 import { useTranslation } from '@/hooks/use-translation';
@@ -315,27 +317,44 @@ export default function QuizScreen() {
   const livesApply = !isDaily && !isMistakes;
   const { count: livesCount, reload: reloadLives } = useLives();
   const { state: hintsState, reload: reloadHints } = useHintsState();
+  const { isPremium } = usePremium();
+
+  // Premium = UNLIMITED lives AND hints. Single seam so a future ranked
+  // "Hard mode" (rankings / prizes) can RE-ENABLE spending for premium in
+  // that mode ONLY — when it lands, add `&& !isRankedHardMode` to both
+  // predicates below. Do NOT build that mode here. `isPremium` is null
+  // while loading; treat that as non-premium (spending stays on until it
+  // resolves — the safe default).
+  const premiumUnlimited = isPremium === true;
+  const livesSpendingEnabled = livesApply && !isSurvival && !premiumUnlimited;
+  const hintsSpendingEnabled = !premiumUnlimited;
+
   const [outOfLivesOpen, setOutOfLivesOpen] = useState(false);
   const [buyLivesOpen, setBuyLivesOpen] = useState(false);
   const [hintsUsedThisQ, setHintsUsedThisQ] = useState<Set<HintKind>>(new Set());
   const [hiddenIndices, setHiddenIndices] = useState<Set<number>>(new Set());
   const [statsHint, setStatsHint] = useState<number[] | null>(null);
-  const [aiHint, setAiHint] = useState<string | null>(null);
-  const [letterHintTrigger, setLetterHintTrigger] = useState(0);
+  // Transient banner when replaceQuestion has no candidate to swap in.
+  const [replaceUnavailable, setReplaceUnavailable] = useState(false);
+  const replaceNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cross-session no-repeat bucket key. Mirrors loadQuestions' scheme so
+  // both the initial pick and the replaceQuestion swap dedupe the same way:
+  // a "hard typing" run doesn't share history with a regular run, and each
+  // unique category selection gets its own bucket.
+  const seenKey = (requestedSlugs.length === 0
+    ? '__all__'
+    : [...requestedSlugs].sort().join('+'))
+    + (isHard ? `__hard_${hardVariant}` : '');
 
   // Reset hint state at the start of every question so a new question
-  // begins with a clean slate (no carried-over 50/50, stats, AI, or
-  // letter-hint trigger — otherwise the Hard letters variant would
-  // auto-fill the first letter on the next question because its
-  // useEffect sees a non-zero trigger on mount).
+  // begins with a clean slate (no carried-over 50/50 or stats overlay).
   const [hintQuestionIdx, setHintQuestionIdx] = useState(0);
   if (currentIndex !== hintQuestionIdx) {
     setHintQuestionIdx(currentIndex);
     setHintsUsedThisQ(new Set());
     setHiddenIndices(new Set());
     setStatsHint(null);
-    setAiHint(null);
-    setLetterHintTrigger(0);
   }
   // Tracks which question index the per-question timer is currently
   // counting for. When the player advances, we reset secondsLeft to a
@@ -359,6 +378,14 @@ export default function QuizScreen() {
     loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Clear the replace-unavailable banner timer on unmount.
+  useEffect(
+    () => () => {
+      if (replaceNoticeTimer.current) clearTimeout(replaceNoticeTimer.current);
+    },
+    [],
+  );
 
   // Stamp the start of the playing phase so we can attribute the run's
   // duration to the running totals on the Stats screen.
@@ -528,25 +555,45 @@ export default function QuizScreen() {
     return stats;
   }
 
+  function flashReplaceUnavailable() {
+    setReplaceUnavailable(true);
+    if (replaceNoticeTimer.current) clearTimeout(replaceNoticeTimer.current);
+    replaceNoticeTimer.current = setTimeout(() => setReplaceUnavailable(false), 2600);
+  }
+
   function useHint(kind: HintKind) {
     if (!currentQuestion || isAnswered) return;
     if (hintsUsedThisQ.has(kind)) return;
-    if ((hintsState[kind] ?? 0) <= 0) return;
+    // Premium spends nothing (hintsSpendingEnabled === false): skip the
+    // remaining-count gate AND the consume. Free players still need stock.
+    if (hintsSpendingEnabled && (hintsState[kind] ?? 0) <= 0) return;
 
-    consumeHint(kind).then(() => reloadHints()).catch(() => {});
+    // replaceQuestion is special: it must confirm a candidate exists BEFORE
+    // spending, and it reads/writes async state — handled on its own path.
+    if (kind === 'replaceQuestion') {
+      void applyReplaceQuestion();
+      return;
+    }
+
+    if (hintsSpendingEnabled) {
+      consumeHint(kind).then(() => reloadHints()).catch(() => {});
+    }
     setHintsUsedThisQ((s) => new Set(s).add(kind));
 
     switch (kind) {
       case 'fiftyFifty': {
+        // Leave EXACTLY two options: the correct one + one random wrong.
+        // Robust to any option count — hide every wrong except one.
         const wrongs = currentQuestion.options
           .map((_, i) => i)
           .filter((i) => i !== currentQuestion.correct_option && !hiddenIndices.has(i));
-        // Shuffle then take 2.
+        // Shuffle so the surviving wrong option is random.
         for (let i = wrongs.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [wrongs[i], wrongs[j]] = [wrongs[j], wrongs[i]];
         }
-        const toHide = wrongs.slice(0, 2);
+        // Keep one wrong visible; hide the rest.
+        const toHide = wrongs.slice(1);
         setHiddenIndices((cur) => {
           const next = new Set(cur);
           for (const idx of toHide) next.add(idx);
@@ -558,24 +605,51 @@ export default function QuizScreen() {
         setStatsHint(generateStatsForQuestion(currentQuestion));
         break;
       }
-      case 'ai': {
-        // Take the first sentence (or first 90 chars) of explanation as
-        // a gentle nudge without giving the answer away outright.
-        const expl = (currentQuestion.explanation ?? '').trim();
-        if (!expl) {
-          setAiHint('No hint available for this question.');
-          break;
-        }
-        const firstSentence = expl.split(/(?<=[.!?])\s/)[0] ?? expl;
-        const blurb = firstSentence.length > 90 ? firstSentence.slice(0, 90).trim() + '…' : firstSentence;
-        setAiHint(blurb);
-        break;
-      }
-      case 'letter': {
-        setLetterHintTrigger((n) => n + 1);
-        break;
+    }
+  }
+
+  // Replace the current question with a fresh, unused one of the same
+  // subcategory (and Hard-eligibility when in Hard mode). Consumes a hint
+  // only on a successful swap; when nothing is available it flashes a
+  // notice and spends nothing. Keeps session state intact — the reducer
+  // swaps in place, and we clear this question's hint overlays here.
+  async function applyReplaceQuestion() {
+    if (!snapshot || !currentQuestion) {
+      flashReplaceUnavailable();
+      return;
+    }
+    const seen = await readSeen(seenKey);
+    const exclude = new Set<number>(seen);
+    for (const q of questions) exclude.add(q.id);
+
+    const chosen = findReplacementQuestion({
+      pool: snapshot.questions,
+      currentId: currentQuestion.id,
+      excludeIds: exclude,
+      eligible: isHard ? (q) => isHardEligible(q, hardVariant) : undefined,
+    });
+    if (!chosen) {
+      flashReplaceUnavailable();
+      return;
+    }
+
+    const pick = mapToCachePick(snapshot, chosen);
+    if (hintsSpendingEnabled) {
+      try {
+        await consumeHint('replaceQuestion');
+        reloadHints();
+      } catch {
+        // best-effort; the swap still happens
       }
     }
+    dispatch({ type: 'REPLACE_QUESTION', payload: pick });
+    // Track the swapped-in question so it isn't repeated later.
+    await writeSeen(seenKey, [...seen, chosen.id]);
+    // Fresh question at the SAME index — the per-question reset keyed on
+    // currentIndex won't fire, so clear this question's overlays manually.
+    setHintsUsedThisQ(new Set());
+    setHiddenIndices(new Set());
+    setStatsHint(null);
   }
 
   async function loadQuestions() {
@@ -584,7 +658,8 @@ export default function QuizScreen() {
     const wantLocale = locale ?? 'en';
 
     // Lives gate — block a fresh quiz if the player has no lives left.
-    if (livesApply) {
+    // Premium bypasses it entirely (unlimited lives).
+    if (livesApply && !premiumUnlimited) {
       const lives = await import('@/lib/lives').then((m) => m.getLives());
       if (lives <= 0) {
         setOutOfLivesOpen(true);
@@ -641,10 +716,8 @@ export default function QuizScreen() {
     if (snapshot && snapshot.locale === wantLocale) {
       // Bucket the seen-set by mode too so a "hard typing" run doesn't
       // share its history with a regular run on the same categories.
-      const seenKey = (requestedSlugs.length === 0
-        ? '__all__'
-        : [...requestedSlugs].sort().join('+'))
-        + (isHard ? `__hard_${hardVariant}` : '');
+      // `seenKey` is derived once at component scope (shared with the
+      // replaceQuestion swap so both dedupe against the same bucket).
       const seen = await readSeen(seenKey);
       const { picks, resetSeen } = pickQuestionsFromCache(
         snapshot,
@@ -687,10 +760,12 @@ export default function QuizScreen() {
       // Fire-and-forget — never block the UI on a write.
       recordMistake(currentQuestion.id).catch(() => {});
       // Wrong answer costs a life. Survival is excluded — it ends the
-      // run on first wrong anyway. When the life that would absorb this
-      // mistake isn't there (count hits 0), gate the player: they can't
-      // advance until they top up via ad or purchase.
-      if (livesApply && !isSurvival) {
+      // run on first wrong anyway. Premium spends nothing (unlimited).
+      // When the life that would absorb this mistake isn't there (count
+      // hits 0), gate the player: they can't advance until they top up
+      // via ad or purchase. (livesSpendingEnabled already folds in
+      // livesApply, survival, and premium.)
+      if (livesSpendingEnabled) {
         const isLast = currentIndex === questions.length - 1;
         spendLife()
           .then((newCount) => {
@@ -817,7 +892,7 @@ export default function QuizScreen() {
           >
             <IconSymbol name="xmark" size={22} color="#ffffffcc" />
           </Pressable>
-          {livesApply && <LivesBar count={livesCount} />}
+          {livesApply && <LivesBar count={livesCount} unlimited={premiumUnlimited} />}
           <View style={styles.progressWrap}>
             <ProgressBar
               progress={progress}
@@ -850,8 +925,6 @@ export default function QuizScreen() {
               variant={hardVariant}
               isRevealed={isAnswered}
               isCorrectSubmitted={isAnswered && selectedAnswer === currentQuestion.correct_option}
-              aiHint={aiHint}
-              letterHintTrigger={letterHintTrigger}
               onSubmit={(matchesCorrect) => {
                 handleSelectOption(matchesCorrect ? currentQuestion.correct_option : -1);
               }}
@@ -863,17 +936,26 @@ export default function QuizScreen() {
               onSelectOption={handleSelectOption}
               hiddenIndices={hiddenIndices}
               stats={statsHint}
-              aiHint={aiHint}
             />
           )}
 
           {!isAnswered && (
-            <HintBar
-              state={hintsState}
-              used={hintsUsedThisQ}
-              hard={isHard}
-              onUse={useHint}
-            />
+            <>
+              <HintBar
+                state={hintsState}
+                used={hintsUsedThisQ}
+                hard={isHard}
+                unlimited={premiumUnlimited}
+                onUse={useHint}
+              />
+              {replaceUnavailable && (
+                <View style={styles.replaceNotice}>
+                  <Text style={styles.replaceNoticeText}>
+                    {t('hint.replaceQuestion.unavailable')}
+                  </Text>
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
 
@@ -1063,6 +1145,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingTop: 28,
     paddingBottom: 24,
+  },
+  replaceNotice: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#7c5cff22',
+    borderWidth: 1,
+    borderColor: '#7c5cff66',
+    alignItems: 'center',
+  },
+  replaceNoticeText: {
+    color: '#c9bbff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   nextFooter: {
     paddingHorizontal: 20,

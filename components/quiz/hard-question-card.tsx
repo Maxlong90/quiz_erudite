@@ -19,11 +19,6 @@ interface Props {
   variant: HardVariant;
   isRevealed: boolean;
   isCorrectSubmitted: boolean;
-  /** Optional AI hint blurb shown above the input. */
-  aiHint?: string | null;
-  /** Bumps each time the player triggers the letter hint; the
-   * components watch this and auto-place the next correct letter. */
-  letterHintTrigger?: number;
   /** Caller should dispatch ANSWER with this index based on the result. */
   onSubmit: (matchesCorrect: boolean) => void;
 }
@@ -46,8 +41,6 @@ export function HardQuestionCard({
   variant,
   isRevealed,
   isCorrectSubmitted,
-  aiHint,
-  letterHintTrigger,
   onSubmit,
 }: Props) {
   const correctText = question.options[question.correct_option] ?? '';
@@ -68,19 +61,11 @@ export function HardQuestionCard({
 
       <Text style={styles.questionText}>{question.question}</Text>
 
-      {aiHint && (
-        <View style={styles.aiBox}>
-          <Text style={styles.aiLabel}>🤖 Hint</Text>
-          <Text style={styles.aiText}>{aiHint}</Text>
-        </View>
-      )}
-
       {variant === 'typing' ? (
         <TypingVariant
           correctText={correctText}
           isRevealed={isRevealed}
           isCorrectSubmitted={isCorrectSubmitted}
-          letterHintTrigger={letterHintTrigger}
           onSubmit={onSubmit}
         />
       ) : (
@@ -88,7 +73,6 @@ export function HardQuestionCard({
           correctText={correctText}
           isRevealed={isRevealed}
           isCorrectSubmitted={isCorrectSubmitted}
-          letterHintTrigger={letterHintTrigger}
           onSubmit={onSubmit}
         />
       )}
@@ -111,7 +95,6 @@ interface VariantProps {
   correctText: string;
   isRevealed: boolean;
   isCorrectSubmitted: boolean;
-  letterHintTrigger?: number;
   onSubmit: (matchesCorrect: boolean) => void;
 }
 
@@ -119,7 +102,6 @@ function TypingVariant({
   correctText,
   isRevealed,
   isCorrectSubmitted,
-  letterHintTrigger,
   onSubmit,
 }: VariantProps) {
   const { t } = useTranslation();
@@ -127,17 +109,6 @@ function TypingVariant({
   useEffect(() => {
     if (!isRevealed) setValue('');
   }, [isRevealed]);
-
-  // Letter hint for typing variant: each press extends the current
-  // value with the next correct character. Lets the player crawl
-  // through tough multi-word answers without giving the whole thing.
-  useEffect(() => {
-    if (!letterHintTrigger || isRevealed) return;
-    setValue((cur) => {
-      if (cur.length >= correctText.length) return cur;
-      return correctText.slice(0, cur.length + 1);
-    });
-  }, [letterHintTrigger, isRevealed, correctText]);
 
   const matches = normalize(value) === normalize(correctText);
 
@@ -199,7 +170,6 @@ function LettersVariant({
   correctText,
   isRevealed,
   isCorrectSubmitted,
-  letterHintTrigger,
   onSubmit,
 }: VariantProps) {
   const { t } = useTranslation();
@@ -229,27 +199,6 @@ function LettersVariant({
     initialRef.current = initialState;
     setState(initialState);
   }, [initialState]);
-
-  // Letter hint: each press fills the next empty slot with its correct
-  // letter and burns the matching tile in the bank. Players can chain
-  // hints if they have multiple charges left.
-  useEffect(() => {
-    if (!letterHintTrigger || isRevealed) return;
-    setState((cur) => {
-      const slotIdx = cur.slots.findIndex((s) => !s.locked && !s.letter);
-      if (slotIdx === -1) return cur;
-      const correctLetter = (Array.from(correctText)[slotIdx] ?? '').toUpperCase();
-      if (!correctLetter || correctLetter === ' ') return cur;
-      const bankIdx = cur.bank.findIndex((b) => b === correctLetter);
-      if (bankIdx === -1) return cur;
-      const nextBank = [...cur.bank];
-      nextBank[bankIdx] = null;
-      const nextSlots = cur.slots.map((s, i) =>
-        i === slotIdx ? { ...s, letter: correctLetter, bankIdx } : s,
-      );
-      return { bank: nextBank, slots: nextSlots };
-    });
-  }, [letterHintTrigger, isRevealed, correctText]);
 
   function placeLetter(bankIdx: number) {
     if (isRevealed) return;
@@ -375,27 +324,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 26,
     color: '#fff',
-  },
-  aiBox: {
-    backgroundColor: '#7c5cff22',
-    borderColor: '#7c5cff66',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  aiLabel: {
-    color: '#a78bff',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  aiText: {
-    color: '#fff',
-    fontSize: 13,
-    lineHeight: 18,
-    fontStyle: 'italic',
   },
   section: {
     gap: 12,

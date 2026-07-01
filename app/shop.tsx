@@ -94,7 +94,7 @@ export default function ShopScreen() {
               emoji="💡"
               label={t('shop.balance.hints')}
               value={String(
-                (hints.fiftyFifty ?? 0) + (hints.statistics ?? 0) + (hints.ai ?? 0) + (hints.letter ?? 0),
+                (hints.fiftyFifty ?? 0) + (hints.statistics ?? 0) + (hints.replaceQuestion ?? 0),
               )}
               onPress={() => setHintsInfoOpen(true)}
             />
