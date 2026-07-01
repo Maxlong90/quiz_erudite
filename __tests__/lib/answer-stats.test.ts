@@ -196,6 +196,20 @@ describe('realStatsForQuestion', () => {
     expect(realStatsForQuestion(cache, 999, 4)).toBeNull();
     expect(realStatsForQuestion(null, 42, 4)).toBeNull();
   });
+
+  it('permutes canonical counts into the shuffled display order', () => {
+    // Display order reverses the backend order: display index d shows
+    // canonical option optionOrder[d]. Canonical counts [10,70,20,0] must
+    // therefore render as [0,20,70,10] in display order.
+    const optionOrder = [3, 2, 1, 0];
+    expect(realStatsForQuestion(cache, 42, 4, optionOrder)).toEqual([0, 20, 70, 10]);
+  });
+
+  it('is identity when optionOrder is absent or the wrong length', () => {
+    expect(realStatsForQuestion(cache, 42, 4, undefined)).toEqual([10, 70, 20, 0]);
+    // A mismatched-length mapping is ignored (defensive) → canonical order.
+    expect(realStatsForQuestion(cache, 42, 4, [0, 1])).toEqual([10, 70, 20, 0]);
+  });
 });
 
 describe('clearAnswerStats', () => {

@@ -101,6 +101,8 @@ interface CachePick {
   correct_option: number;
   explanation: string | null;
   image_url: string | null;
+  /** Display-index → original backend option index (see shuffleOptions). */
+  optionOrder?: number[];
 }
 
 /**
@@ -228,8 +230,13 @@ function mapToCachePick(
  * question (e.g. Today's Question on Play Again, or Mistakes review)
  * produces a fresh layout — players can't memorize "the answer is C".
  */
-function shuffleOptions<T extends { options: string[]; correct_option: number }>(q: T): T {
-  if (!Array.isArray(q.options) || q.options.length < 2) return q;
+function shuffleOptions<T extends { options: string[]; correct_option: number }>(
+  q: T,
+): T & { optionOrder: number[] } {
+  if (!Array.isArray(q.options) || q.options.length < 2) {
+    const identity = Array.isArray(q.options) ? q.options.map((_, i) => i) : [];
+    return { ...q, optionOrder: identity };
+  }
   const order = q.options.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -239,6 +246,10 @@ function shuffleOptions<T extends { options: string[]; correct_option: number }>
     ...q,
     options: order.map((i) => q.options[i]),
     correct_option: order.indexOf(q.correct_option),
+    // Map each DISPLAY index back to the original backend option index. The
+    // options are shuffled per session, so answer reporting and the
+    // real-stats hint use this to stay in the backend's canonical order.
+    optionOrder: order,
   };
 }
 
@@ -627,10 +638,13 @@ export default function QuizScreen() {
         // Prefer the real distribution collected from other players; the
         // cache only holds questions the server gated in (>= threshold),
         // so a hit is honest real data. Fall back to the generated one.
+        // Pass optionOrder so canonical counts map onto the shuffled
+        // display order shown to this player.
         const real = realStatsForQuestion(
           statsCacheRef.current,
           currentQuestion.id,
           currentQuestion.options.length,
+          currentQuestion.optionOrder,
         );
         setStatsHint(real ?? generateStatsForQuestion(currentQuestion));
         break;
@@ -787,9 +801,12 @@ export default function QuizScreen() {
     // Report the pick for the anonymous real-stats aggregate (fire-and-
     // forget, non-blocking, offline-safe). Skip Hard mode — its answers are
     // typed / letter-built with no discrete option index — and skip the
-    // timed-out sentinel (-1), which isn't a real choice.
+    // timed-out sentinel (-1), which isn't a real choice. Options are
+    // shuffled per session, so translate the tapped DISPLAY index back to
+    // the backend's canonical option index before reporting.
     if (!isHard && index >= 0 && currentQuestion) {
-      enqueueAnswer(currentQuestion.id, index).catch(() => {});
+      const canonicalIndex = currentQuestion.optionOrder?.[index] ?? index;
+      enqueueAnswer(currentQuestion.id, canonicalIndex).catch(() => {});
     }
 
     const isCorrect = index === currentQuestion?.correct_option;

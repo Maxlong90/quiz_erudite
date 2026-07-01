@@ -212,16 +212,29 @@ export function toPercentages(counts: number[], optionCount: number): number[] |
  * when the question isn't cached (below threshold / not fetched yet) so the
  * caller falls back to the generated distribution. Percentages stay honest —
  * no shaping of the correct option.
+ *
+ * The cached `counts` are in the backend's canonical option order. When the
+ * caller passes `optionOrder` (display index → canonical index, because the
+ * options were shuffled for this session), the counts are permuted into the
+ * display order first, so each bar lines up with the option shown.
  */
 export function realStatsForQuestion(
   cache: QuestionStatsCache | null,
   questionId: number,
   optionCount: number,
+  optionOrder?: number[],
 ): number[] | null {
   if (!cache) return null;
   const stat = cache.stats[questionId];
   if (!stat || !Array.isArray(stat.counts)) return null;
-  return toPercentages(stat.counts, optionCount);
+  const counts =
+    optionOrder && optionOrder.length === optionCount
+      ? optionOrder.map((canonical) => {
+          const c = stat.counts[canonical];
+          return Number.isFinite(c) ? c : 0;
+        })
+      : stat.counts;
+  return toPercentages(counts, optionCount);
 }
 
 /** Remove both the outbound queue and the cached stats (e.g. on data reset). */
