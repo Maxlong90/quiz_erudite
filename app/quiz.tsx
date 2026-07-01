@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -27,7 +27,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
 import { usePremium } from '@/hooks/use-premium';
-import { addLives, getLives, spendLife } from '@/lib/lives';
+import { getLives, spendLife } from '@/lib/lives';
+import { adsEnabled, watchAdForLife } from '@/lib/ads';
 import { consumeHint, type HintKind } from '@/lib/hints';
 import { findReplacementQuestion } from '@/lib/replace-question';
 import { useContentCache } from '@/hooks/use-content-cache';
@@ -903,16 +904,19 @@ export default function QuizScreen() {
         </SafeAreaView>
         <OutOfLivesModal
           visible={outOfLivesOpen}
+          adAvailable={adsEnabled}
           onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
           onWatchAd={async () => {
-            // Stub for rewarded video: pretend the user watched a 2-sec
-            // ad and reward 1 life. Real AdMob/IronSource wiring lands
-            // later; keeping a fake delay makes the UX feel real.
-            await new Promise((r) => setTimeout(r, 1500));
-            await addLives(1);
-            await reloadLives();
-            setOutOfLivesOpen(false);
-            loadQuestions();
+            // Real rewarded ad: +1 life ONLY when the user earns the reward.
+            // Dismiss / failure / no-fill grant nothing.
+            const result = await watchAdForLife();
+            if (result === 'granted') {
+              await reloadLives();
+              setOutOfLivesOpen(false);
+              loadQuestions();
+            } else if (result === 'no-reward') {
+              Alert.alert(t('ads.failed.title'), t('ads.failed.body'));
+            }
           }}
           onOpenShop={() => { setOutOfLivesOpen(false); setBuyLivesOpen(true); }}
         />
@@ -1044,16 +1048,21 @@ export default function QuizScreen() {
         />
         <OutOfLivesModal
           visible={outOfLivesOpen}
+          adAvailable={adsEnabled}
           // Closing the gate mid-quiz means giving up the run — there's
           // no way to keep playing without a life, so we bail home.
           onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
           onWatchAd={async () => {
-            await new Promise((r) => setTimeout(r, 1500));
-            await addLives(1);
-            await reloadLives();
-            // Stay on the current (already-answered) question; the
-            // player dismisses the gate and taps Next to continue.
-            setOutOfLivesOpen(false);
+            // Real rewarded ad: +1 life ONLY when the user earns the reward.
+            const result = await watchAdForLife();
+            if (result === 'granted') {
+              await reloadLives();
+              // Stay on the current (already-answered) question; the
+              // player dismisses the gate and taps Next to continue.
+              setOutOfLivesOpen(false);
+            } else if (result === 'no-reward') {
+              Alert.alert(t('ads.failed.title'), t('ads.failed.body'));
+            }
           }}
           // Open the quick-buy sheet instead of leaving the quiz for
           // the full shop screen.

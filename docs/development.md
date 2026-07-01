@@ -22,8 +22,9 @@ The app reads these public env vars at build time:
 | EXPO_PUBLIC_API_URL | Backend base URL (see `api/client.ts`) | `https://quiz-erudit-backend.turbosuslik.online/api/v1` |
 | EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path (see `api/client.ts`) | `erudite-quiz` |
 | EXPO_PUBLIC_REVENUECAT_ANDROID_KEY | RevenueCat public Android billing key (see `lib/revenuecat.ts`) | `goog_hFgRbNrOlUHcMtKClkwWcYIBLvd` |
+| EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID | AdMob rewarded ad-unit id for "watch ad → +1 life" (see `lib/ads.ts`) | Google's test rewarded id `ca-app-pub-3940256099942544/5224354917` |
 
-All three keys carry a committed default, so the app builds and runs without an `.env` file. The RevenueCat key is a public SDK key and is safe to commit; it has a literal fallback that matches the in-code default.
+All keys carry a committed default, so the app builds and runs without an `.env` file. The RevenueCat key is a public SDK key and is safe to commit; it has a literal fallback that matches the in-code default.
 
 For EAS cloud builds the RevenueCat key is also wired explicitly in `eas.json` under the `preview` and `production` profiles, so release builds carry it through EAS env rather than relying on the in-code fallback. The `development` profile leaves it unset and falls back to the committed default. The value across the env wiring and the fallback is the same public Android key — they must point at the RevenueCat project the backend provisions, or the `default` offering comes back empty and the paywall has no packages to sell.
 
@@ -41,6 +42,15 @@ npm run web                 # Web browser
 `npm start` maps to `expo start`. The app uses Expo's new architecture (`newArchEnabled: true`). On web, the on-device image cache is skipped — the browser caches snapshot images itself.
 
 Real in-app purchases run through RevenueCat / Google Play, whose native module (`react-native-purchases`) autolinks via prebuild and is absent in Expo Go and on web. In those dev environments — and on iOS, which has no key yet — RevenueCat stays disabled and the shop and paywall fall back to local grants, so the dev flow never breaks. Exercising the real purchase and subscription flows requires an Android device build (`npm run android` against a prebuild). See [Gamification](gamification.md#premium-and-the-shop).
+
+### AdMob rewarded ads
+
+The "watch ad → +1 life" reward uses AdMob via `react-native-google-mobile-ads` (wrapped in `lib/ads.ts`). Two pieces of configuration:
+
+- **App ID (native, needs a build):** set in `app.json` under the `react-native-google-mobile-ads` config-plugin entry in `expo.plugins`, as `androidAppId` (`ca-app-pub-3182366039408506~9059612261`, the real Android app) and `iosAppId` (a Google sample placeholder — iOS ads are disabled at runtime). The plugin injects the App ID into `AndroidManifest.xml` at prebuild, so changing it requires re-running `npx expo prebuild` / a new build.
+- **Rewarded unit id (runtime env):** `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID`. The in-code default is Google's official **test** rewarded id, so dev / Expo Go / any build without the env var never touch the real unit and can't earn a policy strike. The real unit id (`ca-app-pub-3182366039408506/4318421474`) is wired only in `eas.json` under the `preview` and `production` `env` blocks; the `development` profile leaves it unset and falls back to the test id.
+
+Like RevenueCat, the SDK is Android-only for now and absent in Expo Go / web, so `adsEnabled` is `false` there, the watch-ad buttons hide, and no life is ever granted where an ad can't run. Testing the real rewarded flow requires an Android device build (`npm run android` against a prebuild); AdMob may show the app as "verification required" until the SDK serves its first requests, which is expected and does not block integration. See [Gamification](gamification.md#the-rewarded-ad-watch-ad--1-life).
 
 ## Lint
 
@@ -85,8 +95,8 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 
 | File | Purpose |
 |------|---------|
-| app.json | Expo project config (bundle ID, plugins, new architecture) |
-| eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key) |
+| app.json | Expo project config (bundle ID, plugins, new architecture; the AdMob App ID lives in the `react-native-google-mobile-ads` plugin entry) |
+| eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key, AdMob rewarded unit id) |
 | package.json | Dependencies and npm scripts |
 | tsconfig.json | TypeScript config with the `@/` path alias |
 | .env / .env.example | Backend URL, app slug, and RevenueCat Android key |

@@ -8,13 +8,25 @@ interface Props {
   onClose: () => void;
   onWatchAd: () => Promise<void> | void;
   onOpenShop: () => void;
+  /**
+   * Whether a rewarded ad can actually be served. When false (Expo Go / web /
+   * iOS / no native module) the watch-ad button is hidden so we never offer a
+   * reward that can't be earned. Defaults to true.
+   */
+  adAvailable?: boolean;
 }
 
 /**
- * Shown when the player tries to play with 0 lives. Three exits:
- * watch ad (stubbed), buy lives (shop), or close (goes home).
+ * Shown when the player tries to play with 0 lives. Exits: watch a rewarded ad
+ * (when available), buy lives (shop), or close (goes home).
  */
-export function OutOfLivesModal({ visible, onClose, onWatchAd, onOpenShop }: Props) {
+export function OutOfLivesModal({
+  visible,
+  onClose,
+  onWatchAd,
+  onOpenShop,
+  adAvailable = true,
+}: Props) {
   const { t } = useTranslation();
   const [pending, setPending] = useState(false);
 
@@ -32,20 +44,27 @@ export function OutOfLivesModal({ visible, onClose, onWatchAd, onOpenShop }: Pro
           <Text style={styles.title}>{t('lives.outOf.title')}</Text>
           <Text style={styles.body}>{t('lives.outOf.body')}</Text>
 
-          <Pressable
-            onPress={handleWatch}
-            disabled={pending}
-            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.primaryText}>
-              {pending ? t('lives.outOf.watching') : t('lives.outOf.watchAd')}
-            </Text>
-          </Pressable>
+          {adAvailable && (
+            <Pressable
+              onPress={handleWatch}
+              disabled={pending}
+              style={({ pressed }) => [styles.primary, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={styles.primaryText}>
+                {pending ? t('lives.outOf.watching') : t('lives.outOf.watchAd')}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={onOpenShop}
-            style={({ pressed }) => [styles.secondary, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [
+              adAvailable ? styles.secondary : styles.primary,
+              pressed && { opacity: 0.85 },
+            ]}
           >
-            <Text style={styles.secondaryText}>{t('lives.outOf.buy')}</Text>
+            <Text style={adAvailable ? styles.secondaryText : styles.primaryText}>
+              {t('lives.outOf.buy')}
+            </Text>
           </Pressable>
           <Pressable onPress={onClose} style={styles.dismiss}>
             <Text style={styles.dismissText}>{t('lives.outOf.later')}</Text>

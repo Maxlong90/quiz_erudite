@@ -6,7 +6,13 @@ The app keeps players returning through a small economy and a progression system
 
 Lives (`lib/lives.ts`, surfaced by `hooks/use-lives.ts`) are the spend currency of a session. A wrong answer in most modes costs one life; survival is the exception, where a wrong answer ends the run instead of spending. When the count hits zero mid-quiz, the out-of-lives modal opens and routes the player to the shop.
 
-Lives are replenished three ways: a daily claim of ten, the shop, or a rewarded-ad stub. There is no cap — an earlier version capped lives at 30 and silently lost overflow on claim, so lives are now pure uncapped currency and every grant lands in full.
+Lives are replenished three ways: a daily claim of ten, the shop, or a rewarded ad. There is no cap — an earlier version capped lives at 30 and silently lost overflow on claim, so lives are now pure uncapped currency and every grant lands in full.
+
+### The rewarded ad ("watch ad → +1 life")
+
+The watch-ad button (in the shop's "Free lives" card and the out-of-lives modal) runs a real AdMob rewarded ad through `lib/ads.ts`, which wraps `react-native-google-mobile-ads` behind the same graceful-degradation guard as RevenueCat. `watchAdForLife()` loads and shows the ad, then grants exactly `+1` life **only** inside the SDK's `EARNED_REWARD` callback — a dismiss without reward, a load/show failure, or a no-fill grants nothing and surfaces a friendly "no reward" message. The AdMob-side reward amount/item is ignored; the app always grants one life itself, and the flow settles once so a single tap can never double-grant.
+
+Where an ad cannot be served — Expo Go, web, iOS (Android-only for now), or a build without the native module — `adsEnabled` is `false`, `watchAdForLife()` returns `'unavailable'`, and the button hides itself, so a free life is never granted where no ad ran. Premium players have unlimited lives, so the shop's watch-ad card is also hidden for them (they never reach the quiz out-of-lives gate either). Ads require a native build; see [Development](development.md#admob-rewarded-ads).
 
 ### The daily claim and clock-cheat protection
 

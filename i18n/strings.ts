@@ -47,6 +47,8 @@ export type StringKey =
   | 'lives.outOf.watching'
   | 'lives.outOf.buy'
   | 'lives.outOf.later'
+  | 'ads.failed.title'
+  | 'ads.failed.body'
   | 'buyLives.title'
   | 'buyLives.subtitle'
   | 'account.title'
@@ -367,6 +369,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'lives.outOf.watching': 'Loading ad…',
     'lives.outOf.buy': 'Buy lives',
     'lives.outOf.later': 'Maybe later',
+    'ads.failed.title': 'No reward',
+    'ads.failed.body': "The ad wasn't finished, so no life was added. Please try again.",
     'buyLives.title': 'Get more lives',
     'buyLives.subtitle': 'Top up and keep playing',
     'account.title': 'Account',
@@ -686,6 +690,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'lives.outOf.watching': 'Cargando anuncio…',
     'lives.outOf.buy': 'Comprar vidas',
     'lives.outOf.later': 'Quizá luego',
+    'ads.failed.title': 'Sin recompensa',
+    'ads.failed.body': 'No terminaste el anuncio, así que no se añadió ninguna vida. Inténtalo de nuevo.',
     'buyLives.title': 'Consigue más vidas',
     'buyLives.subtitle': 'Recarga y sigue jugando',
     'account.title': 'Cuenta',
@@ -1005,6 +1011,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'lives.outOf.watching': 'Загружаем рекламу…',
     'lives.outOf.buy': 'Купить жизни',
     'lives.outOf.later': 'Позже',
+    'ads.failed.title': 'Награда не начислена',
+    'ads.failed.body': 'Реклама не была досмотрена, поэтому жизнь не начислена. Попробуйте ещё раз.',
     'buyLives.title': 'Получить жизни',
     'buyLives.subtitle': 'Пополни и продолжай играть',
     'account.title': 'Аккаунт',

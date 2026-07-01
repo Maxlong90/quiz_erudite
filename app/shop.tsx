@@ -10,14 +10,16 @@ import { HintsInfoModal } from '@/components/shop/hints-info-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
+import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
-import { addLives } from '@/lib/lives';
+import { adsEnabled, watchAdForLife } from '@/lib/ads';
 import { BUNDLES, getBundleStorePrices, purchaseBundle, type ShopBundle } from '@/lib/iap';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 export default function ShopScreen() {
   const { t } = useTranslation();
+  const { isPremium } = usePremium();
   const { count: livesCount, reload: reloadLives } = useLives();
   const { state: hints, reload: reloadHints } = useHintsState();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -59,13 +61,26 @@ export default function ShopScreen() {
   async function handleWatchAd() {
     if (watching) return;
     setWatching(true);
-    // Stub for a rewarded ad — fake 1.5s "ad playing" then grant +1
-    // life. Real SDK integration (AdMob / IronSource) lands later.
-    await new Promise((r) => setTimeout(r, 1500));
-    await addLives(1);
-    await reloadLives();
-    setWatching(false);
+    try {
+      // Grants +1 life ONLY when the user watches the rewarded ad to the
+      // reward point. Dismiss / failure / no-fill grant nothing.
+      const result = await watchAdForLife();
+      if (result === 'granted') {
+        await reloadLives();
+      } else if (result === 'no-reward') {
+        Alert.alert(t('ads.failed.title'), t('ads.failed.body'));
+      }
+      // 'unavailable' can't happen here — the card is hidden when !adsEnabled.
+    } finally {
+      setWatching(false);
+    }
   }
+
+  // Hide the free-lives (watch-ad) card where a real ad can't be served (Expo
+  // Go / web / iOS / no native module) or for Premium — they have unlimited
+  // lives, so the reward is irrelevant. `isPremium` is null while loading;
+  // only a resolved `true` hides it.
+  const showWatchAd = adsEnabled && isPremium !== true;
 
   const livesBundles = BUNDLES.filter((b) => b.category === 'lives');
   const hintsBundles = BUNDLES.filter((b) => b.category === 'hints');
@@ -100,25 +115,29 @@ export default function ShopScreen() {
             />
           </View>
 
-          <SectionLabel labelKey="shop.section.freeLives" />
-          <View style={styles.card}>
-            <Pressable
-              onPress={handleWatchAd}
-              disabled={watching}
-              style={({ pressed }) => [styles.adRow, pressed && { opacity: 0.85 }]}
-            >
-              <Text style={styles.adEmoji}>🎬</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.adTitle}>{t('shop.freeLives.title')}</Text>
-                <Text style={styles.adSubtitle}>{t('shop.freeLives.subtitle')}</Text>
+          {showWatchAd && (
+            <>
+              <SectionLabel labelKey="shop.section.freeLives" />
+              <View style={styles.card}>
+                <Pressable
+                  onPress={handleWatchAd}
+                  disabled={watching}
+                  style={({ pressed }) => [styles.adRow, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.adEmoji}>🎬</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.adTitle}>{t('shop.freeLives.title')}</Text>
+                    <Text style={styles.adSubtitle}>{t('shop.freeLives.subtitle')}</Text>
+                  </View>
+                  <View style={styles.adCta}>
+                    <Text style={styles.adCtaText}>
+                      {watching ? t('shop.freeLives.watching') : t('shop.freeLives.cta')}
+                    </Text>
+                  </View>
+                </Pressable>
               </View>
-              <View style={styles.adCta}>
-                <Text style={styles.adCtaText}>
-                  {watching ? t('shop.freeLives.watching') : t('shop.freeLives.cta')}
-                </Text>
-              </View>
-            </Pressable>
-          </View>
+            </>
+          )}
 
           <SectionLabel labelKey="shop.section.lives" />
           <View style={styles.gridList}>
