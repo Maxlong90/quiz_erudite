@@ -36,6 +36,7 @@ const mockAddHintsBundle = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/lib/lives', () => ({ addLives: (...a: unknown[]) => mockAddLives(...a) }));
 jest.mock('@/lib/hints', () => ({ addHintsBundle: (...a: unknown[]) => mockAddHintsBundle(...a) }));
 
+// eslint-disable-next-line import/first -- module under test must load AFTER its mocks
 import { BUNDLES, getBundleStorePrices, purchaseBundle } from '@/lib/iap';
 
 const livesBundle = BUNDLES.find((b) => b.id === 'lives.10')!;

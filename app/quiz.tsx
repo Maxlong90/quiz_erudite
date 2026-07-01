@@ -27,7 +27,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
 import { usePremium } from '@/hooks/use-premium';
-import { addLives, spendLife } from '@/lib/lives';
+import { addLives, getLives, spendLife } from '@/lib/lives';
 import { consumeHint, type HintKind } from '@/lib/hints';
 import { findReplacementQuestion } from '@/lib/replace-question';
 import { useContentCache } from '@/hooks/use-content-cache';
@@ -660,7 +660,7 @@ export default function QuizScreen() {
     // Lives gate — block a fresh quiz if the player has no lives left.
     // Premium bypasses it entirely (unlimited lives).
     if (livesApply && !premiumUnlimited) {
-      const lives = await import('@/lib/lives').then((m) => m.getLives());
+      const lives = await getLives();
       if (lives <= 0) {
         setOutOfLivesOpen(true);
         dispatch({ type: 'SET_ERROR', payload: 'No lives' });
