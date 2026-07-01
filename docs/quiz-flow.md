@@ -64,7 +64,7 @@ After answering:
 - In survival, the first wrong answer ends the run.
 - A "Next" button fades in; on the last question it reads "See Results."
 
-The hint bar (`components/quiz/hint-bar.tsx`) offers four hint kinds during play; the lives bar and timer sit alongside. See [Gamification](gamification.md).
+The hint bar (`components/quiz/hint-bar.tsx`) offers three hint kinds during play — 50/50, player statistics, and replace-question — though hard mode shows only replace-question, since the other two act on multiple-choice options. The lives bar and timer sit alongside. Premium players see an infinity glyph on the lives bar and hint badges and never spend either. See [Gamification](gamification.md).
 
 ### Advancing and Finishing
 

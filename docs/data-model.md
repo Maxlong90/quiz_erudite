@@ -42,8 +42,8 @@ These entities live in AsyncStorage and model the player's gamification state. N
 
 | Entity | Store key | Represents |
 |--------|-----------|------------|
-| Lives | `quiz.lives.v1` | Currency spent on wrong answers; daily claim date |
-| Hints | `quiz.hints.v1` | Counts of four hint kinds |
+| Lives | `quiz.lives.v1` | Currency spent on wrong answers; daily claim date and timestamp |
+| Hints | `quiz.hints.v1` | Counts of three hint kinds |
 | Mistakes | `quiz.mistakes.v1` | Up to 200 recently-missed question IDs (most recent first) |
 | Quiz stats | `quiz.stats.v1` | Career totals: quizzes, seconds, questions, correct, perfect runs |
 | Seen sets | `quiz.seen.v1.{bucket}` | Question IDs already served, bucketed by mode/category |

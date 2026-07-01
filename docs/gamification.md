@@ -6,20 +6,35 @@ The app keeps players returning through a small economy and a progression system
 
 Lives (`lib/lives.ts`, surfaced by `hooks/use-lives.ts`) are the spend currency of a session. A wrong answer in most modes costs one life; survival is the exception, where a wrong answer ends the run instead of spending. When the count hits zero mid-quiz, the out-of-lives modal opens and routes the player to the shop.
 
-Lives are replenished three ways: a daily claim of ten, the shop, or a rewarded-ad stub. The daily claim keys off the local calendar day, not UTC, so it resets at the player's own midnight. The store records the last claim date; the claim is available whenever that date is not today and is a no-op if already claimed. There is no cap — an earlier version capped lives at 30 and silently lost overflow on claim, so lives are now pure uncapped currency and every grant lands in full.
+Lives are replenished three ways: a daily claim of ten, the shop, or a rewarded-ad stub. There is no cap — an earlier version capped lives at 30 and silently lost overflow on claim, so lives are now pure uncapped currency and every grant lands in full.
+
+### The daily claim and clock-cheat protection
+
+The daily claim keys off the local calendar day, not UTC, so it resets at the player's own midnight. Keying only on the date string was exploitable: moving the device clock forward flips `todayKey` to a "new day" instantly, so a player could re-grant themselves ten lives repeatedly by advancing the clock. There is no server to act as a trusted time source in this offline model, so the store now defends best-effort with a second stamp.
+
+Alongside the last claim date, the store persists `lastClaimAt` — the epoch milliseconds of the last claim. `canClaim` allows a grant only when **both** conditions hold: the local calendar day has changed **and** at least roughly twenty hours of wall-clock time have elapsed since `lastClaimAt`. Advancing the clock alone no longer helps — the player would also have to wait out the real gap, so the exploit degrades to the normal once-a-day cadence.
+
+Two edge cases shape the rule. A backward clock jump (`now` is earlier than `lastClaimAt`) is refused outright as anti-rollback, and `claimDaily` keeps the greater existing timestamp so a player cannot rewind their way into an earlier window. Legacy state that predates `lastClaimAt` — and any never-claimed player — omits the stamp and is treated as claimable, so the upgrade never blocks an existing player. This protection is explicitly best-effort: a determined offline user can still defeat it, which is an accepted trade-off for a fully on-device economy.
 
 ## Hints
 
-Hints (`lib/hints.ts`, surfaced by `hooks/use-hints.ts`) come in four kinds, each with its own count:
+Hints (`lib/hints.ts`, surfaced by `hooks/use-hints.ts`) come in exactly three kinds, each with its own count. An earlier build shipped five kinds; the `ai` (explanation) and `letter` (reveal-a-letter) hints were removed entirely because they overlapped poorly with the modes and, in the letter case, tangled with the hard-mode typing gameplay. Any persisted counts for the two retired kinds are simply ignored on read.
 
 | Kind | Effect | Default count |
 |------|--------|---------------|
-| fiftyFifty | Removes two wrong options | 3 |
-| statistics | Shows how often each option is chosen | 2 |
-| ai | Suggests an answer | 1 |
-| letter | Reveals one letter (used in hard mode) | 2 |
+| fiftyFifty | Removes wrong options until exactly two remain — the correct one plus one random wrong | 3 |
+| statistics | Shows how other players answered this question | 2 |
+| replaceQuestion | Swaps the current question for a fresh, unused one of the same subcategory | 1 |
 
-The hint bar during a quiz spends from these counts; a kind at zero is unavailable. Hints are replenished only through the shop, in bundles that grant several kinds at once.
+The hint bar during a quiz spends from these counts; a kind at zero is unavailable (unless the player is premium — see below). Hints are replenished only through the shop, in bundles that grant all three kinds at once.
+
+**fiftyFifty** hides every wrong option except one, so it always leaves the correct answer next to a single distractor regardless of how many options the question carries. The surviving wrong option is chosen at random.
+
+**statistics** presents a per-option pick rate as a small labelled bar with a percentage under each option. There is no backend for real answer statistics, so the distribution is generated deterministically per question — the same question always shows the same "player stats" — and framed to the player as how other players answered.
+
+**replaceQuestion** is the one hint that works in every mode. Because 50/50 and statistics both act on multiple-choice options, they only make sense in the regular modes; hard mode offers replaceQuestion alone, so no purchased hint is ever globally unusable. When triggered, `applyReplaceQuestion` looks for an unused question through `findReplacementQuestion` (a pure candidate picker in `lib/replace-question.ts`), matching the current question's subcategory and — in hard mode — the same hard-eligibility filter. The data model has no per-question difficulty field, so "same difficulty" is honored through these proxies. The candidate is excluded if it is already in the current session or in the cross-session seen set for this bucket.
+
+The swap is careful with session state. It only spends a hint when a candidate actually exists — if none is available it flashes a transient "no other question to swap in" banner and spends nothing. On success it dispatches the reducer's `REPLACE_QUESTION` action, which swaps the question in place at the current index, keeps the array length stable so the progress denominator does not move, resets that slot's answer to unanswered, and leaves every other answer untouched. The action is a no-op once the current question is answered. The screen then clears the current question's hint overlays manually — because the swapped-in question sits at the same index, the per-question reset keyed on the index would not otherwise fire — and records the new question's id into the seen set so it is never repeated later.
 
 ## Mistakes
 
@@ -48,6 +63,14 @@ After each quiz, the results screen gathers the current metrics, computes each a
 ## Premium and the Shop
 
 A single premium flag (`hooks/use-premium.ts`, stored as `app.premium.v1`) gates the advanced modes. Free players see three open modes; the rest carry a crown and route to the paywall (`app/paywall.tsx`) when tapped.
+
+### Premium means unlimited lives and hints
+
+An active-premium player never spends lives and never spends hints. The quiz screen derives two predicates from the premium flag — `livesSpendingEnabled` and `hintsSpendingEnabled` — and routes every spend and gate through them. When `livesSpendingEnabled` is off, a wrong answer skips the `spendLife` decrement, the out-of-lives modal never opens, and the pre-quiz lives gate is bypassed so a premium player with zero lives can still start. When `hintsSpendingEnabled` is off, using a hint skips both the remaining-count check and the `consumeHint` decrement, and the hint buttons stay enabled regardless of stock. The lives bar and hint badges show an infinity glyph instead of a number for premium players.
+
+The premium flag is null while it loads. That null is treated as non-premium, so spending stays on until the flag resolves — the safe default that never gives away free plays during a loading race.
+
+These two predicates exist as a single, deliberate seam. A planned premium "hard mode" for rankings and prizes will re-enable spending for premium users in that mode only, by adding a ranked-mode condition to both predicates. That mode is not built yet; the clean predicate is the placeholder for it.
 
 Billing runs through RevenueCat / Google Play on Android device builds (`lib/revenuecat.ts`). The paywall reads the `default` offering and presents **three selectable, no-trial tiers** — weekly, monthly, and yearly — that map to the RevenueCat packages `$rc_weekly`, `$rc_monthly`, and `$rc_annual`, each attached to its period's base (non-trial) subscription product. `fetchPremiumPackages` resolves all three by their RevenueCat convenience accessor first and by package id as a fallback, so a missing accessor never silently drops a tier. Each card shows the localized `priceString` from the store.
 
@@ -81,19 +104,27 @@ The trial-enabled and quarterly/semiannual products still exist in Google Play a
 
 On launch the premium provider syncs from the live entitlement, but only ever *upgrades* (a returning subscriber stays premium); it never downgrades offline, where the entitlement is treated as unknown. Two backend-controlled app flags shape the paywall's exits: `seconds_before_quit_button_shown` hides both the close ✕ and the "continue free" link for a configured delay so the offer is seen first, and `show_paywall_review_button` gates the Android reviewer-unlock flow (a backend-validated login that grants premium without a real purchase).
 
-The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives, hints, and combo bundles whose ids are the Google Play product ids. On Android device builds, tapping a bundle runs the real purchase and only credits the contents locally on success (cancellation is a no-op; store errors surface as a failure); displayed prices are hydrated from store metadata when available.
+The shop (`app/shop.tsx`, catalog in `lib/iap.ts`) sells lives, hints, and combo bundles whose ids are the store product ids. Tapping a bundle runs the real purchase and only credits the contents locally on success (cancellation is a no-op; store errors surface as a failure); displayed prices are hydrated from store metadata when available.
+
+### The fail-closed grant policy
+
+Consumable purchases enforce the same invariant as the paywall's free-unlock guard: a bundle is credited **only** after a resolved real store purchase. An earlier `purchaseBundle` violated this — whenever RevenueCat was disabled it fell straight through to a local delay-then-grant stub, so on Expo Go, on web, on iOS (no key yet), or on any real device where RevenueCat init failed, the shop handed out consumables for free. That is the same class of bug as the paywall #568 free-grant.
+
+The grant now splits by whether the platform can actually charge the player. On a real store platform — `Platform.OS` is `android` or `ios` — the purchase must go through RevenueCat, and if the store is unavailable or a product id is missing, `purchaseBundle` fails closed: it throws so the UI shows a purchase error and nothing is granted. The local stub grant runs only in genuinely non-store dev environments, gated explicitly on `isExpoGo || Platform.OS === 'web'`, never on iOS or Android. `isExpoGo` is exported from `lib/revenuecat.ts` precisely so the two cases can be told apart.
+
+The error must reach the player, so the out-of-lives buy path was fixed too: `components/lives/buy-lives-modal.tsx` used to swallow purchase failures silently and now surfaces an error the same way the shop screen does.
 
 The catalog is a fixed nine-product contract shared with the backend, which provisions the same ids as Google Play managed (consumable) products and registers them in RevenueCat. Changing an id here without changing it there breaks purchasing, so the ids are treated as immutable. The nine products fall into three categories the shop renders as separate sections — three lives packs, three hint packs, and three combos:
 
 | Category | Bundles | Grants |
 |----------|---------|--------|
 | lives | `lives.10`, `lives.30`, `lives.100` | 10 / 30 / 100 lives |
-| hints | `hints.5`, `hints.10`, `hints.20` | 5 / 10 / 20 of each of the four hint kinds |
+| hints | `hints.5`, `hints.10`, `hints.20` | 5 / 10 / 20 of each of the three hint kinds |
 | combo | `combo.10.5`, `combo.30.10`, `combo.100.20` | lives plus hints together (10+5, 30+10, 100+20) |
 
 The out-of-lives modal (`components/lives/buy-lives-modal.tsx`) reuses this catalog but filters to `category === 'lives'`, so it offers only the three lives packs.
 
-RevenueCat is **Android only** for now (no iOS key yet) and degrades gracefully: in Expo Go, on web, on iOS, or whenever the native module is missing, it stays disabled and both the shop and the paywall fall back to the original local-grant behavior so the dev flow never breaks. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback; release builds set it explicitly per profile in `eas.json` (`preview` and `production`). The wired key and the fallback must belong to the same RevenueCat project the backend provisions — a mismatch makes `getOfferings` return an empty `default` offering, which is exactly the all-null-packages condition the free-unlock guard now blocks. See [Development](development.md#configure-the-backend) for the key wiring.
+RevenueCat is **Android only** for now (no iOS key yet), so it stays disabled in Expo Go, on web, on iOS, or whenever the native module is missing. What that disabled state does now depends on whether the platform can charge the player. In Expo Go and on web — genuine dev environments — the shop and paywall still fall back to the local-grant stub so the dev flow never breaks. On a real iOS device, consumable purchases no longer local-grant: they fail closed with an error (see the fail-closed grant policy above). The paywall's premium unlock is unchanged by this work and still local-grants when RevenueCat is disabled, including on iOS. The public Android key is read from `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` with a committed fallback; release builds set it explicitly per profile in `eas.json` (`preview` and `production`). The wired key and the fallback must belong to the same RevenueCat project the backend provisions — a mismatch makes `getOfferings` return an empty `default` offering, which is exactly the all-null-packages condition the free-unlock guard now blocks. See [Development](development.md#configure-the-backend) for the key wiring.
 
 ## See Also
 
