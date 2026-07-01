@@ -14,6 +14,7 @@ import {
   syncContent,
   type ContentSnapshot,
 } from '@/lib/content-cache';
+import { fetchQuestionStats, flushAnswers } from '@/lib/answer-stats';
 import { useLocale } from '@/hooks/use-locale';
 
 type Status = 'idle' | 'syncing' | 'ready' | 'error';
@@ -61,6 +62,11 @@ export function ContentCacheProvider({ children }: { children: ReactNode }) {
           setStatus('ready');
           setProgress(1);
         }
+        // Opportunistic, fire-and-forget: content just synced, so we're
+        // online — ship any queued answer reports and refresh the cached
+        // real-stats blob for the statistics hint. Never blocks content.
+        flushAnswers().catch(() => {});
+        fetchQuestionStats(forLocale).catch(() => {});
       } catch (err) {
         if (inflightLocale.current === forLocale) {
           setStatus('error');

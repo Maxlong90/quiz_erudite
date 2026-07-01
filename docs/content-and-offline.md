@@ -35,6 +35,10 @@ The web platform has no writable filesystem, so it skips the local image cache e
 
 The snapshot carries a `syncedAt` timestamp, and a 24-hour TTL governs reuse. A snapshot older than that, or one whose locale no longer matches the active language, is re-fetched on the next sync. Clearing the cache (from settings reset) removes both AsyncStorage keys and deletes the image directory.
 
+## Answer-Statistics Sync
+
+The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
+
 ## Cross-Session No-Repeats
 
 To stop the same questions recurring, the app records which question IDs a player has already been served and excludes them from future pools. The records live in AsyncStorage under keys prefixed `quiz.seen.v1.`, one bucket per context:

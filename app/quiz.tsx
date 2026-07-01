@@ -44,6 +44,13 @@ import {
 } from '@/lib/achievements';
 import { getMistakeIds, recordMistake } from '@/lib/mistakes';
 import { recordQuizCompletion } from '@/lib/quiz-stats';
+import {
+  enqueueAnswer,
+  flushAnswers,
+  loadCachedStats,
+  realStatsForQuestion,
+  type QuestionStatsCache,
+} from '@/lib/answer-stats';
 import { getTodayQuestionId } from '@/lib/today-question';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
@@ -334,6 +341,10 @@ export default function QuizScreen() {
   const [hintsUsedThisQ, setHintsUsedThisQ] = useState<Set<HintKind>>(new Set());
   const [hiddenIndices, setHiddenIndices] = useState<Set<number>>(new Set());
   const [statsHint, setStatsHint] = useState<number[] | null>(null);
+  // Real per-question answer distributions, loaded once from the local cache
+  // on mount so the statistics hint can read them synchronously (offline-safe)
+  // and fall back to the generated distribution when a question is absent.
+  const statsCacheRef = useRef<QuestionStatsCache | null>(null);
   // Transient banner when replaceQuestion has no candidate to swap in.
   const [replaceUnavailable, setReplaceUnavailable] = useState(false);
   const replaceNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -376,6 +387,14 @@ export default function QuizScreen() {
 
   useEffect(() => {
     loadQuestions();
+    // Warm the real-stats cache into memory for the statistics hint. Purely
+    // best-effort — the hint falls back to a generated distribution if this
+    // hasn't landed (or the question is below threshold).
+    loadCachedStats()
+      .then((cache) => {
+        statsCacheRef.current = cache;
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -397,6 +416,9 @@ export default function QuizScreen() {
 
   useEffect(() => {
     if (status === 'finished') {
+      // Ship any queued answer reports now that a session wrapped up — a
+      // natural online moment. Fire-and-forget; stays queued if offline.
+      flushAnswers().catch(() => {});
       // For survival or a total-time run, "total" is the number the
       // user actually saw — runs can end before the planned count.
       const answeredCount = answers.filter((a) => a !== null).length;
@@ -602,7 +624,15 @@ export default function QuizScreen() {
         break;
       }
       case 'statistics': {
-        setStatsHint(generateStatsForQuestion(currentQuestion));
+        // Prefer the real distribution collected from other players; the
+        // cache only holds questions the server gated in (>= threshold),
+        // so a hit is honest real data. Fall back to the generated one.
+        const real = realStatsForQuestion(
+          statsCacheRef.current,
+          currentQuestion.id,
+          currentQuestion.options.length,
+        );
+        setStatsHint(real ?? generateStatsForQuestion(currentQuestion));
         break;
       }
     }
@@ -754,6 +784,14 @@ export default function QuizScreen() {
     if (isAnswered) return;
     dispatch({ type: 'ANSWER', payload: index });
 
+    // Report the pick for the anonymous real-stats aggregate (fire-and-
+    // forget, non-blocking, offline-safe). Skip Hard mode — its answers are
+    // typed / letter-built with no discrete option index — and skip the
+    // timed-out sentinel (-1), which isn't a real choice.
+    if (!isHard && index >= 0 && currentQuestion) {
+      enqueueAnswer(currentQuestion.id, index).catch(() => {});
+    }
+
     const isCorrect = index === currentQuestion?.correct_option;
     if (!isCorrect && currentQuestion) {
       // Record the mistake so it surfaces under the home Mistakes tile.
@@ -810,6 +848,8 @@ export default function QuizScreen() {
         countAsQuiz: false,
       }).catch(() => {});
     }
+    // Leaving the quiz is also a good moment to ship queued answer reports.
+    flushAnswers().catch(() => {});
     router.replace('/');
   }
 

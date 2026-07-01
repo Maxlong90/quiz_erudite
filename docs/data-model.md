@@ -108,9 +108,13 @@ The base URL is `quiz-erudit-backend.turbosuslik.online/api/v1` (overridable via
 | `GET /apps/{slug}/snapshot?locale=` | Full offline bundle for one language |
 | `GET /apps/{slug}/categories?parent=` | Top-level categories, or one category's children |
 | `GET /apps/{slug}/questions/random?count=&locale=&category=` | Random questions, optionally scoped to a category |
+| `POST /apps/{slug}/answers` | Report an anonymous batch of answer picks for the statistics hint |
+| `GET /apps/{slug}/question-stats?since=` | Aggregated per-question answer distributions (threshold-gated) |
 | `POST /reports` | Submit a content report for a question |
 
 Each read endpoint tolerates either a bare array or a `{ data: [...] }` wrapper; `fetchCategories` and `fetchRandomQuestions` normalize both. Reports (`api/reports.ts`) carry a content type, content ID, a reason from a fixed set (incorrect answer, unclear wording, inappropriate, broken media, translation issue, other), an optional comment, and the locale.
+
+The answer-statistics endpoints (`lib/answer-stats.ts`) power the real-data path of the statistics hint and are anonymous, aggregate-only — no accounts, PII, or device identifiers. `POST /apps/{slug}/answers` takes `{ "answers": [{ question_id, option_index }] }` (an optional `is_correct` is ignored), returns `202 { "accepted": N }`, caps a batch at 200 rows (so the client flushes in batches of ≤ 200), is rate-limited to 60 requests/minute per IP, and silently drops malformed / out-of-range (`option_index` must be an integer in `[0, 15]`) / foreign rows without failing the batch. `GET /apps/{slug}/question-stats` returns `{ "threshold": N, "stats": { "<question_id>": { "total", "counts": [...] } } }` where `stats` is an object keyed by stringified question id (`{}` when nothing has reached threshold) and `counts[]` is index-aligned to the question's options and zero-filled; the server only includes a question once its total sample count reaches `threshold`, so any present question is real data. The optional `?since=<unix-seconds>` filters to questions whose counters changed at/after that time, for incremental refresh.
 
 ## Data Lifecycle
 
