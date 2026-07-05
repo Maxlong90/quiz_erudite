@@ -6,20 +6,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LanguagePicker } from '@/components/language-picker';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
-import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
 
 export default function LanguageScreen() {
   const { locale, changeLocale } = useLocale();
-  const { hasSeen } = useOnboarding();
   const { t } = useTranslation();
 
   async function handlePick(picked: SupportedLocale) {
     await changeLocale(picked);
-    // Treat unresolved onboarding state as "first launch": send to
-    // onboarding rather than risk dropping into home before the flag
-    // resolves.
-    router.replace(hasSeen ? '/' : '/onboarding');
+    // The language picker is the first step of the always-on intro
+    // (splash -> language -> onboarding -> paywall -> home), so it always
+    // hands off to onboarding, never straight to home.
+    router.replace('/onboarding');
   }
 
   return (

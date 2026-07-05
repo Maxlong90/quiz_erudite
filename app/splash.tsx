@@ -11,16 +11,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useLocale } from '@/hooks/use-locale';
-import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
 
 const SPLASH_DURATION_MS = 5000;
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
-  const { hasSeen } = useOnboarding();
-  const { hasPicked } = useLocale();
   const { t } = useTranslation();
 
   const wordmarkOpacity = useSharedValue(0);
@@ -32,25 +28,18 @@ export default function SplashScreen() {
     wordmarkScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
-    const t = setTimeout(() => {
-      // Treat unresolved AsyncStorage reads as "first launch" so we
-      // never accidentally drop the user past first-time setup.
-      if (hasPicked === false) {
-        router.replace('/language');
-      } else if (hasSeen === false) {
-        router.replace('/onboarding');
-      } else if (hasPicked && hasSeen) {
-        router.replace('/');
-      } else {
-        // Still loading — fall through to language picker, the safest
-        // first-time destination.
-        router.replace('/language');
-      }
+    // Always run the full intro on every cold start: splash -> language ->
+    // onboarding -> paywall (when enabled) -> home. We deliberately do NOT
+    // gate on any persisted "seen"/"picked" flag, so a restored Android Auto
+    // Backup can never skip the first-run flow. The language picker is the
+    // first step of onboarding, so the splash always hands off to it.
+    const timer = setTimeout(() => {
+      router.replace('/language');
     }, SPLASH_DURATION_MS);
 
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSeen, hasPicked]);
+  }, []);
 
   const wordmarkStyle = useAnimatedStyle(() => ({
     opacity: wordmarkOpacity.value,
