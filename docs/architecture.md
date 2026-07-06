@@ -40,7 +40,7 @@ The app exists to deliver a fast, replayable general-knowledge trivia experience
 
 ## Navigation
 
-Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. A first launch flows splash → language → onboarding → home; returning users land on home directly. Onboarding can divert once to a forced paywall before home, but only on Android when the backend flag `show_paywall_android` is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a hardcoded dark purple gradient. Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
+Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. Every cold start runs the full intro — splash → language → onboarding → home — regardless of any persisted "seen"/"picked" flag; the flow is deliberately *not* gated on AsyncStorage, so a restored Android Auto Backup can never skip splash, language, or onboarding. Onboarding can divert once to a forced paywall before home, but only when store billing is enabled on the platform (`revenueCatEnabled`) and the per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a hardcoded dark purple gradient. Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
 
 | Route | Screen | Role |
 |-------|--------|------|
@@ -53,7 +53,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | `quiz` | Quiz | Gameplay: question card, hints, lives, timer |
 | `results` | Results | Score, accuracy, achievement unlocks |
 | `stats` | Stats | Career totals and achievement progress |
-| `shop` | Shop | Lives and hint bundles (RevenueCat on Android; local-grant fallback elsewhere) |
+| `shop` | Shop | Lives and hint bundles (RevenueCat where store billing is enabled; local-grant only in Expo Go / web) |
 | `account` | Account | Sign-up/login UI (not wired to a backend) |
 | `settings` | Settings | Language, reset, legal links |
 | `paywall` | Paywall | Premium pitch; tapping a locked mode lands here |
@@ -65,7 +65,7 @@ The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, a
 Three React context providers wrap the whole tree, in this order: `LocaleProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
 
 - **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`). It seeds from the device locale and falls back to English.
-- **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. On Android device builds it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat / Google Play (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
+- **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Wherever store billing is enabled (any native platform with a RevenueCat key — Android today, iOS once its key is supplied) it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
 
 Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use-quiz-session.ts`), a `useReducer` state machine. See [Quiz Flow](quiz-flow.md).
@@ -80,7 +80,7 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; on Android it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web / iOS keep the local flag as the source of truth.
+**Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
 ## Component Organization
 
@@ -111,7 +111,7 @@ lib/                    Device-local business logic and persistence
   achievements.ts       Achievement catalog and unlock detection
   today-question.ts     Daily-question pick
   iap.ts                Shop bundle catalog + purchase flow (RevenueCat / local fallback)
-  revenuecat.ts         RevenueCat (Android) wrapper; disabled in Expo Go / web / iOS
+  revenuecat.ts         RevenueCat wrapper; capability-gated per platform; off in Expo Go / web
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
   theme.ts              Colors and typography
