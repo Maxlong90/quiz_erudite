@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { useTranslation } from '@/hooks/use-translation';
@@ -82,12 +83,19 @@ export default function OnboardingScreen() {
 
   const isLast = page === PAGES.length - 1;
 
-  // The forced post-onboarding paywall is shown ONLY on Android when the
-  // per-app backend flag is true. Default-safe: missing snapshot/flag or any
-  // other platform sends the user straight to home, never the paywall.
+  // The forced post-onboarding paywall is capability-gated: shown only when
+  // store billing is actually enabled on this platform (revenueCatEnabled) AND
+  // the per-platform backend flag is true (iOS reads show_paywall_ios, Android
+  // reads show_paywall_android). Gating on revenueCatEnabled guarantees a
+  // paywall is never forced on a platform that cannot charge — so iOS stays
+  // safe until its RevenueCat key is provided. Default-safe: a missing
+  // snapshot/flag, web, or a disabled store sends the user straight to home.
   function destinationAfterOnboarding(): '/paywall' | '/' {
-    const goPaywall =
-      Platform.OS === 'android' && snapshot?.app.show_paywall_android === true;
+    const platformFlag =
+      Platform.OS === 'ios'
+        ? snapshot?.app.show_paywall_ios
+        : snapshot?.app.show_paywall_android;
+    const goPaywall = revenueCatEnabled && platformFlag === true;
     return goPaywall ? '/paywall' : '/';
   }
 

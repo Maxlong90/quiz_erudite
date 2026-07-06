@@ -19,6 +19,10 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 // --- mock boundaries ---------------------------------------------------------
 
 let mockEnabled = false;
+// Whether the app is running in Expo Go — the only non-web env where the
+// disabled-store local unlock is allowed. On a real store device it stays
+// false so subscribe fails closed.
+let mockIsExpoGo = false;
 const mockFetchPremiumPackages = jest.fn();
 const mockPurchasePremiumPackage = jest.fn();
 const mockRestorePremium = jest.fn();
@@ -26,6 +30,9 @@ const mockRestorePremium = jest.fn();
 jest.mock('@/lib/revenuecat', () => ({
   get revenueCatEnabled() {
     return mockEnabled;
+  },
+  get isExpoGo() {
+    return mockIsExpoGo;
   },
   fetchPremiumPackages: (...args: unknown[]) => mockFetchPremiumPackages(...args),
   purchasePremiumPackage: (...args: unknown[]) => mockPurchasePremiumPackage(...args),
@@ -83,6 +90,7 @@ import PaywallScreen from '@/app/paywall';
 
 beforeEach(() => {
   mockEnabled = false;
+  mockIsExpoGo = false;
   mockSnapshot = null;
   mockFetchPremiumPackages.mockReset().mockResolvedValue({
     weekly: null,
@@ -110,6 +118,12 @@ function liveOffering() {
 }
 
 describe('paywall multi-tier rendering (RevenueCat disabled / Expo Go)', () => {
+  // These cases represent a genuine dev environment (Expo Go), the only
+  // non-web place the disabled-store local unlock is permitted.
+  beforeEach(() => {
+    mockIsExpoGo = true;
+  });
+
   it('renders three tier cards with Yearly preselected by default', () => {
     const screen = render(<PaywallScreen />);
 
@@ -176,6 +190,28 @@ describe('paywall multi-tier rendering (RevenueCat disabled / Expo Go)', () => {
     const tree = JSON.stringify(screen.toJSON());
     expect(tree).not.toMatch(/trial/i);
     expect(tree).not.toMatch(/free trial/i);
+  });
+});
+
+describe('paywall subscribe on a real store device with billing disabled (fail-closed)', () => {
+  // e.g. iOS before its RevenueCat key is supplied: not Expo Go, not web, and
+  // the store SDK is off. Subscribing must NOT grant premium for free — it
+  // fails closed with an error, mirroring lib/iap.ts. This is the guardrail
+  // that keeps a broken iOS paywall from ever unlocking premium.
+  beforeEach(() => {
+    mockEnabled = false;
+    mockIsExpoGo = false;
+  });
+
+  it('shows an error and never grants premium when subscribing', async () => {
+    const screen = render(<PaywallScreen />);
+
+    fireEvent.press(screen.getByTestId('paywall-subscribe'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+    expect(mockSetPremium).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockPurchasePremiumPackage).not.toHaveBeenCalled();
   });
 });
 

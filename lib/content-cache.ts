@@ -48,9 +48,9 @@ export interface ContentSnapshot {
     name: string;
     supported_locales: string[];
     /**
-     * When true, the Android paywall shows a discreet "reviewer access"
-     * button that unlocks premium without a purchase, so a Google Play
-     * reviewer can verify the paid functionality. Toggled per-app in the
+     * When true, the paywall shows a discreet "reviewer access" button that
+     * unlocks premium without a purchase, so a store reviewer (Google Play /
+     * App Store) can verify the paid functionality. Toggled per-app in the
      * backend admin; absent on older snapshots (treat as false).
      */
     show_paywall_review_button?: boolean;
@@ -59,6 +59,13 @@ export interface ContentSnapshot {
      * Android; absent/false = do not force the paywall (reviewer-safe default).
      */
     show_paywall_android?: boolean;
+    /**
+     * Per-app backend flag. Gates the forced post-onboarding paywall on iOS;
+     * absent/false = do not force the paywall (reviewer-safe default). Only
+     * takes effect once iOS billing is enabled (a RevenueCat iOS key exists),
+     * so a paywall is never forced on a platform that cannot charge.
+     */
+    show_paywall_ios?: boolean;
     /**
      * Seconds the paywall hides BOTH exits (the close ✕ and the
      * "continue free" link) before revealing them, forcing the user to

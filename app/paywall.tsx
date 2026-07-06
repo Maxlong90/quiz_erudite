@@ -13,6 +13,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import type { StringKey } from '@/i18n/strings';
 import {
   fetchPremiumPackages,
+  isExpoGo,
   purchasePremiumPackage,
   restorePremium,
   revenueCatEnabled,
@@ -96,9 +97,11 @@ export default function PaywallScreen() {
   const { snapshot } = useContentCache();
 
   // Backend-controlled, per-app flag (Nova: "Show Paywall Review Button").
-  // Turned on only while a build is under Google Play review.
+  // Turned on only while a build is under store review. Capability-gated on
+  // revenueCatEnabled so it only appears where real purchases exist (works on
+  // iOS once its key is supplied); never on a store-less platform.
   const showReviewButton =
-    Platform.OS === 'android' && snapshot?.app.show_paywall_review_button === true;
+    revenueCatEnabled && snapshot?.app.show_paywall_review_button === true;
 
   // Backend-controlled, per-app (Nova: "Seconds Before Quit Button Shown").
   // Both paywall exits — the close ✕ and the "continue free" link — stay
@@ -181,11 +184,18 @@ export default function PaywallScreen() {
   async function handleSubscribe() {
     if (purchasing) return;
 
-    // Expo Go / web / iOS — no real store exists. Keep the MVP local unlock so
-    // subscribing never crashes or dead-ends on platforms without RevenueCat.
+    // Store billing disabled. The MVP local unlock is permitted ONLY in genuine
+    // dev environments (Expo Go / web), mirroring lib/iap.ts' fail-closed
+    // policy. On a real store device where billing is unavailable (e.g. iOS
+    // before its RevenueCat key is supplied) we must NOT hand out premium for
+    // free — surface an error and bail so no broken paywall grants incorrectly.
     if (!revenueCatEnabled) {
-      await setPremium(true);
-      router.replace('/');
+      if (isExpoGo || Platform.OS === 'web') {
+        await setPremium(true);
+        router.replace('/');
+        return;
+      }
+      Alert.alert(t('paywall.error.title'), t('paywall.error.body'));
       return;
     }
 

@@ -4,11 +4,17 @@ import type PurchasesModule from 'react-native-purchases';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
 /**
- * RevenueCat (Google Play billing) integration. Mirrors lib/sentry.ts: the
- * public Android key comes from EXPO_PUBLIC_REVENUECAT_ANDROID_KEY with a
- * committed fallback, and the whole module degrades gracefully. In Expo Go,
- * on web, on iOS (no key yet), or when the native module is missing, it stays
- * DISABLED and callers fall back to the existing local-grant behavior so dev
+ * RevenueCat (store billing) integration. Mirrors lib/sentry.ts: the public
+ * store keys come from env (EXPO_PUBLIC_REVENUECAT_ANDROID_KEY /
+ * EXPO_PUBLIC_REVENUECAT_IOS_KEY) and the whole module degrades gracefully.
+ *
+ * Gating is capability-driven, NOT platform-hardcoded: the SDK is enabled on
+ * any native platform (android / ios) for which a public key is configured.
+ * Android ships with a committed fallback key so it is always on; iOS has NO
+ * fallback, so it stays DISABLED until EXPO_PUBLIC_REVENUECAT_IOS_KEY is
+ * provided — at which point iOS lights up automatically with no code change.
+ * On web, in Expo Go, or when the native module is missing it also stays
+ * disabled and callers fall back to the existing local-grant behavior so dev
  * never breaks.
  *
  * All react-native-purchases usage is contained in this file. The native
@@ -16,9 +22,16 @@ import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-na
  * this module is safe everywhere.
  */
 
-// Public key — safe to commit. Overridable via env / EAS secret.
+// Android public key — safe to commit. Overridable via env / EAS secret.
 const ANDROID_KEY =
   process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || 'goog_hFgRbNrOlUHcMtKClkwWcYIBLvd';
+// iOS public key — NO committed fallback. Until the owner supplies an
+// App Store RevenueCat key via EXPO_PUBLIC_REVENUECAT_IOS_KEY, iOS billing
+// stays off (capability flag below is false), so no broken paywall ships.
+const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '';
+
+// The public key for the current native platform (empty string when none).
+const keyForPlatform = Platform.OS === 'ios' ? IOS_KEY : ANDROID_KEY;
 
 /** RevenueCat entitlement that unlocks Premium. */
 export const PREMIUM_ENTITLEMENT = 'premium';
@@ -29,21 +42,23 @@ export const DEFAULT_OFFERING = 'default';
 // Exported so consumables/purchases can tell a genuine dev environment (Expo Go)
 // apart from a real store platform where a failed store must fail closed.
 export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-// Android-only for now: no iOS key yet, and the SDK isn't used on web.
-const isSupportedPlatform = Platform.OS === 'android';
+// Capability-driven: enabled on any native platform that has a configured key.
+// Never on web (the SDK isn't used there). iOS is therefore off until its key
+// is supplied, then on automatically — no platform hardcoding.
+const isSupportedPlatform = Platform.OS !== 'web' && !!keyForPlatform;
 
 type PurchasesType = typeof PurchasesModule;
 
 let purchases: PurchasesType | null = null;
 let enabled = false;
 
-if (isSupportedPlatform && !isExpoGo && ANDROID_KEY) {
+if (isSupportedPlatform && !isExpoGo) {
   try {
     // Lazy require so the native module is never touched in Expo Go / web.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('react-native-purchases');
     purchases = (mod.default ?? mod) as PurchasesType;
-    purchases.configure({ apiKey: ANDROID_KEY });
+    purchases.configure({ apiKey: keyForPlatform });
     enabled = true;
   } catch {
     // Native module unavailable (e.g. JS running without a prebuild) — stay
