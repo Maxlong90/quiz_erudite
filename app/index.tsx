@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,6 +24,7 @@ import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
 import { QuizConfigModal } from '@/components/home/quiz-config-modal';
 import { TimeLimitModal } from '@/components/home/time-limit-modal';
+import { consumeColdStart } from '@/lib/intro-gate';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useLocale } from '@/hooks/use-locale';
 import { useMistakes } from '@/hooks/use-mistakes';
@@ -55,7 +56,19 @@ interface ModeDef {
   onPress?: () => void;
 }
 
-export default function HomeScreen() {
+// Home is the route expo-router opens on a cold launch (`/`), so it doubles as
+// the entry gate: the first mount of a cold start bounces into the intro flow
+// (splash -> language -> onboarding -> paywall -> home) instead of rendering
+// Home. Every later return to Home renders it normally. See lib/intro-gate.ts.
+export default function HomeRoute() {
+  const [redirectToIntro] = useState(() => consumeColdStart());
+  if (redirectToIntro) {
+    return <Redirect href="/splash" />;
+  }
+  return <HomeScreen />;
+}
+
+function HomeScreen() {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const { snapshot } = useContentCache();
