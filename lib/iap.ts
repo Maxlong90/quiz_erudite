@@ -7,6 +7,7 @@ import {
   isExpoGo,
   purchaseConsumable,
   revenueCatEnabled,
+  type PurchaseOutcome,
 } from '@/lib/revenuecat';
 
 /**
@@ -161,15 +162,20 @@ async function grantBundle(bundle: ShopBundle): Promise<void> {
  * the store unavailable we fail closed: throw so the UI surfaces an error and
  * NOTHING is granted — a consumable must never be handed out for free on a
  * device that can actually be charged.
+ *
+ * Returns the {@link PurchaseOutcome} so the caller can tell a real purchase
+ * (`'purchased'`) apart from a user cancellation (`'cancelled'`) and only then
+ * confirm success — otherwise dismissing the native sheet would still show a
+ * "purchase added" message even though nothing was granted.
  */
-export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
+export async function purchaseBundle(bundle: ShopBundle): Promise<PurchaseOutcome> {
   if (revenueCatEnabled) {
     const outcome = await purchaseConsumable(bundle.id);
     if (outcome === 'purchased') {
       await grantBundle(bundle);
     }
     // 'cancelled' → no grant, no error.
-    return;
+    return outcome;
   }
 
   // RevenueCat is off. Only Expo Go / web may local-grant (no real store).
@@ -177,7 +183,7 @@ export async function purchaseBundle(bundle: ShopBundle): Promise<void> {
     // Stub path: pretend we hit the store, then grant locally.
     await new Promise((r) => setTimeout(r, 900));
     await grantBundle(bundle);
-    return;
+    return 'purchased';
   }
 
   // Real store platform (android / ios) but the store is unavailable — fail

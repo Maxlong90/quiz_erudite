@@ -48,7 +48,10 @@ export default function ShopScreen() {
     if (pendingId) return;
     setPendingId(bundle.id);
     try {
-      await purchaseBundle(bundle);
+      const outcome = await purchaseBundle(bundle);
+      // A user cancellation (dismissing the native purchase sheet) grants
+      // nothing — stay silent instead of falsely confirming a purchase.
+      if (outcome === 'cancelled') return;
       await Promise.all([reloadLives(), reloadHints()]);
       Alert.alert(t('shop.thanks.title'), t('shop.thanks.body'));
     } catch {
@@ -178,7 +181,6 @@ export default function ShopScreen() {
             ))}
           </View>
 
-          <Text style={styles.disclaimer}>{t('shop.disclaimer')}</Text>
         </ScrollView>
 
         <BottomBar current="shop" />
@@ -392,13 +394,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
-  },
-  disclaimer: {
-    color: '#ffffff66',
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 20,
-    paddingHorizontal: 16,
-    lineHeight: 16,
   },
 });

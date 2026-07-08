@@ -115,7 +115,6 @@ export type StringKey =
   | 'shop.thanks.body'
   | 'shop.error.title'
   | 'shop.error.body'
-  | 'shop.disclaimer'
   | 'shop.lives.small.title'
   | 'shop.lives.small.subtitle'
   | 'shop.lives.medium.title'
@@ -438,7 +437,6 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.thanks.body': 'Your purchase has been added.',
     'shop.error.title': 'Purchase failed',
     'shop.error.body': 'Please try again.',
-    'shop.disclaimer': 'In-app purchases are not connected to the live store yet — this is a preview build.',
     'shop.lives.small.title': '10 lives',
     'shop.lives.small.subtitle': 'A short play session',
     'shop.lives.medium.title': '30 lives',
@@ -759,7 +757,6 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.thanks.body': 'Tu compra se ha añadido.',
     'shop.error.title': 'Compra fallida',
     'shop.error.body': 'Inténtalo de nuevo.',
-    'shop.disclaimer': 'Las compras integradas aún no están conectadas — esta es una build de previsualización.',
     'shop.lives.small.title': '10 vidas',
     'shop.lives.small.subtitle': 'Una sesión corta',
     'shop.lives.medium.title': '30 vidas',
@@ -1080,7 +1077,6 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'shop.thanks.body': 'Покупка добавлена.',
     'shop.error.title': 'Покупка не прошла',
     'shop.error.body': 'Попробуй ещё раз.',
-    'shop.disclaimer': 'Встроенные покупки пока не подключены к стору — это превью-сборка.',
     'shop.lives.small.title': '10 жизней',
     'shop.lives.small.subtitle': 'Короткая сессия',
     'shop.lives.medium.title': '30 жизней',
