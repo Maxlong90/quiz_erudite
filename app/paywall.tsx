@@ -422,12 +422,6 @@ export default function PaywallScreen() {
             </Pressable>
           )}
 
-          {canQuit && (
-            <Pressable onPress={handleDismiss} hitSlop={10} testID="paywall-dismiss">
-              <Text style={styles.dismissText}>{t('paywall.continueFree')}</Text>
-            </Pressable>
-          )}
-
           <Text style={styles.disclaimer}>{t('paywall.disclaimer')}</Text>
 
           {showReviewButton && (
@@ -727,7 +721,7 @@ const styles = StyleSheet.create({
   actions: {
     paddingHorizontal: 24,
     paddingTop: 10,
-    paddingBottom: 16,
+    paddingBottom: 0,
     alignItems: 'center',
     gap: 9,
   },
@@ -760,12 +754,6 @@ const styles = StyleSheet.create({
     color: '#ffffffcc',
     fontSize: 14,
     fontWeight: '600',
-    paddingVertical: 3,
-  },
-  dismissText: {
-    color: '#ffffff99',
-    fontSize: 14,
-    fontWeight: '500',
     paddingVertical: 3,
   },
   disclaimer: {
