@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ReviewerUnlockModal } from '@/components/paywall/reviewer-unlock-modal';
+import { adsEnabled } from '@/lib/ads';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
@@ -25,6 +26,8 @@ import { Sentry } from '@/lib/sentry';
 // via t()) or the literal check / cross marks rendered as-is.
 const CHECK = '✓';
 const CROSS = '✕';
+// Premium lives are unlimited (see the economy overhaul), rendered as ∞.
+const INFINITY = '∞';
 
 interface CompareRow {
   labelKey: StringKey;
@@ -35,8 +38,14 @@ interface CompareRow {
 }
 
 const COMPARE_ROWS: CompareRow[] = [
-  { labelKey: 'paywall.row.lives', free: 'paywall.row.lives.free', premium: 'paywall.row.lives.premium' },
-  { labelKey: 'paywall.row.ad', free: 'paywall.row.ad.free', premium: 'paywall.row.ad.premium' },
+  // Premium = unlimited lives per day, so the premium cell is ∞ (not a number).
+  { labelKey: 'paywall.row.lives', free: 'paywall.row.lives.free', premium: INFINITY },
+  // "Watch ad -> +life" only exists where rewarded ads are actually wired
+  // (Android). iOS has no rewarded-ad feature, so the row is omitted there
+  // rather than promising a capability the platform can't deliver.
+  ...(adsEnabled
+    ? [{ labelKey: 'paywall.row.ad', free: 'paywall.row.ad.free', premium: 'paywall.row.ad.premium' } as CompareRow]
+    : []),
   { labelKey: 'paywall.row.modes', free: '3', premium: '9' },
   { labelKey: 'paywall.row.flashcards', free: CROSS, premium: CHECK },
   { labelKey: 'paywall.row.stats', free: 'paywall.row.stats.free', premium: 'paywall.row.stats.premium' },
@@ -453,6 +462,13 @@ function CompareCell({ value, premium }: { value: string; premium?: boolean }) {
   if (value === CROSS) {
     return <Text style={styles.cellCross}>{CROSS}</Text>;
   }
+  if (value === INFINITY) {
+    return (
+      <Text style={[styles.cellText, styles.cellInfinity, premium && styles.cellTextPremium]}>
+        {INFINITY}
+      </Text>
+    );
+  }
   // Numeric literals ('3', '9') pass through t() unchanged; real keys
   // resolve to localized strings.
   return (
@@ -485,15 +501,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
     paddingTop: 0,
-    gap: 10,
+    gap: 8,
   },
   trophy: {
-    width: 96,
-    height: 96,
+    width: 80,
+    height: 80,
     marginBottom: 2,
   },
   title: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '900',
     color: '#fff',
     letterSpacing: 0.4,
@@ -503,14 +519,14 @@ const styles = StyleSheet.create({
     textShadowRadius: 14,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#ffffffcc',
     textAlign: 'center',
   },
   table: {
     marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 24,
+    marginTop: 14,
+    marginBottom: 14,
     borderRadius: 18,
     backgroundColor: '#ffffff0d',
     borderWidth: 1,
@@ -528,7 +544,7 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 14,
   },
   rowDivider: {
@@ -590,6 +606,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  // ∞ reads better a touch larger than the numeric cells.
+  cellInfinity: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '900',
+  },
   scroll: {
     flex: 1,
   },
@@ -598,8 +620,8 @@ const styles = StyleSheet.create({
   },
   tiers: {
     width: '100%',
-    marginBottom: 4,
-    gap: 10,
+    marginBottom: 0,
+    gap: 8,
   },
   tierCard: {
     width: '100%',
@@ -607,7 +629,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#ffffff22',
     backgroundColor: '#ffffff0d',
-    paddingVertical: 14,
+    paddingVertical: 11,
     paddingHorizontal: 16,
   },
   tierCardFeatured: {
@@ -621,7 +643,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   bestValueBadge: {
     color: '#1a1a47',
@@ -677,7 +699,7 @@ const styles = StyleSheet.create({
   },
   tierLabel: {
     color: '#ffffffcc',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
   },
   tierLabelSelected: {
@@ -690,7 +712,7 @@ const styles = StyleSheet.create({
   },
   tierPrice: {
     color: '#ffffffdd',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
@@ -704,15 +726,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingTop: 10,
+    paddingBottom: 16,
     alignItems: 'center',
-    gap: 14,
+    gap: 9,
   },
   cta: {
     width: '100%',
     backgroundColor: '#7c5cff',
-    paddingVertical: 18,
+    paddingVertical: 15,
     borderRadius: 28,
     alignItems: 'center',
     shadowColor: '#7c5cff',
@@ -730,7 +752,7 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
@@ -738,13 +760,13 @@ const styles = StyleSheet.create({
     color: '#ffffffcc',
     fontSize: 14,
     fontWeight: '600',
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   dismissText: {
     color: '#ffffff99',
     fontSize: 14,
     fontWeight: '500',
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   disclaimer: {
     color: '#ffffff66',
