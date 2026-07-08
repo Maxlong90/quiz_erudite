@@ -50,6 +50,14 @@ export function ContentCacheProvider({ children }: { children: ReactNode }) {
         const fresh = await syncContent({
           locale: forLocale,
           force,
+          onSnapshot: (snap) => {
+            // JSON is in (including the paywall config) — make it usable now,
+            // before images finish. Guard against a stale (superseded) sync.
+            if (inflightLocale.current === forLocale) {
+              setSnapshot(snap);
+              setStatus('ready');
+            }
+          },
           onProgress: (p) => {
             // Drop progress events from a stale sync.
             if (inflightLocale.current === forLocale) {
@@ -58,6 +66,7 @@ export function ContentCacheProvider({ children }: { children: ReactNode }) {
           },
         });
         if (inflightLocale.current === forLocale) {
+          // Refresh with the full snapshot (now carrying the downloaded imageMap).
           setSnapshot(fresh);
           setStatus('ready');
           setProgress(1);

@@ -81,6 +81,11 @@ export default function OnboardingScreen() {
   const { snapshot } = useContentCache();
   const { t } = useTranslation();
 
+  // Latest snapshot, readable inside the async navigation wait below without
+  // stale-closure issues.
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+
   const isLast = page === PAGES.length - 1;
 
   // The forced post-onboarding paywall is capability-gated: shown only when
@@ -88,13 +93,21 @@ export default function OnboardingScreen() {
   // the per-platform backend flag is true (iOS reads show_paywall_ios, Android
   // reads show_paywall_android). Gating on revenueCatEnabled guarantees a
   // paywall is never forced on a platform that cannot charge — so iOS stays
-  // safe until its RevenueCat key is provided. Default-safe: a missing
-  // snapshot/flag, web, or a disabled store sends the user straight to home.
-  function destinationAfterOnboarding(): '/paywall' | '/' {
+  // safe until its RevenueCat key is provided.
+  //
+  // The content sync surfaces the `app` config as soon as its JSON arrives
+  // (well within the splash), so the flag is normally ready by the time
+  // onboarding ends. As a safety net for a slow first-launch network, briefly
+  // wait for the snapshot before deciding rather than defaulting to home the
+  // instant it's still null. Bounded so we never hang offline.
+  async function destinationAfterOnboarding(): Promise<'/paywall' | '/'> {
+    const deadline = Date.now() + 4000;
+    while (!snapshotRef.current && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const app = snapshotRef.current?.app;
     const platformFlag =
-      Platform.OS === 'ios'
-        ? snapshot?.app.show_paywall_ios
-        : snapshot?.app.show_paywall_android;
+      Platform.OS === 'ios' ? app?.show_paywall_ios : app?.show_paywall_android;
     const goPaywall = revenueCatEnabled && platformFlag === true;
     return goPaywall ? '/paywall' : '/';
   }
@@ -109,7 +122,7 @@ export default function OnboardingScreen() {
   async function onPrimaryPress() {
     if (isLast) {
       await markSeen();
-      router.replace(destinationAfterOnboarding());
+      router.replace(await destinationAfterOnboarding());
       return;
     }
     const next = page + 1;
@@ -119,7 +132,7 @@ export default function OnboardingScreen() {
 
   async function onSkip() {
     await markSeen();
-    router.replace(destinationAfterOnboarding());
+    router.replace(await destinationAfterOnboarding());
   }
 
   return (

@@ -182,6 +182,15 @@ export interface SyncOptions {
   /** Force a re-fetch even if the cached snapshot is fresh. */
   force?: boolean;
   onProgress?: (progress: number) => void;
+  /**
+   * Fires as soon as the snapshot JSON is fetched — categories, questions, and
+   * the `app` config block that gates the paywall — BEFORE the (much slower)
+   * image download runs. Lets the intro flow decide the post-onboarding
+   * destination and the UI render immediately, while images keep downloading
+   * in the background and refresh via the returned snapshot. Any previously
+   * cached local images are carried over so nothing already visible flickers.
+   */
+  onSnapshot?: (snapshot: ContentSnapshot) => void;
 }
 
 /**
@@ -189,11 +198,16 @@ export interface SyncOptions {
  * AsyncStorage, and download every referenced image into the local
  * filesystem. Reports progress as 0..1 — first 20% covers the JSON
  * fetch, the remaining 80% covers image downloads.
+ *
+ * The JSON (including the `app` config that gates the paywall) is surfaced via
+ * `onSnapshot` the moment it arrives, so callers never have to wait for the
+ * image download to read config/content.
  */
 export async function syncContent({
   locale,
   force = false,
   onProgress,
+  onSnapshot,
 }: SyncOptions): Promise<ContentSnapshot> {
   const report = (p: number) => onProgress?.(Math.max(0, Math.min(1, p)));
 
@@ -204,6 +218,7 @@ export async function syncContent({
       && cached.locale === locale
       && cached.syncedAt
       && Date.now() - cached.syncedAt < SNAPSHOT_TTL_MS) {
+      onSnapshot?.(cached);
       report(1);
       return cached;
     }
@@ -217,6 +232,13 @@ export async function syncContent({
     { params: { locale } },
   );
   report(0.2);
+
+  // Surface the JSON immediately — reusing any already-downloaded local images
+  // so previously visible artwork doesn't disappear while the fresh set loads.
+  // The paywall/onboarding gate reads app config from here and no longer blocks
+  // on the image download below.
+  const previousImageMap = force ? {} : ((await loadCachedSnapshot())?.imageMap ?? {});
+  onSnapshot?.({ ...data, imageMap: previousImageMap, syncedAt: Date.now() });
 
   const categoryIconUrls = data.categories.flatMap((cat) => [
     cat.icon_url,
