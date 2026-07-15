@@ -37,7 +37,10 @@ const MAPPING = {
   'bag.fill': 'shopping-bag',
   'heart.fill': 'favorite',
   'lightbulb.fill': 'lightbulb',
-  'house.fill': 'home',
+  'sparkles': 'auto-awesome',
+  'wand.and.stars': 'auto-fix-high',
+  'bolt.fill': 'bolt',
+  'circle.grid.cross.fill': 'monetization-on',
 } as IconMapping;
 
 /**

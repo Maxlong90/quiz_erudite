@@ -314,7 +314,66 @@ export type StringKey =
   | 'quiz.timeUp'
   // survival
   | 'quiz.survival.streak'
-  | 'quiz.survival.over';
+  | 'quiz.survival.over'
+  // logo quiz — entry tile
+  | 'logoQuiz.entry.title'
+  | 'logoQuiz.entry.subtitle'
+  // logo quiz — home / categories
+  | 'logoQuiz.home.title'
+  | 'logoQuiz.home.eyebrow'
+  | 'logoQuiz.home.sectionCategories'
+  | 'logoQuiz.home.seeAll'
+  | 'logoQuiz.home.aiCta'
+  | 'logoQuiz.home.aiCtaSubtitle'
+  | 'logoQuiz.home.error'
+  | 'logoQuiz.category.count'
+  | 'logoQuiz.category.auto'
+  | 'logoQuiz.category.fashion'
+  | 'logoQuiz.category.tech'
+  | 'logoQuiz.category.food'
+  | 'logoQuiz.category.sport'
+  | 'logoQuiz.category.media'
+  // logo quiz — game
+  | 'logoQuiz.quiz.badge'
+  | 'logoQuiz.quiz.question'
+  | 'logoQuiz.quiz.progress'
+  | 'logoQuiz.quiz.empty'
+  | 'logoQuiz.quiz.next'
+  | 'logoQuiz.quiz.finishTitle'
+  | 'logoQuiz.quiz.finishScore'
+  | 'logoQuiz.quiz.finishAccuracy'
+  | 'logoQuiz.quiz.playAgain'
+  | 'logoQuiz.quiz.backHome'
+  // logo quiz — paywall
+  | 'logoQuiz.paywall.eyebrow'
+  | 'logoQuiz.paywall.title'
+  | 'logoQuiz.paywall.subtitle'
+  | 'logoQuiz.paywall.benefit1'
+  | 'logoQuiz.paywall.benefit2'
+  | 'logoQuiz.paywall.benefit3'
+  | 'logoQuiz.paywall.cta'
+  | 'logoQuiz.paywall.priceFallback'
+  | 'logoQuiz.paywall.disclaimer'
+  | 'logoQuiz.paywall.restore'
+  // logo quiz — AI topic input
+  | 'logoQuiz.ai.headerTitle'
+  | 'logoQuiz.ai.pro'
+  | 'logoQuiz.ai.title'
+  | 'logoQuiz.ai.subtitle'
+  | 'logoQuiz.ai.placeholder'
+  | 'logoQuiz.ai.popularTitle'
+  | 'logoQuiz.ai.chip.retro'
+  | 'logoQuiz.ai.chip.sneakers'
+  | 'logoQuiz.ai.chip.games'
+  | 'logoQuiz.ai.chip.banks'
+  | 'logoQuiz.ai.chip.sweets'
+  | 'logoQuiz.ai.countTitle'
+  | 'logoQuiz.ai.generate'
+  | 'logoQuiz.ai.generating'
+  | 'logoQuiz.ai.timeNote'
+  | 'logoQuiz.ai.stubTitle'
+  | 'logoQuiz.ai.stubBody'
+  | 'logoQuiz.ai.stubDismiss';
 
 type Bundle = Record<StringKey, string>;
 
@@ -638,6 +697,61 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.timeUp': "Time's up!",
     'quiz.survival.streak': 'Streak',
     'quiz.survival.over': 'Run ended at question {n}',
+
+    'logoQuiz.entry.title': 'Logo Quiz',
+    'logoQuiz.entry.subtitle': 'Guess brands from their logos',
+    'logoQuiz.home.title': 'Logo Quiz',
+    'logoQuiz.home.eyebrow': 'GUESS THE BRAND',
+    'logoQuiz.home.sectionCategories': 'Categories',
+    'logoQuiz.home.seeAll': 'All',
+    'logoQuiz.home.aiCta': 'Your own AI brand quiz',
+    'logoQuiz.home.aiCtaSubtitle': 'Pick any topic — AI assembles the logos',
+    'logoQuiz.home.error': 'Could not load categories',
+    'logoQuiz.category.count': '{count} logos',
+    'logoQuiz.category.auto': 'Car brands',
+    'logoQuiz.category.fashion': 'World fashion',
+    'logoQuiz.category.tech': 'Tech giants',
+    'logoQuiz.category.food': 'Fast food & drinks',
+    'logoQuiz.category.sport': 'Sports brands',
+    'logoQuiz.category.media': 'Streaming & media',
+    'logoQuiz.quiz.badge': 'LOGO',
+    'logoQuiz.quiz.question': 'Which brand does this logo belong to?',
+    'logoQuiz.quiz.progress': 'Question {current} of {total}',
+    'logoQuiz.quiz.empty': 'No logos in this category yet',
+    'logoQuiz.quiz.next': 'Next',
+    'logoQuiz.quiz.finishTitle': 'Quiz complete!',
+    'logoQuiz.quiz.finishScore': 'You scored {points} points',
+    'logoQuiz.quiz.finishAccuracy': '{correct} of {total} correct',
+    'logoQuiz.quiz.playAgain': 'Play again',
+    'logoQuiz.quiz.backHome': 'Back to categories',
+    'logoQuiz.paywall.eyebrow': 'LOGO QUIZ PREMIUM',
+    'logoQuiz.paywall.title': 'Unlock all secret categories',
+    'logoQuiz.paywall.subtitle': '…and build your own quizzes on any brand with AI',
+    'logoQuiz.paywall.benefit1': 'All premium categories and secret brands',
+    'logoQuiz.paywall.benefit2': 'Create your own AI quizzes on any topic',
+    'logoQuiz.paywall.benefit3': 'No ads and no life limits',
+    'logoQuiz.paywall.cta': 'Subscribe',
+    'logoQuiz.paywall.priceFallback': '$4.99/mo',
+    'logoQuiz.paywall.disclaimer': 'Auto-renews · Cancel anytime',
+    'logoQuiz.paywall.restore': 'Restore',
+    'logoQuiz.ai.headerTitle': 'Your AI quiz',
+    'logoQuiz.ai.pro': 'PRO',
+    'logoQuiz.ai.title': 'Name a topic — we build the quiz',
+    'logoQuiz.ai.subtitle': 'AI picks brand logos for any topic in seconds',
+    'logoQuiz.ai.placeholder': 'Describe the topic in your own words',
+    'logoQuiz.ai.popularTitle': 'Popular topics',
+    'logoQuiz.ai.chip.retro': 'Retro cars',
+    'logoQuiz.ai.chip.sneakers': 'Sneakers',
+    'logoQuiz.ai.chip.games': 'Games',
+    'logoQuiz.ai.chip.banks': 'Banks & fintech',
+    'logoQuiz.ai.chip.sweets': 'Sweets',
+    'logoQuiz.ai.countTitle': 'How many questions',
+    'logoQuiz.ai.generate': 'Generate quiz',
+    'logoQuiz.ai.generating': 'Generating quiz…',
+    'logoQuiz.ai.timeNote': 'Usually takes ~15 seconds',
+    'logoQuiz.ai.stubTitle': 'Coming soon!',
+    'logoQuiz.ai.stubBody': 'AI quiz generation arrives in an upcoming update.',
+    'logoQuiz.ai.stubDismiss': 'Got it',
   },
   es: {
     'splash.tagline': 'Afina tu mente',
@@ -958,6 +1072,61 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.timeUp': '¡Se acabó el tiempo!',
     'quiz.survival.streak': 'Racha',
     'quiz.survival.over': 'Racha terminada en la pregunta {n}',
+
+    'logoQuiz.entry.title': 'Logo Quiz',
+    'logoQuiz.entry.subtitle': 'Adivina marcas por sus logos',
+    'logoQuiz.home.title': 'Logo Quiz',
+    'logoQuiz.home.eyebrow': 'ADIVINA LA MARCA',
+    'logoQuiz.home.sectionCategories': 'Categorías',
+    'logoQuiz.home.seeAll': 'Todas',
+    'logoQuiz.home.aiCta': 'Tu propio quiz de marcas con IA',
+    'logoQuiz.home.aiCtaSubtitle': 'Elige un tema — la IA arma los logos',
+    'logoQuiz.home.error': 'No se pudieron cargar las categorías',
+    'logoQuiz.category.count': '{count} logos',
+    'logoQuiz.category.auto': 'Marcas de autos',
+    'logoQuiz.category.fashion': 'Moda mundial',
+    'logoQuiz.category.tech': 'Gigantes tecnológicos',
+    'logoQuiz.category.food': 'Comida rápida y bebidas',
+    'logoQuiz.category.sport': 'Marcas deportivas',
+    'logoQuiz.category.media': 'Streaming y medios',
+    'logoQuiz.quiz.badge': 'LOGO',
+    'logoQuiz.quiz.question': '¿A qué marca pertenece este logo?',
+    'logoQuiz.quiz.progress': 'Pregunta {current} de {total}',
+    'logoQuiz.quiz.empty': 'Aún no hay logos en esta categoría',
+    'logoQuiz.quiz.next': 'Siguiente',
+    'logoQuiz.quiz.finishTitle': '¡Quiz completado!',
+    'logoQuiz.quiz.finishScore': 'Obtuviste {points} puntos',
+    'logoQuiz.quiz.finishAccuracy': '{correct} de {total} correctas',
+    'logoQuiz.quiz.playAgain': 'Jugar de nuevo',
+    'logoQuiz.quiz.backHome': 'Volver a categorías',
+    'logoQuiz.paywall.eyebrow': 'LOGO QUIZ PREMIUM',
+    'logoQuiz.paywall.title': 'Desbloquea todas las categorías secretas',
+    'logoQuiz.paywall.subtitle': '…y crea tus propios quizzes de cualquier marca con IA',
+    'logoQuiz.paywall.benefit1': 'Todas las categorías premium y marcas secretas',
+    'logoQuiz.paywall.benefit2': 'Crea tus quizzes con IA sobre cualquier tema',
+    'logoQuiz.paywall.benefit3': 'Sin anuncios ni límite de vidas',
+    'logoQuiz.paywall.cta': 'Suscribirse',
+    'logoQuiz.paywall.priceFallback': '$4.99/mes',
+    'logoQuiz.paywall.disclaimer': 'Renovación automática · Cancela cuando quieras',
+    'logoQuiz.paywall.restore': 'Restaurar',
+    'logoQuiz.ai.headerTitle': 'Tu quiz con IA',
+    'logoQuiz.ai.pro': 'PRO',
+    'logoQuiz.ai.title': 'Dinos un tema — armamos el quiz',
+    'logoQuiz.ai.subtitle': 'La IA elige logos de marcas para cualquier tema en segundos',
+    'logoQuiz.ai.placeholder': 'Describe el tema con tus palabras',
+    'logoQuiz.ai.popularTitle': 'Temas populares',
+    'logoQuiz.ai.chip.retro': 'Autos retro',
+    'logoQuiz.ai.chip.sneakers': 'Zapatillas',
+    'logoQuiz.ai.chip.games': 'Videojuegos',
+    'logoQuiz.ai.chip.banks': 'Bancos y fintech',
+    'logoQuiz.ai.chip.sweets': 'Dulces',
+    'logoQuiz.ai.countTitle': 'Cuántas preguntas',
+    'logoQuiz.ai.generate': 'Generar quiz',
+    'logoQuiz.ai.generating': 'Generando quiz…',
+    'logoQuiz.ai.timeNote': 'Suele tardar ~15 segundos',
+    'logoQuiz.ai.stubTitle': '¡Muy pronto!',
+    'logoQuiz.ai.stubBody': 'La generación de quizzes con IA llega en una próxima actualización.',
+    'logoQuiz.ai.stubDismiss': 'Entendido',
   },
   ru: {
     'splash.tagline': 'Прокачай эрудицию',
@@ -1278,6 +1447,61 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'quiz.timeUp': 'Время вышло!',
     'quiz.survival.streak': 'Серия',
     'quiz.survival.over': 'Серия прервана на вопросе №{n}',
+
+    'logoQuiz.entry.title': 'Logo Quiz',
+    'logoQuiz.entry.subtitle': 'Угадай бренды по логотипам',
+    'logoQuiz.home.title': 'Logo Quiz',
+    'logoQuiz.home.eyebrow': 'УГАДАЙ БРЕНД',
+    'logoQuiz.home.sectionCategories': 'Категории',
+    'logoQuiz.home.seeAll': 'Все',
+    'logoQuiz.home.aiCta': 'Свой квиз по брендам с ИИ',
+    'logoQuiz.home.aiCtaSubtitle': 'Придумай любую тему — ИИ соберёт логотипы',
+    'logoQuiz.home.error': 'Не удалось загрузить категории',
+    'logoQuiz.category.count': '{count} логотипов',
+    'logoQuiz.category.auto': 'Автомобильные бренды',
+    'logoQuiz.category.fashion': 'Мировая мода',
+    'logoQuiz.category.tech': 'Техно-гиганты',
+    'logoQuiz.category.food': 'Фастфуд и еда',
+    'logoQuiz.category.sport': 'Спортивные бренды',
+    'logoQuiz.category.media': 'Стриминг и медиа',
+    'logoQuiz.quiz.badge': 'ЛОГОТИП',
+    'logoQuiz.quiz.question': 'Какому бренду принадлежит логотип?',
+    'logoQuiz.quiz.progress': 'Вопрос {current} из {total}',
+    'logoQuiz.quiz.empty': 'В этой категории пока нет логотипов',
+    'logoQuiz.quiz.next': 'Далее',
+    'logoQuiz.quiz.finishTitle': 'Квиз завершён!',
+    'logoQuiz.quiz.finishScore': 'Ты набрал {points} очков',
+    'logoQuiz.quiz.finishAccuracy': '{correct} из {total} верно',
+    'logoQuiz.quiz.playAgain': 'Играть снова',
+    'logoQuiz.quiz.backHome': 'К категориям',
+    'logoQuiz.paywall.eyebrow': 'LOGO QUIZ PREMIUM',
+    'logoQuiz.paywall.title': 'Открой все секретные категории',
+    'logoQuiz.paywall.subtitle': '…и создавай свои квизы по любым брендам с ИИ',
+    'logoQuiz.paywall.benefit1': 'Все премиум-категории и секретные бренды',
+    'logoQuiz.paywall.benefit2': 'Создавай свои ИИ-квизы по любой теме',
+    'logoQuiz.paywall.benefit3': 'Без рекламы и без лимита на жизни',
+    'logoQuiz.paywall.cta': 'Оформить подписку',
+    'logoQuiz.paywall.priceFallback': '$4.99/мес',
+    'logoQuiz.paywall.disclaimer': 'Автопродление · Отмена в любой момент',
+    'logoQuiz.paywall.restore': 'Восстановить',
+    'logoQuiz.ai.headerTitle': 'Свой ИИ-квиз',
+    'logoQuiz.ai.pro': 'PRO',
+    'logoQuiz.ai.title': 'Придумай тему — соберём квиз',
+    'logoQuiz.ai.subtitle': 'ИИ подберёт логотипы брендов под любую тему за секунды',
+    'logoQuiz.ai.placeholder': 'Опиши тему своими словами',
+    'logoQuiz.ai.popularTitle': 'Популярные темы',
+    'logoQuiz.ai.chip.retro': 'Ретро-авто',
+    'logoQuiz.ai.chip.sneakers': 'Кроссовки',
+    'logoQuiz.ai.chip.games': 'Игры',
+    'logoQuiz.ai.chip.banks': 'Банки и финтех',
+    'logoQuiz.ai.chip.sweets': 'Сладости',
+    'logoQuiz.ai.countTitle': 'Сколько вопросов',
+    'logoQuiz.ai.generate': 'Сгенерировать квиз',
+    'logoQuiz.ai.generating': 'Генерируем квиз…',
+    'logoQuiz.ai.timeNote': 'Обычно занимает ~15 секунд',
+    'logoQuiz.ai.stubTitle': 'Скоро!',
+    'logoQuiz.ai.stubBody': 'Генерация квизов с ИИ появится в ближайшем обновлении.',
+    'logoQuiz.ai.stubDismiss': 'Понятно',
   },
 };
 
