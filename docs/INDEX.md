@@ -6,6 +6,7 @@ A mobile general-knowledge trivia app built with React Native and Expo. Players 
 
 - [Architecture](architecture.md) -- System structure, navigation, providers, and design decisions
 - [Quiz Flow](quiz-flow.md) -- End-to-end gameplay, modes, and the session state machine
+- [Logo Quiz](logo-quiz.md) -- The neon "guess the brand" mini-app, its content seam, and gating
 - [Data Model](data-model.md) -- Domain entities, API contract, and local persistence
 - [Gamification](gamification.md) -- Lives, hints, mistakes, stats, achievements, and premium
 - [Content and Offline](content-and-offline.md) -- Snapshot cache, image caching, and no-repeats

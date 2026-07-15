@@ -80,6 +80,8 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
+**Logo Quiz as an isolated mini-app.** The "guess the brand" feature lives under `app/logo-quiz/` with its own neon dark theme, screens, and mock content layer, kept separate so it can evolve without regressing the main trivia flow. It reuses only the shared quiz reducer and the premium entitlement. See [Logo Quiz](logo-quiz.md).
+
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
 ## Component Organization
