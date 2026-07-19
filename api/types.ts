@@ -20,6 +20,12 @@ export interface AppConfig {
   name: string;
   slug: string;
   supported_locales: string[];
+  /**
+   * Stable frontend template key that selects the app's root experience
+   * (e.g. 'erudite', 'logo_quiz'). Sourced from the app's App Template in the
+   * backend. Absent on older responses — treat as the safe 'erudite' default.
+   */
+  template?: string | null;
 }
 
 export interface ContentCategory {
