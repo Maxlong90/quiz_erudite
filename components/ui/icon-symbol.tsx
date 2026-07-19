@@ -37,7 +37,6 @@ const MAPPING = {
   'bag.fill': 'shopping-bag',
   'heart.fill': 'favorite',
   'lightbulb.fill': 'lightbulb',
-  'house.fill': 'home',
 } as IconMapping;
 
 /**

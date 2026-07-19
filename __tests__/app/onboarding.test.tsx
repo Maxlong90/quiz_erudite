@@ -75,6 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setPlatform(originalOS);
+  jest.useRealTimers();
 });
 
 /** Tap "Skip" and wait for markSeen() to resolve before asserting on routing. */
@@ -126,8 +127,16 @@ describe('onboarding post-markSeen navigation', () => {
     setPlatform('android');
     mockSnapshot = null;
 
-    await skipOnboarding();
+    // With no snapshot, destinationAfterOnboarding() intentionally waits up to
+    // 4s for one to arrive before falling back to home. Drive that bounded wait
+    // with fake timers so the navigation resolves deterministically — and so the
+    // pending timer is flushed before teardown instead of leaking a handle.
+    jest.useFakeTimers();
+    const { getByText } = render(<OnboardingScreen />);
+    fireEvent.press(getByText('onboarding.skip'));
+    await jest.advanceTimersByTimeAsync(4000);
 
+    expect(mockMarkSeen).toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith('/');
   });
 

@@ -4,10 +4,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import type { ContentSnapshot } from '@/lib/content-cache';
 import { localizeCategoryName } from '@/i18n/categories';
+import type { SupportedLocale } from '@/hooks/use-locale';
 
 interface Props {
   snapshot: ContentSnapshot | null;
-  locale: string;
+  locale: SupportedLocale;
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
 }

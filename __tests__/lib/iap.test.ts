@@ -154,7 +154,7 @@ describe('purchaseBundle — enabled (real RevenueCat purchase)', () => {
 
   it('does NOT grant and does NOT throw when the purchase is cancelled', async () => {
     mockPurchaseConsumable.mockResolvedValue('cancelled');
-    await expect(purchaseBundle(livesBundle)).resolves.toBeUndefined();
+    await expect(purchaseBundle(livesBundle)).resolves.toBe('cancelled');
     expect(mockAddLives).not.toHaveBeenCalled();
     expect(mockAddHintsBundle).not.toHaveBeenCalled();
   });
