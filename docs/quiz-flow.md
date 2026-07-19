@@ -11,7 +11,7 @@ The home screen (`app/index.tsx`) has two tabs:
 
 Either way, the launch ends in `router.push('/quiz')` carrying the parameters the quiz screen needs.
 
-This trivia home is only one of the portfolio's root experiences. The shared codebase also ships [Logo Quiz](logo-quiz.md), a separate neon "guess the brand" app selected by the backend App Template code. Logo Quiz is no longer a tile here — when an app's template resolves to `logo_quiz`, the root route redirects to the Logo Quiz home instead of rendering this trivia hub, so the two never appear together. It reuses this screen's `useQuizSession` engine but runs on its own screens and content, so it is documented separately. See [The App Template Seam](architecture.md#the-app-template-seam).
+The first tile on the Modes tab opens [Logo Quiz](logo-quiz.md), a separate neon "guess the brand" mini-app. It reuses this screen's `useQuizSession` engine but runs on its own screens and content, so it is documented separately.
 
 ```
 ┌──────────┐ Categories ┌────────────┐  ┌─────────────┐

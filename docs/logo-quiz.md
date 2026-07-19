@@ -1,6 +1,6 @@
 # Logo Quiz
 
-Logo Quiz is a self-contained "guess the brand" experience that ships in the same shared codebase as the trivia app but boots as a separate product. It is one of the portfolio's **App Templates**: the backend selects it per app, and only Logo Quiz apps ever show it (see [Entry Point](#entry-point-the-app-template-gate)). Players browse brand categories, answer four-option "which brand owns this logo?" questions, and — when premium — generate their own brand quiz from a free-text topic. The feature ships its own neon dark visual language, its own content layer, and its own paywall, so it reads as a separate product surface even though it lives inside the same Expo Router app.
+Logo Quiz is a self-contained "guess the brand" mini-app bolted onto the main trivia app. It exists to add a visually distinct second game mode without disturbing the established trivia flow. Players browse brand categories, answer four-option "which brand owns this logo?" questions, and — when premium — generate their own brand quiz from a free-text topic. The feature ships its own neon dark visual language, its own content layer, and its own paywall, so it reads as a separate product surface even though it lives inside the same Expo Router app.
 
 ## Why It Is Isolated
 
@@ -11,23 +11,14 @@ Two things it does reuse, on purpose:
 - **The quiz engine.** Gameplay runs on the same `useQuizSession` reducer as the main quiz, so scoring and progress logic stays in one tested place. See [Quiz Flow](quiz-flow.md#session-state-machine).
 - **The premium entitlement.** Locks and the AI gate key off the same `usePremium` flag and the same RevenueCat purchase flow as the rest of the app. There is no separate Logo Quiz subscription. See [Gamification](gamification.md#premium-and-the-shop).
 
-## Entry Point: The App Template Gate
+## Entry Point and Navigation
 
-Logo Quiz is not a tile inside the trivia app. It is a whole **root experience** that the shared codebase boots into only when the backend tags the app as a Logo Quiz app. The selector is the **App Template code** (`logo_quiz`) that arrives in the content snapshot as `snapshot.app.template`. See [Architecture](architecture.md#the-app-template-seam) for the portfolio-wide seam and [Data Model](data-model.md#app-template) for the field.
-
-The decision happens once, at the root route `app/index.tsx` (`HomeRoute`). After the cold-start intro redirect, it reads the template code, resolves it through `resolveExperience` (`lib/app-template.ts`), and branches:
-
-- `logo_quiz` → redirect to `/logo-quiz` (the Logo Quiz categories home becomes the app's whole home).
-- `erudite`, any other code, or a missing/unloaded template → render the trivia `HomeScreen`.
-
-This is the reason a leak was closed. An earlier version put Logo Quiz behind a 🏷️ tile hardcoded into the trivia home's **Modes** tab, so the feature showed up in *every* app built from the shared codebase — including Erudite Quiz (App #1), where it does not belong. Removing that tile and gating on the template code means Logo Quiz reaches players only when the backend intends it to, and the trivia apps are clean again. The `logo-quiz/*` routes still exist for every build, but nothing navigates to them unless the template resolves to `logo_quiz`.
-
-Once inside, the four screens form a small stack:
+Logo Quiz appears as the first tile on the home screen's **Modes** tab (`app/index.tsx`), labeled with a cyan→purple gradient and a 🏷️ emoji. Tapping it pushes `/logo-quiz`. From there the four screens form a small stack:
 
 ```
-┌──────────────┐  template = logo_quiz  ┌──────────────┐
-│  HomeRoute   │───────────────────────→│  Categories  │
-│ (app/index)  │   (Redirect /logo-quiz)│  (index)     │
+┌──────────────┐  category (unlocked)   ┌──────────────┐
+│  Home tile   │───────────────────────→│  Categories  │
+│  (Modes tab) │                        │  (index)     │
 └──────────────┘                        └──────┬───────┘
                           category (locked) or │ AI CTA (not premium)
                                                ↓
