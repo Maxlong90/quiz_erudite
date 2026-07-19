@@ -230,15 +230,6 @@ function HomeScreen() {
   const modes: ModeDef[] = useMemo(
     () => [
       {
-        id: 'logoQuiz',
-        titleKey: 'logoQuiz.entry.title',
-        subtitleKey: 'logoQuiz.entry.subtitle',
-        emoji: '🏷️',
-        gradient: ['#00E5FF', '#9D5CFF'],
-        available: true,
-        onPress: () => router.push('/logo-quiz'),
-      },
-      {
         id: 'today',
         titleKey: 'home.mode.today.title',
         subtitleKey: 'home.mode.today.subtitle',

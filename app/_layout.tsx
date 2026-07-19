@@ -101,24 +101,6 @@ function RootLayout() {
           name="account"
           options={{ headerShown: false, animation: 'slide_from_right' }}
         />
-        {/* Logo Quiz — its own neon dark mini-app. Each screen overrides the
-            global purple card background so transitions never flash purple. */}
-        <Stack.Screen
-          name="logo-quiz/index"
-          options={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#08080F' } }}
-        />
-        <Stack.Screen
-          name="logo-quiz/quiz"
-          options={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#08080F' } }}
-        />
-        <Stack.Screen
-          name="logo-quiz/paywall"
-          options={{ headerShown: false, gestureEnabled: false, animation: 'fade', contentStyle: { backgroundColor: '#08080F' } }}
-        />
-        <Stack.Screen
-          name="logo-quiz/ai"
-          options={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#08080F' } }}
-        />
         </Stack>
         <StatusBar style="light" />
         </View>

@@ -2,6 +2,7 @@
   "expo": {
     "name": "quiz-erudit",
     "slug": "quiz-erudit",
+    "owner": "quizzzess-team",
     "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -65,7 +66,10 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "0a83f1d3-35b1-4026-9e39-022bccc5442d"
+      }
     }
   }
 }
