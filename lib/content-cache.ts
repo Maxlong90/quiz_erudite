@@ -73,13 +73,6 @@ export interface ContentSnapshot {
      * Backend-controlled per-app; applies on all platforms.
      */
     seconds_before_quit_button_shown?: number;
-    /**
-     * Stable frontend template key selecting the app's root experience
-     * (e.g. 'erudite', 'logo_quiz'). Set per-app in the backend via the app's
-     * App Template. Absent on older snapshots — treat as the safe 'erudite'
-     * default (see resolveExperience in lib/app-template.ts).
-     */
-    template?: string | null;
   };
   locale: string;
   version: number;

@@ -25,7 +25,6 @@ import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals'
 import { QuizConfigModal } from '@/components/home/quiz-config-modal';
 import { TimeLimitModal } from '@/components/home/time-limit-modal';
 import { consumeColdStart } from '@/lib/intro-gate';
-import { resolveExperience } from '@/lib/app-template';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useLocale } from '@/hooks/use-locale';
 import { useMistakes } from '@/hooks/use-mistakes';
@@ -61,24 +60,10 @@ interface ModeDef {
 // the entry gate: the first mount of a cold start bounces into the intro flow
 // (splash -> language -> onboarding -> paywall -> home) instead of rendering
 // Home. Every later return to Home renders it normally. See lib/intro-gate.ts.
-//
-// It is also the template gate: the backend tags each app with a stable
-// template code (snapshot.app.template) that selects the root experience. The
-// shared codebase serves the whole portfolio, so this is where the Logo Quiz
-// home is gated in — it renders ONLY for the logo_quiz template, never leaking
-// into trivia apps like Erudite Quiz. See lib/app-template.ts.
 export default function HomeRoute() {
   const [redirectToIntro] = useState(() => consumeColdStart());
-  const { snapshot } = useContentCache();
   if (redirectToIntro) {
     return <Redirect href="/splash" />;
-  }
-  // While the snapshot is still loading (null), resolveExperience falls back to
-  // the safe 'erudite' default, so we render the trivia home until the real
-  // template arrives.
-  const experience = resolveExperience(snapshot?.app?.template);
-  if (experience === 'logo_quiz') {
-    return <Redirect href="/logo-quiz" />;
   }
   return <HomeScreen />;
 }
@@ -244,6 +229,15 @@ function HomeScreen() {
   // when the player hasn't failed anything yet).
   const modes: ModeDef[] = useMemo(
     () => [
+      {
+        id: 'logoQuiz',
+        titleKey: 'logoQuiz.entry.title',
+        subtitleKey: 'logoQuiz.entry.subtitle',
+        emoji: '🏷️',
+        gradient: ['#00E5FF', '#9D5CFF'],
+        available: true,
+        onPress: () => router.push('/logo-quiz'),
+      },
       {
         id: 'today',
         titleKey: 'home.mode.today.title',
