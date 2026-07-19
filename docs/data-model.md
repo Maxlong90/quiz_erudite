@@ -39,6 +39,18 @@ A category is a top-level subject (geography, history, and so on); a subcategory
 
 The snapshot is the offline mirror of everything the app needs for one language: the app descriptor, every category with its subcategories, and the full question pool. Defined as `ContentSnapshot` in `lib/content-cache.ts`. After download the client augments it with two client-only fields — `imageMap` (remote URL → local file URI) and `syncedAt` (the millisecond timestamp used for the 24-hour freshness check). See [Content and Offline](content-and-offline.md).
 
+The `app` descriptor inside the snapshot also carries per-app configuration flags — the paywall toggles, the quit-button delay, and the App Template `template` code described below.
+
+### App Template
+
+An App Template is the frontend experience an app boots into. The mobile codebase is shared across the whole portfolio and picks a concrete app at build time (`EXPO_PUBLIC_APP_SLUG`); apps of the same template share the same root experience and differ only in content, assets, and color preset. The backend tags each app with a stable machine `code` for its template and returns it in two response shapes. The app-metadata endpoint carries it as `AppConfig.template` (`api/types.ts`, from `GET /apps/{slug}`), and the offline bundle carries it as the snapshot's `app.template` (`lib/content-cache.ts`, from `GET /apps/{slug}/snapshot`). In practice the running app reads the snapshot copy — that is the value the root route gates on — but both shapes carry the field so either can drive the decision.
+
+| Field | Business Meaning |
+|-------|-----------------|
+| template | Stable template code (e.g. `erudite`, `logo_quiz`) selecting the root experience; nullable/absent |
+
+The field is optional and additive — older responses omit it, and the client treats a missing or unrecognized value as the safe `erudite` trivia default. The frontend never branches on an app's `name` or `slug`, only on this code. See [The App Template Seam](architecture.md#the-app-template-seam) for how `resolveExperience` maps the code to a root experience.
+
 ### Local Progress Stores
 
 These entities live in AsyncStorage and model the player's gamification state. None are sent to the backend.

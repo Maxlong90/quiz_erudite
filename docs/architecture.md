@@ -47,7 +47,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | `splash` | Splash | Animated intro; routes onward by first-launch flags |
 | `language` | Language | Locale picker (en, ru, es) |
 | `onboarding` | Onboarding | One-time intro carousel |
-| `index` | Home | Hub with Categories and Modes tabs plus the bottom bar |
+| `index` | Home | Cold-start intro gate and App Template gate; renders the trivia hub (Categories/Modes tabs) or redirects to the template's root experience |
 | `category/[slug]` | Category | Lists a subject's subcategories |
 | `quiz-mode/[slug]` | Quiz Mode | Per-subcategory question count and mode picker |
 | `quiz` | Quiz | Gameplay: question card, hints, lives, timer |
@@ -80,9 +80,34 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**Logo Quiz as an isolated mini-app.** The "guess the brand" feature lives under `app/logo-quiz/` with its own neon dark theme, screens, and mock content layer, kept separate so it can evolve without regressing the main trivia flow. It reuses only the shared quiz reducer and the premium entitlement. See [Logo Quiz](logo-quiz.md).
+**One shared codebase, many apps — the App Template seam.** This repository is built once and shipped as the whole portfolio of quiz apps; the concrete app is chosen at build time by `EXPO_PUBLIC_APP_SLUG`. The apps differ in content, assets, and color preset — all backend-driven — but they also sometimes differ in the *root experience* itself (trivia versus Logo Quiz). To decide that without hardcoding, the backend tags each app with a stable **template code** (`erudite`, `logo_quiz`, …) delivered in the snapshot as `snapshot.app.template`. The root route resolves that code to an experience through `lib/app-template.ts` and boots the matching home. Branching keys off the template *code* only — never an app's name or slug, which are display-facing and unstable. An unknown, empty, or not-yet-loaded code falls back to the safe `erudite` trivia default, so older snapshots (which predate the field) and unmapped templates keep working. See [The App Template Seam](#the-app-template-seam).
+
+**Logo Quiz as a template-gated experience.** The "guess the brand" feature lives under `app/logo-quiz/` with its own neon dark theme, screens, and mock content layer, kept separate so it can evolve without regressing the main trivia flow. It reuses only the shared quiz reducer and the premium entitlement. It is not a trivia mode tile — it is a whole root experience the App Template seam switches on only for `logo_quiz` apps, so it never leaks into trivia apps like Erudite Quiz. See [Logo Quiz](logo-quiz.md).
 
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
+
+## The App Template Seam
+
+An **App Template** is the frontend code and experience an app boots into. The backend groups the portfolio's apps by template and assigns each a stable machine `code`; that code rides in every app's snapshot descriptor as `template`. The mobile side owns a single branch point for it.
+
+```
+   backend App ──template code──→ snapshot.app.template
+                                        │
+                                        ↓
+                         resolveExperience (lib/app-template.ts)
+                                        │
+             ┌──────────────────────────┴──────────────────────────┐
+             ↓                                                      ↓
+      'logo_quiz'                                    'erudite' / unknown / null
+             │                                                      │
+             ↓                                                      ↓
+   Redirect → /logo-quiz                                    trivia HomeScreen
+   (Logo Quiz home)                                         (app/index.tsx)
+```
+
+`resolveExperience` maps a known code to an `AppExperience` and falls through to `DEFAULT_EXPERIENCE` (`erudite`) for anything else. Only mapped codes get their own experience; unmapped portfolio templates (`coat_of_arms`, `sports`, `world`) deliberately have no entry yet and resolve to trivia until one is built. `HomeRoute` in `app/index.tsx` reads the code from the content cache and, after the cold-start intro redirect, renders the resolved experience. Because the resolver is a pure function, its selection logic is unit-tested directly (`__tests__/lib/app-template.test.ts`) and the gate itself is covered as an integration test (`__tests__/app/home-route.test.tsx`).
+
+The contract is deliberately additive and fail-safe: the `template` field is optional, a missing value means trivia, and no frontend logic ever branches on an app's name or slug. This is what lets a single build serve both trivia apps and Logo Quiz without either leaking into the other.
 
 ## Component Organization
 
@@ -106,6 +131,7 @@ components/
 hooks/                  Locale, premium, content cache, quiz session,
                         lives, hints, mistakes, achievements, translation
 lib/                    Device-local business logic and persistence
+  app-template.ts       Template code → root experience resolver
   content-cache.ts      Snapshot download + image cache
   lives.ts  hints.ts    Currency stores
   mistakes.ts           Recent-mistake ring buffer
