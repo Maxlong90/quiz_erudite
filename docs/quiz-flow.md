@@ -11,8 +11,6 @@ The home screen (`app/index.tsx`) has two tabs:
 
 Either way, the launch ends in `router.push('/quiz')` carrying the parameters the quiz screen needs.
 
-The first tile on the Modes tab opens [Logo Quiz](logo-quiz.md), a separate neon "guess the brand" mini-app. It reuses this screen's `useQuizSession` engine but runs on its own screens and content, so it is documented separately.
-
 ```
 ┌──────────┐ Categories ┌────────────┐  ┌─────────────┐
 │          │───────────→│ category/  │ →│ quiz-mode/  │
