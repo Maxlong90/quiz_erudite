@@ -57,6 +57,7 @@ export interface LQLabels {
   home: string;
   // settings
   cancelSubscription: string;
+  selectLanguage: string;
   privacyPolicy: string;
   rateApp: string;
   contactSupport: string;
@@ -110,6 +111,7 @@ const EN: LQLabels = {
   goToShop: 'Go to Shop',
   home: 'Home',
   cancelSubscription: 'Cancel Subscription',
+  selectLanguage: 'Language',
   privacyPolicy: 'Privacy Policy',
   rateApp: 'Rate the App',
   contactSupport: 'Contact Support',
@@ -163,6 +165,7 @@ const RU: LQLabels = {
   goToShop: 'Перейти в магазин',
   home: 'На главную',
   cancelSubscription: 'Отмена подписки',
+  selectLanguage: 'Выбор языка',
   privacyPolicy: 'Политика конфиденциальности',
   rateApp: 'Оценить приложение',
   contactSupport: 'Связаться с поддержкой',
@@ -212,6 +215,7 @@ const ES: LQLabels = {
   goToShop: 'Ir a la tienda',
   home: 'Inicio',
   cancelSubscription: 'Cancelar suscripción',
+  selectLanguage: 'Idioma',
   privacyPolicy: 'Política de privacidad',
   rateApp: 'Valorar la app',
   contactSupport: 'Contactar soporte',

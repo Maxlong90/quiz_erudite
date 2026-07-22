@@ -27,6 +27,9 @@ function shuffle<T>(arr: T[]): T[] {
 
 // How long the green "solved" (or red game-over) state shows before navigating.
 const REVEAL_MS = 900;
+// The "Next level" hint reveals the correct answer green for a longer beat (3s)
+// before the win screen, so the player sees the answer they skipped to.
+const SKIP_REVEAL_MS = 3000;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
@@ -168,11 +171,12 @@ export default function LogoQuizQuiz() {
     const lastPassed = next >= questions.length;
     if (lastPassed) markCompleted(cat);
     else setProgress(cat, next);
+    // Light the correct answer green (like a solved level), hold it for 3s, then
+    // show the win screen. On the last level `next === questions.length`, so the
+    // result screen renders "Back to categories" instead of "Next".
+    setSolved(true);
     Haptics.selectionAsync().catch(() => {});
-    // Skipping any level — including the last — shows the win screen. On the last
-    // one `next === questions.length`, so the result screen renders the
-    // "Back to categories" button instead of "Next".
-    toResult('complete', next);
+    setTimeout(() => toResult('complete', next), SKIP_REVEAL_MS);
   };
 
   // Practice mode (a completed category replayed): the hint buttons become level
@@ -210,7 +214,7 @@ export default function LogoQuizQuiz() {
         </Pressable>
         <View style={styles.hudRight}>
           <LivesPill livesState={livesState} isPremium={isPremium} />
-          <CoinPill coins={coins} />
+          <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
         </View>
       </View>
 

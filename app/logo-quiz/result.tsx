@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
 import { Confetti } from '@/components/logo-quiz/confetti';
-import { GoldButton, GoldSurface } from '@/components/logo-quiz/gold-gradient';
+import { GoldButton } from '@/components/logo-quiz/gold-gradient';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { VIP_CATEGORIES } from '@/constants/logo-quiz/mock-data';
 import { formatCountdown, msUntilNextLife } from '@/lib/logo-quiz/economy';
@@ -59,7 +59,7 @@ export default function LogoQuizResult() {
           </Pressable>
           <View style={styles.headerRight}>
             <LivesPill livesState={livesState} isPremium={isPremium} />
-            <CoinPill coins={coinBalance} />
+            <CoinPill coins={coinBalance} onPress={() => router.push('/logo-quiz/shop')} />
           </View>
         </View>
 
@@ -88,24 +88,6 @@ export default function LogoQuizResult() {
             <Text style={styles.regenLabel}>{t.nextLifeIn}</Text>
             <Text style={styles.regenTime}>{formatCountdown(nextLifeMs)}</Text>
           </View>
-        )}
-
-        {/* Premium upsell reminder (hidden once subscribed) — lists every perk */}
-        {!isPremium && (
-          <Pressable onPress={() => router.replace('/logo-quiz/shop')} style={styles.upsellWrap}>
-            <GoldSurface radius={LQRadius.lg} style={[styles.upsell, LQShadow.gold]}>
-              <Text style={styles.upsellEmoji}>👑</Text>
-              <Text style={styles.upsellText}>{t.premium}</Text>
-              <View style={styles.upsellPerks}>
-                <Perk text={t.perkLives} />
-                <Perk text={t.perkCoins} />
-                <Perk text={t.perkCategories} />
-              </View>
-              <View style={styles.upsellBtn}>
-                <Text style={styles.upsellBtnText}>{t.buyPremium}</Text>
-              </View>
-            </GoldSurface>
-          </Pressable>
         )}
 
         <View style={{ flex: 1 }} />
@@ -143,15 +125,6 @@ export default function LogoQuizResult() {
         </Pressable>
       </View>
     </SafeAreaView>
-  );
-}
-
-function Perk({ text }: { text: string }) {
-  return (
-    <View style={styles.perkRow}>
-      <Ionicons name="checkmark-circle" size={18} color={GOLD_TEXT} />
-      <Text style={styles.perkText}>{text}</Text>
-    </View>
   );
 }
 
@@ -193,22 +166,6 @@ const styles = StyleSheet.create({
   scoreOf: { fontSize: 26, fontWeight: '800', color: LQColors.textFaint },
   statLabel: { fontSize: 13, fontWeight: '700', color: LQColors.textMuted, marginTop: 4 },
   divider: { width: 1, height: 56, backgroundColor: LQColors.border },
-
-  upsellWrap: { width: '100%', marginTop: 20 },
-  upsell: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 18 },
-  upsellEmoji: { fontSize: 30 },
-  upsellText: { fontSize: 20, fontWeight: '900', color: GOLD_TEXT, textAlign: 'center', marginTop: 6 },
-  upsellPerks: { alignSelf: 'stretch', marginTop: 12, paddingHorizontal: 4 },
-  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  perkText: { fontSize: 15, fontWeight: '700', color: GOLD_TEXT },
-  upsellBtn: {
-    marginTop: 12,
-    backgroundColor: '#ffffffdd',
-    borderRadius: LQRadius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-  },
-  upsellBtnText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 15 },
 
   regenRow: {
     flexDirection: 'row',

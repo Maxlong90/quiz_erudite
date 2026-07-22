@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,15 @@ import { RATE_APP_REWARD_COINS } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+
+// Each language shown in its own name, so the list reads the same regardless of
+// the currently active locale.
+const LANGUAGE_NAMES: Record<SupportedLocale, string> = {
+  en: 'English',
+  ru: 'Русский',
+  es: 'Español',
+};
 
 // External URLs / store identifiers — mirrors the main app's settings so a real
 // Privacy page or store listing is a one-line change in both places.
@@ -33,9 +42,19 @@ const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
 export default function LogoQuizSettings() {
   const t = useLQLabels();
   const { isPremium, cancelSubscription, rateRewarded, claimRateReward } = useLogoQuiz();
+  const { locale, changeLocale, supportedLocales } = useLocale();
+  const [langOpen, setLangOpen] = useState(false);
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {});
+  };
+
+  // Switching locale re-renders every localized surface instantly (labels,
+  // category names, prompts, banners) via the shared LocaleProvider.
+  const onSelectLanguage = (l: SupportedLocale) => {
+    Haptics.selectionAsync().catch(() => {});
+    changeLocale(l);
+    setLangOpen(false);
   };
 
   // Cancel the subscription only when premium is active; a free account taps to
@@ -95,6 +114,8 @@ export default function LogoQuizSettings() {
           onPress={onCancelSubscription}
           inactive={!isPremium}
         />
+        {/* Language picker — opens the list; a pick switches the whole app instantly. */}
+        <SettingsButton label={t.selectLanguage} onPress={() => setLangOpen(true)} />
         {/* Rate the app — carries a shimmering, pulsing +100-coins reward badge that
             disappears once the one-time reward has been claimed. */}
         <View style={styles.rateWrap}>
@@ -104,6 +125,41 @@ export default function LogoQuizSettings() {
         <SettingsButton label={t.contactSupport} onPress={onSupport} />
         <SettingsButton label={t.privacyPolicy} onPress={onPrivacy} />
       </View>
+
+      {/* Language picker — tapping a language changes the app locale instantly. */}
+      <Modal
+        visible={langOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLangOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setLangOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>{t.selectLanguage}</Text>
+            {supportedLocales.map((l) => {
+              const active = l === locale;
+              return (
+                <Pressable
+                  key={l}
+                  onPress={() => onSelectLanguage(l)}
+                  style={({ pressed }) => [
+                    styles.langRow,
+                    active && styles.langRowActive,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={[styles.langText, active && styles.langTextActive]}>
+                    {LANGUAGE_NAMES[l]}
+                  </Text>
+                  {active && (
+                    <Ionicons name="checkmark-circle" size={20} color={LQColors.primary} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -209,4 +265,39 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   rewardBadgeText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 12 },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: LQColors.surface,
+    borderRadius: LQRadius.lg,
+    padding: 20,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: LQColors.text,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: LQRadius.md,
+    backgroundColor: LQColors.bg,
+  },
+  langRowActive: { backgroundColor: LQColors.bgAlt },
+  langText: { fontSize: 17, fontWeight: '800', color: LQColors.text },
+  langTextActive: { color: LQColors.primary },
 });

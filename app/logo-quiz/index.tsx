@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Asset } from 'expo-asset';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,11 +13,34 @@ import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 
+// Bitmap art shown on Welcome — the title and the bottom brand strip. Preloaded
+// before the screen renders (below) so they don't pop in a beat after the
+// instantly-drawn buttons.
+const WELCOME_ASSETS = [
+  require('../../assets/logo-quiz/title.png'),
+  require('../../assets/logo-quiz/brand-strip.png'),
+];
+
 export default function LogoQuizWelcome() {
   const t = useLQLabels();
   const { ready, isPremium } = useLogoQuiz();
+  const [assetsReady, setAssetsReady] = useState(false);
 
-  if (!ready) {
+  // Warm the image cache during the loading gate; fail-open so a preload error
+  // never blocks the screen.
+  useEffect(() => {
+    let cancelled = false;
+    Asset.loadAsync(WELCOME_ASSETS)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setAssetsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!ready || !assetsReady) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={LQColors.primary} />

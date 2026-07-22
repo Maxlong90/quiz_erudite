@@ -61,6 +61,13 @@ interface ModeDef {
 // (splash -> language -> onboarding -> paywall -> home) instead of rendering
 // Home. Every later return to Home renders it normally. See lib/intro-gate.ts.
 export default function HomeRoute() {
+  // The Logo Quiz app template is a self-contained experience with its own
+  // flow (Welcome → Shop → Quiz → Result) and economy — it skips the erudite
+  // intro/hub entirely. APP_SLUG is a build-time constant, so this branch is
+  // stable across renders and never changes the hook order below.
+  if (APP_SLUG === 'logo-quiz') {
+    return <Redirect href="/logo-quiz" />;
+  }
   const [redirectToIntro] = useState(() => consumeColdStart());
   if (redirectToIntro) {
     return <Redirect href="/splash" />;
