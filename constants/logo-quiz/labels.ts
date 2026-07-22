@@ -55,6 +55,11 @@ export interface LQLabels {
   backToCategories: string;
   goToShop: string;
   home: string;
+  // settings
+  cancelSubscription: string;
+  privacyPolicy: string;
+  rateApp: string;
+  contactSupport: string;
 }
 
 const EN: LQLabels = {
@@ -104,6 +109,10 @@ const EN: LQLabels = {
   backToCategories: 'Back to categories',
   goToShop: 'Go to Shop',
   home: 'Home',
+  cancelSubscription: 'Cancel Subscription',
+  privacyPolicy: 'Privacy Policy',
+  rateApp: 'Rate the App',
+  contactSupport: 'Contact Support',
 };
 
 const RU: LQLabels = {
@@ -153,6 +162,10 @@ const RU: LQLabels = {
   backToCategories: 'Обратно в категории',
   goToShop: 'Перейти в магазин',
   home: 'На главную',
+  cancelSubscription: 'Отмена подписки',
+  privacyPolicy: 'Политика конфиденциальности',
+  rateApp: 'Оценить приложение',
+  contactSupport: 'Связаться с поддержкой',
 };
 
 const ES: LQLabels = {
@@ -198,6 +211,10 @@ const ES: LQLabels = {
   backToCategories: 'Volver a categorías',
   goToShop: 'Ir a la tienda',
   home: 'Inicio',
+  cancelSubscription: 'Cancelar suscripción',
+  privacyPolicy: 'Política de privacidad',
+  rateApp: 'Valorar la app',
+  contactSupport: 'Contactar soporte',
 };
 
 const TABLE: Record<string, LQLabels> = { en: EN, ru: RU, es: ES };
