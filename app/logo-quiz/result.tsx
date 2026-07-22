@@ -29,6 +29,10 @@ export default function LogoQuizResult() {
   const total = Number(params.total ?? 0);
   const gameOver = params.outcome === 'gameover';
   const category = params.category ?? 'all';
+  // The whole category is cleared when every level is passed (score === total).
+  // In that case the primary action returns to the category picker instead of
+  // advancing to a next level (there isn't one).
+  const roundComplete = !gameOver && total > 0 && score >= total;
 
   // Live countdown until the next life regenerates (null once the bar is full).
   const now = useNow(1000);
@@ -106,8 +110,11 @@ export default function LogoQuizResult() {
 
         <View style={{ flex: 1 }} />
 
-        {/* Actions — on a win, Next continues to the following level; on a game over,
-            the primary sends the player to the Shop. Home returns to Welcome. */}
+        {/* Actions — mid-round a win's Next continues to the following level; once
+            the whole category is cleared it becomes "Back to categories" and pops
+            to the picker the round started from (VIP list for a Premium category,
+            the regular list otherwise). On a game over the primary sends the player
+            to the Shop. Home returns to Welcome. */}
         {gameOver ? (
           <GoldButton
             onPress={() => router.replace('/logo-quiz/shop')}
@@ -116,6 +123,13 @@ export default function LogoQuizResult() {
           >
             <Text style={styles.primaryGoldText}>{t.goToShop}</Text>
           </GoldButton>
+        ) : roundComplete ? (
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
+            onPress={() => router.dismissTo(categoryRoute)}
+          >
+            <Text style={styles.primaryText}>{t.backToCategories}</Text>
+          </Pressable>
         ) : (
           <Pressable
             style={({ pressed }) => [styles.primaryBtn, LQShadow.card, pressed && { opacity: 0.9 }]}

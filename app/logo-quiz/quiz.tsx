@@ -60,11 +60,11 @@ export default function LogoQuizQuiz() {
   }, []);
 
   // The level (question index) the player is on. A finished category restarts.
-  const index = useMemo(() => {
+  // Stateful so a completed-category practice replay can page between levels.
+  const [index, setIndex] = useState(() => {
     const saved = getProgress(cat);
     return saved >= questions.length ? 0 : saved;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   const question = questions[index];
 
@@ -121,12 +121,10 @@ export default function LogoQuizQuiz() {
       if (lastPassed) markCompleted(cat);
       else setProgress(cat, next);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      // Finishing the category's last question skips the win screen and returns
-      // straight to the category list; other levels show the win screen.
-      setTimeout(
-        () => (lastPassed ? router.dismissTo(backRoute) : toResult('complete', next)),
-        REVEAL_MS,
-      );
+      // Always show the win screen — including on the category's last question,
+      // where `next === questions.length`, so the result screen can tell the round
+      // is fully complete and swap "Next" for "Back to categories".
+      setTimeout(() => toResult('complete', next), REVEAL_MS);
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
       // trying. A real run loses a life per mistake (game over at zero); a practice
@@ -171,10 +169,26 @@ export default function LogoQuizQuiz() {
     if (lastPassed) markCompleted(cat);
     else setProgress(cat, next);
     Haptics.selectionAsync().catch(() => {});
-    // Skipping the last question returns to the category list, not the win screen.
-    if (lastPassed) router.dismissTo(backRoute);
-    else toResult('complete', next);
+    // Skipping any level — including the last — shows the win screen. On the last
+    // one `next === questions.length`, so the result screen renders the
+    // "Back to categories" button instead of "Next".
+    toResult('complete', next);
   };
+
+  // Practice mode (a completed category replayed): the hint buttons become level
+  // navigation. Prev/Next only page between questions — wrapping first↔last — and
+  // never trigger the Result Win / Game Over screens.
+  const goToLevel = useCallback((nextIndex: number) => {
+    setWrongPicked([]);
+    setRemoved([]);
+    setFiftyUsed(false);
+    setSolved(false);
+    setOver(false);
+    setIndex(nextIndex);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+  const goPrev = () => goToLevel((index - 1 + questions.length) % questions.length);
+  const goNext = () => goToLevel((index + 1) % questions.length);
 
   if (!question) {
     return <View style={styles.fill} />;
@@ -247,20 +261,31 @@ export default function LogoQuizQuiz() {
         })}
       </View>
 
-      {/* Hint buttons — text + coin cost; disabled when the player can't pay */}
+      {/* Bottom row: hint buttons during a real run; in a completed-category
+          practice replay they become level navigation (prev / next) that pages
+          through the questions without ever showing a Result screen. */}
       <View style={styles.hints}>
-        <HintButton
-          label={t.fiftyFifty}
-          cost={HINT_5050_COST}
-          disabled={solved || over || fiftyUsed || (!practice && coins < HINT_5050_COST)}
-          onPress={use5050}
-        />
-        <HintButton
-          label={t.skip}
-          cost={HINT_SKIP_COST}
-          disabled={solved || over || (!practice && coins < HINT_SKIP_COST)}
-          onPress={useSkip}
-        />
+        {practice ? (
+          <>
+            <NavButton label={t.prevLevel} icon="arrow-back" onPress={goPrev} />
+            <NavButton label={t.nextLevel} icon="arrow-forward" iconRight onPress={goNext} />
+          </>
+        ) : (
+          <>
+            <HintButton
+              label={t.fiftyFifty}
+              cost={HINT_5050_COST}
+              disabled={solved || over || fiftyUsed || (!practice && coins < HINT_5050_COST)}
+              onPress={use5050}
+            />
+            <HintButton
+              label={t.skip}
+              cost={HINT_SKIP_COST}
+              disabled={solved || over || (!practice && coins < HINT_SKIP_COST)}
+              onPress={useSkip}
+            />
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -300,6 +325,34 @@ function HintButton({
         <CoinIcon size={13} style={disabled ? { opacity: 0.5 } : undefined} />
         <Text style={[styles.costText, disabled && { color: LQColors.disabled }]}>{cost}</Text>
       </View>
+    </Pressable>
+  );
+}
+
+// Level-navigation button used in a completed-category practice replay. `iconRight`
+// puts the arrow after the label (for "next"), otherwise before it (for "prev").
+function NavButton({
+  label,
+  icon,
+  iconRight,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconRight?: boolean;
+  onPress: () => void;
+}) {
+  const arrow = <Ionicons name={icon} size={20} color={LQColors.text} />;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.navBtn, LQShadow.card, pressed && { transform: [{ scale: 0.98 }] }]}
+    >
+      {!iconRight && arrow}
+      <Text style={styles.navLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        {label}
+      </Text>
+      {iconRight && arrow}
     </Pressable>
   );
 }
@@ -374,6 +427,18 @@ const styles = StyleSheet.create({
   },
   hintDisabled: { opacity: 0.7 },
   hintLabel: { fontSize: 15, fontWeight: '900', color: LQColors.text },
+  navBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: LQColors.surface,
+    borderRadius: LQRadius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+  },
+  navLabel: { fontSize: 15, fontWeight: '900', color: LQColors.text, flexShrink: 1 },
   costTag: {
     flexDirection: 'row',
     alignItems: 'center',
