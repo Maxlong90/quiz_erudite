@@ -136,11 +136,7 @@ export default function LogoQuizWheel() {
           <Ionicons name="chevron-back" size={22} color={LQColors.text} />
         </Pressable>
         <View style={styles.headerRight}>
-          <LivesPill
-            livesState={livesState}
-            isPremium={isPremium}
-            onZeroPress={() => router.push('/logo-quiz/shop')}
-          />
+          <LivesPill livesState={livesState} isPremium={isPremium} />
           <CoinPill coins={coins} />
           <Pressable
             style={[styles.iconBtn, LQShadow.card]}

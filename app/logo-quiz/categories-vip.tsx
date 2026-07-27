@@ -53,7 +53,11 @@ export default function LogoQuizCategoriesVip() {
           <Ionicons name="chevron-back" size={22} color={LQColors.text} />
         </Pressable>
         <View style={styles.headerRight}>
-          <LivesPill livesState={livesState} isPremium={isPremium} />
+          <LivesPill
+            livesState={livesState}
+            isPremium={isPremium}
+            onZeroPress={() => router.push('/logo-quiz/shop')}
+          />
           <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
         </View>
       </View>

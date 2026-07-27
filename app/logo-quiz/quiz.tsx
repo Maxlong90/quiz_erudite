@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   option: {
     width: '48%',
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     paddingVertical: 16,
     paddingHorizontal: 12,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     paddingVertical: 12,
     paddingHorizontal: 10,

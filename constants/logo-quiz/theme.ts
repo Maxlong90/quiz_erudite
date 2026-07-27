@@ -8,6 +8,9 @@ export const LQColors = {
   bg: '#F3F5FB',
   bgAlt: '#E9EDF7',
   surface: '#FFFFFF',
+  // Calm grey surface for quiet cards/buttons — the same fill as the wheel's
+  // low-tier "3 lives / 100 coins" segments (WHEEL_TIER.base.fill references this).
+  surfaceAlt: '#D9E1F5',
   text: '#151B2E',
   textMuted: '#6B7392',
   textFaint: '#9AA1BC',
@@ -70,7 +73,7 @@ export const LQShadow = {
 export const WHEEL_TIER = {
   // A touch more saturated than the near-white #EEF1FA so the quiet wedges no
   // longer melt into the pale AppBackground (#F3F5FB / #E9EDF7).
-  base: { fill: '#D9E1F5', text: '#3A4260' },
+  base: { fill: LQColors.surfaceAlt, text: '#3A4260' },
   rare: { fill: '#8B5CF6', text: '#FFFFFF' },
   legendary: { fill: '#FFD54A', text: GOLD_TEXT },
 } as const;
