@@ -16,10 +16,10 @@ import {
   MAX_LIVES,
   RATE_APP_REWARD_COINS,
   STARTING_COINS,
-  WHEEL_COOLDOWN_MS,
   coinsForCorrect,
   reconcileLives,
   spendLife,
+  wheelSpinAvailable,
   type LivesState,
 } from '@/lib/logo-quiz/economy';
 import type { CoinPack, LifePack, WheelPrize } from '@/lib/logo-quiz/economy';
@@ -159,18 +159,24 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
         loaded = { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
       }
       if (cancelled) return;
+      const nowMs = Date.now();
       const reconciled: PersistedState = {
         ...loaded,
-        lives: reconcileLives(loaded.lives, Date.now(), loaded.isPremium),
+        // reconcileLives re-anchors a future `updatedAt` (clock moved back) to now.
+        lives: reconcileLives(loaded.lives, nowMs, loaded.isPremium),
+        // Same guard for the wheel: a future anchor is clamped to now so the
+        // cooldown counts down at most 24h from load (0 = never spun stays 0).
+        wheelLastSpinAt: Math.min(loaded.wheelLastSpinAt, nowMs),
       };
-      stateRef.current = reconciled;
-      setState(reconciled);
+      // Persist the sanitized state so a clock-back re-anchor (future lives/wheel
+      // anchor clamped to now) survives on disk, not just in memory this session.
+      persist(reconciled);
       setReady(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [persist]);
 
   const addCoins = useCallback(
     (n: number) => {
@@ -301,7 +307,7 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const canSpinWheel = useCallback(() => {
-    return Date.now() - stateRef.current.wheelLastSpinAt >= WHEEL_COOLDOWN_MS;
+    return wheelSpinAvailable(stateRef.current.wheelLastSpinAt, Date.now());
   }, []);
 
   // Credit the wheel prize free of charge and stamp the 24h cooldown. Coins add

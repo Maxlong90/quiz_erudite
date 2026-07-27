@@ -94,7 +94,10 @@ export function reconcileLives(state: LivesState, now: number, isPremium = false
   if (state.lives >= MAX_LIVES) return { lives: state.lives, updatedAt: now };
   const regen = lifeRegenMs(isPremium);
   const elapsed = now - state.updatedAt;
-  if (elapsed <= 0) return state;
+  // Clock moved back (or the anchor is in the future): re-anchor to `now` so the
+  // count never drops and regen resumes from the current moment. `elapsed === 0`
+  // reduces to the old `return state` (no-op).
+  if (elapsed <= 0) return { lives: state.lives, updatedAt: now };
   const gained = Math.floor(elapsed / regen);
   if (gained <= 0) return state;
   const lives = Math.min(MAX_LIVES, state.lives + gained);
@@ -140,6 +143,24 @@ export function formatCountdownHMS(ms: number): string {
 
 /** Cooldown between free spins: exactly 24 hours from the moment of the last spin. */
 export const WHEEL_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Milliseconds left on the 24h wheel cooldown, given the last-spin anchor and the
+ * current clock. Offline-safe: if the clock was moved back (or the stored anchor is
+ * in the future, `lastSpinAt > now`), the anchor is treated as `now`, so the wait
+ * is capped at exactly `WHEEL_COOLDOWN_MS` — the wheel never sticks longer than 24h
+ * and a backward jump never gifts an instant free spin. `lastSpinAt === 0` (never
+ * spun / dev-reset) returns 0 → available now.
+ */
+export function wheelCooldownRemaining(lastSpinAt: number, now: number): number {
+  const anchor = lastSpinAt > now ? now : lastSpinAt;
+  return Math.max(0, WHEEL_COOLDOWN_MS - (now - anchor));
+}
+
+/** Whether the free wheel spin is available now (>= 24h since the last spin). */
+export function wheelSpinAvailable(lastSpinAt: number, now: number): boolean {
+  return wheelCooldownRemaining(lastSpinAt, now) <= 0;
+}
 
 /** Visual prominence tier — drives the segment highlight colour on the wheel. */
 export type WheelTier = 'base' | 'rare' | 'legendary';

@@ -158,6 +158,55 @@ describe('wheelLastSpinAt — hydration across restart', () => {
     expect(result.current.canSpinWheel()).toBe(false);
   });
 
+  it('re-anchors a future wheelLastSpinAt to now on load (clock moved back → no >24h lock)', async () => {
+    // Clock was rewound: the stored spin anchor is 10h AHEAD of the current now.
+    jest.spyOn(Date, 'now').mockReturnValue(T);
+    const futureAnchor = T + 10 * 60 * 60 * 1000;
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        coins: STARTING_COINS,
+        isPremium: false,
+        lives: { lives: MAX_LIVES, updatedAt: T },
+        progress: {},
+        completed: {},
+        rateRewarded: false,
+        wheelLastSpinAt: futureAnchor,
+      }),
+    );
+
+    const { result } = await renderReady();
+
+    // Anchor is clamped to now; the cooldown is a fresh 24h, never >24h.
+    expect(result.current.wheelLastSpinAt).toBe(T);
+    expect(result.current.canSpinWheel()).toBe(false);
+    // Persisted clamp survives a reload.
+    const saved = await readPersisted();
+    expect(saved.wheelLastSpinAt).toBe(T);
+  });
+
+  it('does not decrease lives when lives.updatedAt is in the future on load', async () => {
+    // Clock rewound: partial bar with an anchor 1h ahead of now must not lose lives.
+    jest.spyOn(Date, 'now').mockReturnValue(T);
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        coins: STARTING_COINS,
+        isPremium: false,
+        lives: { lives: 1, updatedAt: T + 60 * 60 * 1000 },
+        progress: {},
+        completed: {},
+        rateRewarded: false,
+        wheelLastSpinAt: 0,
+      }),
+    );
+
+    const { result } = await renderReady();
+
+    expect(result.current.getLives()).toBe(1); // NOT decreased, not negative
+    expect(result.current.livesState.updatedAt).toBe(T); // re-anchored to now
+  });
+
   it('defaults a legacy payload without wheelLastSpinAt to 0 (spin available)', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(T);
     await AsyncStorage.setItem(

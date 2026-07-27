@@ -1,10 +1,13 @@
 import {
+  WHEEL_COOLDOWN_MS,
   WHEEL_PRIZES,
   WHEEL_SEGMENTS,
   formatCountdownHMS,
   pickWheelPrizeIndex,
   segmentsForPrize,
+  wheelCooldownRemaining,
   wheelPrizeById,
+  wheelSpinAvailable,
 } from '@/lib/logo-quiz/economy';
 
 describe('wheel prize table', () => {
@@ -83,6 +86,43 @@ describe('pickWheelPrizeIndex — weighted selection (not per-wedge)', () => {
     expect(pct('lives10')).toBeLessThan(4.7);
     expect(pct('coins1000')).toBeGreaterThan(1.5);
     expect(pct('coins1000')).toBeLessThan(2.5);
+  });
+});
+
+describe('wheelCooldownRemaining / wheelSpinAvailable — offline clock-back safety', () => {
+  const T = 1_700_000_000_000;
+
+  it('is available on a fresh account (lastSpinAt === 0 / dev-reset)', () => {
+    expect(wheelCooldownRemaining(0, T)).toBe(0);
+    expect(wheelSpinAvailable(0, T)).toBe(true);
+  });
+
+  it('runs a normal 24h cooldown on a forward clock', () => {
+    expect(wheelCooldownRemaining(T, T)).toBe(WHEEL_COOLDOWN_MS); // just spun
+    expect(wheelSpinAvailable(T, T)).toBe(false);
+    // One ms before 24h: still blocked; exactly 24h: available.
+    expect(wheelCooldownRemaining(T, T + WHEEL_COOLDOWN_MS - 1)).toBe(1);
+    expect(wheelSpinAvailable(T, T + WHEEL_COOLDOWN_MS - 1)).toBe(false);
+    expect(wheelCooldownRemaining(T, T + WHEEL_COOLDOWN_MS)).toBe(0);
+    expect(wheelSpinAvailable(T, T + WHEEL_COOLDOWN_MS)).toBe(true);
+  });
+
+  it('never reports more than 24h remaining when the clock is rewound', () => {
+    // Anchor 10h in the future relative to now (clock moved back 10h).
+    const now = T;
+    const future = T + 10 * 60 * 60 * 1000;
+    const remaining = wheelCooldownRemaining(future, now);
+    expect(remaining).toBeLessThanOrEqual(WHEEL_COOLDOWN_MS);
+    // Re-anchored to now → exactly a fresh 24h wait, not >24h and not an instant spin.
+    expect(remaining).toBe(WHEEL_COOLDOWN_MS);
+    expect(wheelSpinAvailable(future, now)).toBe(false);
+  });
+
+  it('caps at 24h even for a far-future anchor (clock rewound days)', () => {
+    const now = T;
+    const farFuture = T + 5 * 24 * 60 * 60 * 1000; // +5 days
+    expect(wheelCooldownRemaining(farFuture, now)).toBe(WHEEL_COOLDOWN_MS);
+    expect(wheelSpinAvailable(farFuture, now)).toBe(false);
   });
 });
 

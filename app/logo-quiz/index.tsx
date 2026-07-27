@@ -13,7 +13,7 @@ import { WheelAlertDot, WheelMark } from '@/components/logo-quiz/wheel-badge';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
-import { WHEEL_COOLDOWN_MS } from '@/lib/logo-quiz/economy';
+import { wheelSpinAvailable } from '@/lib/logo-quiz/economy';
 
 // Bitmap art shown on Welcome — the title and the bottom brand strip. Preloaded
 // before the screen renders (below) so they don't pop in a beat after the
@@ -28,7 +28,7 @@ export default function LogoQuizWelcome() {
   const { ready, isPremium, wheelLastSpinAt } = useLogoQuiz();
   const [assetsReady, setAssetsReady] = useState(false);
   const now = useNow(1000);
-  const wheelAvailable = now - wheelLastSpinAt >= WHEEL_COOLDOWN_MS;
+  const wheelAvailable = wheelSpinAvailable(wheelLastSpinAt, now);
 
   // Warm the image cache during the loading gate; fail-open so a preload error
   // never blocks the screen.

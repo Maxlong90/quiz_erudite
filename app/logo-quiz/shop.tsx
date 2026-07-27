@@ -17,8 +17,8 @@ import {
   LIFE_PACKS,
   LIVES_FOR_COINS_AMOUNT,
   LIVES_FOR_COINS_COST,
-  WHEEL_COOLDOWN_MS,
   formatCountdownHMS,
+  wheelCooldownRemaining,
   type CoinPack,
   type LifePack,
 } from '@/lib/logo-quiz/economy';
@@ -43,7 +43,7 @@ export default function LogoQuizShop() {
   const [boughtCoinLives, setBoughtCoinLives] = useState(false);
 
   const now = useNow(1000);
-  const wheelRemaining = Math.max(0, WHEEL_COOLDOWN_MS - (now - wheelLastSpinAt));
+  const wheelRemaining = wheelCooldownRemaining(wheelLastSpinAt, now);
   const wheelAvailable = wheelRemaining <= 0;
 
   const canAffordCoinLives = coins >= LIVES_FOR_COINS_COST;

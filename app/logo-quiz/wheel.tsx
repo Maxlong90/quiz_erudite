@@ -21,12 +21,12 @@ import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 import {
-  WHEEL_COOLDOWN_MS,
   WHEEL_PRIZES,
   WHEEL_SEGMENTS,
   formatCountdownHMS,
   pickWheelPrizeIndex,
   segmentsForPrize,
+  wheelCooldownRemaining,
   type WheelPrize,
 } from '@/lib/logo-quiz/economy';
 
@@ -59,7 +59,7 @@ export default function LogoQuizWheel() {
   const { coins, isPremium, livesState, wheelLastSpinAt, spinWheel, resetWheelCooldown } =
     useLogoQuiz();
   const now = useNow(1000);
-  const remaining = Math.max(0, WHEEL_COOLDOWN_MS - (now - wheelLastSpinAt));
+  const remaining = wheelCooldownRemaining(wheelLastSpinAt, now);
   const available = remaining <= 0;
 
   const rotation = useSharedValue(0);
