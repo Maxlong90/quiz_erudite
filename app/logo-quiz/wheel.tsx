@@ -14,9 +14,11 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
+import { BlueShinySurface } from '@/components/logo-quiz/gold-gradient';
 import { Confetti } from '@/components/logo-quiz/confetti';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { WheelPrizeIcons, WheelSvg } from '@/components/logo-quiz/wheel-svg';
+import { WheelTitle } from '@/components/logo-quiz/wheel-title';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
@@ -30,11 +32,21 @@ import {
   type WheelPrize,
 } from '@/lib/logo-quiz/economy';
 
-const WHEEL_SIZE = Math.min(Dimensions.get('window').width - 72, 320);
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+// 5% larger than the previous Math.min(width-72, 320) — still centred, and every
+// derived measure (pointer, prize-icon overlay, hub) scales off this, so the
+// prize-stop maths and the #848 icon angle mapping are unaffected.
+const WHEEL_SIZE = Math.min(SCREEN_W - 72, 320) * 1.05;
 const SEG_DEG = 360 / WHEEL_SEGMENTS.length;
 const SPIN_DURATION_MS = 5000;
 const SPIN_FULL_TURNS = 6;
 const CONFETTI_DURATION_MS = 3000;
+const CONFETTI_COUNT = 150;
+// Screen-scaled burst so shards spray across the WHOLE screen (module constants →
+// stable references, so the shard cloud isn't re-randomised every render).
+const CONFETTI_SPREAD = Math.max(SCREEN_W, SCREEN_H);
+const CONFETTI_DISTANCE: readonly [number, number] = [CONFETTI_SPREAD * 0.22, CONFETTI_SPREAD * 0.62];
+const CONFETTI_GRAVITY: readonly [number, number] = [SCREEN_H * 0.4, SCREEN_H * 0.95];
 
 /** Localized label for a prize id (also used by the odds list). */
 function prizeLabel(id: string, t: LQLabels): string {
@@ -124,7 +136,11 @@ export default function LogoQuizWheel() {
           <Ionicons name="chevron-back" size={22} color={LQColors.text} />
         </Pressable>
         <View style={styles.headerRight}>
-          <LivesPill livesState={livesState} isPremium={isPremium} />
+          <LivesPill
+            livesState={livesState}
+            isPremium={isPremium}
+            onZeroPress={() => router.push('/logo-quiz/shop')}
+          />
           <CoinPill coins={coins} />
           <Pressable
             style={[styles.iconBtn, LQShadow.card]}
@@ -138,7 +154,9 @@ export default function LogoQuizWheel() {
       </View>
 
       <View style={styles.center}>
-        <Text style={styles.title}>{t.wheelTitle}</Text>
+        <View style={styles.title}>
+          <WheelTitle text={t.wheelTitle} width={WHEEL_SIZE} />
+        </View>
 
         <View style={styles.wheelWrap}>
           <Animated.View style={wheelStyle}>
@@ -167,12 +185,14 @@ export default function LogoQuizWheel() {
             onPress={onSpin}
             style={({ pressed }) => [
               styles.spinBtn,
-              LQShadow.gold,
+              LQShadow.card,
               spinning && styles.spinBtnDisabled,
               pressed && !spinning && { transform: [{ scale: 0.98 }] },
             ]}
           >
-            <Text style={styles.spinText}>{t.wheelSpin}</Text>
+            <BlueShinySurface radius={LQRadius.pill} style={styles.spinSurface}>
+              <Text style={styles.spinText}>{t.wheelSpin}</Text>
+            </BlueShinySurface>
           </Pressable>
         ) : (
           <View style={[styles.cooldown, LQShadow.card]}>
@@ -198,7 +218,11 @@ export default function LogoQuizWheel() {
       {/* Full-screen confetti burst from the centre for 3s after a spin. */}
       {showConfetti && (
         <View style={styles.confettiLayer} pointerEvents="none">
-          <Confetti count={90} />
+          <Confetti
+            count={CONFETTI_COUNT}
+            distanceRange={CONFETTI_DISTANCE}
+            gravityRange={CONFETTI_GRAVITY}
+          />
         </View>
       )}
 
@@ -256,7 +280,7 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 26, fontWeight: '900', color: LQColors.text, marginBottom: 20 },
+  title: { alignItems: 'center', marginBottom: 20 },
 
   wheelWrap: {
     width: WHEEL_SIZE,
@@ -295,8 +319,9 @@ const styles = StyleSheet.create({
 
   spinBtn: {
     marginTop: 24,
-    backgroundColor: LQColors.coin,
     borderRadius: LQRadius.pill,
+  },
+  spinSurface: {
     paddingVertical: 18,
     paddingHorizontal: 56,
     alignItems: 'center',

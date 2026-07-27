@@ -50,16 +50,20 @@ export function CoinPill({
  * when the player has bought life packs); premium regenerates 3× faster.
  *
  * When the bar is not full (0–2 lives), tapping the pill toggles it to show the
- * live regen countdown (M:SS) until the next life instead of the number.
+ * live regen countdown (M:SS) until the next life instead of the number. At ZERO
+ * lives, tapping instead invokes `onZeroPress` (used to jump to the Shop, where
+ * the player can refill) rather than toggling the already-forced countdown.
  */
 export function LivesPill({
   livesState,
   isPremium,
   style,
+  onZeroPress,
 }: {
   livesState: LivesState;
   isPremium: boolean;
   style?: StyleProp<ViewStyle>;
+  onZeroPress?: () => void;
 }) {
   const now = useNow(1000);
   const lives = reconcileLives(livesState, now, isPremium).lives;
@@ -88,7 +92,12 @@ export function LivesPill({
 
   return (
     <Pressable
-      onPress={() => canShowTimer && !forceTimer && setShowTimer((v) => !v)}
+      onPress={() => {
+        // At zero lives the countdown is already pinned, so a tap means "get more"
+        // — send the player to the Shop. With 1–2 lives, keep the timer toggle.
+        if (forceTimer && onZeroPress) onZeroPress();
+        else if (canShowTimer && !forceTimer) setShowTimer((v) => !v);
+      }}
       hitSlop={8}
       style={[styles.coinPill, LQShadow.card, style]}
     >

@@ -29,6 +29,13 @@ export const GOLD_GRADIENT = ['#FFD700', '#FFA000'] as const;
 export const GOLD_TEXT = '#5A3D00';
 export const GOLD_BORDER = '#E0930A';
 
+/**
+ * The blue "diamond shine" gradient — the sapphire counterpart to GOLD_GRADIENT,
+ * used for the Wheel's Spin button (see BlueShinySurface in gold-gradient.tsx).
+ * Order = top-left → bottom-right.
+ */
+export const BLUE_GRADIENT = ['#4C6FFF', '#2F4FE0'] as const;
+
 export const LQRadius = {
   sm: 10,
   md: 16,
@@ -57,17 +64,16 @@ export const LQShadow = {
  * Wheel-of-fortune segment palette by prominence tier (visual config — easy to
  * tweak alongside the prize/weight table in economy.ts). `base` is the least
  * prominent (100 coins / 3 lives), `rare` is an eye-catching accent (500 coins /
- * 10 lives), and `legendary` (1000 coins) is drawn with the iridescent shimmer
- * gradient below to be by far the most noticeable wedge.
+ * 10 lives), and `legendary` (1000 coins) is drawn with the premium gold gradient
+ * (GOLD_GRADIENT) plus a running sheen — by far the most noticeable wedge.
  */
 export const WHEEL_TIER = {
-  base: { fill: '#EEF1FA', text: '#3A4260' },
+  // A touch more saturated than the near-white #EEF1FA so the quiet wedges no
+  // longer melt into the pale AppBackground (#F3F5FB / #E9EDF7).
+  base: { fill: '#D9E1F5', text: '#3A4260' },
   rare: { fill: '#8B5CF6', text: '#FFFFFF' },
   legendary: { fill: '#FFD54A', text: GOLD_TEXT },
 } as const;
-
-/** Iridescent gradient stops for the legendary (1000 coins) wedge — the shiniest. */
-export const WHEEL_LEGENDARY_GRADIENT = ['#FFE29F', '#FF9DAE', '#C58BFF', '#7CD7FF', '#FFE29F'] as const;
 
 /**
  * Rich indigo → violet gradient for the Wheel-of-Fortune call-to-action (the Shop

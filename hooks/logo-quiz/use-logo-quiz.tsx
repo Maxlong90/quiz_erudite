@@ -291,8 +291,9 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
     const s = stateRef.current;
     // Level index back to 0 everywhere + drop completion flags, so every category
     // plays from the first level again. Also clear the wheel's cooldown so a free
-    // spin is immediately testable. Coins / lives / premium are left intact.
-    persist({ ...s, progress: {}, completed: {}, wheelLastSpinAt: 0 });
+    // spin is immediately testable, and re-arm the one-time "rate the app" reward
+    // so its Home badge reappears. Coins / lives / premium are left intact.
+    persist({ ...s, progress: {}, completed: {}, wheelLastSpinAt: 0, rateRewarded: false });
   }, [persist]);
 
   // Dev/QA only — reopen the free wheel spin without touching progress or economy.

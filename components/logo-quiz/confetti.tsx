@@ -17,6 +17,12 @@ import Animated, {
 
 const COLORS = ['#4C6FFF', '#FF4D6D', '#F5A623', '#22C55E', '#8B5CF6', '#0EA5E9', '#EC4899', '#FFD700'];
 
+// Stable default ranges (a tight, localised pop) — kept as module constants so the
+// default-prop references never change, which would otherwise re-randomise shards
+// on every render.
+const DEFAULT_DISTANCE: readonly [number, number] = [90, 240];
+const DEFAULT_GRAVITY: readonly [number, number] = [140, 300];
+
 interface Shard {
   angle: number;
   distance: number;
@@ -28,12 +34,16 @@ interface Shard {
   round: boolean;
 }
 
-function makeShards(count: number): Shard[] {
+function makeShards(
+  count: number,
+  distanceRange: readonly [number, number],
+  gravityRange: readonly [number, number],
+): Shard[] {
   const r = (min: number, max: number) => min + Math.random() * (max - min);
   return Array.from({ length: count }, (_, i) => ({
     angle: r(0, Math.PI * 2),
-    distance: r(90, 240),
-    gravity: r(140, 300),
+    distance: r(distanceRange[0], distanceRange[1]),
+    gravity: r(gravityRange[0], gravityRange[1]),
     rotate: r(-420, 420),
     size: r(7, 12),
     delay: r(0, 160),
@@ -72,8 +82,26 @@ function Piece({ shard }: { shard: Shard }) {
   );
 }
 
-export function Confetti({ count = 32, style }: { count?: number; style?: StyleProp<ViewStyle> }) {
-  const shards = useMemo(() => makeShards(count), [count]);
+/**
+ * `distanceRange` / `gravityRange` size the burst. They default to the tight,
+ * localised pop used on the win Result screen; the Wheel screen passes screen-
+ * scaled ranges so the shards spray across the WHOLE screen.
+ */
+export function Confetti({
+  count = 32,
+  style,
+  distanceRange = DEFAULT_DISTANCE,
+  gravityRange = DEFAULT_GRAVITY,
+}: {
+  count?: number;
+  style?: StyleProp<ViewStyle>;
+  distanceRange?: readonly [number, number];
+  gravityRange?: readonly [number, number];
+}) {
+  const shards = useMemo(
+    () => makeShards(count, distanceRange, gravityRange),
+    [count, distanceRange, gravityRange],
+  );
   return (
     <View style={[styles.origin, style]} pointerEvents="none">
       {shards.map((shard, i) => (

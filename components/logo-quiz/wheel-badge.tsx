@@ -22,15 +22,19 @@ import { LQColors } from '@/constants/logo-quiz/theme';
  * `WheelAlertDot` is the red "!" that signals a spin is ready — optionally pulsing.
  */
 
+// Warm + white palette only. The Shop button (indigo #4C6FFF) and Shop tile
+// (indigo→violet WHEEL_TILE_GRADIENT) sit BEHIND this mark, so the mark must avoid
+// those blues/violets (#4C6FFF / #7A5CFF / #8B5CF6 / LQColors.primary) and use
+// contrasting warm tones so it pops off its background.
 const MARK_COLORS = [
-  LQColors.primary,
-  LQColors.coin,
-  LQColors.heart,
-  LQColors.success,
-  '#8B5CF6',
-  '#0EA5E9',
-  LQColors.coin,
-  LQColors.primary,
+  LQColors.coin, // gold
+  LQColors.heart, // red
+  LQColors.success, // green
+  '#FF9F1C', // orange
+  '#FF6FB5', // warm pink
+  '#FFD54A', // yellow
+  '#FFFFFF', // white
+  LQColors.coin, // gold
 ];
 
 /**

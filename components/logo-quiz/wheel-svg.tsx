@@ -1,10 +1,22 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedProps,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Circle, ClipPath, Defs, G, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { WHEEL_SEGMENTS, wheelPrizeById, type WheelTier } from '@/lib/logo-quiz/economy';
-import { LQColors, WHEEL_LEGENDARY_GRADIENT, WHEEL_TIER } from '@/constants/logo-quiz/theme';
+import { GOLD_GRADIENT, LQColors, WHEEL_TIER } from '@/constants/logo-quiz/theme';
+
+/** A `<Rect>` whose position can be driven by a Reanimated shared value. */
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 /**
  * The Wheel of Fortune graphic — a static SVG ring of 9 coloured wedges. Rotation
@@ -29,10 +41,19 @@ export function wedgePath(cx: number, cy: number, r: number, a0: number, a1: num
 }
 
 const SEG_DEG = 360 / WHEEL_SEGMENTS.length;
-const LEGENDARY_GRADIENT_ID = 'wheelLegendaryGrad';
+const GOLD_GRADIENT_ID = 'wheelGoldGrad';
+const SHEEN_GRADIENT_ID = 'wheelSheenGrad';
+const SHINY_CLIP_ID = 'wheelShinyClip';
+
+/** Indices of the "shiny" wedges (everything above base) — they get the running sheen. */
+const SHINY_WEDGES = WHEEL_SEGMENTS.map((id, i) => ({ i, tier: wheelPrizeById(id).tier })).filter(
+  (w) => w.tier !== 'base',
+);
 
 function wedgeFill(tier: WheelTier): string {
-  return tier === 'legendary' ? `url(#${LEGENDARY_GRADIENT_ID})` : WHEEL_TIER[tier].fill;
+  // Legendary (1000 coins) = solid premium gold; rare keeps its accent colour.
+  // Both get the animated sheen swept over them below.
+  return tier === 'legendary' ? `url(#${GOLD_GRADIENT_ID})` : WHEEL_TIER[tier].fill;
 }
 
 /** A short glyph + amount for a wedge label ('★' for coins, '♥' for lives). */
@@ -48,20 +69,43 @@ export function WheelSvg({ size, showLabels = true }: { size: number; showLabels
   const r = size / 2;
   const hub = size * 0.11;
 
+  // A soft white band that continuously sweeps left→right; clipped to the shiny
+  // wedges it reads as the same "premium sheen" as the gold banner. Width ~28% of
+  // the wheel; travels from just off the left edge to just past the right.
+  const bandW = size * 0.28;
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1, { duration: 2200, easing: Easing.linear }),
+      -1,
+      false,
+    );
+  }, [progress]);
+  const sheenProps = useAnimatedProps(() => ({
+    x: interpolate(progress.value, [0, 1], [-bandW, size]),
+  }));
+
   return (
     <Svg width={size} height={size}>
       <Defs>
-        {/* Iridescent legendary shimmer — a diagonal multi-hue sweep. */}
-        <LinearGradient id={LEGENDARY_GRADIENT_ID} x1="0" y1="0" x2="1" y2="1">
-          {WHEEL_LEGENDARY_GRADIENT.map((color, i) => (
-            <Stop
-              key={i}
-              offset={i / (WHEEL_LEGENDARY_GRADIENT.length - 1)}
-              stopColor={color}
-              stopOpacity="1"
-            />
+        {/* Premium gold for the legendary (1000 coins) wedge. */}
+        <LinearGradient id={GOLD_GRADIENT_ID} x1="0" y1="0" x2="1" y2="1">
+          {GOLD_GRADIENT.map((color, i) => (
+            <Stop key={i} offset={i / (GOLD_GRADIENT.length - 1)} stopColor={color} stopOpacity="1" />
           ))}
         </LinearGradient>
+        {/* The running sheen band — soft white, feathered at both edges. */}
+        <LinearGradient id={SHEEN_GRADIENT_ID} x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
+          <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.6" />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+        </LinearGradient>
+        {/* Sheen is only visible over the shiny (rare + legendary) wedges. */}
+        <ClipPath id={SHINY_CLIP_ID}>
+          {SHINY_WEDGES.map((w) => (
+            <Path key={`c${w.i}`} d={wedgePath(cx, cy, r, w.i * SEG_DEG, (w.i + 1) * SEG_DEG)} />
+          ))}
+        </ClipPath>
       </Defs>
 
       {/* Wedges */}
@@ -77,6 +121,17 @@ export function WheelSvg({ size, showLabels = true }: { size: number; showLabels
           />
         );
       })}
+
+      {/* Running sheen, clipped to the shiny wedges (drawn above their fills). */}
+      <G clipPath={`url(#${SHINY_CLIP_ID})`}>
+        <AnimatedRect
+          y={0}
+          width={bandW}
+          height={size}
+          fill={`url(#${SHEEN_GRADIENT_ID})`}
+          animatedProps={sheenProps}
+        />
+      </G>
 
       {/* Labels — each rotated to sit along its wedge's centreline. */}
       {showLabels &&
