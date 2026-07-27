@@ -9,9 +9,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
 import { BrandStrip } from '@/components/logo-quiz/brand-strip';
 import { StatusChip } from '@/components/logo-quiz/hud';
+import { WheelAlertDot, WheelMark } from '@/components/logo-quiz/wheel-badge';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
-import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
+import { WHEEL_COOLDOWN_MS } from '@/lib/logo-quiz/economy';
 
 // Bitmap art shown on Welcome — the title and the bottom brand strip. Preloaded
 // before the screen renders (below) so they don't pop in a beat after the
@@ -23,8 +25,10 @@ const WELCOME_ASSETS = [
 
 export default function LogoQuizWelcome() {
   const t = useLQLabels();
-  const { ready, isPremium } = useLogoQuiz();
+  const { ready, isPremium, wheelLastSpinAt } = useLogoQuiz();
   const [assetsReady, setAssetsReady] = useState(false);
+  const now = useNow(1000);
+  const wheelAvailable = now - wheelLastSpinAt >= WHEEL_COOLDOWN_MS;
 
   // Warm the image cache during the loading gate; fail-open so a preload error
   // never blocks the screen.
@@ -83,6 +87,14 @@ export default function LogoQuizWelcome() {
           >
             <Ionicons name="bag-handle" size={40} color="#fff" />
             <Text style={styles.shopText}>{t.shop}</Text>
+            {/* Wheel-ready cue: a wheel glyph with a pulsing red "!" — only when
+                the free spin is available. */}
+            {wheelAvailable && (
+              <View style={styles.wheelBadge}>
+                <WheelMark size={34} />
+                <WheelAlertDot pulse size={18} style={styles.wheelBadgeDot} />
+              </View>
+            )}
           </Pressable>
 
           <Pressable
@@ -164,4 +176,6 @@ const styles = StyleSheet.create({
   },
   settingsText: { color: '#fff', fontWeight: '900', fontSize: 30 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  wheelBadge: { position: 'absolute', top: -12, right: 18 },
+  wheelBadgeDot: { position: 'absolute', top: -6, right: -6 },
 });

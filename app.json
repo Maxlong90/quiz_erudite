@@ -2,10 +2,9 @@
   "expo": {
     "name": "quiz-erudit",
     "slug": "quiz-erudit",
-    "owner": "quizzzess-team",
     "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo-quiz-icon.png",
     "scheme": "quizerudit",
     "userInterfaceStyle": "automatic",
     "androidNavigationBar": {
@@ -22,10 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0E2E6B",
+        "foregroundImage": "./assets/images/logo-quiz-icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -67,9 +64,7 @@
     },
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "0a83f1d3-35b1-4026-9e39-022bccc5442d"
-      }
+      "eas": {}
     }
   }
 }

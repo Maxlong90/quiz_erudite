@@ -21,6 +21,7 @@ export default function LogoQuizLayout() {
         <Stack.Screen name="categories" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="categories-vip" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="shop" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="wheel" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
         <Stack.Screen name="result" options={{ gestureEnabled: false, animation: 'fade' }} />

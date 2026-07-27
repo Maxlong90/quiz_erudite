@@ -16,12 +16,13 @@ import {
   MAX_LIVES,
   RATE_APP_REWARD_COINS,
   STARTING_COINS,
+  WHEEL_COOLDOWN_MS,
   coinsForCorrect,
   reconcileLives,
   spendLife,
   type LivesState,
 } from '@/lib/logo-quiz/economy';
-import type { CoinPack, LifePack } from '@/lib/logo-quiz/economy';
+import type { CoinPack, LifePack, WheelPrize } from '@/lib/logo-quiz/economy';
 
 /**
  * Local-state store for the Logo Quiz economy: coins, premium status, and the
@@ -43,6 +44,8 @@ interface PersistedState {
   completed: Record<string, boolean>;
   /** Whether the one-time "rate the app" coin reward has been claimed. */
   rateRewarded: boolean;
+  /** Epoch ms of the last free wheel spin (0 = never). Drives the 24h cooldown. */
+  wheelLastSpinAt: number;
 }
 
 interface LogoQuizValue {
@@ -82,10 +85,18 @@ interface LogoQuizValue {
   completedMap: Record<string, boolean>;
   /** Test/QA helper — wipe progress back to a fresh start. */
   reset: () => void;
+  /** Dev/QA helper — send every category back to level 1 (clears progress + completed). */
+  resetProgress: () => void;
   /** Whether the one-time rate-the-app coin reward is still available. */
   rateRewarded: boolean;
   /** Grant the one-time rate-the-app coin reward (no-op once already claimed). */
   claimRateReward: () => void;
+  /** Epoch ms of the last free wheel spin (reactive) — UI reconciles it live. */
+  wheelLastSpinAt: number;
+  /** Whether the free wheel spin is available now (>= 24h since the last spin). */
+  canSpinWheel: () => boolean;
+  /** Credit a wheel prize (coins and/or stocked lives) and start the 24h cooldown. */
+  spinWheel: (prize: WheelPrize) => void;
 }
 
 const DEFAULT_STATE: PersistedState = {
@@ -95,6 +106,7 @@ const DEFAULT_STATE: PersistedState = {
   progress: {},
   completed: {},
   rateRewarded: false,
+  wheelLastSpinAt: 0,
 };
 
 const LogoQuizContext = createContext<LogoQuizValue | null>(null);
@@ -135,6 +147,8 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
             completed:
               parsed.completed && typeof parsed.completed === 'object' ? parsed.completed : {},
             rateRewarded: !!parsed.rateRewarded,
+            wheelLastSpinAt:
+              typeof parsed.wheelLastSpinAt === 'number' ? parsed.wheelLastSpinAt : 0,
           };
         } else {
           loaded = { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
@@ -265,11 +279,45 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
     persist({ ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } });
   }, [persist]);
 
+  const resetProgress = useCallback(() => {
+    const s = stateRef.current;
+    // Level index back to 0 everywhere + drop completion flags, so every category
+    // plays from the first level again. Coins / lives / premium are left intact.
+    persist({ ...s, progress: {}, completed: {} });
+  }, [persist]);
+
   const claimRateReward = useCallback(() => {
     const s = stateRef.current;
     if (s.rateRewarded) return; // one-time only
     persist({ ...s, coins: s.coins + RATE_APP_REWARD_COINS, rateRewarded: true });
   }, [persist]);
+
+  const canSpinWheel = useCallback(() => {
+    return Date.now() - stateRef.current.wheelLastSpinAt >= WHEEL_COOLDOWN_MS;
+  }, []);
+
+  // Credit the wheel prize free of charge and stamp the 24h cooldown. Coins add
+  // to the balance (like buyCoins); lives stock ON TOP of the reconciled bar
+  // (like buyLives — may exceed MAX_LIVES). A prize with no lives leaves the
+  // regen anchor untouched so it never resets a partial bar's timer.
+  const spinWheel = useCallback(
+    (prize: WheelPrize) => {
+      const s = stateRef.current;
+      const now = Date.now();
+      const addLives = prize.reward.lives ?? 0;
+      const lives =
+        addLives > 0
+          ? { lives: reconcileLives(s.lives, now, s.isPremium).lives + addLives, updatedAt: now }
+          : s.lives;
+      persist({
+        ...s,
+        coins: s.coins + (prize.reward.coins ?? 0),
+        lives,
+        wheelLastSpinAt: now,
+      });
+    },
+    [persist],
+  );
 
   const value = useMemo<LogoQuizValue>(
     () => ({
@@ -294,10 +342,14 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       progressMap: state.progress,
       completedMap: state.completed,
       reset,
+      resetProgress,
       rateRewarded: state.rateRewarded,
       claimRateReward,
+      wheelLastSpinAt: state.wheelLastSpinAt,
+      canSpinWheel,
+      spinWheel,
     }),
-    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, claimRateReward],
+    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, claimRateReward, canSpinWheel, spinWheel],
   );
 
   return <LogoQuizContext.Provider value={value}>{children}</LogoQuizContext.Provider>;

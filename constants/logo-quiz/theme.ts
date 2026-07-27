@@ -52,3 +52,19 @@ export const LQShadow = {
     elevation: 5,
   },
 } as const;
+
+/**
+ * Wheel-of-fortune segment palette by prominence tier (visual config — easy to
+ * tweak alongside the prize/weight table in economy.ts). `base` is the least
+ * prominent (100 coins / 3 lives), `rare` is an eye-catching accent (500 coins /
+ * 10 lives), and `legendary` (1000 coins) is drawn with the iridescent shimmer
+ * gradient below to be by far the most noticeable wedge.
+ */
+export const WHEEL_TIER = {
+  base: { fill: '#EEF1FA', text: '#3A4260' },
+  rare: { fill: '#8B5CF6', text: '#FFFFFF' },
+  legendary: { fill: '#FFD54A', text: GOLD_TEXT },
+} as const;
+
+/** Iridescent gradient stops for the legendary (1000 coins) wedge — the shiniest. */
+export const WHEEL_LEGENDARY_GRADIENT = ['#FFE29F', '#FF9DAE', '#C58BFF', '#7CD7FF', '#FFE29F'] as const;

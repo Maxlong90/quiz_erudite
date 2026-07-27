@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,12 +15,14 @@ import Animated, {
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
+import { Flag } from '@/components/logo-quiz/flag';
 import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
 import { RATE_APP_REWARD_COINS } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { restorePremium } from '@/lib/revenuecat';
 
 // Each language shown in its own name, so the list reads the same regardless of
 // the currently active locale.
@@ -33,6 +35,7 @@ const LANGUAGE_NAMES: Record<SupportedLocale, string> = {
 // External URLs / store identifiers — mirrors the main app's settings so a real
 // Privacy page or store listing is a one-line change in both places.
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
+const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
 const APP_BUNDLE_ID = 'com.quizzzes.erudite';
 const IOS_APP_ID = '0000000000'; // placeholder until the App Store listing is live
@@ -41,7 +44,8 @@ const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
 
 export default function LogoQuizSettings() {
   const t = useLQLabels();
-  const { isPremium, cancelSubscription, rateRewarded, claimRateReward } = useLogoQuiz();
+  const { isPremium, buyPremium, cancelSubscription, resetProgress, rateRewarded, claimRateReward } =
+    useLogoQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
 
@@ -65,7 +69,28 @@ export default function LogoQuizSettings() {
     cancelSubscription();
   };
 
+  // Restore a previously bought subscription via the real RevenueCat flow, then
+  // reflect an active entitlement into the local premium state. Resolves false
+  // (and shows the "nothing found" alert) in Expo Go / when nothing to restore.
+  const onRestorePurchases = async () => {
+    try {
+      const restored = await restorePremium();
+      if (restored) {
+        buyPremium();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Alert.alert(t.restoreDoneTitle, t.restoreDoneMessage, [{ text: t.ok }]);
+      } else {
+        Alert.alert(t.restoreNoneTitle, t.restoreNoneMessage, [{ text: t.ok }]);
+      }
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      Alert.alert(t.restoreErrorTitle, t.restoreErrorMessage, [{ text: t.ok }]);
+    }
+  };
+
   const onPrivacy = () => openUrl(PRIVACY_URL);
+
+  const onTerms = () => openUrl(TERMS_URL);
 
   const onRate = () => {
     // First tap grants the one-time coin reward (which also hides the badge).
@@ -85,6 +110,13 @@ export default function LogoQuizSettings() {
   const onSupport = () => {
     const subject = 'Logo Quiz — support';
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {});
+  };
+
+  // Temporary DEV/QA tool: send every category back to level 1. Never rendered in
+  // a production build (guarded by __DEV__ below).
+  const onResetProgress = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    resetProgress();
   };
 
   return (
@@ -114,8 +146,15 @@ export default function LogoQuizSettings() {
           onPress={onCancelSubscription}
           inactive={!isPremium}
         />
-        {/* Language picker — opens the list; a pick switches the whole app instantly. */}
-        <SettingsButton label={t.selectLanguage} onPress={() => setLangOpen(true)} />
+        {/* Restore Purchases — re-activates a previously bought subscription. */}
+        <SettingsButton label={t.restorePurchases} onPress={onRestorePurchases} />
+        {/* Language picker — opens the list; a pick switches the whole app instantly.
+            The leading flag reflects the active locale and updates on every switch. */}
+        <SettingsButton
+          label={t.selectLanguage}
+          onPress={() => setLangOpen(true)}
+          icon={<Flag locale={locale} />}
+        />
         {/* Rate the app — carries a shimmering, pulsing +100-coins reward badge that
             disappears once the one-time reward has been claimed. */}
         <View style={styles.rateWrap}>
@@ -124,6 +163,19 @@ export default function LogoQuizSettings() {
         </View>
         <SettingsButton label={t.contactSupport} onPress={onSupport} />
         <SettingsButton label={t.privacyPolicy} onPress={onPrivacy} />
+        {/* Terms of Use — mirrors Privacy Policy, opens the external page. */}
+        <SettingsButton label={t.termsOfUse} onPress={onTerms} />
+
+        {/* Temporary DEV tool — not shown in production builds. */}
+        {__DEV__ && (
+          <Pressable
+            onPress={onResetProgress}
+            style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="refresh" size={16} color="#7A1500" />
+            <Text style={styles.devBtnText}>Сброс прогресса (DEV)</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Language picker — tapping a language changes the app locale instantly. */}
@@ -170,10 +222,12 @@ function SettingsButton({
   label,
   onPress,
   inactive,
+  icon,
 }: {
   label: string;
   onPress: () => void;
   inactive?: boolean;
+  icon?: ReactNode;
 }) {
   return (
     <Pressable
@@ -185,6 +239,7 @@ function SettingsButton({
         pressed && !inactive && styles.pressed,
       ]}
     >
+      {icon}
       <Text style={styles.btnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {label}
       </Text>
@@ -249,6 +304,7 @@ const styles = StyleSheet.create({
     borderRadius: LQRadius.pill,
     paddingVertical: 12,
     paddingHorizontal: 16,
+    gap: 10,
   },
   btnInactive: { opacity: 0.45 },
   btnText: { color: '#fff', fontWeight: '900', fontSize: 22 },
@@ -265,6 +321,21 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   rewardBadgeText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 12 },
+
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: LQRadius.pill,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#7A1500',
+    backgroundColor: '#ffffff55',
+  },
+  devBtnText: { color: '#7A1500', fontWeight: '800', fontSize: 13 },
 
   modalBackdrop: {
     flex: 1,

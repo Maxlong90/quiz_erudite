@@ -57,10 +57,31 @@ export interface LQLabels {
   home: string;
   // settings
   cancelSubscription: string;
+  restorePurchases: string;
   selectLanguage: string;
   privacyPolicy: string;
+  termsOfUse: string;
   rateApp: string;
   contactSupport: string;
+  // restore-purchases alert strings
+  restoreDoneTitle: string;
+  restoreDoneMessage: string;
+  restoreNoneTitle: string;
+  restoreNoneMessage: string;
+  restoreErrorTitle: string;
+  restoreErrorMessage: string;
+  ok: string;
+  // wheel of fortune
+  wheelTitle: string;
+  wheelSpin: string;
+  wheelOdds: string;
+  wheelNextSpinIn: string;
+  wheelPrizeWon: string;
+  wheelPrizeCoins100: string;
+  wheelPrizeLives3: string;
+  wheelPrizeCoins500: string;
+  wheelPrizeLives10: string;
+  wheelPrizeCoins1000: string;
 }
 
 const EN: LQLabels = {
@@ -111,10 +132,29 @@ const EN: LQLabels = {
   goToShop: 'Go to Shop',
   home: 'Home',
   cancelSubscription: 'Cancel Subscription',
+  restorePurchases: 'Restore Purchases',
   selectLanguage: 'Language',
   privacyPolicy: 'Privacy Policy',
+  termsOfUse: 'Terms of Use',
   rateApp: 'Rate the App',
   contactSupport: 'Contact Support',
+  restoreDoneTitle: 'Purchases Restored',
+  restoreDoneMessage: 'Your premium subscription is now active.',
+  restoreNoneTitle: 'No Purchases Found',
+  restoreNoneMessage: "We couldn't find any previous purchases to restore.",
+  restoreErrorTitle: 'Restore Failed',
+  restoreErrorMessage: 'Something went wrong. Please try again later.',
+  ok: 'OK',
+  wheelTitle: 'Wheel of Fortune',
+  wheelSpin: 'SPIN',
+  wheelOdds: 'Odds disclosure',
+  wheelNextSpinIn: 'Next spin in',
+  wheelPrizeWon: 'You won',
+  wheelPrizeCoins100: '100 coins',
+  wheelPrizeLives3: '3 lives',
+  wheelPrizeCoins500: '500 coins',
+  wheelPrizeLives10: '10 lives',
+  wheelPrizeCoins1000: '1000 coins',
 };
 
 const RU: LQLabels = {
@@ -165,10 +205,29 @@ const RU: LQLabels = {
   goToShop: 'Перейти в магазин',
   home: 'На главную',
   cancelSubscription: 'Отмена подписки',
+  restorePurchases: 'Восстановить покупки',
   selectLanguage: 'Выбор языка',
   privacyPolicy: 'Политика конфиденциальности',
+  termsOfUse: 'Условия использования',
   rateApp: 'Оценить приложение',
   contactSupport: 'Связаться с поддержкой',
+  restoreDoneTitle: 'Покупки восстановлены',
+  restoreDoneMessage: 'Премиум-подписка снова активна.',
+  restoreNoneTitle: 'Покупки не найдены',
+  restoreNoneMessage: 'Не удалось найти предыдущие покупки для восстановления.',
+  restoreErrorTitle: 'Не удалось восстановить',
+  restoreErrorMessage: 'Что-то пошло не так. Попробуйте позже.',
+  ok: 'ОК',
+  wheelTitle: 'Колесо фортуны',
+  wheelSpin: 'СПИН',
+  wheelOdds: 'Шансы призов',
+  wheelNextSpinIn: 'Следующее вращение через',
+  wheelPrizeWon: 'Вы выиграли',
+  wheelPrizeCoins100: '100 монет',
+  wheelPrizeLives3: '3 жизни',
+  wheelPrizeCoins500: '500 монет',
+  wheelPrizeLives10: '10 жизней',
+  wheelPrizeCoins1000: '1000 монет',
 };
 
 const ES: LQLabels = {
@@ -215,10 +274,29 @@ const ES: LQLabels = {
   goToShop: 'Ir a la tienda',
   home: 'Inicio',
   cancelSubscription: 'Cancelar suscripción',
+  restorePurchases: 'Restaurar compras',
   selectLanguage: 'Idioma',
   privacyPolicy: 'Política de privacidad',
+  termsOfUse: 'Términos de uso',
   rateApp: 'Valorar la app',
   contactSupport: 'Contactar soporte',
+  restoreDoneTitle: 'Compras restauradas',
+  restoreDoneMessage: 'Tu suscripción premium ya está activa.',
+  restoreNoneTitle: 'No se encontraron compras',
+  restoreNoneMessage: 'No encontramos compras anteriores para restaurar.',
+  restoreErrorTitle: 'Error al restaurar',
+  restoreErrorMessage: 'Algo salió mal. Inténtalo de nuevo más tarde.',
+  ok: 'OK',
+  wheelTitle: 'Rueda de la fortuna',
+  wheelSpin: 'GIRAR',
+  wheelOdds: 'Probabilidades',
+  wheelNextSpinIn: 'Próximo giro en',
+  wheelPrizeWon: '¡Ganaste',
+  wheelPrizeCoins100: '100 monedas',
+  wheelPrizeLives3: '3 vidas',
+  wheelPrizeCoins500: '500 monedas',
+  wheelPrizeLives10: '10 vidas',
+  wheelPrizeCoins1000: '1000 monedas',
 };
 
 const TABLE: Record<string, LQLabels> = { en: EN, ru: RU, es: ES };

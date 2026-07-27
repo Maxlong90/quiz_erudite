@@ -6,6 +6,7 @@ import * as SystemUI from 'expo-system-ui';
 import 'react-native-reanimated';
 
 import { ContentCacheProvider } from '@/hooks/use-content-cache';
+import { useImmersiveNavBar } from '@/hooks/use-immersive-nav-bar';
 import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 // Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
@@ -34,6 +35,10 @@ const NAV_THEME = {
 };
 
 function RootLayout() {
+  // Android: keep the system nav bar hidden everywhere; a bottom-edge swipe
+  // reveals it transiently and it auto-hides again after 3s.
+  useImmersiveNavBar();
+
   return (
     <LocaleProvider>
       <PremiumProvider>

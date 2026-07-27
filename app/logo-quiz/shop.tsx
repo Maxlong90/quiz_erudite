@@ -10,25 +10,40 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
+import { WheelAlertDot, WheelMark } from '@/components/logo-quiz/wheel-badge';
 import {
   COIN_PACKS,
   LIFE_PACKS,
   LIVES_FOR_COINS_AMOUNT,
   LIVES_FOR_COINS_COST,
+  WHEEL_COOLDOWN_MS,
+  formatCountdownHMS,
   type CoinPack,
   type LifePack,
 } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
-import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 
 export default function LogoQuizShop() {
   const t = useLQLabels();
-  const { coins, isPremium, livesState, buyPremium, buyCoins, buyLives, buyLivesForCoins } =
-    useLogoQuiz();
+  const {
+    coins,
+    isPremium,
+    livesState,
+    wheelLastSpinAt,
+    buyPremium,
+    buyCoins,
+    buyLives,
+    buyLivesForCoins,
+  } = useLogoQuiz();
   const [boughtPack, setBoughtPack] = useState<string | null>(null);
   const [boughtLife, setBoughtLife] = useState<string | null>(null);
   const [boughtCoinLives, setBoughtCoinLives] = useState(false);
+
+  const now = useNow(1000);
+  const wheelRemaining = Math.max(0, WHEEL_COOLDOWN_MS - (now - wheelLastSpinAt));
+  const wheelAvailable = wheelRemaining <= 0;
 
   const canAffordCoinLives = coins >= LIVES_FOR_COINS_COST;
 
@@ -75,6 +90,29 @@ export default function LogoQuizShop() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {/* Wheel of Fortune — placed above Subscription. Shows a red "!" when the
+            free spin is ready, or a HH:MM:SS countdown while on cooldown. */}
+        <Pressable
+          onPress={() => router.push('/logo-quiz/wheel')}
+          style={({ pressed }) => [styles.wheelTile, LQShadow.card, pressed && { opacity: 0.9 }]}
+        >
+          <View style={styles.wheelTileLeft}>
+            <View>
+              <WheelMark size={46} />
+              {wheelAvailable && <WheelAlertDot size={20} style={styles.wheelTileDot} />}
+            </View>
+            <Text style={styles.wheelTileTitle}>{t.wheelTitle}</Text>
+          </View>
+          {wheelAvailable ? (
+            <Ionicons name="chevron-forward" size={22} color={LQColors.textMuted} />
+          ) : (
+            <View style={styles.wheelTileTimer}>
+              <Ionicons name="time-outline" size={15} color={LQColors.textMuted} />
+              <Text style={styles.wheelTileTimerText}>{formatCountdownHMS(wheelRemaining)}</Text>
+            </View>
+          )}
+        </Pressable>
+
         {/* Subscription block */}
         <Text style={styles.section}>{t.subscription}</Text>
         <GoldSurface radius={LQRadius.lg} style={[styles.premiumCard, LQShadow.gold]}>
@@ -221,6 +259,23 @@ const styles = StyleSheet.create({
 
   body: { paddingHorizontal: 16, paddingBottom: 32 },
   section: { fontSize: 15, fontWeight: '800', color: LQColors.textMuted, marginBottom: 10, marginTop: 6 },
+
+  wheelTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: LQColors.surface,
+    borderRadius: LQRadius.md,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: LQColors.border,
+  },
+  wheelTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  wheelTileDot: { position: 'absolute', top: -6, right: -6 },
+  wheelTileTitle: { fontSize: 18, fontWeight: '900', color: LQColors.text },
+  wheelTileTimer: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  wheelTileTimerText: { fontSize: 15, fontWeight: '900', color: LQColors.text },
 
   premiumCard: { padding: 20 },
   premiumTitle: { fontSize: 24, fontWeight: '900', color: GOLD_TEXT },
