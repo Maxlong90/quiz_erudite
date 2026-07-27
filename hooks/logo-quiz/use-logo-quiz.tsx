@@ -85,8 +85,10 @@ interface LogoQuizValue {
   completedMap: Record<string, boolean>;
   /** Test/QA helper — wipe progress back to a fresh start. */
   reset: () => void;
-  /** Dev/QA helper — send every category back to level 1 (clears progress + completed). */
+  /** Dev/QA helper — send every category back to level 1 (clears progress + completed + wheel cooldown). */
   resetProgress: () => void;
+  /** Dev/QA helper — clear the wheel's 24h cooldown so a free spin is available now. */
+  resetWheelCooldown: () => void;
   /** Whether the one-time rate-the-app coin reward is still available. */
   rateRewarded: boolean;
   /** Grant the one-time rate-the-app coin reward (no-op once already claimed). */
@@ -282,8 +284,14 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
   const resetProgress = useCallback(() => {
     const s = stateRef.current;
     // Level index back to 0 everywhere + drop completion flags, so every category
-    // plays from the first level again. Coins / lives / premium are left intact.
-    persist({ ...s, progress: {}, completed: {} });
+    // plays from the first level again. Also clear the wheel's cooldown so a free
+    // spin is immediately testable. Coins / lives / premium are left intact.
+    persist({ ...s, progress: {}, completed: {}, wheelLastSpinAt: 0 });
+  }, [persist]);
+
+  // Dev/QA only — reopen the free wheel spin without touching progress or economy.
+  const resetWheelCooldown = useCallback(() => {
+    persist({ ...stateRef.current, wheelLastSpinAt: 0 });
   }, [persist]);
 
   const claimRateReward = useCallback(() => {
@@ -343,13 +351,14 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       completedMap: state.completed,
       reset,
       resetProgress,
+      resetWheelCooldown,
       rateRewarded: state.rateRewarded,
       claimRateReward,
       wheelLastSpinAt: state.wheelLastSpinAt,
       canSpinWheel,
       spinWheel,
     }),
-    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, claimRateReward, canSpinWheel, spinWheel],
+    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
   );
 
   return <LogoQuizContext.Provider value={value}>{children}</LogoQuizContext.Provider>;

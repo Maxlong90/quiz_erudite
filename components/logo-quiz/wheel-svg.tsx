@@ -1,7 +1,10 @@
+import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 
+import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { WHEEL_SEGMENTS, wheelPrizeById, type WheelTier } from '@/lib/logo-quiz/economy';
-import { WHEEL_LEGENDARY_GRADIENT, WHEEL_TIER } from '@/constants/logo-quiz/theme';
+import { LQColors, WHEEL_LEGENDARY_GRADIENT, WHEEL_TIER } from '@/constants/logo-quiz/theme';
 
 /**
  * The Wheel of Fortune graphic — a static SVG ring of 9 coloured wedges. Rotation
@@ -114,3 +117,61 @@ export function WheelSvg({ size, showLabels = true }: { size: number; showLabels
     </Svg>
   );
 }
+
+/**
+ * The wheel's per-wedge prize labels, drawn with the app's real currency icons —
+ * the gold `CoinIcon` for coin prizes and the red app heart for lives — with the
+ * amount beside each. These are React Native components (not SVG primitives), so
+ * they live in an absolute overlay that the CALLER stacks on top of `WheelSvg`
+ * inside the SAME rotating container (pass `showLabels={false}` to `WheelSvg` to
+ * avoid double labels). Each label is rotated onto its wedge's centreline exactly
+ * like the old SVG `<G rotation>` labels, so it spins with the wheel and never
+ * shifts the angle mapping that lands the wheel on the won prize.
+ */
+export function WheelPrizeIcons({ size }: { size: number }) {
+  const iconSize = size * 0.1;
+  const radius = size * 0.29; // distance of the label group from the wheel centre
+
+  return (
+    <View style={[styles.iconsLayer, { width: size, height: size }]} pointerEvents="none">
+      {WHEEL_SEGMENTS.map((id, i) => {
+        const prize = wheelPrizeById(id);
+        const center = (i + 0.5) * SEG_DEG;
+        const textColor = WHEEL_TIER[prize.tier].text;
+        const isCoin = prize.reward.coins != null;
+        const amount = isCoin ? prize.reward.coins : prize.reward.lives;
+        return (
+          <View key={`i${i}`} style={styles.segLayer}>
+            <View
+              style={[
+                styles.segLabel,
+                { transform: [{ rotate: `${center}deg` }, { translateY: -radius }] },
+              ]}
+            >
+              {isCoin ? (
+                <CoinIcon size={iconSize} />
+              ) : (
+                <Ionicons name="heart" size={iconSize} color={LQColors.heart} />
+              )}
+              <Text
+                style={[styles.segAmount, { color: textColor, fontSize: size * 0.07 }]}
+                allowFontScaling={false}
+              >
+                {amount}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  iconsLayer: { position: 'absolute', top: 0, left: 0 },
+  // Each label occupies the full square and centres its content on the hub, so the
+  // rotate + outward translate places it along its wedge's centreline.
+  segLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  segLabel: { alignItems: 'center', gap: 2 },
+  segAmount: { fontWeight: '900' },
+});

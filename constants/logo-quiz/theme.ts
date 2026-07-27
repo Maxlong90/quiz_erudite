@@ -68,3 +68,12 @@ export const WHEEL_TIER = {
 
 /** Iridescent gradient stops for the legendary (1000 coins) wedge — the shiniest. */
 export const WHEEL_LEGENDARY_GRADIENT = ['#FFE29F', '#FF9DAE', '#C58BFF', '#7CD7FF', '#FFE29F'] as const;
+
+/**
+ * Rich indigo → violet gradient for the Wheel-of-Fortune call-to-action (the Shop
+ * tile and Home badge backing). Built from the theme `primary` (#4C6FFF) and the
+ * violet accent already used on the wheel (#8B5CF6) — far more saturated than the
+ * pastel AppBackground so the wheel entry point jumps out, while staying on-palette.
+ * Order = top-left → bottom-right.
+ */
+export const WHEEL_TILE_GRADIENT = ['#4C6FFF', '#7A5CFF', '#8B5CF6'] as const;

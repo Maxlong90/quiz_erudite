@@ -16,7 +16,7 @@ import Animated, {
 import { AppBackground } from '@/components/logo-quiz/app-background';
 import { Confetti } from '@/components/logo-quiz/confetti';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
-import { WheelSvg } from '@/components/logo-quiz/wheel-svg';
+import { WheelPrizeIcons, WheelSvg } from '@/components/logo-quiz/wheel-svg';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
@@ -56,7 +56,8 @@ function prizeLabel(id: string, t: LQLabels): string {
 
 export default function LogoQuizWheel() {
   const t = useLQLabels();
-  const { coins, isPremium, livesState, wheelLastSpinAt, spinWheel } = useLogoQuiz();
+  const { coins, isPremium, livesState, wheelLastSpinAt, spinWheel, resetWheelCooldown } =
+    useLogoQuiz();
   const now = useNow(1000);
   const remaining = Math.max(0, WHEEL_COOLDOWN_MS - (now - wheelLastSpinAt));
   const available = remaining <= 0;
@@ -141,7 +142,11 @@ export default function LogoQuizWheel() {
 
         <View style={styles.wheelWrap}>
           <Animated.View style={wheelStyle}>
-            <WheelSvg size={WHEEL_SIZE} />
+            {/* SVG wedges + a synchronized overlay of the app's real coin/heart
+                icons, both inside ONE rotating container so the icons spin with
+                the wheel without shifting where it lands on the won prize. */}
+            <WheelSvg size={WHEEL_SIZE} showLabels={false} />
+            <WheelPrizeIcons size={WHEEL_SIZE} />
           </Animated.View>
           {/* Fixed pointer at the top, overlaying the rotating wheel. */}
           <View style={styles.pointer} pointerEvents="none" />
@@ -175,6 +180,18 @@ export default function LogoQuizWheel() {
             <Text style={styles.cooldownLabel}>{t.wheelNextSpinIn}</Text>
             <Text style={styles.cooldownTime}>{formatCountdownHMS(remaining)}</Text>
           </View>
+        )}
+
+        {/* Temporary DEV tool — clears the 24h cooldown so the spin is testable.
+            Never rendered in a production build (guarded by __DEV__). */}
+        {__DEV__ && !available && (
+          <Pressable
+            onPress={resetWheelCooldown}
+            style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="refresh" size={16} color="#7A1500" />
+            <Text style={styles.devBtnText}>Сбросить таймер (DEV)</Text>
+          </Pressable>
         )}
       </View>
 
@@ -301,6 +318,22 @@ const styles = StyleSheet.create({
   },
   cooldownLabel: { fontSize: 14, fontWeight: '700', color: LQColors.textMuted },
   cooldownTime: { fontSize: 16, fontWeight: '900', color: LQColors.text },
+
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: LQRadius.pill,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#7A1500',
+    backgroundColor: '#ffffff88',
+  },
+  devBtnText: { color: '#7A1500', fontWeight: '800', fontSize: 13 },
 
   confettiLayer: {
     ...StyleSheet.absoluteFillObject,

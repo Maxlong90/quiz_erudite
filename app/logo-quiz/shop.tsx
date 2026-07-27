@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +22,7 @@ import {
   type CoinPack,
   type LifePack,
 } from '@/lib/logo-quiz/economy';
-import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
+import { LQColors, LQRadius, LQShadow, GOLD_TEXT, WHEEL_TILE_GRADIENT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 
@@ -94,8 +95,17 @@ export default function LogoQuizShop() {
             free spin is ready, or a HH:MM:SS countdown while on cooldown. */}
         <Pressable
           onPress={() => router.push('/logo-quiz/wheel')}
-          style={({ pressed }) => [styles.wheelTile, LQShadow.card, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.wheelTile, LQShadow.gold, pressed && { opacity: 0.92 }]}
         >
+          {/* Rich indigo→violet fill so the wheel entry point pops off the pastel
+              screen background (brighter than AppBackground, still on-palette). */}
+          <LinearGradient
+            colors={WHEEL_TILE_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
           <View style={styles.wheelTileLeft}>
             <View>
               <WheelMark size={46} />
@@ -104,10 +114,10 @@ export default function LogoQuizShop() {
             <Text style={styles.wheelTileTitle}>{t.wheelTitle}</Text>
           </View>
           {wheelAvailable ? (
-            <Ionicons name="chevron-forward" size={22} color={LQColors.textMuted} />
+            <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
           ) : (
             <View style={styles.wheelTileTimer}>
-              <Ionicons name="time-outline" size={15} color={LQColors.textMuted} />
+              <Ionicons name="time-outline" size={15} color="rgba(255,255,255,0.9)" />
               <Text style={styles.wheelTileTimerText}>{formatCountdownHMS(wheelRemaining)}</Text>
             </View>
           )}
@@ -264,18 +274,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: LQColors.surface,
     borderRadius: LQRadius.md,
     padding: 14,
     marginBottom: 18,
-    borderWidth: 1,
-    borderColor: LQColors.border,
+    overflow: 'hidden',
   },
   wheelTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   wheelTileDot: { position: 'absolute', top: -6, right: -6 },
-  wheelTileTitle: { fontSize: 18, fontWeight: '900', color: LQColors.text },
+  wheelTileTitle: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
   wheelTileTimer: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  wheelTileTimerText: { fontSize: 15, fontWeight: '900', color: LQColors.text },
+  wheelTileTimerText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
 
   premiumCard: { padding: 20 },
   premiumTitle: { fontSize: 24, fontWeight: '900', color: GOLD_TEXT },
