@@ -77,7 +77,7 @@ export default function LogoQuizWelcome() {
             style={({ pressed }) => [styles.playBtn, LQShadow.card, pressed && styles.pressed]}
             onPress={() => router.push('/logo-quiz/categories')}
           >
-            <Ionicons name="play" size={44} color="#fff" />
+            <Ionicons name="play" size={44} color={LQColors.surfaceAlt} />
             <Text style={styles.playText}>{t.play}</Text>
           </Pressable>
 
@@ -85,7 +85,7 @@ export default function LogoQuizWelcome() {
             style={({ pressed }) => [styles.shopBtn, LQShadow.card, pressed && styles.pressed]}
             onPress={() => router.push('/logo-quiz/shop')}
           >
-            <Ionicons name="bag-handle" size={40} color="#fff" />
+            <Ionicons name="bag-handle" size={40} color={LQColors.surfaceAlt} />
             <Text style={styles.shopText}>{t.shop}</Text>
             {/* Wheel-ready cue: a wheel glyph with a pulsing red "!" — only when
                 the free spin is available. */}
@@ -101,7 +101,7 @@ export default function LogoQuizWelcome() {
             style={({ pressed }) => [styles.settingsBtn, LQShadow.card, pressed && styles.pressed]}
             onPress={() => router.push('/logo-quiz/settings')}
           >
-            <Ionicons name="settings" size={38} color="#fff" />
+            <Ionicons name="settings" size={38} color={LQColors.surfaceAlt} />
             <Text style={styles.settingsText}>{t.settings}</Text>
           </Pressable>
         </View>

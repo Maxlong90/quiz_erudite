@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   prizePanelSpacer: { marginTop: 22, height: 64 },
-  prizeWonLabel: { fontSize: 13, fontWeight: '800' },
+  prizeWonLabel: { fontSize: 26, fontWeight: '800' },
   prizeAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   prizeAmount: { fontSize: 30, fontWeight: '900' },
 
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   spinBtnDisabled: { opacity: 0.5 },
-  spinText: { color: '#FFFFFF', fontWeight: '900', fontSize: 26, letterSpacing: 1 },
+  spinText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 26, letterSpacing: 1 },
 
   // Blue pill (primary) so the light-grey (surfaceAlt) label + timer read clearly.
   cooldown: {

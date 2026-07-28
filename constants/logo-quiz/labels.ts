@@ -74,6 +74,7 @@ export interface LQLabels {
   // wheel of fortune
   wheelTitle: string;
   wheelSpin: string;
+  wheelSpinNow: string;
   wheelOdds: string;
   wheelNextSpinIn: string;
   wheelPrizeWon: string;
@@ -109,7 +110,7 @@ const EN: LQLabels = {
   coins: 'Coins',
   coinPacks: 'Coins',
   livesPacks: 'Lives',
-  livesUnit: 'lives',
+  livesUnit: 'Lives',
   buy: 'Buy',
   mostPopular: 'Popular',
   whichBrand: 'Which brand is this?',
@@ -147,6 +148,7 @@ const EN: LQLabels = {
   ok: 'OK',
   wheelTitle: 'Wheel of Fortune',
   wheelSpin: 'SPIN',
+  wheelSpinNow: 'Spin now',
   wheelOdds: 'Odds disclosure',
   wheelNextSpinIn: 'Next spin in',
   wheelPrizeWon: 'You won',
@@ -220,6 +222,7 @@ const RU: LQLabels = {
   ok: 'ОК',
   wheelTitle: 'Колесо фортуны',
   wheelSpin: 'СПИН',
+  wheelSpinNow: 'Крутить',
   wheelOdds: 'Шансы призов',
   wheelNextSpinIn: 'Следующее вращение через',
   wheelPrizeWon: 'Вы выиграли',
@@ -289,6 +292,7 @@ const ES: LQLabels = {
   ok: 'OK',
   wheelTitle: 'Rueda de la fortuna',
   wheelSpin: 'GIRAR',
+  wheelSpinNow: 'Girar',
   wheelOdds: 'Probabilidades',
   wheelNextSpinIn: 'Próximo giro en',
   wheelPrizeWon: '¡Ganaste',
