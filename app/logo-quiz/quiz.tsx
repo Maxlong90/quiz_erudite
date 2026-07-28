@@ -1,5 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutRectangle,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -26,11 +44,14 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// How long the green "solved" (or red game-over) state shows before navigating.
-const REVEAL_MS = 900;
-// The "Next level" hint reveals the correct answer green for a longer beat (3s)
-// before the win screen, so the player sees the answer they skipped to.
-const SKIP_REVEAL_MS = 3000;
+// How long the red game-over state shows before the Game-over screen loads.
+const GAMEOVER_MS = 900;
+// Answer-reveal timings: the wrong options fade out over ~1s while the correct
+// answer simultaneously glides up under the question over ~1.7s; once it lands,
+// the Explanation panel + "Next" button fade in.
+const FADE_MS = 1000;
+const MOVE_MS = 1700;
+const UI_FADE_MS = 300;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
@@ -49,7 +70,6 @@ export default function LogoQuizQuiz() {
     setProgress,
     isCompleted,
     markCompleted,
-    recordRoundResult,
   } = useLogoQuiz();
 
   // A category finished once before is replayed as a free practice: no coin
@@ -90,6 +110,29 @@ export default function LogoQuizQuiz() {
   const [solved, setSolved] = useState(false);
   // Game over: lock the board WITHOUT revealing the answer green (unlike `solved`).
   const [over, setOver] = useState(false);
+  // Once the correct answer has finished gliding up, the grid is swapped for the
+  // settled reveal (centered answer + Explanation + "Next") — see `startReveal`.
+  const [revealSettled, setRevealSettled] = useState(false);
+
+  // Natural (pre-transform) grid rectangle of each option and the width of the
+  // options container, captured via onLayout — used to compute how far the
+  // correct answer must travel to sit centered at the top of the options area.
+  const optionRects = useRef<Map<string, LayoutRectangle>>(new Map());
+  const optionsWidth = useRef(0);
+
+  // Reveal drivers: wrong options fade (1→0), the answer glides (translateX/Y),
+  // and the Explanation + "Next" panel fades in once the glide lands.
+  const wrongOpacity = useSharedValue(1);
+  const answerTX = useSharedValue(0);
+  const answerTY = useSharedValue(0);
+  const revealUiOpacity = useSharedValue(0);
+
+  const answerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: answerTX.value }, { translateY: answerTY.value }],
+    zIndex: 5,
+  }));
+  const wrongAnimStyle = useAnimatedStyle(() => ({ opacity: wrongOpacity.value }));
+  const revealUiStyle = useAnimatedStyle(() => ({ opacity: revealUiOpacity.value }));
 
   // Empty pool guard (shouldn't happen with current mock data).
   useEffect(() => {
@@ -114,38 +157,45 @@ export default function LogoQuizQuiz() {
     [questions.length, cat, vip, question],
   );
 
-  // Remember a resolved question's outcome so the result screen can show its
-  // brand + explanation. `passed` also covers a hint-skip reveal.
-  const record = useCallback(
-    (passed: boolean) => {
-      if (!question) return;
-      recordRoundResult({
-        id: question.id,
-        brand: question.brand,
-        correct: passed,
-        explanation: question.explanation,
-      });
-    },
-    [question, recordRoundResult],
-  );
+  // Play the in-place answer reveal: the wrong options fade out (~1s) while the
+  // green answer glides up to sit centered under the question (~1.7s); once it
+  // lands, swap to the settled layout and fade in the Explanation + "Next".
+  const startReveal = useCallback(() => {
+    const rect = optionRects.current.get(question.brand);
+    const width = optionsWidth.current;
+    wrongOpacity.value = withTiming(0, { duration: FADE_MS });
+    if (rect && width > 0) {
+      const targetX = (width - rect.width) / 2 - rect.x;
+      const targetY = -rect.y;
+      answerTX.value = withTiming(targetX, { duration: MOVE_MS, easing: Easing.out(Easing.cubic) });
+      answerTY.value = withTiming(
+        targetY,
+        { duration: MOVE_MS, easing: Easing.out(Easing.cubic) },
+        (finished) => {
+          if (finished) runOnJS(setRevealSettled)(true);
+        },
+      );
+      revealUiOpacity.value = withDelay(MOVE_MS, withTiming(1, { duration: UI_FADE_MS }));
+    } else {
+      // No layout captured (shouldn't happen): settle immediately without a glide.
+      setRevealSettled(true);
+      revealUiOpacity.value = withTiming(1, { duration: UI_FADE_MS });
+    }
+  }, [question, wrongOpacity, answerTX, answerTY, revealUiOpacity]);
 
   const onPick = (option: string) => {
     if (solved || over || wrongPicked.includes(option)) return;
     if (option === question.brand) {
       // Level passed: light the answer green, award coins (2× premium) unless this
-      // is a practice replay, advance progress, then show the win screen.
+      // is a practice replay, advance progress, then play the in-place reveal.
       setSolved(true);
       if (!practice) awardCorrect();
-      record(true);
       const next = index + 1;
       const lastPassed = next >= questions.length;
       if (lastPassed) markCompleted(cat);
       else setProgress(cat, next);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      // Always show the win screen — including on the category's last question,
-      // where `next === questions.length`, so the result screen can tell the round
-      // is fully complete and swap "Next" for "Back to categories".
-      setTimeout(() => toResult('complete', next), REVEAL_MS);
+      startReveal();
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
       // trying. A real run loses a life per mistake (game over at zero); a practice
@@ -156,9 +206,8 @@ export default function LogoQuizQuiz() {
         loseLife();
         // Game over only once every life is spent — progress stays on this level.
         if (getLives() <= 0) {
-          record(false);
           setOver(true); // lock the board (no green reveal) while game-over loads
-          setTimeout(() => toResult('gameover', index), REVEAL_MS);
+          setTimeout(() => toResult('gameover', index), GAMEOVER_MS);
         }
       }
     }
@@ -190,30 +239,48 @@ export default function LogoQuizQuiz() {
     const lastPassed = next >= questions.length;
     if (lastPassed) markCompleted(cat);
     else setProgress(cat, next);
-    // A skip reveals the brand and clears the level, so record it as passed.
-    record(true);
-    // Light the correct answer green (like a solved level), hold it for 3s, then
-    // show the win screen. On the last level `next === questions.length`, so the
-    // result screen renders "Back to categories" instead of "Next".
+    // A skip reveals the brand green and runs the same in-place reveal (answer
+    // glides up, then Explanation + "Next") as a normal solve.
     setSolved(true);
     Haptics.selectionAsync().catch(() => {});
-    setTimeout(() => toResult('complete', next), SKIP_REVEAL_MS);
+    startReveal();
   };
 
-  // Practice mode (a completed category replayed): the hint buttons become level
-  // navigation. Prev/Next only page between questions — wrapping first↔last — and
-  // never trigger the Result Win / Game Over screens.
-  const goToLevel = useCallback((nextIndex: number) => {
-    setWrongPicked([]);
-    setRemoved([]);
-    setFiftyUsed(false);
-    setSolved(false);
-    setOver(false);
-    setIndex(nextIndex);
-    Haptics.selectionAsync().catch(() => {});
-  }, []);
+  // Reset every per-question flag (incl. the reveal animation) and show `nextIndex`
+  // in place — used by "Next" during a real run and by prev/next in a practice replay.
+  const goToLevel = useCallback(
+    (nextIndex: number) => {
+      setWrongPicked([]);
+      setRemoved([]);
+      setFiftyUsed(false);
+      setSolved(false);
+      setOver(false);
+      setRevealSettled(false);
+      optionRects.current.clear();
+      wrongOpacity.value = 1;
+      answerTX.value = 0;
+      answerTY.value = 0;
+      revealUiOpacity.value = 0;
+      setIndex(nextIndex);
+      Haptics.selectionAsync().catch(() => {});
+    },
+    [wrongOpacity, answerTX, answerTY, revealUiOpacity],
+  );
   const goPrev = () => goToLevel((index - 1 + questions.length) % questions.length);
   const goNext = () => goToLevel((index + 1) % questions.length);
+
+  // "Next" after a reveal: advance to the following question in place, or — on a
+  // real run's last question — open the Victory screen (the whole category is
+  // cleared). A practice replay just wraps back to the first level, no Victory.
+  const advance = () => {
+    const next = index + 1;
+    if (next >= questions.length) {
+      if (!practice) toResult('complete', questions.length);
+      else goToLevel(0);
+      return;
+    }
+    goToLevel(next);
+  };
 
   if (!question) {
     return <View style={styles.fill} />;
@@ -254,41 +321,87 @@ export default function LogoQuizQuiz() {
         <Text style={styles.prompt}>{t.whichBrand}</Text>
       </View>
 
-      {/* Options */}
-      <View style={styles.options}>
-        {question.options.map((option) => {
-          const isRemoved = removed.includes(option);
-          const isAnswer = option === question.brand;
-          const isWrong = wrongPicked.includes(option);
-          let tone: StyleProp<ViewStyle> = styles.optionIdle;
-          let textTone: StyleProp<TextStyle> = styles.optionText;
-          if (solved && isAnswer) {
-            tone = styles.optionCorrect;
-            textTone = styles.optionTextStrong;
-          } else if (isWrong) {
-            tone = styles.optionWrong;
-            textTone = styles.optionTextStrong;
-          }
-          return (
+      {/* Options — the answer grid while playing/revealing; once the correct
+          answer has glided into place it is swapped for the settled reveal
+          (centered answer + Explanation + "Next"). */}
+      {revealSettled ? (
+        <View style={styles.revealArea}>
+          <View style={[styles.option, styles.optionCorrect, styles.revealAnswer, LQShadow.card]}>
+            <Text style={styles.optionTextStrong} numberOfLines={1}>
+              {question.brand}
+            </Text>
+          </View>
+          <Animated.View style={[styles.revealUi, revealUiStyle]}>
+            {!!question.explanation && question.explanation.trim().length > 0 && (
+              <View style={styles.explBlock}>
+                <Text style={styles.explHeading}>{t.explanations}</Text>
+                <ScrollView
+                  style={styles.explScroll}
+                  contentContainerStyle={styles.explContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={[styles.explCard, LQShadow.card]}>
+                    <Text style={styles.explText}>{question.explanation}</Text>
+                  </View>
+                </ScrollView>
+              </View>
+            )}
             <Pressable
-              key={option}
-              disabled={solved || over || isRemoved || isWrong}
-              onPress={() => onPick(option)}
-              style={({ pressed }) => [
-                styles.option,
-                LQShadow.card,
-                tone,
-                isRemoved && styles.optionRemoved,
-                pressed && !solved && !over && !isRemoved && !isWrong && { transform: [{ scale: 0.98 }] },
-              ]}
+              onPress={advance}
+              style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
             >
-              <Text style={[textTone]} numberOfLines={1}>
-                {isRemoved ? '' : option}
-              </Text>
+              <Text style={styles.nextText}>{t.next}</Text>
             </Pressable>
-          );
-        })}
-      </View>
+          </Animated.View>
+        </View>
+      ) : (
+        <View
+          style={styles.options}
+          onLayout={(e) => {
+            optionsWidth.current = e.nativeEvent.layout.width;
+          }}
+        >
+          {question.options.map((option) => {
+            const isRemoved = removed.includes(option);
+            const isAnswer = option === question.brand;
+            const isWrong = wrongPicked.includes(option);
+            let tone: StyleProp<ViewStyle> = styles.optionIdle;
+            let textTone: StyleProp<TextStyle> = styles.optionText;
+            if (solved && isAnswer) {
+              tone = styles.optionCorrect;
+              textTone = styles.optionTextStrong;
+            } else if (isWrong) {
+              tone = styles.optionWrong;
+              textTone = styles.optionTextStrong;
+            }
+            return (
+              <Animated.View
+                key={option}
+                onLayout={(e) => {
+                  optionRects.current.set(option, e.nativeEvent.layout);
+                }}
+                style={[styles.optionWrap, isAnswer ? answerAnimStyle : wrongAnimStyle]}
+              >
+                <Pressable
+                  disabled={solved || over || isRemoved || isWrong}
+                  onPress={() => onPick(option)}
+                  style={({ pressed }) => [
+                    styles.option,
+                    LQShadow.card,
+                    tone,
+                    isRemoved && styles.optionRemoved,
+                    pressed && !solved && !over && !isRemoved && !isWrong && { transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <Text style={[textTone]} numberOfLines={1}>
+                    {isRemoved ? '' : option}
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Bottom row: hint buttons during a real run; in a completed-category
           practice replay they become level navigation (prev / next) that pages
@@ -417,8 +530,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     rowGap: 12,
   },
+  // Grid slot (the flex-wrapped, animated child). The button fills it so the
+  // per-option translate/opacity animation runs on the slot, not the layout.
+  optionWrap: { width: '48%' },
   option: {
-    width: '48%',
+    width: '100%',
     backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     paddingVertical: 16,
@@ -433,6 +549,41 @@ const styles = StyleSheet.create({
   optionWrong: { backgroundColor: LQColors.wrongBg, borderColor: LQColors.wrong },
   optionText: { fontSize: 16, fontWeight: '800', color: LQColors.text },
   optionTextStrong: { fontSize: 16, fontWeight: '900', color: LQColors.text },
+
+  // Settled reveal (after the correct answer glides up): centered green answer,
+  // then the Explanation panel and the "Next" button.
+  revealArea: { paddingHorizontal: 16 },
+  revealAnswer: { width: '48%', alignSelf: 'center' },
+  revealUi: { marginTop: 16, alignItems: 'center' },
+  explBlock: { width: '100%', marginBottom: 4 },
+  explHeading: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: LQColors.textMuted,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  explScroll: { maxHeight: 170, width: '100%' },
+  explContent: { paddingBottom: 2 },
+  explCard: {
+    backgroundColor: LQColors.surface,
+    borderRadius: LQRadius.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: LQColors.border,
+  },
+  explText: { fontSize: 14, fontWeight: '600', color: LQColors.textMuted, lineHeight: 20, textAlign: 'center' },
+  nextBtn: {
+    marginTop: 16,
+    alignSelf: 'center',
+    backgroundColor: LQColors.primary,
+    borderRadius: LQRadius.pill,
+    paddingVertical: 14,
+    paddingHorizontal: 44,
+  },
+  nextText: { color: '#fff', fontWeight: '900', fontSize: 17 },
 
   hints: {
     flexDirection: 'row',

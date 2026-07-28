@@ -21,12 +21,16 @@ function storageSuffix(appSlug: string): string {
   return appSlug === APP_SLUG ? '' : `:${appSlug}`;
 }
 
+// v2: the image cache filename scheme changed (see `imageFilename`) to fix a
+// collision that made every question reuse one logo. Bumping the key drops any
+// v1 snapshot whose imageMap still points every URL at that single shared file,
+// forcing a one-time resync that rebuilds the map with unique per-URL files.
 function snapshotKey(appSlug: string): string {
-  return `content.snapshot.v1${storageSuffix(appSlug)}`;
+  return `content.snapshot.v2${storageSuffix(appSlug)}`;
 }
 
 function versionKey(appSlug: string): string {
-  return `content.snapshot.version.v1${storageSuffix(appSlug)}`;
+  return `content.snapshot.version.v2${storageSuffix(appSlug)}`;
 }
 
 function imageDirFor(appSlug: string): string {
@@ -120,10 +124,18 @@ async function ensureImageDir(dir: string) {
 }
 
 function imageFilename(url: string): string {
-  // Stable filename from the URL path; the backend already includes
-  // a 6-char random suffix per question, so collisions are unlikely.
-  const last = url.split('/').pop() ?? 'image';
-  return last.replace(/[^a-z0-9._-]/gi, '_');
+  // Derive a UNIQUE, stable filename from the WHOLE URL. Using only the last
+  // path segment collides whenever the backend serves images at a fixed
+  // trailing path — the logo-quiz app serves them from `/questions/{id}/image`,
+  // so EVERY question's URL ends in "image". With a shared filename the first
+  // downloaded logo is reused for every question (the "wrong pictures" bug), so
+  // fold the full URL into a short stable hash and keep a readable tail.
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) {
+    hash = (Math.imul(hash, 31) + url.charCodeAt(i)) | 0;
+  }
+  const tail = (url.split('/').pop() ?? 'image').replace(/[^a-z0-9._-]/gi, '_');
+  return `${(hash >>> 0).toString(36)}_${tail}`;
 }
 
 interface DownloadProgress {

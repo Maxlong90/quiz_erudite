@@ -36,16 +36,7 @@ export interface LogoQuizQuestion {
   correctIndex: number;
   /** Local (or remote) URI of the real brand logo; null if none. */
   imageUri: string | null;
-  /** Localized explanation shown on the result screen; may be null/empty. */
-  explanation: string | null;
-}
-
-/** One answered question carried to the result screen via LogoQuizProvider. */
-export interface RoundQuestionResult {
-  id: number;
-  brand: string;
-  /** Whether the player cleared this level (true also for a skip/reveal). */
-  correct: boolean;
+  /** Localized explanation shown after a correct answer; may be null/empty. */
   explanation: string | null;
 }
 

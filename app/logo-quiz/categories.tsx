@@ -21,7 +21,7 @@ const GRID_GAP = 12;
 export default function LogoQuizCategories() {
   const t = useLQLabels();
   const { width } = useWindowDimensions();
-  const { getLives, startRound, coins, livesState, isPremium } = useLogoQuiz();
+  const { getLives, coins, livesState, isPremium } = useLogoQuiz();
   const { snapshot, status } = useLogoQuizContent();
 
   const cardW = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
@@ -35,9 +35,6 @@ export default function LogoQuizCategories() {
 
   const openCategory = useCallback(
     (cat: LogoQuizCategory) => {
-      // A fresh round: clear the previous round's per-question results so the
-      // result screen only shows this run's explanations.
-      startRound();
       // Out of lives: send the player to the Shop instead of into a round.
       if (getLives() <= 0) {
         router.push('/logo-quiz/shop');
@@ -45,7 +42,7 @@ export default function LogoQuizCategories() {
       }
       router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.slug } });
     },
-    [getLives, startRound],
+    [getLives],
   );
 
   return (

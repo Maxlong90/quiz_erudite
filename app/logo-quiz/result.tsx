@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -16,7 +15,7 @@ import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 
 export default function LogoQuizResult() {
   const t = useLQLabels();
-  const { coins: coinBalance, isPremium, livesState, roundResults } = useLogoQuiz();
+  const { coins: coinBalance, isPremium, livesState } = useLogoQuiz();
   const params = useLocalSearchParams<{
     score?: string;
     coins?: string;
@@ -28,19 +27,9 @@ export default function LogoQuizResult() {
 
   const score = Number(params.score ?? 0);
   const total = Number(params.total ?? 0);
+  // The result screen is reached only for a fully cleared category (a win) or a
+  // game over — the per-question flow now stays inside the quiz screen.
   const gameOver = params.outcome === 'gameover';
-  const category = params.category ?? '';
-  // The whole category is cleared when every level is passed (score === total).
-  // In that case the primary action returns to the category picker instead of
-  // advancing to a next level (there isn't one).
-  const roundComplete = !gameOver && total > 0 && score >= total;
-
-  // Explanations for every question answered this round that actually has one
-  // (already localized via the snapshot's ?locale=). Empty/blank ones are skipped.
-  const explanations = useMemo(
-    () => roundResults.filter((r) => r.explanation && r.explanation.trim().length > 0),
-    [roundResults],
-  );
 
   // Live countdown until the next life regenerates (null once the bar is full).
   const now = useNow(1000);
@@ -98,39 +87,11 @@ export default function LogoQuizResult() {
           </View>
         )}
 
-        {/* Explanations for each answered question, on the active language. */}
-        {explanations.length > 0 ? (
-          <View style={styles.explWrap}>
-            <Text style={styles.explHeading}>{t.explanations}</Text>
-            <ScrollView
-              style={styles.explScroll}
-              contentContainerStyle={styles.explContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {explanations.map((r) => (
-                <View key={r.id} style={[styles.explCard, LQShadow.card]}>
-                  <View style={styles.explRow}>
-                    <Ionicons
-                      name={r.correct ? 'checkmark-circle' : 'close-circle'}
-                      size={16}
-                      color={r.correct ? LQColors.success : LQColors.wrong}
-                    />
-                    <Text style={styles.explBrand}>{r.brand}</Text>
-                  </View>
-                  <Text style={styles.explText}>{r.explanation}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
+        <View style={{ flex: 1 }} />
 
-        {/* Actions — mid-round a win's Next continues to the following level; once
-            the whole category is cleared it becomes "Back to categories" and pops
-            to the picker the round started from (VIP list for a Premium category,
-            the regular list otherwise). On a game over the primary sends the player
-            to the Shop. Home returns to Welcome. */}
+        {/* Actions — a cleared category returns to the picker the round started
+            from (VIP list for a Premium category, the regular list otherwise). On
+            a game over the primary sends the player to the Shop. Home → Welcome. */}
         {gameOver ? (
           <GoldButton
             onPress={() => router.replace('/logo-quiz/shop')}
@@ -139,21 +100,12 @@ export default function LogoQuizResult() {
           >
             <Text style={styles.primaryGoldText}>{t.goToShop}</Text>
           </GoldButton>
-        ) : roundComplete ? (
+        ) : (
           <Pressable
             style={({ pressed }) => [styles.primaryBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
             onPress={() => router.dismissTo(categoryRoute)}
           >
             <Text style={styles.primaryText}>{t.backToCategories}</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
-            onPress={() =>
-              router.replace({ pathname: '/logo-quiz/quiz', params: { category, vip: params.vip ?? '' } })
-            }
-          >
-            <Text style={styles.primaryText}>{t.next}</Text>
           </Pressable>
         )}
         <Pressable style={styles.secondaryBtn} onPress={() => router.dismissTo('/logo-quiz')}>
@@ -215,28 +167,6 @@ const styles = StyleSheet.create({
   },
   regenLabel: { color: LQColors.textMuted, fontWeight: '800', fontSize: 14 },
   regenTime: { color: LQColors.text, fontWeight: '900', fontSize: 16 },
-
-  explWrap: { flex: 1, width: '100%', marginTop: 18 },
-  explHeading: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: LQColors.textMuted,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  explScroll: { flex: 1, width: '100%' },
-  explContent: { paddingBottom: 8, gap: 10 },
-  explCard: {
-    backgroundColor: LQColors.surface,
-    borderRadius: LQRadius.md,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: LQColors.border,
-  },
-  explRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  explBrand: { fontSize: 15, fontWeight: '900', color: LQColors.text },
-  explText: { fontSize: 13, fontWeight: '600', color: LQColors.textMuted, lineHeight: 18 },
 
   primaryBtn: {
     width: '100%',

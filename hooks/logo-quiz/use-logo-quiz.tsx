@@ -23,7 +23,6 @@ import {
   type LivesState,
 } from '@/lib/logo-quiz/economy';
 import type { CoinPack, LifePack, WheelPrize } from '@/lib/logo-quiz/economy';
-import type { RoundQuestionResult } from '@/lib/logo-quiz/content';
 
 /**
  * Local-state store for the Logo Quiz economy: coins, premium status, and the
@@ -100,15 +99,6 @@ interface LogoQuizValue {
   canSpinWheel: () => boolean;
   /** Credit a wheel prize (coins and/or stocked lives) and start the 24h cooldown. */
   spinWheel: (prize: WheelPrize) => void;
-  /**
-   * Per-question results of the round currently being played — used only to
-   * hand explanations to the result screen. Transient (never persisted).
-   */
-  roundResults: RoundQuestionResult[];
-  /** Clear the round buffer — call when a category round is opened afresh. */
-  startRound: () => void;
-  /** Append (or replace, by id) the outcome of a resolved question. */
-  recordRoundResult: (result: RoundQuestionResult) => void;
 }
 
 const DEFAULT_STATE: PersistedState = {
@@ -128,11 +118,6 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
-
-  // Transient buffer of the current round's answered questions — carries brand
-  // + explanation to the result screen without stuffing them into route params.
-  // Deliberately NOT part of PersistedState, so it never touches AsyncStorage.
-  const [roundResults, setRoundResults] = useState<RoundQuestionResult[]>([]);
 
   // Persist every change (best-effort; UI never blocks on storage).
   const persist = useCallback((next: PersistedState) => {
@@ -349,16 +334,6 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const startRound = useCallback(() => {
-    setRoundResults([]);
-  }, []);
-
-  const recordRoundResult = useCallback((result: RoundQuestionResult) => {
-    // Replace any prior entry for the same question so a re-answer doesn't
-    // duplicate; otherwise append in play order.
-    setRoundResults((prev) => [...prev.filter((r) => r.id !== result.id), result]);
-  }, []);
-
   const value = useMemo<LogoQuizValue>(
     () => ({
       ready,
@@ -389,11 +364,8 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       wheelLastSpinAt: state.wheelLastSpinAt,
       canSpinWheel,
       spinWheel,
-      roundResults,
-      startRound,
-      recordRoundResult,
     }),
-    [ready, state, roundResults, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel, startRound, recordRoundResult],
+    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
   );
 
   return <LogoQuizContext.Provider value={value}>{children}</LogoQuizContext.Provider>;

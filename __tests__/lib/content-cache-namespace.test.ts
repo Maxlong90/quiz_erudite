@@ -37,10 +37,10 @@ const deleteAsync = FileSystem.deleteAsync as jest.Mock;
 const PRIMARY = 'erudite-quiz';
 const SECONDARY = 'logo-quiz';
 
-const BASE_SNAPSHOT_KEY = 'content.snapshot.v1';
-const BASE_VERSION_KEY = 'content.snapshot.version.v1';
-const LQ_SNAPSHOT_KEY = 'content.snapshot.v1:logo-quiz';
-const LQ_VERSION_KEY = 'content.snapshot.version.v1:logo-quiz';
+const BASE_SNAPSHOT_KEY = 'content.snapshot.v2';
+const BASE_VERSION_KEY = 'content.snapshot.version.v2';
+const LQ_SNAPSHOT_KEY = 'content.snapshot.v2:logo-quiz';
+const LQ_VERSION_KEY = 'content.snapshot.version.v2:logo-quiz';
 
 function snapshot(slug: string, version: number): ContentSnapshot {
   return {

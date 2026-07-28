@@ -20,7 +20,7 @@ const GRID_GAP = 12;
 
 export default function LogoQuizCategoriesVip() {
   const t = useLQLabels();
-  const { isPremium, getLives, startRound, coins, livesState } = useLogoQuiz();
+  const { isPremium, getLives, coins, livesState } = useLogoQuiz();
   const { snapshot, status } = useLogoQuizContent();
   const { width } = useWindowDimensions();
 
@@ -38,14 +38,13 @@ export default function LogoQuizCategoriesVip() {
   // Out of lives also routes to the Shop instead of into a round.
   const openCategory = useCallback(
     (cat: LogoQuizCategory) => {
-      startRound();
       if (!isPremium || getLives() <= 0) {
         router.push('/logo-quiz/shop');
         return;
       }
       router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.slug, vip: '1' } });
     },
-    [isPremium, getLives, startRound],
+    [isPremium, getLives],
   );
 
   return (
