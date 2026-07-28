@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
-import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
+import { GoldSurface, ShineOverlay } from '@/components/logo-quiz/gold-gradient';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { WheelAlertDot, WheelMark } from '@/components/logo-quiz/wheel-badge';
@@ -113,8 +113,14 @@ export default function LogoQuizShop() {
           </View>
           {wheelAvailable ? (
             <View style={styles.wheelTileCtaRow}>
-              <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
-              <WheelAlertDot pulse size={18} />
+              {/* Same premium sheen as the Subscription banner, layered ON TOP of
+                  the label (clipped to its box, non-interactive) so a diagonal
+                  highlight runs across without changing the text colour. */}
+              <View style={styles.wheelTileCtaTextWrap}>
+                <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
+                <ShineOverlay />
+              </View>
+              <WheelAlertDot pulse size={27} />
             </View>
           ) : (
             <View style={styles.wheelTileTimer}>
@@ -286,6 +292,9 @@ const styles = StyleSheet.create({
   wheelTileTimer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   wheelTileTimerText: { fontSize: 30, fontWeight: '900', color: LQColors.surfaceAlt },
   wheelTileCtaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  // Clips the running sheen to the label's box so the skewed highlight never
+  // leaks past the text; position:'relative' anchors the absolute overlay.
+  wheelTileCtaTextWrap: { position: 'relative', overflow: 'hidden' },
   wheelTileCta: { fontSize: 44, fontWeight: '900', color: LQColors.surfaceAlt },
 
   premiumCard: { padding: 20 },

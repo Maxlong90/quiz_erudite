@@ -153,7 +153,7 @@ export default function LogoQuizWheel() {
         <View style={styles.title}>
           <Image
             source={require('../../assets/logo-quiz/wheel-title.png')}
-            style={{ width: WHEEL_SIZE, height: (WHEEL_SIZE * 462) / 826 }}
+            style={{ width: WHEEL_SIZE * 0.7, height: (WHEEL_SIZE * 0.7 * 462) / 826 }}
             resizeMode="contain"
           />
         </View>

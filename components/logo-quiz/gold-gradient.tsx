@@ -14,23 +14,16 @@ import Animated, {
 import { BLUE_GRADIENT, GOLD_GRADIENT, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 
 /**
- * A gradient surface with a looping diagonal "sheen" that sweeps across — the
- * shared premium-shine mechanic. `GoldSurface` and `BlueShinySurface` are thin
- * wrappers that only pick the base gradient (and, for blue, add diamond glints).
+ * The looping diagonal white "sheen" sweep on its own — the shared premium-shine
+ * mechanic, extracted so it can be layered over any surface OR over bare content
+ * (e.g. the Shop's "Spin now" label) without a masked-view native dependency.
+ *
+ * Renders as an absolutely-positioned, clipped, non-interactive layer that fills
+ * its parent and measures its own width, so drop it on top of (or behind) content
+ * inside a `position:'relative'` container. It changes nothing but the passing
+ * highlight — no base colour, no layout.
  */
-function ShinySurface({
-  colors,
-  children,
-  style,
-  radius = LQRadius.md,
-  sparkle = false,
-}: {
-  colors: readonly [string, string, ...string[]];
-  children?: ReactNode;
-  style?: StyleProp<ViewStyle>;
-  radius?: number;
-  sparkle?: boolean;
-}) {
+export function ShineOverlay({ radius = 0 }: { radius?: number }) {
   const progress = useSharedValue(0);
   const width = useSharedValue(0);
 
@@ -51,18 +44,12 @@ function ShinySurface({
 
   return (
     <View
-      style={[{ borderRadius: radius, overflow: 'hidden' }, style]}
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}
       onLayout={(e) => {
         width.value = e.nativeEvent.layout.width;
       }}
     >
-      <LinearGradient
-        colors={colors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      {sparkle && <DiamondGlints />}
       <Animated.View pointerEvents="none" style={[styles.sheen, sheenStyle]}>
         <LinearGradient
           colors={['#ffffff00', '#ffffffaa', '#ffffff00']}
@@ -71,6 +58,38 @@ function ShinySurface({
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
+    </View>
+  );
+}
+
+/**
+ * A gradient surface with a looping diagonal "sheen" that sweeps across — the
+ * shared premium-shine mechanic. `GoldSurface` and `BlueShinySurface` are thin
+ * wrappers that only pick the base gradient (and, for blue, add diamond glints).
+ */
+function ShinySurface({
+  colors,
+  children,
+  style,
+  radius = LQRadius.md,
+  sparkle = false,
+}: {
+  colors: readonly [string, string, ...string[]];
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  radius?: number;
+  sparkle?: boolean;
+}) {
+  return (
+    <View style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
+      <LinearGradient
+        colors={colors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {sparkle && <DiamondGlints />}
+      <ShineOverlay radius={radius} />
       {children}
     </View>
   );
