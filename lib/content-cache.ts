@@ -9,11 +9,30 @@ import { apiClient, APP_SLUG } from '@/api/client';
 // images itself and resolveLocalImage falls back to the remote URL.
 const IS_WEB = Platform.OS === 'web';
 
-const SNAPSHOT_KEY = 'content.snapshot.v1';
-const VERSION_KEY = 'content.snapshot.version.v1';
 const SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
-const IMAGE_DIR = FileSystem.documentDirectory + 'snapshot-images/';
 const IMAGE_DOWNLOAD_CONCURRENCY = 6;
+
+// The cache is namespaced per app slug so multiple experiences built from this
+// single codebase (the main quiz and the logo quiz) never clobber each other's
+// snapshot JSON or downloaded images. The app that matches the build's APP_SLUG
+// keeps the original un-suffixed keys, so this is a no-op for the primary app —
+// only a secondary slug (e.g. 'logo-quiz' inside the main build) gets suffixed.
+function storageSuffix(appSlug: string): string {
+  return appSlug === APP_SLUG ? '' : `:${appSlug}`;
+}
+
+function snapshotKey(appSlug: string): string {
+  return `content.snapshot.v1${storageSuffix(appSlug)}`;
+}
+
+function versionKey(appSlug: string): string {
+  return `content.snapshot.version.v1${storageSuffix(appSlug)}`;
+}
+
+function imageDirFor(appSlug: string): string {
+  const sub = appSlug === APP_SLUG ? '' : `-${appSlug.replace(/[^a-z0-9._-]/gi, '_')}`;
+  return FileSystem.documentDirectory + `snapshot-images${sub}/`;
+}
 
 export interface SnapshotCategory {
   slug: string;
@@ -21,6 +40,8 @@ export interface SnapshotCategory {
   sort_order: number;
   icon_emoji?: string | null;
   icon_url?: string | null;
+  /** VIP flag from the backend — routes the category to the app's VIP section. */
+  is_vip?: boolean;
   subcategories: SnapshotSubcategory[];
 }
 
@@ -30,6 +51,8 @@ export interface SnapshotSubcategory {
   sort_order: number;
   icon_emoji?: string | null;
   icon_url?: string | null;
+  /** VIP flag from the backend — routes the subcategory to the VIP section. */
+  is_vip?: boolean;
 }
 
 export interface SnapshotQuestion {
@@ -88,11 +111,11 @@ export interface ContentSnapshot {
 
 interface SnapshotResponse extends Omit<ContentSnapshot, 'imageMap' | 'syncedAt'> {}
 
-async function ensureImageDir() {
+async function ensureImageDir(dir: string) {
   if (IS_WEB) return;
-  const info = await FileSystem.getInfoAsync(IMAGE_DIR);
+  const info = await FileSystem.getInfoAsync(dir);
   if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(IMAGE_DIR, { intermediates: true });
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   }
 }
 
@@ -110,6 +133,7 @@ interface DownloadProgress {
 
 async function downloadImagesWithLimit(
   urls: string[],
+  dir: string,
   onProgress: (p: DownloadProgress) => void,
 ): Promise<Record<string, string>> {
   // Web: no local download — report complete immediately and let the
@@ -128,7 +152,7 @@ async function downloadImagesWithLimit(
     while (queue.length) {
       const url = queue.shift();
       if (!url) break;
-      const dest = IMAGE_DIR + imageFilename(url);
+      const dest = dir + imageFilename(url);
       try {
         const info = await FileSystem.getInfoAsync(dest);
         if (!info.exists) {
@@ -152,9 +176,9 @@ async function downloadImagesWithLimit(
   return map;
 }
 
-export async function loadCachedSnapshot(): Promise<ContentSnapshot | null> {
+export async function loadCachedSnapshot(appSlug: string = APP_SLUG): Promise<ContentSnapshot | null> {
   try {
-    const raw = await AsyncStorage.getItem(SNAPSHOT_KEY);
+    const raw = await AsyncStorage.getItem(snapshotKey(appSlug));
     if (!raw) return null;
     return JSON.parse(raw) as ContentSnapshot;
   } catch {
@@ -162,16 +186,16 @@ export async function loadCachedSnapshot(): Promise<ContentSnapshot | null> {
   }
 }
 
-export async function getCachedVersion(): Promise<number | null> {
-  const v = await AsyncStorage.getItem(VERSION_KEY);
+export async function getCachedVersion(appSlug: string = APP_SLUG): Promise<number | null> {
+  const v = await AsyncStorage.getItem(versionKey(appSlug));
   return v ? Number(v) : null;
 }
 
-export async function clearCache() {
-  await AsyncStorage.multiRemove([SNAPSHOT_KEY, VERSION_KEY]);
+export async function clearCache(appSlug: string = APP_SLUG) {
+  await AsyncStorage.multiRemove([snapshotKey(appSlug), versionKey(appSlug)]);
   if (IS_WEB) return;
   try {
-    await FileSystem.deleteAsync(IMAGE_DIR, { idempotent: true });
+    await FileSystem.deleteAsync(imageDirFor(appSlug), { idempotent: true });
   } catch {
     // ignore
   }
@@ -179,6 +203,12 @@ export async function clearCache() {
 
 export interface SyncOptions {
   locale: string;
+  /**
+   * Which app's content to fetch and cache. Defaults to the build's APP_SLUG.
+   * Pass an explicit slug (e.g. 'logo-quiz') to sync a secondary experience
+   * from the same codebase into its own namespaced cache.
+   */
+  appSlug?: string;
   /** Force a re-fetch even if the cached snapshot is fresh. */
   force?: boolean;
   onProgress?: (progress: number) => void;
@@ -194,7 +224,7 @@ export interface SyncOptions {
 }
 
 /**
- * Pull the full content snapshot for the configured app, write it to
+ * Pull the full content snapshot for the given app, write it to
  * AsyncStorage, and download every referenced image into the local
  * filesystem. Reports progress as 0..1 — first 20% covers the JSON
  * fetch, the remaining 80% covers image downloads.
@@ -205,6 +235,7 @@ export interface SyncOptions {
  */
 export async function syncContent({
   locale,
+  appSlug = APP_SLUG,
   force = false,
   onProgress,
   onSnapshot,
@@ -213,7 +244,7 @@ export async function syncContent({
 
   // Skip work if cache is fresh enough and locale matches.
   if (!force) {
-    const cached = await loadCachedSnapshot();
+    const cached = await loadCachedSnapshot(appSlug);
     if (cached
       && cached.locale === locale
       && cached.syncedAt
@@ -224,11 +255,12 @@ export async function syncContent({
     }
   }
 
-  await ensureImageDir();
+  const imageDir = imageDirFor(appSlug);
+  await ensureImageDir(imageDir);
 
   report(0.05);
   const { data } = await apiClient.get<SnapshotResponse>(
-    `/apps/${APP_SLUG}/snapshot`,
+    `/apps/${appSlug}/snapshot`,
     { params: { locale } },
   );
   report(0.2);
@@ -237,7 +269,7 @@ export async function syncContent({
   // so previously visible artwork doesn't disappear while the fresh set loads.
   // The paywall/onboarding gate reads app config from here and no longer blocks
   // on the image download below.
-  const previousImageMap = force ? {} : ((await loadCachedSnapshot())?.imageMap ?? {});
+  const previousImageMap = force ? {} : ((await loadCachedSnapshot(appSlug))?.imageMap ?? {});
   onSnapshot?.({ ...data, imageMap: previousImageMap, syncedAt: Date.now() });
 
   const categoryIconUrls = data.categories.flatMap((cat) => [
@@ -251,7 +283,7 @@ export async function syncContent({
     ].filter((u): u is string => !!u),
   ));
 
-  const imageMap = await downloadImagesWithLimit(urls, ({ total, done }) => {
+  const imageMap = await downloadImagesWithLimit(urls, imageDir, ({ total, done }) => {
     if (total === 0) {
       report(1);
       return;
@@ -265,8 +297,8 @@ export async function syncContent({
     syncedAt: Date.now(),
   };
 
-  await AsyncStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
-  await AsyncStorage.setItem(VERSION_KEY, String(snapshot.version));
+  await AsyncStorage.setItem(snapshotKey(appSlug), JSON.stringify(snapshot));
+  await AsyncStorage.setItem(versionKey(appSlug), String(snapshot.version));
 
   report(1);
   return snapshot;

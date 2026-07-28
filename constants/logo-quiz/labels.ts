@@ -1,7 +1,8 @@
 /**
  * UI strings for the Logo Quiz module, kept local to the feature (en/ru/es).
- * Screen chrome only — brand/answer text lives in mock-data.ts. Picked by the
- * app's active locale via useLQLabels().
+ * Screen chrome only — brand/answer text comes from the backend snapshot
+ * (localized per the requested locale). Picked by the app's active locale via
+ * useLQLabels().
  */
 import { useLocale } from '@/hooks/use-locale';
 
@@ -11,6 +12,10 @@ export interface LQLabels {
   settings: string;
   chooseCategory: string;
   vipCategories: string;
+  comingSoon: string;
+  comingSoonHint: string;
+  loadingContent: string;
+  noCategories: string;
   shop: string;
   buyPremium: string;
   premiumBanner: string;
@@ -48,6 +53,7 @@ export interface LQLabels {
   roundOver: string;
   gameOver: string;
   score: string;
+  explanations: string;
   coinsEarned: string;
   doubleCoinsUpsell: string;
   playAgain: string;
@@ -91,6 +97,10 @@ const EN: LQLabels = {
   settings: 'Settings',
   chooseCategory: 'Choose a category',
   vipCategories: 'VIP Categories',
+  comingSoon: 'Coming soon',
+  comingSoonHint: 'VIP categories will appear here soon.',
+  loadingContent: 'Loading…',
+  noCategories: 'No categories yet',
   shop: 'Shop',
   buyPremium: 'Buy Premium',
   premiumBanner: 'Go Premium — unlock every category & 3× faster lives',
@@ -125,6 +135,7 @@ const EN: LQLabels = {
   roundOver: 'Round complete!',
   gameOver: 'Game over',
   score: 'Score',
+  explanations: 'Explanations',
   coinsEarned: 'Coins earned',
   doubleCoinsUpsell: 'Get 2× more coins with Premium!',
   playAgain: 'Play again',
@@ -165,6 +176,10 @@ const RU: LQLabels = {
   settings: 'Настройки',
   chooseCategory: 'Выберите категорию',
   vipCategories: 'VIP категории',
+  comingSoon: 'Скоро',
+  comingSoonHint: 'VIP-категории появятся здесь совсем скоро.',
+  loadingContent: 'Загрузка…',
+  noCategories: 'Пока нет категорий',
   shop: 'Магазин',
   buyPremium: 'Купить Premium',
   premiumBanner: 'Premium — все категории и ×3 скорость восстановления жизней',
@@ -199,6 +214,7 @@ const RU: LQLabels = {
   roundOver: 'Раунд пройден!',
   gameOver: 'Игра окончена',
   score: 'Очки',
+  explanations: 'Объяснения',
   coinsEarned: 'Заработано монет',
   doubleCoinsUpsell: 'Получи в 2 раза больше монет с Premium!',
   playAgain: 'Играть снова',
@@ -239,6 +255,10 @@ const ES: LQLabels = {
   settings: 'Ajustes',
   chooseCategory: 'Elige una categoría',
   vipCategories: 'Categorías VIP',
+  comingSoon: 'Próximamente',
+  comingSoonHint: 'Las categorías VIP aparecerán aquí pronto.',
+  loadingContent: 'Cargando…',
+  noCategories: 'Aún no hay categorías',
   shop: 'Tienda',
   buyPremium: 'Comprar Premium',
   premiumBanner: 'Hazte Premium — todas las categorías y regeneración de vidas ×3',
@@ -269,6 +289,7 @@ const ES: LQLabels = {
   roundOver: '¡Ronda completada!',
   gameOver: 'Fin del juego',
   score: 'Puntos',
+  explanations: 'Explicaciones',
   coinsEarned: 'Monedas ganadas',
   doubleCoinsUpsell: '¡Consigue el doble de monedas con Premium!',
   playAgain: 'Jugar de nuevo',

@@ -10,11 +10,12 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { LogoDisplay } from '@/components/logo-quiz/logo-display';
-import { LOGO_CATEGORIES, VIP_CATEGORIES, getCategory, type LogoQuestion } from '@/constants/logo-quiz/mock-data';
+import { questionsForCategory, type LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { HINT_5050_COST, HINT_SKIP_COST } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -33,8 +34,9 @@ const SKIP_REVEAL_MS = 3000;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
-  const { category } = useLocalSearchParams<{ category?: string }>();
-  const cat = category ?? 'all';
+  const { category, vip } = useLocalSearchParams<{ category?: string; vip?: string }>();
+  const cat = category ?? '';
+  const { snapshot } = useLogoQuizContent();
   const {
     coins,
     isPremium,
@@ -47,18 +49,18 @@ export default function LogoQuizQuiz() {
     setProgress,
     isCompleted,
     markCompleted,
+    recordRoundResult,
   } = useLogoQuiz();
 
   // A category finished once before is replayed as a free practice: no coin
   // rewards, no life loss, and free hints. Captured once for the whole run.
   const practice = useMemo(() => isCompleted(cat), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sequential question list for this category — played in order, never shuffled.
-  const questions = useMemo<LogoQuestion[]>(() => {
-    if (!category || category === 'all') {
-      return LOGO_CATEGORIES.filter((c) => !c.vip || isPremium).flatMap((c) => c.questions);
-    }
-    return getCategory(category)?.questions ?? [];
+  // Sequential question list for this category from the backend snapshot cache —
+  // played in order, never shuffled. Frozen for the whole run at mount.
+  const questions = useMemo<LogoQuizQuestion[]>(() => {
+    if (!snapshot || !category) return [];
+    return questionsForCategory(snapshot, category);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -78,9 +80,8 @@ export default function LogoQuizQuiz() {
   // never router.replace — a replace would swap the quiz for a *second*
   // categories screen, leaving a duplicate underneath. That duplicate is what
   // made the category screen's back button need two taps to reach Welcome.
-  const backRoute = VIP_CATEGORIES.some((c) => c.id === cat)
-    ? '/logo-quiz/categories-vip'
-    : '/logo-quiz/categories';
+  const isVip = vip === '1';
+  const backRoute = isVip ? '/logo-quiz/categories-vip' : '/logo-quiz/categories';
 
   // Wrong picks stay red; the answer turns green only once it is picked (solved).
   const [wrongPicked, setWrongPicked] = useState<string[]>([]);
@@ -104,21 +105,38 @@ export default function LogoQuizQuiz() {
           total: String(questions.length),
           outcome,
           category: cat,
+          vip: vip ?? '',
           // On a game over, remember the current level so "Play again" can resume.
-          ...(outcome === 'gameover' ? { failed: question?.id ?? '' } : {}),
+          ...(outcome === 'gameover' ? { failed: String(question?.id ?? '') } : {}),
         },
       });
     },
-    [questions.length, cat, question],
+    [questions.length, cat, vip, question],
+  );
+
+  // Remember a resolved question's outcome so the result screen can show its
+  // brand + explanation. `passed` also covers a hint-skip reveal.
+  const record = useCallback(
+    (passed: boolean) => {
+      if (!question) return;
+      recordRoundResult({
+        id: question.id,
+        brand: question.brand,
+        correct: passed,
+        explanation: question.explanation,
+      });
+    },
+    [question, recordRoundResult],
   );
 
   const onPick = (option: string) => {
     if (solved || over || wrongPicked.includes(option)) return;
-    if (option === question.answer) {
+    if (option === question.brand) {
       // Level passed: light the answer green, award coins (2× premium) unless this
       // is a practice replay, advance progress, then show the win screen.
       setSolved(true);
       if (!practice) awardCorrect();
+      record(true);
       const next = index + 1;
       const lastPassed = next >= questions.length;
       if (lastPassed) markCompleted(cat);
@@ -138,6 +156,7 @@ export default function LogoQuizQuiz() {
         loseLife();
         // Game over only once every life is spent — progress stays on this level.
         if (getLives() <= 0) {
+          record(false);
           setOver(true); // lock the board (no green reveal) while game-over loads
           setTimeout(() => toResult('gameover', index), REVEAL_MS);
         }
@@ -154,7 +173,7 @@ export default function LogoQuizQuiz() {
     // more of the remaining non-red wrongs (all of them if fewer than three).
     const wrongs = shuffle(
       question.options.filter(
-        (o) => o !== question.answer && !removed.includes(o) && !wrongPicked.includes(o),
+        (o) => o !== question.brand && !removed.includes(o) && !wrongPicked.includes(o),
       ),
     );
     setRemoved((r) => [...r, ...wrongs.slice(0, 3)]);
@@ -171,6 +190,8 @@ export default function LogoQuizQuiz() {
     const lastPassed = next >= questions.length;
     if (lastPassed) markCompleted(cat);
     else setProgress(cat, next);
+    // A skip reveals the brand and clears the level, so record it as passed.
+    record(true);
     // Light the correct answer green (like a solved level), hold it for 3s, then
     // show the win screen. On the last level `next === questions.length`, so the
     // result screen renders "Back to categories" instead of "Next".
@@ -229,7 +250,7 @@ export default function LogoQuizQuiz() {
 
       {/* Logo */}
       <View style={styles.logoArea}>
-        <LogoDisplay question={question} size={210} />
+        <LogoDisplay imageUri={question.imageUri} size={210} />
         <Text style={styles.prompt}>{t.whichBrand}</Text>
       </View>
 
@@ -237,7 +258,7 @@ export default function LogoQuizQuiz() {
       <View style={styles.options}>
         {question.options.map((option) => {
           const isRemoved = removed.includes(option);
-          const isAnswer = option === question.answer;
+          const isAnswer = option === question.brand;
           const isWrong = wrongPicked.includes(option);
           let tone: StyleProp<ViewStyle> = styles.optionIdle;
           let textTone: StyleProp<TextStyle> = styles.optionText;

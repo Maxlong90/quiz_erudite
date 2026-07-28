@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -9,33 +9,43 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CategoryCard } from '@/components/logo-quiz/category-card';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
-import { VIP_CATEGORIES, type LogoCategory } from '@/constants/logo-quiz/mock-data';
+import { buildCategories, type LogoQuizCategory } from '@/lib/logo-quiz/content';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
 
 const GRID_PAD = 16;
 const GRID_GAP = 12;
 
 export default function LogoQuizCategoriesVip() {
   const t = useLQLabels();
-  const { isPremium, getLives, coins, livesState } = useLogoQuiz();
+  const { isPremium, getLives, startRound, coins, livesState } = useLogoQuiz();
+  const { snapshot, status } = useLogoQuizContent();
   const { width } = useWindowDimensions();
 
   const cardW = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
   const cardH = Math.round(cardW * 1.18);
 
+  // VIP section = categories the backend flagged as VIP. Currently none exist
+  // (admins fill them in Nova later), so the grid renders the empty state.
+  const categories = useMemo(
+    () => (snapshot ? buildCategories(snapshot, true) : []),
+    [snapshot],
+  );
+
   // Every category here is premium-only: non-subscribers are sent to the Shop.
   // Out of lives also routes to the Shop instead of into a round.
   const openCategory = useCallback(
-    (cat: LogoCategory) => {
+    (cat: LogoQuizCategory) => {
+      startRound();
       if (!isPremium || getLives() <= 0) {
         router.push('/logo-quiz/shop');
         return;
       }
-      router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.id } });
+      router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.slug, vip: '1' } });
     },
-    [isPremium, getLives],
+    [isPremium, getLives, startRound],
   );
 
   return (
@@ -63,8 +73,8 @@ export default function LogoQuizCategoriesVip() {
       </View>
 
       <FlatList
-        data={VIP_CATEGORIES}
-        keyExtractor={(c) => c.id}
+        data={categories}
+        keyExtractor={(c) => c.slug}
         numColumns={3}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
@@ -79,9 +89,26 @@ export default function LogoQuizCategoriesVip() {
             </Pressable>
           ) : null
         }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            {!snapshot && status === 'syncing' ? (
+              <ActivityIndicator color={LQColors.primary} />
+            ) : (
+              <>
+                <Text style={styles.emptyEmoji}>👑</Text>
+                <Text style={styles.emptyTitle}>{t.comingSoon}</Text>
+                <Text style={styles.emptyHint}>{t.comingSoonHint}</Text>
+              </>
+            )}
+          </View>
+        }
         renderItem={({ item }) => (
           <CategoryCard
-            category={item}
+            slug={item.slug}
+            name={item.name}
+            emoji={item.emoji}
+            vip={item.isVip}
+            total={item.total}
             width={cardW}
             height={cardH}
             locked={!isPremium}
@@ -130,4 +157,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   bannerText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 14, flexShrink: 1, textAlign: 'center' },
+
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
+  emptyEmoji: { fontSize: 44, marginBottom: 4 },
+  emptyTitle: { color: LQColors.text, fontWeight: '900', fontSize: 20 },
+  emptyHint: { color: LQColors.textMuted, fontWeight: '700', fontSize: 14, textAlign: 'center' },
 });

@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -9,10 +9,11 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CategoryCard } from '@/components/logo-quiz/category-card';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { GoldButton } from '@/components/logo-quiz/gold-gradient';
-import { REGULAR_CATEGORIES, type LogoCategory } from '@/constants/logo-quiz/mock-data';
+import { buildCategories, type LogoQuizCategory } from '@/lib/logo-quiz/content';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
 
 const GRID_PAD = 16;
 const GRID_GAP = 12;
@@ -20,21 +21,31 @@ const GRID_GAP = 12;
 export default function LogoQuizCategories() {
   const t = useLQLabels();
   const { width } = useWindowDimensions();
-  const { getLives, coins, livesState, isPremium } = useLogoQuiz();
+  const { getLives, startRound, coins, livesState, isPremium } = useLogoQuiz();
+  const { snapshot, status } = useLogoQuizContent();
 
   const cardW = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
   const cardH = Math.round(cardW * 1.18);
 
+  // Regular section = categories the backend did NOT flag as VIP.
+  const categories = useMemo(
+    () => (snapshot ? buildCategories(snapshot, false) : []),
+    [snapshot],
+  );
+
   const openCategory = useCallback(
-    (cat: LogoCategory) => {
+    (cat: LogoQuizCategory) => {
+      // A fresh round: clear the previous round's per-question results so the
+      // result screen only shows this run's explanations.
+      startRound();
       // Out of lives: send the player to the Shop instead of into a round.
       if (getLives() <= 0) {
         router.push('/logo-quiz/shop');
         return;
       }
-      router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.id } });
+      router.push({ pathname: '/logo-quiz/quiz', params: { category: cat.slug } });
     },
-    [getLives],
+    [getLives, startRound],
   );
 
   return (
@@ -63,8 +74,8 @@ export default function LogoQuizCategories() {
 
       {/* Vertically scrolling 3-column grid, gold VIP button pinned on top */}
       <FlatList
-        data={REGULAR_CATEGORIES}
-        keyExtractor={(c) => c.id}
+        data={categories}
+        keyExtractor={(c) => c.slug}
         numColumns={3}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
@@ -81,9 +92,25 @@ export default function LogoQuizCategories() {
             </View>
           </GoldButton>
         }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            {!snapshot && status === 'syncing' ? (
+              <>
+                <ActivityIndicator color={LQColors.primary} />
+                <Text style={styles.emptyText}>{t.loadingContent}</Text>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>{t.noCategories}</Text>
+            )}
+          </View>
+        }
         renderItem={({ item }) => (
           <CategoryCard
-            category={item}
+            slug={item.slug}
+            name={item.name}
+            emoji={item.emoji}
+            vip={item.isVip}
+            total={item.total}
             width={cardW}
             height={cardH}
             locked={false}
@@ -128,4 +155,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   vipButtonText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 16 },
+
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 12 },
+  emptyText: { color: LQColors.textMuted, fontWeight: '800', fontSize: 15 },
 });

@@ -3,37 +3,42 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
-import type { LogoCategory } from '@/constants/logo-quiz/mock-data';
-import { useLocale } from '@/hooks/use-locale';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 
 /**
- * One square tile in a Logo Quiz category grid: emoji + localized name, with an
- * optional VIP badge (a lock when the category is locked for the current user).
- * Shows the player's level progress (e.g. 7/40) and a green check once the
- * category has been fully completed. Shared by the main and VIP screens.
+ * One square tile in a Logo Quiz category grid: emoji + (already localized)
+ * name, with an optional VIP badge (a lock when the category is locked for the
+ * current user). Shows the player's level progress as passed/total (e.g. 7/40,
+ * or 0/0 for an empty category) and a green check once the category has been
+ * fully completed. Shared by the main and VIP screens. Progress is keyed by the
+ * backend category `slug`.
  */
 export function CategoryCard({
-  category,
+  slug,
+  name,
+  emoji,
+  vip,
+  total,
   width,
   height,
   locked,
   onPress,
 }: {
-  category: LogoCategory;
+  slug: string;
+  name: string;
+  emoji: string;
+  vip: boolean;
+  total: number;
   width: number;
   height: number;
   locked: boolean;
   onPress: () => void;
 }) {
   const t = useLQLabels();
-  const { locale } = useLocale();
   const { progressMap, completedMap } = useLogoQuiz();
-  const name = category.name[(locale as keyof LogoCategory['name']) ?? 'en'] ?? category.name.en;
 
-  const total = category.questions.length;
-  const done = !!completedMap[category.id];
-  const passed = done ? total : Math.min(progressMap[category.id] ?? 0, total);
+  const done = !!completedMap[slug];
+  const passed = done ? total : Math.min(progressMap[slug] ?? 0, total);
 
   return (
     <Pressable
@@ -46,7 +51,7 @@ export function CategoryCard({
         pressed && { transform: [{ scale: 0.97 }] },
       ]}
     >
-      {category.vip && (
+      {vip && (
         <View style={[styles.badge, styles.badgeLeft, locked ? styles.badgeLocked : styles.badgeVip]}>
           <Ionicons name={locked ? 'lock-closed' : 'star'} size={11} color="#fff" />
           <Text style={styles.badgeText}>{t.vip}</Text>
@@ -57,7 +62,7 @@ export function CategoryCard({
           <Ionicons name="checkmark" size={13} color="#fff" />
         </View>
       )}
-      <Text style={styles.emoji}>{category.emoji}</Text>
+      <Text style={styles.emoji}>{emoji}</Text>
       <Text style={styles.name} numberOfLines={2}>
         {name}
       </Text>
