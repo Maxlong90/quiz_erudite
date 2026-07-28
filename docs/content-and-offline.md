@@ -29,6 +29,8 @@ locale change / forced resync
 
 On native, downloaded images are written to a `snapshot-images/` directory under the app's document directory, and the snapshot's `imageMap` records each remote URL against its local file URI. During gameplay, `resolveLocalImage` swaps a remote URL for its cached local path when one exists, so the UI renders from disk. A failed download is simply skipped — the map omits that URL and the UI falls back to fetching it remotely, so a single bad download never blocks a quiz.
 
+Each cached file's name is derived from a hash of the *whole* remote URL, not just its last path segment. This matters because the Logo Quiz backend serves every question image from a fixed `/questions/{id}/image` path, so every URL ends in the same `image` segment. Naming files by that segment gave every question one shared filename, and the first logo downloaded was reused for every question — the "wrong pictures" bug. `imageFilename` folds the full URL into a short stable hash (keeping a readable tail) so each question gets a unique file. When this scheme changed, the snapshot storage keys were bumped from `v1` to `v2` (`snapshotKey`, `versionKey`), which drops any poisoned `v1` cache whose `imageMap` still points every URL at one file and forces a one-time resync that rebuilds the map with unique files.
+
 The web platform has no writable filesystem, so it skips the local image cache entirely: downloads are reported complete immediately and `resolveLocalImage` returns the remote URL for the browser to cache itself.
 
 ## Per-App Cache Namespacing
