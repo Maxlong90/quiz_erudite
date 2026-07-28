@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -19,7 +19,6 @@ import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { Confetti } from '@/components/logo-quiz/confetti';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { WheelPrizeIcons, WheelSvg } from '@/components/logo-quiz/wheel-svg';
-import { WheelTitle } from '@/components/logo-quiz/wheel-title';
 import { GOLD_TEXT, LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
@@ -152,7 +151,11 @@ export default function LogoQuizWheel() {
 
       <View style={styles.center}>
         <View style={styles.title}>
-          <WheelTitle text={t.wheelTitle} width={WHEEL_SIZE} />
+          <Image
+            source={require('../../assets/logo-quiz/wheel-title.png')}
+            style={{ width: WHEEL_SIZE, height: (WHEEL_SIZE * 462) / 826 }}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.wheelWrap}>

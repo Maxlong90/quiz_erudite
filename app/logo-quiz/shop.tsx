@@ -109,13 +109,13 @@ export default function LogoQuizShop() {
             pointerEvents="none"
           />
           <View style={styles.wheelTileLeft}>
-            <View>
-              <WheelMark size={46} />
-              {wheelAvailable && <WheelAlertDot size={20} style={styles.wheelTileDot} />}
-            </View>
+            <WheelMark size={46} />
           </View>
           {wheelAvailable ? (
-            <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
+            <View style={styles.wheelTileCtaRow}>
+              <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
+              <WheelAlertDot pulse size={18} />
+            </View>
           ) : (
             <View style={styles.wheelTileTimer}>
               <Ionicons name="time-outline" size={15} color="rgba(255,255,255,0.9)" />
@@ -283,10 +283,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   wheelTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  wheelTileDot: { position: 'absolute', top: -6, right: -6 },
   wheelTileTimer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   wheelTileTimerText: { fontSize: 30, fontWeight: '900', color: LQColors.surfaceAlt },
-  wheelTileCta: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '900', color: LQColors.surfaceAlt },
+  wheelTileCtaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  wheelTileCta: { fontSize: 44, fontWeight: '900', color: LQColors.surfaceAlt },
 
   premiumCard: { padding: 20 },
   premiumTitle: { fontSize: 24, fontWeight: '900', color: GOLD_TEXT },
