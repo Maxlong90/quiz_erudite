@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   btnInactive: { opacity: 0.45 },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 22 },
+  btnText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 22 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
 
   // Relative box so the reward badge can pin to the Rate button's corner.

@@ -92,7 +92,9 @@ export default function LogoQuizShop() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         {/* Wheel of Fortune — placed above Subscription. Shows a red "!" when the
-            free spin is ready, or a HH:MM:SS countdown while on cooldown. */}
+            free spin is ready, or a HH:MM:SS countdown while on cooldown. The title
+            is a section header above the tile (matching Subscription/Lives). */}
+        <Text style={styles.section}>{t.wheelTitle}</Text>
         <Pressable
           onPress={() => router.push('/logo-quiz/wheel')}
           style={({ pressed }) => [styles.wheelTile, LQShadow.gold, pressed && { opacity: 0.92 }]}
@@ -111,7 +113,6 @@ export default function LogoQuizShop() {
               <WheelMark size={46} />
               {wheelAvailable && <WheelAlertDot size={20} style={styles.wheelTileDot} />}
             </View>
-            <Text style={styles.wheelTileTitle}>{t.wheelTitle}</Text>
           </View>
           {wheelAvailable ? (
             <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
@@ -127,7 +128,7 @@ export default function LogoQuizShop() {
         <Text style={styles.section}>{t.subscription}</Text>
         <GoldSurface radius={LQRadius.lg} style={[styles.premiumCard, LQShadow.gold]}>
           <Text style={styles.premiumTitle}>👑 {t.premium}</Text>
-          <Text style={styles.premiumPerksTitle}>{t.premiumPerks}</Text>
+          <View style={{ height: 8 }} />
           <Perk text={t.perkCategories} />
           <Perk text={t.perkLives} />
           <Perk text={t.perkCoins} />
@@ -155,7 +156,9 @@ export default function LogoQuizShop() {
             <View style={styles.packLeft}>
               <CoinIcon size={30} />
               <View>
-                <Text style={styles.packCoins}>{pack.coins}</Text>
+                <Text style={styles.packCoins}>
+                  {pack.coins} {t.coins}
+                </Text>
                 {pack.popular && (
                   <View style={styles.popularTag}>
                     <Text style={styles.popularText}>{t.mostPopular}</Text>
@@ -281,13 +284,11 @@ const styles = StyleSheet.create({
   },
   wheelTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   wheelTileDot: { position: 'absolute', top: -6, right: -6 },
-  wheelTileTitle: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
   wheelTileTimer: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  wheelTileTimerText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
+  wheelTileTimerText: { fontSize: 30, fontWeight: '900', color: LQColors.surfaceAlt },
 
   premiumCard: { padding: 20 },
   premiumTitle: { fontSize: 24, fontWeight: '900', color: GOLD_TEXT },
-  premiumPerksTitle: { fontSize: 13, fontWeight: '800', color: '#7A5500', marginTop: 10, marginBottom: 8 },
   perkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   perkText: { fontSize: 15, fontWeight: '700', color: GOLD_TEXT },
   premiumBuy: {
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
     minWidth: 90,
     alignItems: 'center',
   },
-  packBuyText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  packBuyText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 15 },
   lifeBuy: { backgroundColor: LQColors.heart },
   packBuyDisabled: { opacity: 0.4 },
   coinPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },

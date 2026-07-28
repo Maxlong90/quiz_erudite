@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: LQRadius.pill,
     paddingVertical: 20,
   },
-  playText: { color: '#fff', fontWeight: '900', fontSize: 36 },
+  playText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 36 },
   shopBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: LQRadius.pill,
     paddingVertical: 20,
   },
-  shopText: { color: '#fff', fontWeight: '900', fontSize: 34 },
+  shopText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 34 },
   settingsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: LQRadius.pill,
     paddingVertical: 20,
   },
-  settingsText: { color: '#fff', fontWeight: '900', fontSize: 30 },
+  settingsText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 30 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   wheelBadge: { position: 'absolute', top: -12, right: 18 },
   wheelBadgeDot: { position: 'absolute', top: -6, right: -6 },

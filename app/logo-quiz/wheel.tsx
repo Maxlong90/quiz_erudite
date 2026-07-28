@@ -14,12 +14,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
-import { BlueShinySurface } from '@/components/logo-quiz/gold-gradient';
+import { BlueShinySurface, GoldSurface } from '@/components/logo-quiz/gold-gradient';
+import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { Confetti } from '@/components/logo-quiz/confetti';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { WheelPrizeIcons, WheelSvg } from '@/components/logo-quiz/wheel-svg';
 import { WheelTitle } from '@/components/logo-quiz/wheel-title';
-import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
+import { GOLD_TEXT, LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 import {
@@ -167,10 +168,7 @@ export default function LogoQuizWheel() {
         </View>
 
         {wonPrize && !spinning ? (
-          <View style={[styles.prizePanel, LQShadow.card]}>
-            <Text style={styles.prizeWonLabel}>{t.wheelPrizeWon}</Text>
-            <Text style={styles.prizeName}>{prizeLabel(wonPrize.id, t)}</Text>
-          </View>
+          <PrizePanel prize={wonPrize} t={t} />
         ) : (
           <View style={styles.prizePanelSpacer} />
         )}
@@ -192,7 +190,7 @@ export default function LogoQuizWheel() {
           </Pressable>
         ) : (
           <View style={[styles.cooldown, LQShadow.card]}>
-            <Ionicons name="time-outline" size={18} color={LQColors.textMuted} />
+            <Ionicons name="time-outline" size={18} color={LQColors.surfaceAlt} />
             <Text style={styles.cooldownLabel}>{t.wheelNextSpinIn}</Text>
             <Text style={styles.cooldownTime}>{formatCountdownHMS(remaining)}</Text>
           </View>
@@ -256,6 +254,55 @@ function OddsModal({
   );
 }
 
+/**
+ * The won-prize panel: a big amount + its icon (coin or heart), on a tier-driven
+ * background — base = flat grey (surfaceAlt), rare = shimmering blue, legendary =
+ * shimmering gold. Amount/label colours are chosen per tier to stay readable, and
+ * the brand icons (gold coin / red heart) are unchanged on every fill.
+ */
+function PrizePanel({ prize, t }: { prize: WheelPrize; t: LQLabels }) {
+  const isCoins = prize.reward.coins != null;
+  const amount = isCoins ? prize.reward.coins : prize.reward.lives;
+
+  // "You won" label + amount colours per tier (readability first).
+  const tone =
+    prize.tier === 'legendary'
+      ? { label: GOLD_TEXT, amount: GOLD_TEXT }
+      : prize.tier === 'rare'
+        ? { label: '#FFFFFF', amount: '#FFFFFF' }
+        : { label: LQColors.primary, amount: LQColors.text };
+
+  const body = (
+    <>
+      <Text style={[styles.prizeWonLabel, { color: tone.label }]}>{t.wheelPrizeWon}</Text>
+      <View style={styles.prizeAmountRow}>
+        <Text style={[styles.prizeAmount, { color: tone.amount }]}>{amount}</Text>
+        {isCoins ? (
+          <CoinIcon size={30} />
+        ) : (
+          <Ionicons name="heart" size={28} color={LQColors.heart} />
+        )}
+      </View>
+    </>
+  );
+
+  if (prize.tier === 'legendary') {
+    return (
+      <GoldSurface radius={LQRadius.md} style={[styles.prizePanelSurface, LQShadow.card]}>
+        {body}
+      </GoldSurface>
+    );
+  }
+  if (prize.tier === 'rare') {
+    return (
+      <BlueShinySurface radius={LQRadius.md} style={[styles.prizePanelSurface, LQShadow.card]}>
+        {body}
+      </BlueShinySurface>
+    );
+  }
+  return <View style={[styles.prizePanel, LQShadow.card]}>{body}</View>;
+}
+
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
   header: {
@@ -299,9 +346,10 @@ const styles = StyleSheet.create({
     borderTopColor: LQColors.wrong,
   },
 
+  // base tier: a flat grey card (surfaceAlt — same fill as the low-tier wedges).
   prizePanel: {
     marginTop: 22,
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -309,9 +357,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: LQColors.border,
   },
+  // rare/legendary tiers: the shimmer surface supplies the fill + rounded corners,
+  // so only spacing/alignment live here.
+  prizePanelSurface: {
+    marginTop: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
   prizePanelSpacer: { marginTop: 22, height: 64 },
-  prizeWonLabel: { fontSize: 13, fontWeight: '800', color: LQColors.textMuted },
-  prizeName: { fontSize: 22, fontWeight: '900', color: LQColors.text, marginTop: 2 },
+  prizeWonLabel: { fontSize: 13, fontWeight: '800' },
+  prizeAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  prizeAmount: { fontSize: 30, fontWeight: '900' },
 
   spinBtn: {
     marginTop: 24,
@@ -325,20 +382,19 @@ const styles = StyleSheet.create({
   spinBtnDisabled: { opacity: 0.5 },
   spinText: { color: '#FFFFFF', fontWeight: '900', fontSize: 26, letterSpacing: 1 },
 
+  // Blue pill (primary) so the light-grey (surfaceAlt) label + timer read clearly.
   cooldown: {
     marginTop: 24,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.primary,
     borderRadius: LQRadius.pill,
     paddingVertical: 14,
     paddingHorizontal: 22,
-    borderWidth: 1,
-    borderColor: LQColors.border,
   },
-  cooldownLabel: { fontSize: 14, fontWeight: '700', color: LQColors.textMuted },
-  cooldownTime: { fontSize: 16, fontWeight: '900', color: LQColors.text },
+  cooldownLabel: { fontSize: 14, fontWeight: '700', color: LQColors.surfaceAlt },
+  cooldownTime: { fontSize: 16, fontWeight: '900', color: LQColors.surfaceAlt },
 
   devBtn: {
     flexDirection: 'row',
