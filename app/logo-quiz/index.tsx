@@ -15,12 +15,17 @@ import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 import { wheelSpinAvailable } from '@/lib/logo-quiz/economy';
 
-// Bitmap art shown on Welcome — the title and the bottom brand strip. Preloaded
-// before the screen renders (below) so they don't pop in a beat after the
-// instantly-drawn buttons.
+// Bitmap art shown on Welcome — the title and the bottom brand strip — plus the
+// Wheel-of-Fortune icon/title used later on Home, Shop, and the Wheel screen.
+// Preloaded before the screen renders (below) so they don't pop in a beat after
+// the instantly-drawn buttons. Welcome is the guaranteed entry screen for the
+// logo-quiz build, so warming the wheel art here covers every downstream call
+// site (Home shop-button badge, Shop wheel tile, Wheel title).
 const WELCOME_ASSETS = [
   require('../../assets/logo-quiz/title.png'),
   require('../../assets/logo-quiz/brand-strip.png'),
+  require('../../assets/logo-quiz/wheel-icon.png'),
+  require('../../assets/logo-quiz/wheel-title.png'),
 ];
 
 export default function LogoQuizWelcome() {

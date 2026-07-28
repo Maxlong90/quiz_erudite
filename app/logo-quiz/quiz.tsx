@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  type LayoutRectangle,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -110,29 +107,10 @@ export default function LogoQuizQuiz() {
   const [solved, setSolved] = useState(false);
   // Game over: lock the board WITHOUT revealing the answer green (unlike `solved`).
   const [over, setOver] = useState(false);
-  // Once the correct answer has finished gliding up, the grid is swapped for the
-  // settled reveal (centered answer + Explanation + "Next") — see `startReveal`.
-  const [revealSettled, setRevealSettled] = useState(false);
-
-  // Natural (pre-transform) grid rectangle of each option and the width of the
-  // options container, captured via onLayout — used to compute how far the
-  // correct answer must travel to sit centered at the top of the options area.
-  const optionRects = useRef<Map<string, LayoutRectangle>>(new Map());
-  const optionsWidth = useRef(0);
-
-  // Reveal drivers: wrong options fade (1→0), the answer glides (translateX/Y),
-  // and the Explanation + "Next" panel fades in once the glide lands.
-  const wrongOpacity = useSharedValue(1);
-  const answerTX = useSharedValue(0);
-  const answerTY = useSharedValue(0);
-  const revealUiOpacity = useSharedValue(0);
-
-  const answerAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: answerTX.value }, { translateY: answerTY.value }],
-    zIndex: 5,
-  }));
-  const wrongAnimStyle = useAnimatedStyle(() => ({ opacity: wrongOpacity.value }));
-  const revealUiStyle = useAnimatedStyle(() => ({ opacity: revealUiOpacity.value }));
+  // Answer reveal in progress: the wrong options unmount (fading out) while the
+  // correct green answer — the same mounted component — glides up and centers via
+  // Reanimated layout animations. Drives the whole in-place reveal (see below).
+  const [revealing, setRevealing] = useState(false);
 
   // Empty pool guard (shouldn't happen with current mock data).
   useEffect(() => {
@@ -157,31 +135,14 @@ export default function LogoQuizQuiz() {
     [questions.length, cat, vip, question],
   );
 
-  // Play the in-place answer reveal: the wrong options fade out (~1s) while the
-  // green answer glides up to sit centered under the question (~1.7s); once it
-  // lands, swap to the settled layout and fade in the Explanation + "Next".
+  // Play the in-place answer reveal. Flipping `revealing` drives everything via
+  // Reanimated layout animations: the wrong options unmount and fade out (~1s,
+  // FadeOut), the correct green answer — the same mounted component — glides up
+  // and centers as the layout reflows (~1.7s, LinearTransition), and once it
+  // lands the Explanation + "Next" panel fades in (FadeIn.delay(MOVE_MS)).
   const startReveal = useCallback(() => {
-    const rect = optionRects.current.get(question.brand);
-    const width = optionsWidth.current;
-    wrongOpacity.value = withTiming(0, { duration: FADE_MS });
-    if (rect && width > 0) {
-      const targetX = (width - rect.width) / 2 - rect.x;
-      const targetY = -rect.y;
-      answerTX.value = withTiming(targetX, { duration: MOVE_MS, easing: Easing.out(Easing.cubic) });
-      answerTY.value = withTiming(
-        targetY,
-        { duration: MOVE_MS, easing: Easing.out(Easing.cubic) },
-        (finished) => {
-          if (finished) runOnJS(setRevealSettled)(true);
-        },
-      );
-      revealUiOpacity.value = withDelay(MOVE_MS, withTiming(1, { duration: UI_FADE_MS }));
-    } else {
-      // No layout captured (shouldn't happen): settle immediately without a glide.
-      setRevealSettled(true);
-      revealUiOpacity.value = withTiming(1, { duration: UI_FADE_MS });
-    }
-  }, [question, wrongOpacity, answerTX, answerTY, revealUiOpacity]);
+    setRevealing(true);
+  }, []);
 
   const onPick = (option: string) => {
     if (solved || over || wrongPicked.includes(option)) return;
@@ -248,24 +209,16 @@ export default function LogoQuizQuiz() {
 
   // Reset every per-question flag (incl. the reveal animation) and show `nextIndex`
   // in place — used by "Next" during a real run and by prev/next in a practice replay.
-  const goToLevel = useCallback(
-    (nextIndex: number) => {
-      setWrongPicked([]);
-      setRemoved([]);
-      setFiftyUsed(false);
-      setSolved(false);
-      setOver(false);
-      setRevealSettled(false);
-      optionRects.current.clear();
-      wrongOpacity.value = 1;
-      answerTX.value = 0;
-      answerTY.value = 0;
-      revealUiOpacity.value = 0;
-      setIndex(nextIndex);
-      Haptics.selectionAsync().catch(() => {});
-    },
-    [wrongOpacity, answerTX, answerTY, revealUiOpacity],
-  );
+  const goToLevel = useCallback((nextIndex: number) => {
+    setWrongPicked([]);
+    setRemoved([]);
+    setFiftyUsed(false);
+    setSolved(false);
+    setOver(false);
+    setRevealing(false);
+    setIndex(nextIndex);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
   const goPrev = () => goToLevel((index - 1 + questions.length) % questions.length);
   const goNext = () => goToLevel((index + 1) % questions.length);
 
@@ -321,86 +274,90 @@ export default function LogoQuizQuiz() {
         <Text style={styles.prompt}>{t.whichBrand}</Text>
       </View>
 
-      {/* Options — the answer grid while playing/revealing; once the correct
-          answer has glided into place it is swapped for the settled reveal
-          (centered answer + Explanation + "Next"). */}
-      {revealSettled ? (
-        <View style={styles.revealArea}>
-          <View style={[styles.option, styles.optionCorrect, styles.revealAnswer, LQShadow.card]}>
-            <Text style={styles.optionTextStrong} numberOfLines={1}>
-              {question.brand}
-            </Text>
-          </View>
-          <Animated.View style={[styles.revealUi, revealUiStyle]}>
-            {!!question.explanation && question.explanation.trim().length > 0 && (
-              <View style={styles.explBlock}>
-                <Text style={styles.explHeading}>{t.explanations}</Text>
-                <ScrollView
-                  style={styles.explScroll}
-                  contentContainerStyle={styles.explContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View style={[styles.explCard, LQShadow.card]}>
-                    <Text style={styles.explText}>{question.explanation}</Text>
-                  </View>
-                </ScrollView>
-              </View>
-            )}
-            <Pressable
-              onPress={advance}
-              style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
+      {/* Options — the answer grid. On a correct reveal the wrong options unmount
+          (FadeOut) while the correct answer, kept mounted with a stable key,
+          glides up and centers (LinearTransition) as the container re-centers the
+          lone survivor. No layout swap, so it animates smoothly from any position.
+          The container is keyed by question id so a level change remounts the whole
+          grid as a unit — Reanimated skips child exit animations when their parent
+          unmounts, keeping "Next"/practice paging instant (only the in-reveal
+          per-item removal, where the container persists, plays FadeOut). */}
+      <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
+        {question.options.map((option) => {
+          const isAnswer = option === question.brand;
+          // During the reveal the wrong options leave the tree; unmounting is what
+          // fires their exiting FadeOut and frees the layout for the answer's glide.
+          if (revealing && !isAnswer) return null;
+          const isRemoved = removed.includes(option);
+          const isWrong = wrongPicked.includes(option);
+          let tone: StyleProp<ViewStyle> = styles.optionIdle;
+          let textTone: StyleProp<TextStyle> = styles.optionText;
+          if (solved && isAnswer) {
+            tone = styles.optionCorrect;
+            textTone = styles.optionTextStrong;
+          } else if (isWrong) {
+            tone = styles.optionWrong;
+            textTone = styles.optionTextStrong;
+          }
+          return (
+            <Animated.View
+              key={option}
+              layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+              // Only wrong options fade out (on reveal). The answer never exits — it
+              // stays mounted and glides — so it can't flash a fade when the level changes.
+              exiting={isAnswer ? undefined : FadeOut.duration(FADE_MS)}
+              style={styles.optionWrap}
             >
-              <Text style={styles.nextText}>{t.next}</Text>
-            </Pressable>
-          </Animated.View>
-        </View>
-      ) : (
-        <View
-          style={styles.options}
-          onLayout={(e) => {
-            optionsWidth.current = e.nativeEvent.layout.width;
-          }}
-        >
-          {question.options.map((option) => {
-            const isRemoved = removed.includes(option);
-            const isAnswer = option === question.brand;
-            const isWrong = wrongPicked.includes(option);
-            let tone: StyleProp<ViewStyle> = styles.optionIdle;
-            let textTone: StyleProp<TextStyle> = styles.optionText;
-            if (solved && isAnswer) {
-              tone = styles.optionCorrect;
-              textTone = styles.optionTextStrong;
-            } else if (isWrong) {
-              tone = styles.optionWrong;
-              textTone = styles.optionTextStrong;
-            }
-            return (
-              <Animated.View
-                key={option}
-                onLayout={(e) => {
-                  optionRects.current.set(option, e.nativeEvent.layout);
-                }}
-                style={[styles.optionWrap, isAnswer ? answerAnimStyle : wrongAnimStyle]}
+              <Pressable
+                disabled={solved || over || revealing || isRemoved || isWrong}
+                onPress={() => onPick(option)}
+                style={({ pressed }) => [
+                  styles.option,
+                  LQShadow.card,
+                  tone,
+                  isRemoved && styles.optionRemoved,
+                  pressed && !solved && !over && !isRemoved && !isWrong && { transform: [{ scale: 0.98 }] },
+                ]}
               >
-                <Pressable
-                  disabled={solved || over || isRemoved || isWrong}
-                  onPress={() => onPick(option)}
-                  style={({ pressed }) => [
-                    styles.option,
-                    LQShadow.card,
-                    tone,
-                    isRemoved && styles.optionRemoved,
-                    pressed && !solved && !over && !isRemoved && !isWrong && { transform: [{ scale: 0.98 }] },
-                  ]}
-                >
-                  <Text style={[textTone]} numberOfLines={1}>
-                    {isRemoved ? '' : option}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
+                <Text style={[textTone]} numberOfLines={1}>
+                  {isRemoved ? '' : option}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          );
+        })}
+      </View>
+
+      {/* Reveal panel — Explanation (localized `question.explanation`, omitted when
+          blank) + "Next", rendered below the centered answer. Fades in only after
+          the answer's glide lands (FadeIn.delay(MOVE_MS)); it sits below the answer
+          in normal flow, so mounting it never shifts the answer. */}
+      {revealing && (
+        <Animated.View
+          entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}
+          style={[styles.revealArea, styles.revealUi]}
+        >
+          {!!question.explanation && question.explanation.trim().length > 0 && (
+            <View style={styles.explBlock}>
+              <Text style={styles.explHeading}>{t.explanations}</Text>
+              <ScrollView
+                style={styles.explScroll}
+                contentContainerStyle={styles.explContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.explCard, LQShadow.card]}>
+                  <Text style={styles.explText}>{question.explanation}</Text>
+                </View>
+              </ScrollView>
+            </View>
+          )}
+          <Pressable
+            onPress={advance}
+            style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={styles.nextText}>{t.next}</Text>
+          </Pressable>
+        </Animated.View>
       )}
 
       {/* Bottom row: hint buttons during a real run; in a completed-category
@@ -530,6 +487,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     rowGap: 12,
   },
+  // While revealing only the correct answer remains — center the lone 48%-wide
+  // survivor so its LinearTransition glides it to the middle under the question.
+  optionsRevealing: { justifyContent: 'center' },
   // Grid slot (the flex-wrapped, animated child). The button fills it so the
   // per-option translate/opacity animation runs on the slot, not the layout.
   optionWrap: { width: '48%' },
@@ -550,10 +510,9 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 16, fontWeight: '800', color: LQColors.text },
   optionTextStrong: { fontSize: 16, fontWeight: '900', color: LQColors.text },
 
-  // Settled reveal (after the correct answer glides up): centered green answer,
-  // then the Explanation panel and the "Next" button.
+  // Reveal panel (below the glided-up green answer): the Explanation card, then
+  // the "Next" button — horizontally padded and centered.
   revealArea: { paddingHorizontal: 16 },
-  revealAnswer: { width: '48%', alignSelf: 'center' },
   revealUi: { marginTop: 16, alignItems: 'center' },
   explBlock: { width: '100%', marginBottom: 4 },
   explHeading: {
