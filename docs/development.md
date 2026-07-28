@@ -20,7 +20,7 @@ The app reads these public env vars at build time:
 | Variable | Purpose | Default if unset |
 |----------|---------|------------------|
 | EXPO_PUBLIC_API_URL | Backend base URL (see `api/client.ts`) | `https://quiz-erudit-backend.turbosuslik.online/api/v1` |
-| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path (see `api/client.ts`) | `erudite-quiz` |
+| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path; also selects which app the build is — `logo-quiz` builds the Logo Quiz, anything else builds the main quiz (see `api/client.ts`, `app/index.tsx`) | `erudite-quiz` |
 | EXPO_PUBLIC_REVENUECAT_ANDROID_KEY | RevenueCat public Android billing key (see `lib/revenuecat.ts`) | `goog_hFgRbNrOlUHcMtKClkwWcYIBLvd` |
 | EXPO_PUBLIC_REVENUECAT_IOS_KEY | RevenueCat public iOS billing key — enables iOS billing when set (see `lib/revenuecat.ts`) | *(empty — iOS billing stays off)* |
 | EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID | AdMob rewarded ad-unit id for "watch ad → +1 life" on Android (see `lib/ads.ts`) | Google's test rewarded id `ca-app-pub-3940256099942544/5224354917` |
@@ -30,7 +30,7 @@ Android keys carry a committed default, so the app builds and runs without an `.
 
 For EAS cloud builds the RevenueCat key is also wired explicitly in `eas.json` under the `preview` and `production` profiles, so release builds carry it through EAS env rather than relying on the in-code fallback. The `development` profile leaves it unset and falls back to the committed default. The value across the env wiring and the fallback is the same public Android key — they must point at the RevenueCat project the backend provisions, or the `default` offering comes back empty and the paywall has no packages to sell.
 
-Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set.
+Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set, or `EXPO_PUBLIC_APP_SLUG=logo-quiz` to build the Logo Quiz app from the same tree — see [Logo Quiz](logo-quiz.md).
 
 ## Run the App
 
@@ -107,4 +107,5 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 
 - [Architecture](architecture.md) -- System structure and component organization
 - [Content and Offline](content-and-offline.md) -- Snapshot sync and caching
+- [Logo Quiz](logo-quiz.md) -- Building the second app via `APP_SLUG`
 - [INDEX](INDEX.md) -- Documentation entry point

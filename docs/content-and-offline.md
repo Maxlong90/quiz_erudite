@@ -31,13 +31,19 @@ On native, downloaded images are written to a `snapshot-images/` directory under
 
 The web platform has no writable filesystem, so it skips the local image cache entirely: downloads are reported complete immediately and `resolveLocalImage` returns the remote URL for the browser to cache itself.
 
+## Per-App Cache Namespacing
+
+One build tree ships two apps — the main quiz and the Logo Quiz — selected by the build's `APP_SLUG`. Both draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering the other's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
+
+The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys and `snapshot-images/` directory, so namespacing is a no-op for the primary app. Any other slug synced into the same build — for example a Logo Quiz screen syncing `logo-quiz` from an erudite build — gets a `:{slug}`-suffixed key set and its own `snapshot-images-{slug}/` directory. See [Logo Quiz](logo-quiz.md#from-mock-data-to-backend-content).
+
 ## Cache Freshness
 
 The snapshot carries a `syncedAt` timestamp, and a 24-hour TTL governs reuse. A snapshot older than that, or one whose locale no longer matches the active language, is re-fetched on the next sync. Clearing the cache (from settings reset) removes both AsyncStorage keys and deletes the image directory.
 
 ## Answer-Statistics Sync
 
-The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
+The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; the Logo Quiz content provider syncs the same way but skips it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
 
 ## Cross-Session No-Repeats
 
@@ -61,3 +67,4 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Data Model](data-model.md) -- Snapshot and seen-set shapes
 - [Gamification](gamification.md) -- Stats and achievements built on seen sets
 - [Architecture](architecture.md) -- The content cache provider
+- [Logo Quiz](logo-quiz.md) -- The second app that shares this cache under its own namespace

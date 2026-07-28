@@ -32,8 +32,11 @@ A category is a top-level subject (geography, history, and so on); a subcategory
 | sort_order | Display order within its level |
 | icon_emoji | DB-provided emoji icon (nullable; falls back to the local map) |
 | icon_url | DB-provided icon image (nullable; falls back to the emoji) |
+| is_vip | Backend flag routing a category to an app's VIP section (nullable; snapshot only) |
 | subcategories_count, total_questions_count | Tile counters (live API, top level) |
 | should_have_images, should_have_audio | Content-shape hints from the backend |
+
+The `is_vip` flag is set in the backend admin and rides the snapshot on both categories and subcategories. The main quiz ignores it; the Logo Quiz app uses it as the single source of truth for splitting its regular and VIP category grids. See [Logo Quiz](logo-quiz.md#categories-and-the-vip-split).
 
 ### Content Snapshot
 
@@ -142,3 +145,4 @@ Progress stores accumulate monotonically as the player plays — stats and seen 
 - [Gamification](gamification.md) -- Lives, hints, mistakes, stats, achievements
 - [Quiz Flow](quiz-flow.md) -- How entities are used during gameplay
 - [Architecture](architecture.md) -- System structure and providers
+- [Logo Quiz](logo-quiz.md) -- The second app and its use of the `is_vip` flag

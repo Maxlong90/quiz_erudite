@@ -80,6 +80,8 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
+**One tree, two apps.** The repository builds two distinct experiences — the main general-knowledge quiz and the Logo Quiz brand-guessing game — selected by the build-time `APP_SLUG`. When it is `logo-quiz`, the home route redirects straight into the self-contained `app/logo-quiz/` flow and the erudite intro, hub, and modes never render. The two apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. See [Logo Quiz](logo-quiz.md).
+
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
 ## Component Organization
@@ -116,6 +118,12 @@ constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
   theme.ts              Colors and typography
 i18n/                   String tables for en, ru, es
+
+app/logo-quiz/          Second app: self-contained Logo Quiz flow
+components/logo-quiz/   Logo Quiz UI (cards, HUD, wheel, confetti)
+hooks/logo-quiz/        Logo Quiz economy + backend-content providers
+lib/logo-quiz/          Logo Quiz content mapping and economy rules
+constants/logo-quiz/    Logo Quiz labels and theme
 ```
 
 ## See Also
@@ -124,3 +132,4 @@ i18n/                   String tables for en, ru, es
 - [Data Model](data-model.md) -- Entities, API contract, and local persistence
 - [Gamification](gamification.md) -- Lives, hints, achievements, and modes
 - [Content and Offline](content-and-offline.md) -- Snapshot cache and no-repeats
+- [Logo Quiz](logo-quiz.md) -- The second app built from the same tree
