@@ -43,6 +43,20 @@ The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys
 
 The snapshot carries a `syncedAt` timestamp, and a 24-hour TTL governs reuse. A snapshot older than that, or one whose locale no longer matches the active language, is re-fetched on the next sync. Clearing the cache (from settings reset) removes both AsyncStorage keys and deletes the image directory.
 
+## Store Links from the App Config
+
+The snapshot's app descriptor also carries this app's public store listing URLs — `app_url_ios` and `app_url_android`. Both are backend-controlled, edited per-app in Nova (App resource → "App URL iOS" / "App URL Android"), and nullable. They exist so store links are content, not code: once a new app is released, filling in these two Nova fields is enough for the app to pick them up on its next snapshot sync. No rebuild or code change is needed for future releases.
+
+Three surfaces need a store link — the "Rate us" and "Recommend" actions in settings (main app and Logo Quiz) and the share-question button. Each reads `snapshot.app` from its content-cache context and passes it through `getStoreLinks` (`lib/store-links.ts`), a pure helper that derives, for the current platform:
+
+- `storeUrl` — the public listing URL, used for Share and Recommend.
+- `rateDeepLink` — a native "write a review" deep link (`itms-apps://…?action=write-review` on iOS, `market://details?id=<package>` on Android).
+- `rateFallbackUrl` — where to send the user if the review deep link cannot open (equal to `storeUrl`).
+
+The helper is defensive so links never break. On iOS it keeps whatever URL the operator entered for Share/Recommend, but only builds the review deep link from a numeric App Store id parsed out of that URL. On Android it reads the package from the URL's `?id=` query parameter. When a field is empty or unparseable, the helper substitutes the historical hardcoded identifiers (bundle id `com.quizzzes.erudite`), so an app whose Nova fields are still blank keeps its previous behavior instead of regressing to a dead link. The Android subscription-management link reuses the same parsed package via `getAndroidPackage`.
+
+Because these URLs ride the snapshot, they inherit its 24-hour freshness window: a change in Nova reaches the device on the next resync, not instantly.
+
 ## Answer-Statistics Sync
 
 The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; the Logo Quiz content provider syncs the same way but skips it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.

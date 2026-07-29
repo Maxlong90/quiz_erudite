@@ -40,7 +40,7 @@ The `is_vip` flag is set in the backend admin and rides the snapshot on both cat
 
 ### Content Snapshot
 
-The snapshot is the offline mirror of everything the app needs for one language: the app descriptor, every category with its subcategories, and the full question pool. Defined as `ContentSnapshot` in `lib/content-cache.ts`. After download the client augments it with two client-only fields — `imageMap` (remote URL → local file URI) and `syncedAt` (the millisecond timestamp used for the 24-hour freshness check). See [Content and Offline](content-and-offline.md).
+The snapshot is the offline mirror of everything the app needs for one language: the app descriptor, every category with its subcategories, and the full question pool. Defined as `ContentSnapshot` in `lib/content-cache.ts`. The app descriptor carries per-app, backend-controlled config beyond slug and name — the paywall flags (see [iOS Monetization Parity](ios-monetization-parity.md)) and the nullable store listing URLs `app_url_ios` / `app_url_android` that drive the app's store links (see [Content and Offline](content-and-offline.md#store-links-from-the-app-config)). After download the client augments it with two client-only fields — `imageMap` (remote URL → local file URI) and `syncedAt` (the millisecond timestamp used for the 24-hour freshness check). See [Content and Offline](content-and-offline.md).
 
 ### Local Progress Stores
 
