@@ -54,6 +54,63 @@ The "watch ad → +1 life" reward uses AdMob via `react-native-google-mobile-ads
 
 Like RevenueCat, rewarded ads are gated by capability, not a hardcoded `Platform.OS`: `adsEnabled` is true on any native platform that has a rewarded unit id configured. Android always has one (its test fallback); iOS stays off until its unit id and real AdMob App ID are supplied, then lights up automatically. In Expo Go / web, or wherever no unit id exists, `adsEnabled` is `false`, the watch-ad buttons hide, and no life is ever granted where an ad can't run. Testing the real rewarded flow requires an Android device build (`npm run android` against a prebuild); AdMob may show the app as "verification required" until the SDK serves its first requests, which is expected and does not block integration. See [Gamification](gamification.md#the-rewarded-ad-watch-ad--1-life) and [iOS Monetization Parity](ios-monetization-parity.md).
 
+## Over-the-Air Updates (EAS Update)
+
+The app ships with `expo-updates` wired to [EAS Update](https://docs.expo.dev/eas-update/introduction/), so **pure-JS changes** — text, layout, i18n strings, and any logic that lives in the JS bundle — can be delivered to already-installed apps without a new store build or store review.
+
+### Config
+
+`app.json` carries the update endpoint and runtime policy:
+
+```jsonc
+"runtimeVersion": { "policy": "appVersion" },
+"updates": {
+  "url": "https://u.expo.dev/0a83f1d3-35b1-4026-9e39-022bccc5442d",
+  "fallbackToCacheTimeout": 0
+}
+```
+
+- `updates.url` points at the existing EAS project (the same `extra.eas.projectId`, Erudite Quiz). It is **not** a new Expo project.
+- `fallbackToCacheTimeout: 0` means the app never blocks startup waiting for an update — it launches the cached bundle and downloads any newer one in the background, applying it on the next launch (best UX).
+- The `expo-updates` config plugin is applied automatically at prebuild once the package is installed and `updates.url` is set — there is no explicit entry in `expo.plugins`. Because `ios/` and `android/` are gitignored (managed/prebuild workflow), EAS regenerates the native updates config (Android manifest `expo.modules.updates.*` with `ENABLED=true`, iOS `Expo.plist`) from `app.json` on every build; do not hand-edit the native files.
+
+Each build profile in `eas.json` declares a `channel` (`development` → `development`, `preview` → `preview`, `production` → `production`) so `eas update --channel <name>` maps to the matching builds predictably.
+
+### runtimeVersion policy: `appVersion`
+
+An OTA update is only served to binaries whose **runtime version** matches the one it was published for. We use the `appVersion` policy, which ties the runtime to `expo.version` (`1.0.3` today).
+
+- **Why `appVersion`:** it's the simplest safe default. Because the runtime is the store version, an OTA can never reach a binary from a *different* app version, and bumping the store version cleanly segments OTA audiences. The tradeoff is the wider a runtimeVersion's scope, the greater the risk of delivering a bundle incompatible with the native layer — `appVersion` keeps that scope as narrow as one store release. Cost: after every store release that bumps `version`, publish a fresh OTA targeting that new version.
+- **Not `fingerprint`:** it auto-invalidates the runtime on any native change (more precise) but adds a fingerprint runtime and can shift the runtime string on unrelated native tweaks; not worth the extra machinery here given the app's existing native config (google-mobile-ads, Sentry, new architecture).
+- **Not a fixed manual string:** it decouples OTA compatibility from any real signal and makes it easy to ship a bundle incompatible with the native layer.
+
+### Publishing an OTA
+
+```
+eas update --channel production --message "Fix typo on results screen"
+eas update --channel preview    --message "QA build for testers"
+```
+
+The published bundle reaches installed apps that were built from the matching channel **and** share the same runtime version (i.e. the same `version`).
+
+### When OTA does NOT apply — a new store build is required
+
+OTA only carries the JS bundle and bundled assets. Anything that touches the **native layer** needs a fresh store build (and, for the stores, review):
+
+- adding/updating/removing a native module (any new `expo install <native-pkg>`);
+- changing native config in `app.json` — permissions, config plugins, `newArchEnabled`, icons/splash, bundle id/package, or an `expo.version` bump;
+- an Expo SDK / React Native upgrade.
+
+Rule of thumb: if the change would alter what `expo prebuild` generates, it is **not** OTA-eligible.
+
+### First build after enabling updates (one-time)
+
+`expo-updates` was added to a binary that never shipped it. **The App Store build currently live (Erudite Quiz, Apple ID 6787385686) was built without the updates runtime and can never receive OTA.** Exactly one new store build must be produced *after* this change to embed the updates runtime; only builds made from then on can accept OTA. Bundle this rebuild with the store-links change (task #876) so a single `production` rebuild + resubmit ships both.
+
+### Multi-app note
+
+This tree builds several apps (see [Logo Quiz](logo-quiz.md) and the `EXPO_PUBLIC_APP_SLUG` switch). The build backend injects each app's `extra.eas.projectId` at build time, but the committed `updates.url` above is Erudite Quiz's. Before enabling OTA for a sibling app built from this same tree, the backend's build-time config injection must also set `updates.url` from that app's own `expo_project_id` — otherwise a sibling build would point OTA at Erudite Quiz's EAS project.
+
 ## Lint
 
 ```
@@ -97,8 +154,8 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 
 | File | Purpose |
 |------|---------|
-| app.json | Expo project config (bundle ID, plugins, new architecture; the AdMob App ID lives in the `react-native-google-mobile-ads` plugin entry) |
-| eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key, AdMob rewarded unit id) |
+| app.json | Expo project config (bundle ID, plugins, new architecture; the AdMob App ID lives in the `react-native-google-mobile-ads` plugin entry; EAS Update `updates.url` + `runtimeVersion` for OTA) |
+| eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key, AdMob rewarded unit id; per-profile EAS Update `channel`) |
 | package.json | Dependencies and npm scripts |
 | tsconfig.json | TypeScript config with the `@/` path alias |
 | .env / .env.example | Backend URL, app slug, and RevenueCat Android key |
