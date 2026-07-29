@@ -23,6 +23,8 @@ import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
 import { useTranslation } from '@/hooks/use-translation';
 import { clearCache as clearContentCache } from '@/lib/content-cache';
+import { getAndroidPackage, getStoreLinks } from '@/lib/store-links';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { Sentry, sentryEnabled } from '@/lib/sentry';
 import type { StringKey } from '@/i18n/strings';
 
@@ -31,15 +33,12 @@ const ONBOARDING_KEY = 'onboarding.seen.v1';
 // stats, achievements, mistakes, lives, hints, today's question.
 const QUIZ_PREFIX = 'quiz.';
 
-// External URLs and bundle identifiers — kept in one place so a future
-// real Privacy/Terms page or App Store listing is a one-line change.
+// External URLs — kept in one place so a future real Privacy/Terms page is a
+// one-line change. Store links are no longer hardcoded here: they come from
+// the snapshot's app config via getStoreLinks() (with safe fallbacks).
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
-const APP_BUNDLE_ID = 'com.quizzzes.erudite';
-const IOS_APP_ID = '0000000000'; // placeholder until the App Store listing is live
-const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
-const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
 
 const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
   en: 'English',
@@ -51,6 +50,7 @@ export default function SettingsScreen() {
   const { locale, changeLocale, resetLocale } = useLocale();
   const { resetPremium } = usePremium();
   const { t } = useTranslation();
+  const { snapshot } = useContentCache();
   const [languageOpen, setLanguageOpen] = useState(false);
 
   async function handleReset() {
@@ -115,27 +115,25 @@ export default function SettingsScreen() {
   }
 
   async function handleRecommend() {
-    const url = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+    const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
     try {
-      await Share.share({ message: `${t('settings.recommend.text')} ${url}` });
+      await Share.share({ message: `${t('settings.recommend.text')} ${storeUrl}` });
     } catch {
       // user cancelled
     }
   }
 
   function handleRateUs() {
-    const target = Platform.OS === 'ios'
-      ? `itms-apps://itunes.apple.com/app/id${IOS_APP_ID}?action=write-review`
-      : `market://details?id=${APP_BUNDLE_ID}`;
-    Linking.openURL(target).catch(() => {
-      openUrl(Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL);
+    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(snapshot?.app, Platform.OS);
+    Linking.openURL(rateDeepLink).catch(() => {
+      openUrl(rateFallbackUrl);
     });
   }
 
   function handleSubscriptionManagement() {
     const url = Platform.OS === 'ios'
       ? 'https://apps.apple.com/account/subscriptions'
-      : `https://play.google.com/store/account/subscriptions?package=${APP_BUNDLE_ID}`;
+      : `https://play.google.com/store/account/subscriptions?package=${getAndroidPackage(snapshot?.app)}`;
     openUrl(url);
   }
 

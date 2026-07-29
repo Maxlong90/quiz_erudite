@@ -1,13 +1,10 @@
 import { Platform, Pressable, Share, StyleSheet } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useContentCache } from '@/hooks/use-content-cache';
 import { useTranslation } from '@/hooks/use-translation';
+import { getStoreLinks } from '@/lib/store-links';
 import type { Question } from '@/api/types';
-
-const APP_BUNDLE_ID = 'com.quizzzes.erudite';
-const IOS_APP_ID = '0000000000';
-const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
-const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
 
 interface Props {
   question: Question;
@@ -21,7 +18,8 @@ interface Props {
  */
 export function ShareQuestionButton({ question }: Props) {
   const { t } = useTranslation();
-  const storeUrl = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+  const { snapshot } = useContentCache();
+  const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
 
   async function handleShare() {
     const correct = question.options[question.correct_option] ?? '';

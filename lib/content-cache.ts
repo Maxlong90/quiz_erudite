@@ -100,6 +100,19 @@ export interface ContentSnapshot {
      * Backend-controlled per-app; applies on all platforms.
      */
     seconds_before_quit_button_shown?: number;
+    /**
+     * Public App Store listing URL for this app (e.g.
+     * https://apps.apple.com/us/app/x/id6787385686). Backend-controlled
+     * per-app; absent/empty on apps whose listing URL hasn't been filled
+     * in yet — the client then falls back to its hardcoded defaults.
+     */
+    app_url_ios?: string | null;
+    /**
+     * Public Play Store listing URL for this app (…?id=<package>).
+     * Backend-controlled per-app; absent/empty → client falls back to its
+     * hardcoded defaults so store links never break.
+     */
+    app_url_android?: string | null;
   };
   locale: string;
   version: number;

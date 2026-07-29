@@ -21,7 +21,9 @@ import { RATE_APP_REWARD_COINS } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
+import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { getStoreLinks } from '@/lib/store-links';
 import { restorePremium } from '@/lib/revenuecat';
 
 // Each language shown in its own name, so the list reads the same regardless of
@@ -32,21 +34,19 @@ const LANGUAGE_NAMES: Record<SupportedLocale, string> = {
   es: 'Español',
 };
 
-// External URLs / store identifiers — mirrors the main app's settings so a real
-// Privacy page or store listing is a one-line change in both places.
+// External URLs — mirrors the main app's settings so a real Privacy page is a
+// one-line change in both places. Store links come from the logo-quiz snapshot
+// via getStoreLinks() (with safe fallbacks), not hardcoded here.
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
-const APP_BUNDLE_ID = 'com.quizzzes.erudite';
-const IOS_APP_ID = '0000000000'; // placeholder until the App Store listing is live
-const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
-const APP_STORE_URL = `https://apps.apple.com/app/id${IOS_APP_ID}`;
 
 export default function LogoQuizSettings() {
   const t = useLQLabels();
   const { isPremium, buyPremium, cancelSubscription, resetProgress, rateRewarded, claimRateReward } =
     useLogoQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
+  const { snapshot } = useLogoQuizContent();
   const [langOpen, setLangOpen] = useState(false);
 
   const openUrl = (url: string) => {
@@ -98,13 +98,8 @@ export default function LogoQuizSettings() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       claimRateReward();
     }
-    const target =
-      Platform.OS === 'ios'
-        ? `itms-apps://itunes.apple.com/app/id${IOS_APP_ID}?action=write-review`
-        : `market://details?id=${APP_BUNDLE_ID}`;
-    Linking.openURL(target).catch(() =>
-      openUrl(Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL),
-    );
+    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(snapshot?.app, Platform.OS);
+    Linking.openURL(rateDeepLink).catch(() => openUrl(rateFallbackUrl));
   };
 
   const onSupport = () => {
