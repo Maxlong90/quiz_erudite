@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
@@ -17,6 +17,7 @@ export function CategoryCard({
   slug,
   name,
   emoji,
+  iconUri,
   vip,
   total,
   width,
@@ -27,6 +28,8 @@ export function CategoryCard({
   slug: string;
   name: string;
   emoji: string;
+  /** Backend category icon; falls back to `emoji` when null/undefined. */
+  iconUri?: string | null;
   vip: boolean;
   total: number;
   width: number;
@@ -62,7 +65,11 @@ export function CategoryCard({
           <Ionicons name="checkmark" size={13} color="#fff" />
         </View>
       )}
-      <Text style={styles.emoji}>{emoji}</Text>
+      {iconUri ? (
+        <Image source={{ uri: iconUri }} resizeMode="contain" style={styles.icon} />
+      ) : (
+        <Text style={styles.emoji}>{emoji}</Text>
+      )}
       <Text style={styles.name} numberOfLines={2}>
         {name}
       </Text>
@@ -85,6 +92,7 @@ const styles = StyleSheet.create({
   },
   cardLocked: { opacity: 0.85 },
   emoji: { fontSize: 38, marginBottom: 6 },
+  icon: { width: 42, height: 42, marginBottom: 6 },
   name: { fontSize: 13, fontWeight: '800', color: LQColors.text, textAlign: 'center' },
   progress: { fontSize: 11, fontWeight: '800', color: LQColors.textFaint, marginTop: 4 },
   progressDone: { color: LQColors.success },

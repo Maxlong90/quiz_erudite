@@ -106,6 +106,7 @@ export default function LogoQuizCategoriesVip() {
             slug={item.slug}
             name={item.name}
             emoji={item.emoji}
+            iconUri={item.iconUri}
             vip={item.isVip}
             total={item.total}
             width={cardW}

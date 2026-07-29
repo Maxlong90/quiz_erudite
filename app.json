@@ -28,7 +28,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0E2E6B",
+        "backgroundColor": "#5E63F5",
         "foregroundImage": "./assets/images/logo-quiz-icon.png"
       },
       "edgeToEdgeEnabled": true,

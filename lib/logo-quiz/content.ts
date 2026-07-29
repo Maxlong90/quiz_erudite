@@ -20,6 +20,12 @@ export interface LogoQuizCategory {
   name: string;
   /** Tile emoji (`icon_emoji`, or a sensible default when null). */
   emoji: string;
+  /**
+   * Local (or remote) URI of the backend category icon (`icon_url`), resolved to
+   * a cached file when available; null when the category has no icon (falls back
+   * to `emoji`).
+   */
+  iconUri: string | null;
   /** VIP categories live on the separate VIP screen and stay premium-gated. */
   isVip: boolean;
   /** Total questions available in this category (0 for empty categories). */
@@ -64,6 +70,7 @@ export function buildCategories(snapshot: ContentSnapshot, isVip: boolean): Logo
       slug: cat.slug,
       name: cat.name,
       emoji: cat.icon_emoji || DEFAULT_CATEGORY_EMOJI,
+      iconUri: resolveLocalImage(snapshot, cat.icon_url ?? null),
       isVip: !!cat.is_vip,
       total: counts[cat.slug] ?? 0,
     }));
