@@ -108,18 +108,16 @@ export default function LogoQuizShop() {
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
+          {/* Premium sheen swept across the WHOLE button (start→end), not just the
+              label, so the glow runs the full width of the Spin Now CTA. Sits above
+              the gradient but below the content, which renders on top. */}
+          {wheelAvailable && <ShineOverlay radius={LQRadius.md} />}
           <View style={styles.wheelTileLeft}>
             <WheelMark size={46} />
           </View>
           {wheelAvailable ? (
             <View style={styles.wheelTileCtaRow}>
-              {/* Same premium sheen as the Subscription banner, layered ON TOP of
-                  the label (clipped to its box, non-interactive) so a diagonal
-                  highlight runs across without changing the text colour. */}
-              <View style={styles.wheelTileCtaTextWrap}>
-                <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
-                <ShineOverlay />
-              </View>
+              <Text style={styles.wheelTileCta}>{t.wheelSpinNow}</Text>
               <WheelAlertDot pulse size={27} />
             </View>
           ) : (
@@ -292,9 +290,6 @@ const styles = StyleSheet.create({
   wheelTileTimer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   wheelTileTimerText: { fontSize: 30, fontWeight: '900', color: LQColors.surfaceAlt },
   wheelTileCtaRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  // Clips the running sheen to the label's box so the skewed highlight never
-  // leaks past the text; position:'relative' anchors the absolute overlay.
-  wheelTileCtaTextWrap: { position: 'relative', overflow: 'hidden' },
   wheelTileCta: { fontSize: 44, fontWeight: '900', color: LQColors.surfaceAlt },
 
   premiumCard: { padding: 20 },

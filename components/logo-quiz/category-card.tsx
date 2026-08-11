@@ -43,6 +43,10 @@ export function CategoryCard({
   const done = !!completedMap[slug];
   const passed = done ? total : Math.min(progressMap[slug] ?? 0, total);
 
+  // Icon scales with the card width so a 2-column (wide) grid gets a large icon
+  // while narrower layouts stay proportionate. ~0.48 → ~84px on a 2-col card.
+  const iconSize = Math.round(width * 0.48);
+
   return (
     <Pressable
       onPress={onPress}
@@ -65,14 +69,26 @@ export function CategoryCard({
           <Ionicons name="checkmark" size={13} color="#fff" />
         </View>
       )}
-      {iconUri ? (
-        <Image source={{ uri: iconUri }} resizeMode="contain" style={styles.icon} />
-      ) : (
-        <Text style={styles.emoji}>{emoji}</Text>
-      )}
-      <Text style={styles.name} numberOfLines={2}>
-        {name}
-      </Text>
+      {/* Icon zone — fixed at the top so icons line up across columns. */}
+      <View style={[styles.iconWrap, { height: iconSize }]}>
+        {iconUri ? (
+          <Image
+            source={{ uri: iconUri }}
+            resizeMode="contain"
+            style={{ width: iconSize, height: iconSize }}
+          />
+        ) : (
+          <Text style={[styles.emoji, { fontSize: Math.round(iconSize * 0.9) }]}>{emoji}</Text>
+        )}
+      </View>
+      {/* Name zone — fixed height for up to 2 lines, centered, so the progress
+          below always starts at the same Y regardless of name length. */}
+      <View style={styles.nameZone}>
+        <Text style={styles.name} numberOfLines={2}>
+          {name}
+        </Text>
+      </View>
+      {/* Progress pinned to the bottom → aligned across every card in a row. */}
       <Text style={[styles.progress, done && styles.progressDone]}>
         {passed}/{total}
       </Text>
@@ -82,19 +98,25 @@ export function CategoryCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: LQColors.surface,
+    // Grey surface instead of white, matching the app's quiet-card fill.
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.lg,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+    justifyContent: 'flex-start',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: LQColors.border,
   },
   cardLocked: { opacity: 0.85 },
-  emoji: { fontSize: 38, marginBottom: 6 },
-  icon: { width: 42, height: 42, marginBottom: 6 },
-  name: { fontSize: 13, fontWeight: '800', color: LQColors.text, textAlign: 'center' },
-  progress: { fontSize: 11, fontWeight: '800', color: LQColors.textFaint, marginTop: 4 },
+  // Fixed-height zone keeps every icon on the same baseline across columns.
+  iconWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  emoji: { includeFontPadding: false },
+  // Reserve room for up to two lines so 1- and 2-line names occupy equal height.
+  nameZone: { height: 38, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 14, fontWeight: '800', color: LQColors.text, textAlign: 'center' },
+  // Progress counter enlarged by 110% (12 → 25) so passed/total reads clearly on each card.
+  progress: { fontSize: 25, fontWeight: '800', color: LQColors.textFaint, marginTop: 'auto' },
   progressDone: { color: LQColors.success },
 
   badge: {

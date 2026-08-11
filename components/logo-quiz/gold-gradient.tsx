@@ -179,6 +179,39 @@ function Glint({ left, top, size, delay }: { left: string; top: string; size: nu
   );
 }
 
+/** Positions (as % of the box) for an even scatter of diamonds across a whole
+ *  logo — spread wider and denser than the CTA's tight cluster. */
+const LOGO_GLINTS = [
+  { left: '8%', top: '18%', size: 7, delay: 0 },
+  { left: '26%', top: '40%', size: 5, delay: 300 },
+  { left: '44%', top: '15%', size: 8, delay: 600 },
+  { left: '62%', top: '38%', size: 6, delay: 900 },
+  { left: '80%', top: '20%', size: 7, delay: 1200 },
+  { left: '92%', top: '50%', size: 5, delay: 400 },
+  { left: '14%', top: '64%', size: 6, delay: 800 },
+  { left: '34%', top: '80%', size: 7, delay: 200 },
+  { left: '52%', top: '62%', size: 5, delay: 1000 },
+  { left: '70%', top: '82%', size: 8, delay: 500 },
+  { left: '88%', top: '74%', size: 6, delay: 1300 },
+  { left: '20%', top: '30%', size: 5, delay: 1500 },
+] as const;
+
+/**
+ * An even scatter of twinkling white diamonds spread across the parent box — the
+ * same glint mechanic as the Wheel's Spin CTA, but distributed over the whole
+ * area so it reads as sparkle across an entire logo. Drop it as an absolute-fill
+ * overlay inside a `position:'relative'` container (e.g. over the Welcome title).
+ */
+export function DiamondSparkle() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {LOGO_GLINTS.map((g, i) => (
+        <Glint key={i} left={g.left} top={g.top} size={g.size} delay={g.delay} />
+      ))}
+    </View>
+  );
+}
+
 /** A pressable button rendered on the animated gold gradient. */
 export function GoldButton({
   onPress,

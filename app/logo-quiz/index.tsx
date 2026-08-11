@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
 import { BrandStrip } from '@/components/logo-quiz/brand-strip';
+import { DiamondSparkle } from '@/components/logo-quiz/gold-gradient';
 import { StatusChip } from '@/components/logo-quiz/hud';
 import { WheelAlertDot, WheelMark } from '@/components/logo-quiz/wheel-badge';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
@@ -71,11 +72,16 @@ export default function LogoQuizWelcome() {
       {/* Logo + Play + Shop, sitting a little above the middle of the screen */}
       <View style={styles.center}>
         <View style={styles.topSpacer} />
-        <Image
-          source={require('../../assets/logo-quiz/title.png')}
-          style={styles.titleImage}
-          resizeMode="contain"
-        />
+        <View style={styles.titleWrap}>
+          <Image
+            source={require('../../assets/logo-quiz/title.png')}
+            style={styles.titleImage}
+            resizeMode="contain"
+          />
+          {/* Twinkling diamonds spread evenly across the whole logo — same glint
+              mechanic as the Wheel's Spin CTA. */}
+          <DiamondSparkle />
+        </View>
 
         <View style={styles.actions}>
           <Pressable
@@ -137,14 +143,19 @@ const styles = StyleSheet.create({
   // Bias the logo + buttons block to sit a little above the vertical middle.
   topSpacer: { flex: 1 },
   bottomSpacer: { flex: 1.7 },
-  // The title is scaled up ~10% on every side (scale 1.2) and lifted via a
-  // transform (which does NOT affect layout). translateY -62 = the title and the
-  // button stack both lowered by half a Play button (42) from the earlier -104.
-  titleImage: {
+  // Wrapper holds the title + its diamond-sparkle overlay so both scale/lift
+  // together. Scaled up ~10% on every side (scale 1.2) and lifted via a transform
+  // (which does NOT affect layout). translateY -62 = the title and the button
+  // stack both lowered by half a Play button (42) from the earlier -104.
+  titleWrap: {
     width: 232,
     height: 199,
     marginBottom: 24,
     transform: [{ translateY: -62 }, { scale: 1.2 }],
+  },
+  titleImage: {
+    width: 232,
+    height: 199,
   },
 
   // Lift the whole button stack up (visual only — no reflow). -42 = the earlier

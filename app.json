@@ -12,13 +12,6 @@
       "barStyle": "light-content"
     },
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/0a83f1d3-35b1-4026-9e39-022bccc5442d",
-      "fallbackToCacheTimeout": 0
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.quizzzes.erudite",
@@ -70,10 +63,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "0a83f1d3-35b1-4026-9e39-022bccc5442d"
-      }
+      "router": {}
     }
   }
 }

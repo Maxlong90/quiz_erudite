@@ -24,8 +24,9 @@ export default function LogoQuizCategories() {
   const { getLives, coins, livesState, isPremium } = useLogoQuiz();
   const { snapshot, status } = useLogoQuizContent();
 
-  const cardW = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
-  const cardH = Math.round(cardW * 1.18);
+  // Two wide columns: one gap between them, full-width padding on the sides.
+  const cardW = Math.floor((width - GRID_PAD * 2 - GRID_GAP) / 2);
+  const cardH = Math.round(cardW * 1.12);
 
   // Regular section = categories the backend did NOT flag as VIP.
   const categories = useMemo(
@@ -69,11 +70,11 @@ export default function LogoQuizCategories() {
         </View>
       </View>
 
-      {/* Vertically scrolling 3-column grid, gold VIP button pinned on top */}
+      {/* Vertically scrolling 2-column grid, gold VIP button pinned on top */}
       <FlatList
         data={categories}
         keyExtractor={(c) => c.slug}
-        numColumns={3}
+        numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
