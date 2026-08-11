@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LogoDisplay } from '@/components/logo-quiz/logo-display';
-import { LQColors, LQRadius } from '@/constants/logo-quiz/theme';
+import { GOLD_BORDER, GOLD_GRADIENT, LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 
 /**
  * A single logo in the level grid. Shows the brand artwork via LogoDisplay with
@@ -36,7 +36,11 @@ export function LogoTile({
 
       {locked && (
         <View style={[styles.overlay, styles.lockScrim]}>
-          <Ionicons name="lock-closed" size={Math.round(size * 0.24)} color="#fff" />
+          {/* Golden glowing lock — the same gold glow as the premium banner, so a
+              blurred premium tile reads as "unlock me" rather than a dead end. */}
+          <View style={[styles.lockBadge, LQShadow.gold]}>
+            <Ionicons name="lock-closed" size={Math.round(size * 0.22)} color={GOLD_GRADIENT[0]} />
+          </View>
         </View>
       )}
 
@@ -57,6 +61,15 @@ const styles = StyleSheet.create({
     borderRadius: LQRadius.lg,
   },
   lockScrim: { backgroundColor: 'rgba(21,27,46,0.45)' },
+  lockBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    borderRadius: LQRadius.pill,
+    backgroundColor: 'rgba(21,27,46,0.55)',
+    borderWidth: 2,
+    borderColor: GOLD_BORDER,
+  },
   doneBadge: {
     position: 'absolute',
     top: 6,

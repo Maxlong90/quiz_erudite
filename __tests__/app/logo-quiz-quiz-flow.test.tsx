@@ -1,18 +1,19 @@
 /**
  * Integration tests for the level-based Logo Quiz answer flow (app/logo-quiz/quiz.tsx).
  *
- * A correct answer reveals in place (wrong options fade, the green answer glides
- * up, then an Explanation panel + a "Next" button appear) and marks the question
- * solved; only the LAST question of the run — or a game over — navigates to
+ * Navigation is unified around per-question answered state (isSolved): an
+ * ANSWERED logo opens revealed (green answer + Explanation) with ◀/▶ paging
+ * across the level and no economy; an UNANSWERED logo plays normally (hints,
+ * lives). Paging is clamped to the level's first/last question — it never wraps
+ * and never rolls into a Result "complete" screen. Only a game over navigates to
  * /logo-quiz/result. A premium question the current (non-subscriber) user can't
- * play is never part of the run. Reviewing a solved logo shows the Explanation
- * with ◀/▶ paging and runs no economy. These tests lock in that branch logic:
+ * play is never part of the run. These tests lock in that branch logic:
  *
  *  - a correct pick runs the economy (awardCorrect) + markSolved and shows the
- *    reveal WITHOUT navigating away;
- *  - "Next" on a non-last question advances in place (no navigation);
- *  - "Next" on the last question opens the Result (outcome 'complete');
- *  - review mode shows the Explanation + prev/next and never touches the economy;
+ *    reveal + ◀/▶ nav WITHOUT navigating away;
+ *  - Next on a non-last question pages in place (no navigation);
+ *  - Next on the LAST question is clamped — no navigation, no Result;
+ *  - an already-solved logo opens revealed with prev/next and never touches the economy;
  *  - a wrong pick at zero lives goes to Result in the 'gameover' state, no reveal;
  *  - the skip hint drives the same in-place reveal + markSolved.
  *
@@ -85,6 +86,9 @@ jest.mock('@/components/logo-quiz/app-background', () => ({ AppBackground: () =>
 jest.mock('@/components/logo-quiz/logo-display', () => ({ LogoDisplay: () => null }));
 jest.mock('@/components/logo-quiz/coin-icon', () => ({ CoinIcon: () => null }));
 jest.mock('@/components/logo-quiz/hud', () => ({ CoinPill: () => null, LivesPill: () => null }));
+// The "…" menu is tested separately; mocking it keeps the axios-backed reports
+// client (api/reports → api/client) out of this flow test's module graph.
+jest.mock('@/components/logo-quiz/quiz-menu-modal', () => ({ QuizMenuModal: () => null }));
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -192,33 +196,32 @@ describe('Next on a non-last question advances in place', () => {
   });
 });
 
-// --- 3. Next on the last question opens the Result (level cleared) -----------
+// --- 3. Next on the last question is clamped (no Result "complete") ----------
 
-describe('Next on the last question opens the Result (level cleared)', () => {
-  it('router.replace to result with outcome complete and score === total', () => {
+describe('Next on the last question is clamped', () => {
+  it('does not navigate to Result and stays on the last logo', () => {
     mockParams = { level: '1', q: '2' }; // start on the last question (id 2)
     const screen = render(<LogoQuizQuiz />);
 
     fireEvent.press(screen.getByText('Nike')); // correct brand of the last question
     expect(mockMarkSolved).toHaveBeenCalledWith(2);
-    expect(mockReplace).not.toHaveBeenCalled(); // still no nav — reveal is shown
 
+    // The ◀/▶ nav is shown, but Next is clamped on the last question — pressing
+    // it neither pages nor opens a Result screen (the "complete" flow is gone).
     fireEvent.press(screen.getByText('Next'));
 
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-    const arg = mockReplace.mock.calls[0][0];
-    expect(arg.pathname).toBe('/logo-quiz/result');
-    expect(arg.params.outcome).toBe('complete');
-    expect(arg.params.total).toBe('2'); // two playable questions in the run
+    expect(mockReplace).not.toHaveBeenCalled();
+    // Still on the last logo — its revealed green answer remains on screen.
+    expect(screen.getByText('Nike')).toBeTruthy();
   });
 });
 
-// --- 4. Review mode: Explanation + paging, no economy ------------------------
+// --- 4. Already-solved logo: Explanation + paging, no economy ----------------
 
-describe('review mode pages solved logos with no economy', () => {
+describe('an already-solved logo pages with no economy', () => {
   it('shows the Explanation and prev/next, awards nothing, and never navigates to Result', () => {
     mockSolved = { 1: true, 2: true }; // both already solved
-    mockParams = { level: '1', mode: 'review', q: '1' };
+    mockParams = { level: '1', q: '1' }; // opens revealed, derived from isSolved
     const screen = render(<LogoQuizQuiz />);
 
     // Opens already revealed: the Explanation of the solved logo is shown.

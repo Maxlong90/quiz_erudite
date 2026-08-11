@@ -50,6 +50,27 @@ export interface LQLabels {
   outOfLives: string;
   fullLives: string;
   nextLifeIn: string;
+  // quiz menu / report / share
+  menuTitle: string;
+  reportQuestion: string;
+  shareQuestion: string;
+  reportTitle: string;
+  reportSubtitle: string;
+  reasonIncorrectAnswer: string;
+  reasonUnclearWording: string;
+  reasonInappropriate: string;
+  reasonBrokenMedia: string;
+  reasonTranslationIssue: string;
+  reasonOther: string;
+  reportCommentPlaceholder: string;
+  reportSubmit: string;
+  reportCancel: string;
+  reportSentTitle: string;
+  reportSentBody: string;
+  reportError: string;
+  reportDone: string;
+  /** Share message; `{url}` is replaced with the store link. */
+  shareInvite: string;
   // result
   roundOver: string;
   gameOver: string;
@@ -98,7 +119,7 @@ const EN: LQLabels = {
   loadingContent: 'Loading…',
   selectLevel: 'Select level',
   level: 'Level {n}',
-  finishPrevious: 'Finish the previous level',
+  finishPrevious: 'Finish 9 logos in the previous level',
   noLevels: 'No levels yet',
   backToLevels: 'Back to levels',
   shop: 'Shop',
@@ -132,6 +153,25 @@ const EN: LQLabels = {
   outOfLives: 'Out of lives!',
   fullLives: 'Lives full',
   nextLifeIn: 'Next life in',
+  menuTitle: 'Options',
+  reportQuestion: 'Report question',
+  shareQuestion: 'Share question',
+  reportTitle: 'Report a problem',
+  reportSubtitle: "Tell us what's wrong with this question.",
+  reasonIncorrectAnswer: 'Incorrect answer',
+  reasonUnclearWording: 'Unclear or confusing',
+  reasonInappropriate: 'Inappropriate content',
+  reasonBrokenMedia: "Image doesn't load",
+  reasonTranslationIssue: 'Translation issue',
+  reasonOther: 'Other',
+  reportCommentPlaceholder: 'Add a comment (optional)',
+  reportSubmit: 'Send',
+  reportCancel: 'Cancel',
+  reportSentTitle: 'Thank you!',
+  reportSentBody: 'Your report has been sent.',
+  reportError: "Couldn't send. Please try again.",
+  reportDone: 'Done',
+  shareInvite: 'Can you guess this logo? Play Logo Quiz: {url}',
   roundOver: 'Round complete!',
   gameOver: 'Game over',
   score: 'Score',
@@ -176,7 +216,7 @@ const RU: LQLabels = {
   loadingContent: 'Загрузка…',
   selectLevel: 'Выберите уровень',
   level: 'Уровень {n}',
-  finishPrevious: 'Пройдите предыдущий уровень',
+  finishPrevious: 'Закончи 9 логотипов в предыдущем уровне',
   noLevels: 'Пока нет уровней',
   backToLevels: 'К уровням',
   shop: 'Магазин',
@@ -210,6 +250,25 @@ const RU: LQLabels = {
   outOfLives: 'Жизни закончились!',
   fullLives: 'Жизни полны',
   nextLifeIn: 'Новая жизнь через',
+  menuTitle: 'Меню',
+  reportQuestion: 'Пожаловаться на вопрос',
+  shareQuestion: 'Поделиться вопросом',
+  reportTitle: 'Сообщить о проблеме',
+  reportSubtitle: 'Расскажите, что не так с этим вопросом.',
+  reasonIncorrectAnswer: 'Неверный ответ',
+  reasonUnclearWording: 'Непонятная формулировка',
+  reasonInappropriate: 'Неприемлемый контент',
+  reasonBrokenMedia: 'Изображение не загружается',
+  reasonTranslationIssue: 'Проблема с переводом',
+  reasonOther: 'Другое',
+  reportCommentPlaceholder: 'Комментарий (необязательно)',
+  reportSubmit: 'Отправить',
+  reportCancel: 'Отмена',
+  reportSentTitle: 'Спасибо!',
+  reportSentBody: 'Ваша жалоба отправлена.',
+  reportError: 'Не удалось отправить. Попробуйте ещё раз.',
+  reportDone: 'Готово',
+  shareInvite: 'Угадаешь этот логотип? Играй в Logo Quiz: {url}',
   roundOver: 'Раунд пройден!',
   gameOver: 'Игра окончена',
   score: 'Очки',
@@ -254,7 +313,7 @@ const ES: LQLabels = {
   loadingContent: 'Cargando…',
   selectLevel: 'Elige un nivel',
   level: 'Nivel {n}',
-  finishPrevious: 'Termina el nivel anterior',
+  finishPrevious: 'Termina 9 logotipos del nivel anterior',
   noLevels: 'Aún no hay niveles',
   backToLevels: 'Volver a niveles',
   shop: 'Tienda',
@@ -285,6 +344,25 @@ const ES: LQLabels = {
   outOfLives: '¡Sin vidas!',
   fullLives: 'Vidas al máximo',
   nextLifeIn: 'Próxima vida en',
+  menuTitle: 'Opciones',
+  reportQuestion: 'Reportar pregunta',
+  shareQuestion: 'Compartir pregunta',
+  reportTitle: 'Reportar un problema',
+  reportSubtitle: 'Cuéntanos qué está mal con esta pregunta.',
+  reasonIncorrectAnswer: 'Respuesta incorrecta',
+  reasonUnclearWording: 'Poco clara o confusa',
+  reasonInappropriate: 'Contenido inapropiado',
+  reasonBrokenMedia: 'La imagen no carga',
+  reasonTranslationIssue: 'Problema de traducción',
+  reasonOther: 'Otro',
+  reportCommentPlaceholder: 'Añade un comentario (opcional)',
+  reportSubmit: 'Enviar',
+  reportCancel: 'Cancelar',
+  reportSentTitle: '¡Gracias!',
+  reportSentBody: 'Tu reporte ha sido enviado.',
+  reportError: 'No se pudo enviar. Inténtalo de nuevo.',
+  reportDone: 'Hecho',
+  shareInvite: '¿Puedes adivinar este logo? Juega a Logo Quiz: {url}',
   roundOver: '¡Ronda completada!',
   gameOver: 'Fin del juego',
   score: 'Puntos',

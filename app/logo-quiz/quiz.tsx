@@ -31,9 +31,8 @@ import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
-
-// The player always returns to the level-select list from a round.
-const BACK_ROUTE = '/logo-quiz/categories';
+import { useLocale } from '@/hooks/use-locale';
+import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -55,9 +54,11 @@ const UI_FADE_MS = 300;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
-  const { level, q, mode } = useLocalSearchParams<{ level?: string; q?: string; mode?: string }>();
+  const { locale } = useLocale();
+  const { level, q } = useLocalSearchParams<{ level?: string; q?: string }>();
   const levelNumber = Number(level ?? 0);
   const { snapshot } = useLogoQuizContent();
+  const [menuOpen, setMenuOpen] = useState(false);
   const {
     coins,
     isPremium,
@@ -70,11 +71,6 @@ export default function LogoQuizQuiz() {
     markSolved,
   } = useLogoQuiz();
 
-  // Review = browsing an already-solved logo: no economy, the Explanation is
-  // always shown, and ◀/▶ page through the level's solved questions. Captured
-  // once for the whole run.
-  const review = useMemo(() => mode === 'review', []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Every question of this level from the backend snapshot, frozen at mount.
   const levelQuestions = useMemo<LogoQuizQuestion[]>(() => {
     if (!snapshot || !level) return [];
@@ -82,50 +78,57 @@ export default function LogoQuizQuiz() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The list the run actually walks:
-  //  - review  → the solved questions of this level (what ◀/▶ pages through)
-  //  - play    → the playable questions: a non-subscriber only ever traverses
-  //              the 9 free ones (premium logos are gated in the grid), a
-  //              subscriber traverses all 15. Frozen for the whole run.
-  const runList = useMemo<LogoQuizQuestion[]>(() => {
-    if (review) return levelQuestions.filter((question) => isSolved(question.id));
-    return isPremium ? levelQuestions : levelQuestions.filter((question) => !question.premium);
+  // The level's ACCESSIBLE questions in play order — a non-subscriber only ever
+  // traverses the 9 free ones (premium logos are gated in the grid), a
+  // subscriber traverses all 15. Frozen for the whole run; ◀/▶ page within it.
+  const runList = useMemo<LogoQuizQuestion[]>(
+    () => (isPremium ? levelQuestions : levelQuestions.filter((question) => !question.premium)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [],
+  );
 
-  // Start on the tapped question when given, else the first unsolved playable one.
-  const [index, setIndex] = useState(() => {
+  // Start on the tapped question when given, else the first unsolved one.
+  const initialIndex = useMemo(() => {
     if (q) {
       const target = runList.findIndex((question) => String(question.id) === String(q));
       if (target >= 0) return target;
     }
-    if (!review) {
-      const firstUnsolved = runList.findIndex((question) => !isSolved(question.id));
-      if (firstUnsolved >= 0) return firstUnsolved;
-    }
-    return 0;
-  });
+    const firstUnsolved = runList.findIndex((question) => !isSolved(question.id));
+    return firstUnsolved >= 0 ? firstUnsolved : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [index, setIndex] = useState(initialIndex);
 
   const question = runList[index];
+
+  // Whether the question we open on is already answered: an answered question
+  // opens revealed (green + Explanation + ◀/▶ nav), an unanswered one plays.
+  const initialAnswered = useMemo(() => {
+    const first = runList[initialIndex];
+    return first ? isSolved(first.id) : false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Wrong picks stay red; the answer turns green only once it is picked (solved).
   const [wrongPicked, setWrongPicked] = useState<string[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [fiftyUsed, setFiftyUsed] = useState(false);
-  // A review question opens already solved & revealed so the Explanation shows.
-  const [solved, setSolved] = useState(review);
+  // `solved` tracks the CURRENT question's answered state: true for an already-
+  // solved logo (opens as review) and flipped true in place when the player
+  // answers. It drives the green reveal, the Explanation panel and ◀/▶ nav.
+  const [solved, setSolved] = useState(initialAnswered);
   // Game over: lock the board WITHOUT revealing the answer green (unlike `solved`).
   const [over, setOver] = useState(false);
   // Answer reveal in progress: the wrong options unmount (fading out) while the
   // correct green answer — the same mounted component — glides up and centers via
   // Reanimated layout animations. Drives the whole in-place reveal (see below).
-  const [revealing, setRevealing] = useState(review);
+  const [revealing, setRevealing] = useState(initialAnswered);
 
   // Defense-in-depth premium gate: a review/deep link that targets a premium
   // logo the current user can't play is bounced to the paywall (the grid already
   // gates taps, but a stale link could arrive here directly).
   useEffect(() => {
-    if (review || !q) return;
+    if (!q) return;
     const target = levelQuestions.find((question) => String(question.id) === String(q));
     if (target?.premium && !isPremium) router.replace('/logo-quiz/shop');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,31 +218,27 @@ export default function LogoQuizQuiz() {
   // question opens already solved & revealed so the Explanation stays visible.
   const goToIndex = useCallback(
     (nextIndex: number) => {
+      const target = runList[nextIndex];
+      const targetAnswered = target ? isSolved(target.id) : false;
       setWrongPicked([]);
       setRemoved([]);
       setFiftyUsed(false);
       setOver(false);
-      setSolved(review);
-      setRevealing(review);
+      // An already-answered target opens revealed (review look); an unanswered
+      // one resets to normal gameplay with hints.
+      setSolved(targetAnswered);
+      setRevealing(targetAnswered);
       setIndex(nextIndex);
       Haptics.selectionAsync().catch(() => {});
     },
-    [review],
+    [runList, isSolved],
   );
-  // Review paging — wraps around the level's solved questions.
-  const goPrev = () => goToIndex((index - 1 + runList.length) % runList.length);
-  const goNext = () => goToIndex((index + 1) % runList.length);
-
-  // "Next" after a reveal (play only): advance to the following question in the
-  // run, or — on the last one — open the Result screen. A level never rolls into
-  // the next one automatically.
-  const advance = () => {
-    const next = index + 1;
-    if (next >= runList.length) {
-      toResult('complete', runList.length);
-      return;
-    }
-    goToIndex(next);
+  // ◀/▶ page within the level, clamped to its first/last question (no wrap).
+  const goPrev = () => {
+    if (index > 0) goToIndex(index - 1);
+  };
+  const goNext = () => {
+    if (index < runList.length - 1) goToIndex(index + 1);
   };
 
   if (!question) {
@@ -251,29 +250,40 @@ export default function LogoQuizQuiz() {
       <AppBackground />
       <StatusBar style="dark" />
 
-      {/* HUD: back · lives · coins */}
+      {/* HUD: (back · lives · ⋯) on the left, coins on the right */}
       <View style={styles.hud}>
-        <Pressable
-          onPress={() => router.dismissTo(BACK_ROUTE)}
-          hitSlop={8}
-          style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
-        >
-          <Ionicons name="chevron-back" size={22} color={LQColors.text} />
-        </Pressable>
-        <View style={styles.hudRight}>
+        <View style={styles.hudLeft}>
+          <Pressable
+            onPress={() =>
+              router.dismissTo({
+                pathname: '/logo-quiz/level',
+                params: { level: String(levelNumber) },
+              })
+            }
+            hitSlop={8}
+            style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="chevron-back" size={22} color={LQColors.text} />
+          </Pressable>
           <LivesPill
             livesState={livesState}
             isPremium={isPremium}
             onZeroPress={() => router.push('/logo-quiz/shop')}
           />
-          <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
+          <Pressable
+            onPress={() => setMenuOpen(true)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
+            testID="quiz-menu-button"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={LQColors.text} />
+          </Pressable>
         </View>
+        <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
       </View>
 
-      {/* Progress — position within the run, or a Review tag when browsing. */}
-      <Text style={styles.progress}>
-        {review ? t.review : `${index + 1} / ${runList.length}`}
-      </Text>
+      {/* Progress — position within the level. */}
+      <Text style={styles.progress}>{`${index + 1} / ${runList.length}`}</Text>
 
       {/* Logo */}
       <View style={styles.logoArea}>
@@ -358,24 +368,27 @@ export default function LogoQuizQuiz() {
               </ScrollView>
             </View>
           )}
-          {!review && (
-            <Pressable
-              onPress={advance}
-              style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
-            >
-              <Text style={styles.nextText}>{t.next}</Text>
-            </Pressable>
-          )}
         </Animated.View>
       )}
 
-      {/* Bottom row: hint buttons during a real run; while reviewing a solved logo
-          they become prev / next paging through the level's solved questions. */}
+      {/* Bottom row: on an answered logo, ◀/▶ paging (clamped to the level's
+          first/last); on an unanswered one, the hint buttons + normal gameplay. */}
       <View style={styles.hints}>
-        {review ? (
+        {solved ? (
           <>
-            <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} />
-            <NavButton label={t.nextLogo} icon="arrow-forward" iconRight onPress={goNext} />
+            <NavButton
+              label={t.prevLogo}
+              icon="arrow-back"
+              onPress={goPrev}
+              disabled={index === 0}
+            />
+            <NavButton
+              label={t.nextLogo}
+              icon="arrow-forward"
+              iconRight
+              onPress={goNext}
+              disabled={index >= runList.length - 1}
+            />
           </>
         ) : (
           <>
@@ -394,6 +407,14 @@ export default function LogoQuizQuiz() {
           </>
         )}
       </View>
+
+      <QuizMenuModal
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        question={question}
+        appConfig={snapshot?.app}
+        locale={locale}
+      />
     </SafeAreaView>
   );
 }
@@ -443,20 +464,33 @@ function NavButton({
   icon,
   iconRight,
   onPress,
+  disabled,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconRight?: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
-  const arrow = <Ionicons name={icon} size={20} color={LQColors.text} />;
+  const arrow = <Ionicons name={icon} size={20} color={disabled ? LQColors.disabled : LQColors.text} />;
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.navBtn, LQShadow.card, pressed && { transform: [{ scale: 0.98 }] }]}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.navBtn,
+        LQShadow.card,
+        disabled && styles.navBtnDisabled,
+        pressed && !disabled && { transform: [{ scale: 0.98 }] },
+      ]}
     >
       {!iconRight && arrow}
-      <Text style={styles.navLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+      <Text
+        style={[styles.navLabel, disabled && { color: LQColors.disabled }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {label}
       </Text>
       {iconRight && arrow}
@@ -481,7 +515,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hudRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hudLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   progress: { textAlign: 'center', color: LQColors.textFaint, fontWeight: '800', fontSize: 13 },
 
@@ -542,16 +576,6 @@ const styles = StyleSheet.create({
     borderColor: LQColors.border,
   },
   explText: { fontSize: 14, fontWeight: '600', color: LQColors.textMuted, lineHeight: 20, textAlign: 'center' },
-  nextBtn: {
-    marginTop: 16,
-    alignSelf: 'center',
-    backgroundColor: LQColors.primary,
-    borderRadius: LQRadius.pill,
-    paddingVertical: 14,
-    paddingHorizontal: 44,
-  },
-  nextText: { color: '#fff', fontWeight: '900', fontSize: 17 },
-
   hints: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -585,6 +609,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 10,
   },
+  navBtnDisabled: { opacity: 0.5 },
   navLabel: { fontSize: 15, fontWeight: '900', color: LQColors.text, flexShrink: 1 },
   costTag: {
     flexDirection: 'row',

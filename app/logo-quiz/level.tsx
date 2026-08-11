@@ -49,23 +49,19 @@ export default function LogoQuizLevel() {
   const openQuestion = useCallback(
     (q: LogoQuizQuestion) => {
       const solved = isSolved(q.id);
-      // Solved logo → open it in read-only review mode.
-      if (solved) {
-        router.push({
-          pathname: '/logo-quiz/quiz',
-          params: { level: String(levelNumber), q: String(q.id), mode: 'review' },
-        });
-        return;
-      }
-      // Premium logo the current user can't play → paywall.
-      if (q.premium && !isPremium) {
-        router.push('/logo-quiz/shop');
-        return;
-      }
-      // Playable → out of lives routes to the shop, otherwise start the question.
-      if (getLives() <= 0) {
-        router.push('/logo-quiz/shop');
-        return;
+      // A solved logo opens directly (the quiz derives its review look from
+      // isSolved) — no lives/premium gate needed to browse an answered one.
+      if (!solved) {
+        // Premium logo the current user can't play → paywall.
+        if (q.premium && !isPremium) {
+          router.push('/logo-quiz/shop');
+          return;
+        }
+        // Out of lives → shop; otherwise start the question.
+        if (getLives() <= 0) {
+          router.push('/logo-quiz/shop');
+          return;
+        }
       }
       router.push({
         pathname: '/logo-quiz/quiz',
