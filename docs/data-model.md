@@ -17,9 +17,12 @@ A question is a single multiple-choice item. Each has exactly four options, one 
 | explanation | Context revealed after answering (nullable) |
 | image_url | Illustration for the question (nullable) |
 | category_slug | Owning subcategory slug (snapshot questions only, nullable) |
+| order | Persistent per-question level number (Logo Quiz snapshot only); drives the derived level, position, and premium flag |
 | optionOrder | Display index → canonical backend option index (client-only, absent = identity) |
 
 `optionOrder` is not a backend field. The quiz screen shuffles each question's options per session (`shuffleOptions`) and records the permutation here, so answer reporting and the real-stats hint can translate between the shuffled display order and the backend's canonical order. See [Gamification](gamification.md#hints).
+
+`order` rides only the Logo Quiz snapshot and is a raw field the shared `SnapshotQuestion` type does not declare — it survives the cache round-trip untyped. The Logo Quiz client reads it defensively to group questions into levels and to derive each question's premium status. See [Logo Quiz](logo-quiz.md#levels-and-the-premium-split).
 
 ### Category and Subcategory
 
@@ -32,11 +35,11 @@ A category is a top-level subject (geography, history, and so on); a subcategory
 | sort_order | Display order within its level |
 | icon_emoji | DB-provided emoji icon (nullable; falls back to the local map) |
 | icon_url | DB-provided icon image (nullable; falls back to the emoji) |
-| is_vip | Backend flag routing a category to an app's VIP section (nullable; snapshot only) |
+| is_vip | Legacy backend flag once used to route a category to a VIP section (nullable; snapshot only; no longer consumed by the client) |
 | subcategories_count, total_questions_count | Tile counters (live API, top level) |
 | should_have_images, should_have_audio | Content-shape hints from the backend |
 
-The `is_vip` flag is set in the backend admin and rides the snapshot on both categories and subcategories. The main quiz ignores it; the Logo Quiz app uses it as the single source of truth for splitting its regular and VIP category grids. See [Logo Quiz](logo-quiz.md#categories-and-the-vip-split).
+The `is_vip` flag is set in the backend admin and rides the snapshot on both categories and subcategories, but no client currently reads it. The main quiz always ignored it. Logo Quiz once used it to split a regular grid from a premium VIP grid; it now organizes content into numbered levels and derives premium status from each question's `order`, so the flag is vestigial. See [Logo Quiz](logo-quiz.md#levels-and-the-premium-split).
 
 ### Content Snapshot
 
@@ -145,4 +148,4 @@ Progress stores accumulate monotonically as the player plays — stats and seen 
 - [Gamification](gamification.md) -- Lives, hints, mistakes, stats, achievements
 - [Quiz Flow](quiz-flow.md) -- How entities are used during gameplay
 - [Architecture](architecture.md) -- System structure and providers
-- [Logo Quiz](logo-quiz.md) -- The second app and its use of the `is_vip` flag
+- [Logo Quiz](logo-quiz.md) -- The second app and its `order`-driven level model
