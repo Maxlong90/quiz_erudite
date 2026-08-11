@@ -25,12 +25,15 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { LogoDisplay } from '@/components/logo-quiz/logo-display';
-import { questionsForCategory, type LogoQuizQuestion } from '@/lib/logo-quiz/content';
+import { questionsForLevel, type LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { HINT_5050_COST, HINT_SKIP_COST } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
+
+// The player always returns to the level-select list from a round.
+const BACK_ROUTE = '/logo-quiz/categories';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -52,8 +55,8 @@ const UI_FADE_MS = 300;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
-  const { category, vip } = useLocalSearchParams<{ category?: string; vip?: string }>();
-  const cat = category ?? '';
+  const { level, q, mode } = useLocalSearchParams<{ level?: string; q?: string; mode?: string }>();
+  const levelNumber = Number(level ?? 0);
   const { snapshot } = useLogoQuizContent();
   const {
     coins,
@@ -63,76 +66,88 @@ export default function LogoQuizQuiz() {
     spendCoins,
     loseLife,
     getLives,
-    getProgress,
-    setProgress,
-    isCompleted,
-    markCompleted,
+    isSolved,
+    markSolved,
   } = useLogoQuiz();
 
-  // A category finished once before is replayed as a free practice: no coin
-  // rewards, no life loss, and free hints. Captured once for the whole run.
-  const practice = useMemo(() => isCompleted(cat), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Review = browsing an already-solved logo: no economy, the Explanation is
+  // always shown, and ◀/▶ page through the level's solved questions. Captured
+  // once for the whole run.
+  const review = useMemo(() => mode === 'review', []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sequential question list for this category from the backend snapshot cache —
-  // played in order, never shuffled. Frozen for the whole run at mount.
-  const questions = useMemo<LogoQuizQuestion[]>(() => {
-    if (!snapshot || !category) return [];
-    return questionsForCategory(snapshot, category);
+  // Every question of this level from the backend snapshot, frozen at mount.
+  const levelQuestions = useMemo<LogoQuizQuestion[]>(() => {
+    if (!snapshot || !level) return [];
+    return questionsForLevel(snapshot, levelNumber);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The level (question index) the player is on. A finished category restarts.
-  // Stateful so a completed-category practice replay can page between levels.
+  // The list the run actually walks:
+  //  - review  → the solved questions of this level (what ◀/▶ pages through)
+  //  - play    → the playable questions: a non-subscriber only ever traverses
+  //              the 9 free ones (premium logos are gated in the grid), a
+  //              subscriber traverses all 15. Frozen for the whole run.
+  const runList = useMemo<LogoQuizQuestion[]>(() => {
+    if (review) return levelQuestions.filter((question) => isSolved(question.id));
+    return isPremium ? levelQuestions : levelQuestions.filter((question) => !question.premium);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Start on the tapped question when given, else the first unsolved playable one.
   const [index, setIndex] = useState(() => {
-    const saved = getProgress(cat);
-    return saved >= questions.length ? 0 : saved;
+    if (q) {
+      const target = runList.findIndex((question) => String(question.id) === String(q));
+      if (target >= 0) return target;
+    }
+    if (!review) {
+      const firstUnsolved = runList.findIndex((question) => !isSolved(question.id));
+      if (firstUnsolved >= 0) return firstUnsolved;
+    }
+    return 0;
   });
 
-  const question = questions[index];
-
-  // Back returns to the category picker the round was opened from — VIP list for a
-  // VIP category, the regular list otherwise.
-  // NB: this picker screen is already sitting in the stack *below* the quiz, so
-  // returning to it must POP back to that existing instance (router.dismissTo),
-  // never router.replace — a replace would swap the quiz for a *second*
-  // categories screen, leaving a duplicate underneath. That duplicate is what
-  // made the category screen's back button need two taps to reach Welcome.
-  const isVip = vip === '1';
-  const backRoute = isVip ? '/logo-quiz/categories-vip' : '/logo-quiz/categories';
+  const question = runList[index];
 
   // Wrong picks stay red; the answer turns green only once it is picked (solved).
   const [wrongPicked, setWrongPicked] = useState<string[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [fiftyUsed, setFiftyUsed] = useState(false);
-  const [solved, setSolved] = useState(false);
+  // A review question opens already solved & revealed so the Explanation shows.
+  const [solved, setSolved] = useState(review);
   // Game over: lock the board WITHOUT revealing the answer green (unlike `solved`).
   const [over, setOver] = useState(false);
   // Answer reveal in progress: the wrong options unmount (fading out) while the
   // correct green answer — the same mounted component — glides up and centers via
   // Reanimated layout animations. Drives the whole in-place reveal (see below).
-  const [revealing, setRevealing] = useState(false);
+  const [revealing, setRevealing] = useState(review);
 
-  // Empty pool guard (shouldn't happen with current mock data).
+  // Defense-in-depth premium gate: a review/deep link that targets a premium
+  // logo the current user can't play is bounced to the paywall (the grid already
+  // gates taps, but a stale link could arrive here directly).
   useEffect(() => {
-    if (questions.length === 0) router.back();
-  }, [questions.length]);
+    if (review || !q) return;
+    const target = levelQuestions.find((question) => String(question.id) === String(q));
+    if (target?.premium && !isPremium) router.replace('/logo-quiz/shop');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Empty pool guard (bad link, or backend not emitting `order` yet).
+  useEffect(() => {
+    if (runList.length === 0) router.back();
+  }, [runList.length]);
 
   const toResult = useCallback(
-    (outcome: 'complete' | 'gameover', levelsPassed: number) => {
+    (outcome: 'complete' | 'gameover', score: number) => {
       router.replace({
         pathname: '/logo-quiz/result',
         params: {
-          score: String(levelsPassed),
-          total: String(questions.length),
+          score: String(score),
+          total: String(runList.length),
           outcome,
-          category: cat,
-          vip: vip ?? '',
-          // On a game over, remember the current level so "Play again" can resume.
-          ...(outcome === 'gameover' ? { failed: String(question?.id ?? '') } : {}),
         },
       });
     },
-    [questions.length, cat, vip, question],
+    [runList.length],
   );
 
   // Play the in-place answer reveal. Flipping `revealing` drives everything via
@@ -147,36 +162,30 @@ export default function LogoQuizQuiz() {
   const onPick = (option: string) => {
     if (solved || over || wrongPicked.includes(option)) return;
     if (option === question.brand) {
-      // Level passed: light the answer green, award coins (2× premium) unless this
-      // is a practice replay, advance progress, then play the in-place reveal.
+      // Correct: light the answer green, award coins (2× premium), mark the
+      // question solved, then play the in-place reveal.
       setSolved(true);
-      if (!practice) awardCorrect();
-      const next = index + 1;
-      const lastPassed = next >= questions.length;
-      if (lastPassed) markCompleted(cat);
-      else setProgress(cat, next);
+      awardCorrect();
+      markSolved(question.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       startReveal();
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
-      // trying. A real run loses a life per mistake (game over at zero); a practice
-      // replay costs nothing.
+      // trying. Each mistake loses a life (game over at zero).
       setWrongPicked((w) => [...w, option]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      if (!practice) {
-        loseLife();
-        // Game over only once every life is spent — progress stays on this level.
-        if (getLives() <= 0) {
-          setOver(true); // lock the board (no green reveal) while game-over loads
-          setTimeout(() => toResult('gameover', index), GAMEOVER_MS);
-        }
+      loseLife();
+      // Game over only once every life is spent — the question stays unsolved.
+      if (getLives() <= 0) {
+        setOver(true); // lock the board (no green reveal) while game-over loads
+        setTimeout(() => toResult('gameover', index), GAMEOVER_MS);
       }
     }
   };
 
   const use5050 = () => {
     if (solved || over || fiftyUsed) return;
-    if (!practice && !spendCoins(HINT_5050_COST)) return;
+    if (!spendCoins(HINT_5050_COST)) return;
     // Remove three of the still-standing wrong options — those not already
     // eliminated (red wrong-picks or a prior 50/50 removal). With no red picks
     // yet this leaves the answer + two wrong; once some are red, it clears three
@@ -193,46 +202,44 @@ export default function LogoQuizQuiz() {
 
   const useSkip = () => {
     if (solved || over) return;
-    if (!practice && !spendCoins(HINT_SKIP_COST)) return;
-    // Skip-to-next-level: the current level counts as passed. Costs the hint fee
-    // only (no coin reward); a practice replay is free.
-    const next = index + 1;
-    const lastPassed = next >= questions.length;
-    if (lastPassed) markCompleted(cat);
-    else setProgress(cat, next);
-    // A skip reveals the brand green and runs the same in-place reveal (answer
-    // glides up, then Explanation + "Next") as a normal solve.
+    if (!spendCoins(HINT_SKIP_COST)) return;
+    // Skip reveals the brand green, marks it solved (counts as passed) and runs
+    // the same in-place reveal as a normal solve — costs the hint fee, no reward.
+    markSolved(question.id);
     setSolved(true);
     Haptics.selectionAsync().catch(() => {});
     startReveal();
   };
 
-  // Reset every per-question flag (incl. the reveal animation) and show `nextIndex`
-  // in place — used by "Next" during a real run and by prev/next in a practice replay.
-  const goToLevel = useCallback((nextIndex: number) => {
-    setWrongPicked([]);
-    setRemoved([]);
-    setFiftyUsed(false);
-    setSolved(false);
-    setOver(false);
-    setRevealing(false);
-    setIndex(nextIndex);
-    Haptics.selectionAsync().catch(() => {});
-  }, []);
-  const goPrev = () => goToLevel((index - 1 + questions.length) % questions.length);
-  const goNext = () => goToLevel((index + 1) % questions.length);
+  // Reset every per-question flag and show `nextIndex` in place. In review the
+  // question opens already solved & revealed so the Explanation stays visible.
+  const goToIndex = useCallback(
+    (nextIndex: number) => {
+      setWrongPicked([]);
+      setRemoved([]);
+      setFiftyUsed(false);
+      setOver(false);
+      setSolved(review);
+      setRevealing(review);
+      setIndex(nextIndex);
+      Haptics.selectionAsync().catch(() => {});
+    },
+    [review],
+  );
+  // Review paging — wraps around the level's solved questions.
+  const goPrev = () => goToIndex((index - 1 + runList.length) % runList.length);
+  const goNext = () => goToIndex((index + 1) % runList.length);
 
-  // "Next" after a reveal: advance to the following question in place, or — on a
-  // real run's last question — open the Victory screen (the whole category is
-  // cleared). A practice replay just wraps back to the first level, no Victory.
+  // "Next" after a reveal (play only): advance to the following question in the
+  // run, or — on the last one — open the Result screen. A level never rolls into
+  // the next one automatically.
   const advance = () => {
     const next = index + 1;
-    if (next >= questions.length) {
-      if (!practice) toResult('complete', questions.length);
-      else goToLevel(0);
+    if (next >= runList.length) {
+      toResult('complete', runList.length);
       return;
     }
-    goToLevel(next);
+    goToIndex(next);
   };
 
   if (!question) {
@@ -247,7 +254,7 @@ export default function LogoQuizQuiz() {
       {/* HUD: back · lives · coins */}
       <View style={styles.hud}>
         <Pressable
-          onPress={() => router.dismissTo(backRoute)}
+          onPress={() => router.dismissTo(BACK_ROUTE)}
           hitSlop={8}
           style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
         >
@@ -263,9 +270,9 @@ export default function LogoQuizQuiz() {
         </View>
       </View>
 
-      {/* Progress */}
+      {/* Progress — position within the run, or a Review tag when browsing. */}
       <Text style={styles.progress}>
-        {index + 1} / {questions.length}
+        {review ? t.review : `${index + 1} / ${runList.length}`}
       </Text>
 
       {/* Logo */}
@@ -280,7 +287,7 @@ export default function LogoQuizQuiz() {
           lone survivor. No layout swap, so it animates smoothly from any position.
           The container is keyed by question id so a level change remounts the whole
           grid as a unit — Reanimated skips child exit animations when their parent
-          unmounts, keeping "Next"/practice paging instant (only the in-reveal
+          unmounts, keeping "Next"/review paging instant (only the in-reveal
           per-item removal, where the container persists, plays FadeOut). */}
       <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
         {question.options.map((option) => {
@@ -329,9 +336,9 @@ export default function LogoQuizQuiz() {
       </View>
 
       {/* Reveal panel — Explanation (localized `question.explanation`, omitted when
-          blank) + "Next", rendered below the centered answer. Fades in only after
-          the answer's glide lands (FadeIn.delay(MOVE_MS)); it sits below the answer
-          in normal flow, so mounting it never shifts the answer. */}
+          blank) + "Next" (play only), rendered below the centered answer. Fades in
+          only after the answer's glide lands (FadeIn.delay(MOVE_MS)); it sits below
+          the answer in normal flow, so mounting it never shifts the answer. */}
       {revealing && (
         <Animated.View
           entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}
@@ -351,36 +358,37 @@ export default function LogoQuizQuiz() {
               </ScrollView>
             </View>
           )}
-          <Pressable
-            onPress={advance}
-            style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
-          >
-            <Text style={styles.nextText}>{t.next}</Text>
-          </Pressable>
+          {!review && (
+            <Pressable
+              onPress={advance}
+              style={({ pressed }) => [styles.nextBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
+            >
+              <Text style={styles.nextText}>{t.next}</Text>
+            </Pressable>
+          )}
         </Animated.View>
       )}
 
-      {/* Bottom row: hint buttons during a real run; in a completed-category
-          practice replay they become level navigation (prev / next) that pages
-          through the questions without ever showing a Result screen. */}
+      {/* Bottom row: hint buttons during a real run; while reviewing a solved logo
+          they become prev / next paging through the level's solved questions. */}
       <View style={styles.hints}>
-        {practice ? (
+        {review ? (
           <>
-            <NavButton label={t.prevLevel} icon="arrow-back" onPress={goPrev} />
-            <NavButton label={t.nextLevel} icon="arrow-forward" iconRight onPress={goNext} />
+            <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} />
+            <NavButton label={t.nextLogo} icon="arrow-forward" iconRight onPress={goNext} />
           </>
         ) : (
           <>
             <HintButton
               label={t.fiftyFifty}
               cost={HINT_5050_COST}
-              disabled={solved || over || fiftyUsed || (!practice && coins < HINT_5050_COST)}
+              disabled={solved || over || fiftyUsed || coins < HINT_5050_COST}
               onPress={use5050}
             />
             <HintButton
               label={t.skip}
               cost={HINT_SKIP_COST}
-              disabled={solved || over || (!practice && coins < HINT_SKIP_COST)}
+              disabled={solved || over || coins < HINT_SKIP_COST}
               onPress={useSkip}
             />
           </>
@@ -428,8 +436,8 @@ function HintButton({
   );
 }
 
-// Level-navigation button used in a completed-category practice replay. `iconRight`
-// puts the arrow after the label (for "next"), otherwise before it (for "prev").
+// Prev/next paging button used while reviewing a solved logo. `iconRight` puts
+// the arrow after the label (for "next"), otherwise before it (for "prev").
 function NavButton({
   label,
   icon,

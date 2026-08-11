@@ -2,10 +2,10 @@
  * Tests for the DEV/QA reset helpers in hooks/logo-quiz/use-logo-quiz.tsx as they
  * relate to the Wheel of Fortune cooldown. Two paths must reopen the free spin:
  *   - resetProgress() — the Settings "Сброс прогресса (DEV)" button — now clears
- *     wheelLastSpinAt IN ADDITION to wiping progress/completed (so a tester who
- *     resets progress immediately gets the wheel back), and
+ *     wheelLastSpinAt IN ADDITION to wiping the solved-question set (so a tester
+ *     who resets progress immediately gets the wheel back), and
  *   - resetWheelCooldown() — the wheel screen's own DEV button — clears ONLY the
- *     wheel timer, leaving coins / lives / progress / completed untouched.
+ *     wheel timer, leaving coins / lives / solved questions untouched.
  * After either, canSpinWheel() must be true and the cleared wheelLastSpinAt (0)
  * must be persisted to AsyncStorage.
  */
@@ -16,7 +16,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { LogoQuizProvider, useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { RATE_APP_REWARD_COINS, STARTING_COINS, wheelPrizeById } from '@/lib/logo-quiz/economy';
 
-const STORAGE_KEY = 'logoquiz.state.v1';
+const STORAGE_KEY = 'logoquiz.state.v2';
 const T = 1_700_000_000_000; // fixed "now" for deterministic time assertions
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -65,45 +65,43 @@ describe('resetProgress — also clears the wheel cooldown', () => {
     expect(saved.wheelLastSpinAt).toBe(0);
   });
 
-  it('still wipes progress and completed maps in addition to the wheel cooldown', async () => {
+  it('still wipes the solved-question set in addition to the wheel cooldown', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(T);
     const { result } = await renderReady();
 
     await act(async () => {
-      result.current.setProgress('geography', 5);
-      result.current.markCompleted('history');
+      result.current.markSolved(101);
+      result.current.markSolved(102);
       result.current.spinWheel(wheelPrizeById('coins100'));
     });
-    // Preconditions: progress recorded, a category completed, cooldown armed.
-    expect(result.current.progressMap.geography).toBe(5);
-    expect(result.current.completedMap.history).toBe(true);
+    // Preconditions: questions solved, cooldown armed.
+    expect(result.current.isSolved(101)).toBe(true);
+    expect(result.current.solvedIds).toEqual({ 101: true, 102: true });
     expect(result.current.canSpinWheel()).toBe(false);
 
     await act(async () => {
       result.current.resetProgress();
     });
 
-    expect(result.current.progressMap).toEqual({});
-    expect(result.current.completedMap).toEqual({});
+    expect(result.current.solvedIds).toEqual({});
+    expect(result.current.isSolved(101)).toBe(false);
     expect(result.current.wheelLastSpinAt).toBe(0);
     expect(result.current.canSpinWheel()).toBe(true);
     const saved = await readPersisted();
-    expect(saved.progress).toEqual({});
-    expect(saved.completed).toEqual({});
+    expect(saved.solvedIds).toEqual({});
     expect(saved.wheelLastSpinAt).toBe(0);
   });
 });
 
 describe('resetWheelCooldown — clears ONLY the wheel timer', () => {
-  it('reopens the spin without touching coins, lives, progress or completed', async () => {
+  it('reopens the spin without touching coins, lives or solved questions', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(T);
     const { result } = await renderReady();
 
     // Build up some state, then arm the cooldown.
     await act(async () => {
       result.current.buyCoins({ id: 'coins_500', coins: 500, price: '$3.99' });
-      result.current.setProgress('science', 3);
-      result.current.markCompleted('sports');
+      result.current.markSolved(301);
       result.current.spinWheel(wheelPrizeById('coins100')); // +100 coins, arms cooldown
     });
 
@@ -119,16 +117,15 @@ describe('resetWheelCooldown — clears ONLY the wheel timer', () => {
     // Wheel reopened...
     expect(result.current.wheelLastSpinAt).toBe(0);
     expect(result.current.canSpinWheel()).toBe(true);
-    // ...but economy and progress are untouched.
+    // ...but economy and solved questions are untouched.
     expect(result.current.coins).toBe(coinsBefore);
     expect(result.current.livesState).toEqual(livesBefore);
-    expect(result.current.progressMap.science).toBe(3);
-    expect(result.current.completedMap.sports).toBe(true);
+    expect(result.current.isSolved(301)).toBe(true);
 
     const saved = await readPersisted();
     expect(saved.wheelLastSpinAt).toBe(0);
     expect(saved.coins).toBe(coinsBefore);
-    expect((saved.progress as Record<string, number>).science).toBe(3);
+    expect((saved.solvedIds as Record<number, true>)[301]).toBe(true);
   });
 });
 

@@ -18,7 +18,7 @@ import {
   wheelPrizeById,
 } from '@/lib/logo-quiz/economy';
 
-const STORAGE_KEY = 'logoquiz.state.v1';
+const STORAGE_KEY = 'logoquiz.state.v2';
 const T = 1_700_000_000_000; // fixed "now" for deterministic time assertions
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -85,8 +85,7 @@ describe('spinWheel — reward crediting & persistence', () => {
         coins: STARTING_COINS,
         isPremium: false,
         lives: { lives: 1, updatedAt: anchor },
-        progress: {},
-        completed: {},
+        solvedIds: {},
         rateRewarded: false,
         wheelLastSpinAt: 0,
       }),
@@ -144,8 +143,7 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         coins: STARTING_COINS,
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
-        progress: {},
-        completed: {},
+        solvedIds: {},
         rateRewarded: false,
         wheelLastSpinAt: T,
       }),
@@ -168,8 +166,7 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         coins: STARTING_COINS,
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
-        progress: {},
-        completed: {},
+        solvedIds: {},
         rateRewarded: false,
         wheelLastSpinAt: futureAnchor,
       }),
@@ -194,8 +191,7 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         coins: STARTING_COINS,
         isPremium: false,
         lives: { lives: 1, updatedAt: T + 60 * 60 * 1000 },
-        progress: {},
-        completed: {},
+        solvedIds: {},
         rateRewarded: false,
         wheelLastSpinAt: 0,
       }),
@@ -215,8 +211,7 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         coins: STARTING_COINS,
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
-        progress: {},
-        completed: {},
+        solvedIds: {},
         rateRewarded: false,
         // no wheelLastSpinAt (older app version)
       }),

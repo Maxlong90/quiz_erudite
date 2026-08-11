@@ -1,14 +1,25 @@
 /**
  * Tests for lib/logo-quiz/content.ts — the pure transforms that turn a backend
- * content snapshot into the Logo Quiz's flat, already-localized category and
- * question view-models. Covers VIP filtering (including a missing is_vip),
- * the default-emoji fallback, per-category question counting (incl. 0/0), and
- * the question mapping (brand = options[correct_option], option order, image
- * resolution). The api client is mocked so importing the content cache — which
- * content.ts depends on for resolveLocalImage — touches no network or env.
+ * content snapshot into the Logo Quiz's LEVEL view-models. Covers level grouping
+ * by the backend `order` (levels of 15), the derived fields (level /
+ * positionInLevel / premium), dropping questions without a valid order, the
+ * question mapping (brand = options[correct_option], option order, image
+ * resolution), and the state-free progress selectors (solved counts + unlocking,
+ * including a partial last level). The api client is mocked so importing the
+ * content cache — which content.ts depends on for resolveLocalImage — touches no
+ * network or env.
  */
 
-import { buildCategories, questionsForCategory } from '@/lib/logo-quiz/content';
+import {
+  buildLevels,
+  questionsForLevel,
+  totalLevels,
+  levelSolvedCount,
+  levelFreeSolvedCount,
+  isLevelUnlocked,
+  FREE_PER_LEVEL,
+  LEVEL_SIZE,
+} from '@/lib/logo-quiz/content';
 import { resolveLocalImage, type ContentSnapshot } from '@/lib/content-cache';
 
 jest.mock('@/api/client', () => ({
@@ -16,27 +27,11 @@ jest.mock('@/api/client', () => ({
   apiClient: { get: jest.fn(), post: jest.fn() },
 }));
 
-type Cat = ContentSnapshot['categories'][number];
 type Q = ContentSnapshot['questions'][number];
-
-function mkCat(
-  slug: string,
-  opts: { is_vip?: boolean; icon_emoji?: string | null; name?: string } = {},
-): Cat {
-  return {
-    slug,
-    name: opts.name ?? slug,
-    sort_order: 0,
-    icon_emoji: opts.icon_emoji ?? null,
-    icon_url: null,
-    is_vip: opts.is_vip,
-    subcategories: [],
-  };
-}
 
 function mkQ(
   id: number,
-  categorySlug: string | null,
+  order: number | null,
   opts: {
     options?: string[];
     correct_option?: number;
@@ -44,177 +39,161 @@ function mkQ(
     image_url?: string | null;
   } = {},
 ): Q {
-  return {
+  const base = {
     id,
-    category_slug: categorySlug,
+    category_slug: 'logo-quiz',
     question: `q${id}`,
     options: opts.options ?? ['A', 'B', 'C', 'D'],
     correct_option: opts.correct_option ?? 0,
     explanation: opts.explanation ?? null,
     image_url: opts.image_url ?? null,
-  };
+  } as Q;
+  // `order` is an additive backend field the shared type doesn't declare — it
+  // survives the cache round-trip and content.ts reads it defensively.
+  if (order != null) (base as { order?: number }).order = order;
+  return base;
 }
 
-function makeSnapshot(
-  categories: Cat[],
-  questions: Q[],
-  imageMap?: Record<string, string>,
-): ContentSnapshot {
+function makeSnapshot(questions: Q[], imageMap?: Record<string, string>): ContentSnapshot {
   return {
     app: { slug: 'logo-quiz', name: 'Logo Quiz', supported_locales: ['en', 'ru', 'es'] },
     locale: 'ru',
     version: 1,
     generated_at: '2026-07-28T00:00:00Z',
-    categories,
+    categories: [],
     questions,
     imageMap,
   };
 }
 
-describe('buildCategories', () => {
-  it('returns only non-VIP categories for the regular section', () => {
-    const snap = makeSnapshot(
-      [
-        mkCat('cars', { is_vip: false }),
-        mkCat('luxury', { is_vip: true }),
-        mkCat('flags', { is_vip: false }),
-      ],
-      [],
-    );
+/** N questions numbered `start..start+N-1`. */
+function orderedQuestions(count: number, start = 1): Q[] {
+  return Array.from({ length: count }, (_, i) => mkQ(1000 + start + i, start + i));
+}
 
-    const regular = buildCategories(snap, false);
+describe('buildLevels', () => {
+  it('groups numbered questions into dense, ordered levels of 15', () => {
+    const snap = makeSnapshot(orderedQuestions(32));
+    const levels = buildLevels(snap);
 
-    expect(regular.map((c) => c.slug)).toEqual(['cars', 'flags']);
-    expect(regular.every((c) => c.isVip === false)).toBe(true);
+    expect(levels.map((l) => l.level)).toEqual([1, 2, 3]);
+    expect(levels[0].questions).toHaveLength(15);
+    expect(levels[1].questions).toHaveLength(15);
+    expect(levels[2].questions).toHaveLength(2); // partial last level
+    expect(totalLevels(snap)).toBe(3);
   });
 
-  it('returns only VIP categories for the VIP section', () => {
-    const snap = makeSnapshot(
-      [
-        mkCat('cars', { is_vip: false }),
-        mkCat('luxury', { is_vip: true }),
-        mkCat('yachts', { is_vip: true }),
-      ],
-      [],
-    );
-
-    const vip = buildCategories(snap, true);
-
-    expect(vip.map((c) => c.slug)).toEqual(['luxury', 'yachts']);
-    expect(vip.every((c) => c.isVip === true)).toBe(true);
+  it('sorts questions by order regardless of snapshot order', () => {
+    const snap = makeSnapshot([mkQ(3, 3), mkQ(1, 1), mkQ(2, 2)]);
+    expect(questionsForLevel(snap, 1).map((q) => q.order)).toEqual([1, 2, 3]);
   });
 
-  it('treats a missing/undefined is_vip as false (routes to the regular section)', () => {
-    const snap = makeSnapshot([mkCat('cars', {})], []); // is_vip omitted entirely
+  it('derives level / positionInLevel / premium from order', () => {
+    const snap = makeSnapshot(orderedQuestions(16));
+    const all = buildLevels(snap).flatMap((l) => l.questions);
 
-    expect(buildCategories(snap, false).map((c) => c.slug)).toEqual(['cars']);
-    expect(buildCategories(snap, true)).toEqual([]);
-    expect(buildCategories(snap, false)[0].isVip).toBe(false);
+    const first = all.find((q) => q.order === 1)!;
+    expect(first).toMatchObject({ level: 1, positionInLevel: 0, premium: false });
+
+    const lastFree = all.find((q) => q.order === FREE_PER_LEVEL)!; // order 9 → position 8
+    expect(lastFree).toMatchObject({ level: 1, positionInLevel: 8, premium: false });
+
+    const firstPremium = all.find((q) => q.order === FREE_PER_LEVEL + 1)!; // order 10 → position 9
+    expect(firstPremium).toMatchObject({ level: 1, positionInLevel: 9, premium: true });
+
+    const lastOfLevel = all.find((q) => q.order === LEVEL_SIZE)!; // order 15 → position 14
+    expect(lastOfLevel).toMatchObject({ level: 1, positionInLevel: 14, premium: true });
+
+    const firstOfLevel2 = all.find((q) => q.order === LEVEL_SIZE + 1)!; // order 16 → level 2, position 0
+    expect(firstOfLevel2).toMatchObject({ level: 2, positionInLevel: 0, premium: false });
   });
 
-  it('uses the default emoji when icon_emoji is null or empty, and the backend emoji otherwise', () => {
-    const snap = makeSnapshot(
-      [
-        mkCat('cars', { icon_emoji: null }),
-        mkCat('flags', { icon_emoji: '' }),
-        mkCat('food', { icon_emoji: '🍔' }),
-      ],
-      [],
-    );
+  it('drops questions with a missing or invalid order (degrades to empty when none)', () => {
+    const snap = makeSnapshot([mkQ(1, 1), mkQ(2, null), mkQ(3, 0), mkQ(4, 2)]);
+    expect(questionsForLevel(snap, 1).map((q) => q.order)).toEqual([1, 2]);
 
-    const bySlug = Object.fromEntries(buildCategories(snap, false).map((c) => [c.slug, c.emoji]));
-
-    expect(bySlug.cars).toBe('🏷️');
-    expect(bySlug.flags).toBe('🏷️');
-    expect(bySlug.food).toBe('🍔');
+    const noOrders = makeSnapshot([mkQ(1, null), mkQ(2, null)]);
+    expect(buildLevels(noOrders)).toEqual([]); // backend not emitting `order` yet
   });
 
-  it('counts questions per category by category_slug, returning 0 for empty categories', () => {
-    const snap = makeSnapshot(
-      [mkCat('cars', { is_vip: false }), mkCat('empty', { is_vip: false })],
-      [
-        mkQ(1, 'cars'),
-        mkQ(2, 'cars'),
-        mkQ(3, 'cars'),
-        mkQ(4, 'other-category'), // belongs to a category not in the list
-      ],
-    );
-
-    const bySlug = Object.fromEntries(buildCategories(snap, false).map((c) => [c.slug, c.total]));
-
-    expect(bySlug.cars).toBe(3);
-    expect(bySlug.empty).toBe(0); // renders as 0/0, not hidden
-  });
-
-  it('passes through the already-localized name from the snapshot', () => {
-    const snap = makeSnapshot([mkCat('cars', { name: 'Автомобили' })], []);
-    expect(buildCategories(snap, false)[0].name).toBe('Автомобили');
-  });
-});
-
-describe('questionsForCategory', () => {
-  it('filters by category_slug and preserves backend order', () => {
-    const snap = makeSnapshot(
-      [mkCat('cars')],
-      [mkQ(10, 'cars'), mkQ(20, 'other'), mkQ(30, 'cars'), mkQ(40, 'cars')],
-    );
-
-    expect(questionsForCategory(snap, 'cars').map((q) => q.id)).toEqual([10, 30, 40]);
-  });
-
-  it('maps brand = options[correct_option] and preserves option order + id/explanation', () => {
-    const options = ['Maserati', 'Ferrari', 'Alfa Romeo', 'Lamborghini', 'Aston Martin', 'Bentley'];
-    const snap = makeSnapshot(
-      [mkCat('cars')],
-      [mkQ(2145, 'cars', { options, correct_option: 0, explanation: 'Trident logo.' })],
-    );
-
-    const [q] = questionsForCategory(snap, 'cars');
-
-    expect(q.id).toBe(2145);
-    expect(q.brand).toBe('Maserati');
-    expect(q.correctIndex).toBe(0);
-    expect(q.options).toEqual(options); // unchanged order
-    expect(q.explanation).toBe('Trident logo.');
-  });
-
-  it('resolves brand for a non-zero correct_option', () => {
-    const snap = makeSnapshot(
-      [mkCat('cars')],
-      [mkQ(7, 'cars', { options: ['Saab', 'Volvo', 'Tesla'], correct_option: 1 })],
-    );
-
-    expect(questionsForCategory(snap, 'cars')[0].brand).toBe('Volvo');
-  });
-
-  it('resolves imageUri to the cached local file when present, else the remote URL, and null when absent', () => {
+  it('maps brand = options[correct_option] and preserves option order + explanation + image', () => {
     const remote = 'http://backend/questions/1/image';
+    const options = ['Maserati', 'Ferrari', 'Alfa Romeo', 'Lamborghini'];
     const snap = makeSnapshot(
-      [mkCat('cars')],
       [
-        mkQ(1, 'cars', { image_url: remote }),
-        mkQ(2, 'cars', { image_url: 'http://backend/questions/2/image' }),
-        mkQ(3, 'cars', { image_url: null }),
+        mkQ(2145, 1, { options, correct_option: 1, explanation: 'Prancing horse.', image_url: remote }),
+        mkQ(2146, 2, { image_url: 'http://backend/questions/2/image' }),
+        mkQ(2147, 3, { image_url: null }),
       ],
-      { [remote]: 'file:///local/img-1.png' }, // only question 1 is cached locally
+      { [remote]: 'file:///local/img-1.png' },
     );
 
-    const qs = questionsForCategory(snap, 'cars');
-
-    expect(qs[0].imageUri).toBe('file:///local/img-1.png'); // local file
-    expect(qs[1].imageUri).toBe('http://backend/questions/2/image'); // remote fallback
-    expect(qs[2].imageUri).toBeNull(); // no artwork
+    const [q1, q2, q3] = questionsForLevel(snap, 1);
+    expect(q1.brand).toBe('Ferrari');
+    expect(q1.correctIndex).toBe(1);
+    expect(q1.options).toEqual(options);
+    expect(q1.explanation).toBe('Prancing horse.');
+    expect(q1.imageUri).toBe('file:///local/img-1.png'); // cached local file
+    expect(q2.imageUri).toBe('http://backend/questions/2/image'); // remote fallback
+    expect(q3.imageUri).toBeNull();
   });
 
-  it('returns an empty array for a category with no questions', () => {
-    const snap = makeSnapshot([mkCat('empty')], [mkQ(1, 'cars')]);
-    expect(questionsForCategory(snap, 'empty')).toEqual([]);
+  it('returns an empty array for a level that does not exist', () => {
+    const snap = makeSnapshot(orderedQuestions(3));
+    expect(questionsForLevel(snap, 5)).toEqual([]);
   });
 });
 
-describe('resolveLocalImage (used by questionsForCategory)', () => {
+describe('level progress selectors', () => {
+  it('levelSolvedCount counts every solved question (premium included)', () => {
+    const questions = buildLevels(makeSnapshot(orderedQuestions(15)))[0].questions;
+    const solved = { [questions[0].id]: true, [questions[9].id]: true } as Record<number, true>; // 1 free + 1 premium
+    expect(levelSolvedCount(questions, solved)).toBe(2);
+  });
+
+  it('levelFreeSolvedCount counts only free (position < 9) solves', () => {
+    const questions = buildLevels(makeSnapshot(orderedQuestions(15)))[0].questions;
+    const solved = { [questions[0].id]: true, [questions[9].id]: true } as Record<number, true>;
+    expect(levelFreeSolvedCount(questions, solved)).toBe(1); // premium solve ignored
+  });
+
+  it('isLevelUnlocked: level 1 always open; level 2 opens on all 9 free of level 1', () => {
+    const levels = buildLevels(makeSnapshot(orderedQuestions(30)));
+    const freeIds = levels[0].questions.filter((q) => !q.premium).map((q) => q.id);
+
+    expect(isLevelUnlocked(levels, 1, {})).toBe(true);
+    expect(isLevelUnlocked(levels, 2, {})).toBe(false);
+
+    // Solve 8 of 9 free — still locked.
+    const partial = Object.fromEntries(freeIds.slice(0, 8).map((id) => [id, true])) as Record<number, true>;
+    expect(isLevelUnlocked(levels, 2, partial)).toBe(false);
+
+    // Solve all 9 free (premium irrelevant) — unlocked.
+    const allFree = Object.fromEntries(freeIds.map((id) => [id, true])) as Record<number, true>;
+    expect(isLevelUnlocked(levels, 2, allFree)).toBe(true);
+  });
+
+  it('isLevelUnlocked clamps the threshold to a partial previous level', () => {
+    // Level 1 full (15), level 2 partial with only 5 questions (all free).
+    const levels = buildLevels(makeSnapshot(orderedQuestions(20)));
+    expect(levels[1].questions).toHaveLength(5);
+
+    const l1Free = levels[0].questions.filter((q) => !q.premium).map((q) => q.id);
+    const l2Free = levels[1].questions.filter((q) => !q.premium).map((q) => q.id);
+    expect(l2Free).toHaveLength(5);
+
+    const solved = Object.fromEntries(
+      [...l1Free, ...l2Free].map((id) => [id, true]),
+    ) as Record<number, true>;
+
+    // A hypothetical level 3 would unlock once level 2's 5 free (< 9) are solved.
+    expect(isLevelUnlocked(levels, 3, solved)).toBe(true);
+  });
+});
+
+describe('resolveLocalImage (used by the level builder)', () => {
   it('returns null for a null url, the local file when mapped, and the remote url otherwise', () => {
-    const snap = makeSnapshot([], [], { 'http://remote/a.png': 'file:///a.png' });
+    const snap = makeSnapshot([], { 'http://remote/a.png': 'file:///a.png' });
 
     expect(resolveLocalImage(snap, null)).toBeNull();
     expect(resolveLocalImage(snap, 'http://remote/a.png')).toBe('file:///a.png');

@@ -2,7 +2,7 @@
  * Integration tests for the Logo Quiz Victory/result screen (app/logo-quiz/result.tsx)
  * AFTER explanations moved into the quiz screen. The result screen must now show
  * ONLY the score + actions (+ confetti on a win) and never render an explanations
- * block, for both the category-cleared ('complete') and 'gameover' outcomes.
+ * block, for both the level-cleared ('complete') and 'gameover' outcomes.
  */
 import React from 'react';
 import { render } from '@testing-library/react-native';
@@ -50,20 +50,20 @@ jest.mock('expo-router', () => ({
 import LogoQuizResult from '@/app/logo-quiz/result';
 
 describe('result screen shows score + actions only, never explanations', () => {
-  it('category cleared (complete): score + "Back to categories", no explanations', () => {
-    mockParams = { score: '2', total: '2', outcome: 'complete', category: 'logos', vip: '' };
+  it('level cleared (complete): score + "Back to levels", no explanations', () => {
+    mockParams = { score: '2', total: '2', outcome: 'complete' };
     const screen = render(<LogoQuizResult />);
 
     expect(screen.getByText('Round complete!')).toBeTruthy();
     expect(screen.getByText('Score')).toBeTruthy();
-    expect(screen.getByText('Back to categories')).toBeTruthy();
+    expect(screen.getByText('Back to levels')).toBeTruthy();
 
     // The explanations block is gone from the result screen.
     expect(screen.queryByText('Explanations')).toBeNull();
   });
 
   it('game over: score + "Go to Shop", no explanations', () => {
-    mockParams = { score: '1', total: '2', outcome: 'gameover', category: 'logos', vip: '' };
+    mockParams = { score: '1', total: '2', outcome: 'gameover' };
     const screen = render(<LogoQuizResult />);
 
     expect(screen.getByText('Game over')).toBeTruthy();

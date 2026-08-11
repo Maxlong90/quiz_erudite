@@ -21,13 +21,11 @@ export default function LogoQuizResult() {
     coins?: string;
     total?: string;
     outcome?: string;
-    category?: string;
-    vip?: string;
   }>();
 
   const score = Number(params.score ?? 0);
   const total = Number(params.total ?? 0);
-  // The result screen is reached only for a fully cleared category (a win) or a
+  // The result screen is reached only for a fully cleared level (a win) or a
   // game over — the per-question flow now stays inside the quiz screen.
   const gameOver = params.outcome === 'gameover';
 
@@ -35,10 +33,8 @@ export default function LogoQuizResult() {
   const now = useNow(1000);
   const nextLifeMs = msUntilNextLife(livesState, now, isPremium);
 
-  // Back arrow returns to the category picker the round was started from —
-  // the VIP list when the played category is a VIP one, otherwise the regular list.
-  const isVipCategory = params.vip === '1';
-  const categoryRoute = isVipCategory ? '/logo-quiz/categories-vip' : '/logo-quiz/categories';
+  // Back arrow returns to the level-select list the round was started from.
+  const levelsRoute = '/logo-quiz/categories';
 
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
@@ -49,7 +45,7 @@ export default function LogoQuizResult() {
         <View style={styles.topBar}>
           <Pressable
             style={[styles.iconBtn, LQShadow.card]}
-            onPress={() => router.dismissTo(categoryRoute)}
+            onPress={() => router.dismissTo(levelsRoute)}
             hitSlop={8}
           >
             <Ionicons name="chevron-back" size={22} color={LQColors.text} />
@@ -89,9 +85,8 @@ export default function LogoQuizResult() {
 
         <View style={{ flex: 1 }} />
 
-        {/* Actions — a cleared category returns to the picker the round started
-            from (VIP list for a Premium category, the regular list otherwise). On
-            a game over the primary sends the player to the Shop. Home → Welcome. */}
+        {/* Actions — a cleared level returns to the level-select list. On a game
+            over the primary sends the player to the Shop. Home → Welcome. */}
         {gameOver ? (
           <GoldButton
             onPress={() => router.replace('/logo-quiz/shop')}
@@ -103,9 +98,9 @@ export default function LogoQuizResult() {
         ) : (
           <Pressable
             style={({ pressed }) => [styles.primaryBtn, LQShadow.card, pressed && { opacity: 0.9 }]}
-            onPress={() => router.dismissTo(categoryRoute)}
+            onPress={() => router.dismissTo(levelsRoute)}
           >
-            <Text style={styles.primaryText}>{t.backToCategories}</Text>
+            <Text style={styles.primaryText}>{t.backToLevels}</Text>
           </Pressable>
         )}
         <Pressable style={styles.secondaryBtn} onPress={() => router.dismissTo('/logo-quiz')}>

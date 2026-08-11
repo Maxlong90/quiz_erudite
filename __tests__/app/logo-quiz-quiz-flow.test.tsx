@@ -1,22 +1,20 @@
 /**
- * Integration tests for the reworked Logo Quiz answer flow (app/logo-quiz/quiz.tsx).
+ * Integration tests for the level-based Logo Quiz answer flow (app/logo-quiz/quiz.tsx).
  *
- * The Victory/result screen is no longer an interstitial between questions: a
- * correct answer now reveals in place (wrong options fade, the green answer glides
- * up, then an Explanation panel + a "Next" button appear) and only the LAST
- * question — or a game over — navigates to /logo-quiz/result. These tests lock in
- * the branch logic that lives at the composed-component level:
+ * A correct answer reveals in place (wrong options fade, the green answer glides
+ * up, then an Explanation panel + a "Next" button appear) and marks the question
+ * solved; only the LAST question of the run — or a game over — navigates to
+ * /logo-quiz/result. A premium question the current (non-subscriber) user can't
+ * play is never part of the run. Reviewing a solved logo shows the Explanation
+ * with ◀/▶ paging and runs no economy. These tests lock in that branch logic:
  *
- *  - a correct pick runs the economy (awardCorrect / setProgress / markCompleted)
- *    and shows the reveal WITHOUT navigating away;
+ *  - a correct pick runs the economy (awardCorrect) + markSolved and shows the
+ *    reveal WITHOUT navigating away;
  *  - "Next" on a non-last question advances in place (no navigation);
- *  - "Next" on a real-run last question opens Victory (outcome 'complete',
- *    score === total);
- *  - "Next" on a practice replay's last question wraps to the first level (no
- *    Victory, no coin award);
- *  - a wrong pick at zero lives goes to Victory in the 'gameover' state and shows
- *    no reveal;
- *  - the skip hint drives the same in-place reveal instead of auto-navigating.
+ *  - "Next" on the last question opens the Result (outcome 'complete');
+ *  - review mode shows the Explanation + prev/next and never touches the economy;
+ *  - a wrong pick at zero lives goes to Result in the 'gameover' state, no reveal;
+ *  - the skip hint drives the same in-place reveal + markSolved.
  *
  * The reveal animation itself is verified visually via Maestro; under the
  * reanimated mock (onLayout never fires in RNTL) `startReveal` settles
@@ -27,37 +25,35 @@ import { fireEvent, render, act } from '@testing-library/react-native';
 
 // --- controllable mock state -------------------------------------------------
 
-let mockPractice = false; // isCompleted(cat) → practice replay when true
-let mockProgress = 0; // getProgress(cat) → initial level index
 let mockLives = 5; // getLives() → remaining lives
 let mockCoins = 999;
+let mockIsPremium = false;
+let mockSolved: Record<number, boolean> = {};
 let mockSnapshot: unknown = null;
 let mockParams: Record<string, string> = {};
 
 const mockAwardCorrect = jest.fn();
 const mockSpendCoins = jest.fn(() => true);
 const mockLoseLife = jest.fn();
-const mockSetProgress = jest.fn();
-const mockMarkCompleted = jest.fn();
+const mockMarkSolved = jest.fn((id: number) => {
+  mockSolved[id] = true;
+});
 const mockGetLives = jest.fn(() => mockLives);
-const mockGetProgress = jest.fn(() => mockProgress);
-const mockIsCompleted = jest.fn(() => mockPractice);
+const mockIsSolved = jest.fn((id: number) => !!mockSolved[id]);
 
 // --- module boundaries -------------------------------------------------------
 
 jest.mock('@/hooks/logo-quiz/use-logo-quiz', () => ({
   useLogoQuiz: () => ({
     coins: mockCoins,
-    isPremium: false,
+    isPremium: mockIsPremium,
     livesState: { lives: mockLives, updatedAt: 0 },
     awardCorrect: mockAwardCorrect,
     spendCoins: mockSpendCoins,
     loseLife: mockLoseLife,
     getLives: mockGetLives,
-    getProgress: mockGetProgress,
-    setProgress: mockSetProgress,
-    isCompleted: mockIsCompleted,
-    markCompleted: mockMarkCompleted,
+    isSolved: mockIsSolved,
+    markSolved: mockMarkSolved,
   }),
 }));
 jest.mock('@/hooks/logo-quiz/use-logo-quiz-content', () => ({
@@ -93,11 +89,13 @@ jest.mock('@/components/logo-quiz/hud', () => ({ CoinPill: () => null, LivesPill
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockDismissTo = jest.fn();
+const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
   router: {
     replace: (...a: unknown[]) => mockReplace(...a),
     push: (...a: unknown[]) => mockPush(...a),
     dismissTo: (...a: unknown[]) => mockDismissTo(...a),
+    back: (...a: unknown[]) => mockBack(...a),
   },
   useLocalSearchParams: () => mockParams,
 }));
@@ -107,8 +105,8 @@ import LogoQuizQuiz from '@/app/logo-quiz/quiz';
 
 // --- fixtures ---------------------------------------------------------------
 
-// Two-question category. Brand is options[correct_option]: Q0 → "Paris",
-// Q1 (last) → "Nike". Only Q0 carries an explanation.
+// Level 1 with two FREE questions (order 1 & 2). Brand is options[correct_option]:
+// Q1 → "Paris" (carries an explanation), Q2 (last) → "Nike".
 const SNAPSHOT = {
   locale: 'en',
   categories: [],
@@ -116,7 +114,8 @@ const SNAPSHOT = {
   questions: [
     {
       id: 1,
-      category_slug: 'logos',
+      category_slug: 'logo-quiz',
+      order: 1,
       options: ['Paris', 'Rome'],
       correct_option: 0,
       explanation: 'City of light.',
@@ -124,7 +123,8 @@ const SNAPSHOT = {
     },
     {
       id: 2,
-      category_slug: 'logos',
+      category_slug: 'logo-quiz',
+      order: 2,
       options: ['Nike', 'Puma'],
       correct_option: 0,
       explanation: null,
@@ -134,39 +134,36 @@ const SNAPSHOT = {
 };
 
 beforeEach(() => {
-  mockPractice = false;
-  mockProgress = 0;
   mockLives = 5;
   mockCoins = 999;
+  mockIsPremium = false;
+  mockSolved = {};
   mockSnapshot = SNAPSHOT;
-  mockParams = { category: 'logos' };
+  mockParams = { level: '1' };
   mockAwardCorrect.mockClear();
   mockSpendCoins.mockClear().mockReturnValue(true);
   mockLoseLife.mockClear();
-  mockSetProgress.mockClear();
-  mockMarkCompleted.mockClear();
+  mockMarkSolved.mockClear();
   mockGetLives.mockClear();
-  mockGetProgress.mockClear();
-  mockIsCompleted.mockClear();
+  mockIsSolved.mockClear();
   mockReplace.mockClear();
   mockPush.mockClear();
   mockDismissTo.mockClear();
+  mockBack.mockClear();
 });
 
 // --- 1. correct pick reveals in place, runs economy, no navigation -----------
 
-describe('correct answer → in-place reveal (no interstitial Victory)', () => {
-  it('awards, advances progress, shows Explanation + Next, and does NOT navigate', () => {
+describe('correct answer → in-place reveal (no interstitial Result)', () => {
+  it('awards, marks solved, shows Explanation + Next, and does NOT navigate', () => {
     const screen = render(<LogoQuizQuiz />);
-    // The grid is showing the prompt + both options.
     expect(screen.getByText('Which brand is this?')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Paris')); // correct brand of Q0
+    fireEvent.press(screen.getByText('Paris')); // correct brand of Q1
 
-    // Economy ran: coins awarded (real run) and progress advanced to next level.
+    // Economy ran: coins awarded (real run) and the question marked solved.
     expect(mockAwardCorrect).toHaveBeenCalledTimes(1);
-    expect(mockSetProgress).toHaveBeenCalledWith('logos', 1);
-    expect(mockMarkCompleted).not.toHaveBeenCalled();
+    expect(mockMarkSolved).toHaveBeenCalledWith(1);
 
     // Reveal is shown: Explanation text + a "Next" button appeared in place.
     expect(screen.getByText('Explanations')).toBeTruthy();
@@ -183,27 +180,27 @@ describe('correct answer → in-place reveal (no interstitial Victory)', () => {
 describe('Next on a non-last question advances in place', () => {
   it('shows the following question without navigating to /logo-quiz/result', () => {
     const screen = render(<LogoQuizQuiz />);
-    fireEvent.press(screen.getByText('Paris')); // solve Q0
+    fireEvent.press(screen.getByText('Paris')); // solve Q1
     fireEvent.press(screen.getByText('Next')); // advance
 
-    // Q1 is now on screen (its options render); no navigation occurred.
+    // Q2 is now on screen (its options render); no navigation occurred.
     expect(screen.getByText('Nike')).toBeTruthy();
     expect(screen.getByText('Puma')).toBeTruthy();
     // The reveal was reset — the Explanation/Next are gone until the next solve.
-    expect(screen.queryByText('Next')).toBeNull();
+    expect(screen.queryByText('Explanations')).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });
 
-// --- 3. Next on the real-run last question opens Victory ---------------------
+// --- 3. Next on the last question opens the Result (level cleared) -----------
 
-describe('Next on the last question opens Victory (category cleared)', () => {
+describe('Next on the last question opens the Result (level cleared)', () => {
   it('router.replace to result with outcome complete and score === total', () => {
-    mockProgress = 1; // start on the last question (index 1)
+    mockParams = { level: '1', q: '2' }; // start on the last question (id 2)
     const screen = render(<LogoQuizQuiz />);
 
     fireEvent.press(screen.getByText('Nike')); // correct brand of the last question
-    expect(mockMarkCompleted).toHaveBeenCalledWith('logos'); // last level marks completion
+    expect(mockMarkSolved).toHaveBeenCalledWith(2);
     expect(mockReplace).not.toHaveBeenCalled(); // still no nav — reveal is shown
 
     fireEvent.press(screen.getByText('Next'));
@@ -212,32 +209,34 @@ describe('Next on the last question opens Victory (category cleared)', () => {
     const arg = mockReplace.mock.calls[0][0];
     expect(arg.pathname).toBe('/logo-quiz/result');
     expect(arg.params.outcome).toBe('complete');
-    expect(arg.params.score).toBe('2'); // score === total (both questions cleared)
-    expect(arg.params.total).toBe('2');
+    expect(arg.params.total).toBe('2'); // two playable questions in the run
   });
 });
 
-// --- 4. Practice replay: last-question Next wraps, no Victory, no award ------
+// --- 4. Review mode: Explanation + paging, no economy ------------------------
 
-describe('practice replay last question wraps to the first level', () => {
-  it('does NOT navigate to Victory and does NOT award coins', () => {
-    mockPractice = true; // completed category → free practice replay
-    mockProgress = 1; // start on the last question
+describe('review mode pages solved logos with no economy', () => {
+  it('shows the Explanation and prev/next, awards nothing, and never navigates to Result', () => {
+    mockSolved = { 1: true, 2: true }; // both already solved
+    mockParams = { level: '1', mode: 'review', q: '1' };
     const screen = render(<LogoQuizQuiz />);
 
-    fireEvent.press(screen.getByText('Nike')); // correct
-    expect(mockAwardCorrect).not.toHaveBeenCalled(); // practice earns nothing
+    // Opens already revealed: the Explanation of the solved logo is shown.
+    expect(screen.getByText('Explanations')).toBeTruthy();
+    expect(screen.getByText('City of light.')).toBeTruthy();
+    // Paging button present; no economy has run.
+    expect(screen.getByText('Next')).toBeTruthy();
+    expect(mockAwardCorrect).not.toHaveBeenCalled();
+    expect(mockMarkSolved).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByText('Next'));
+    fireEvent.press(screen.getByText('Next')); // page to the next solved logo
 
-    // Wrapped back to the first level (Q0 options visible), no navigation.
-    expect(screen.getByText('Paris')).toBeTruthy();
-    expect(screen.getByText('Rome')).toBeTruthy();
+    // Still reviewing (no Result navigation).
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });
 
-// --- 5. Wrong pick at zero lives → Victory (gameover), no reveal -------------
+// --- 5. Wrong pick at zero lives → Result (gameover), no reveal --------------
 
 describe('wrong answer at zero lives → game over', () => {
   it('navigates to result with outcome gameover and shows no reveal', () => {
@@ -246,11 +245,10 @@ describe('wrong answer at zero lives → game over', () => {
       mockLives = 0; // getLives() returns 0 after the mistake → game over
       const screen = render(<LogoQuizQuiz />);
 
-      fireEvent.press(screen.getByText('Rome')); // wrong brand for Q0
+      fireEvent.press(screen.getByText('Rome')); // wrong brand for Q1
 
       expect(mockLoseLife).toHaveBeenCalledTimes(1);
       // No reveal on a loss.
-      expect(screen.queryByText('Next')).toBeNull();
       expect(screen.queryByText('Explanations')).toBeNull();
 
       // The board locks, then navigates to the game-over result after the delay.
@@ -265,23 +263,23 @@ describe('wrong answer at zero lives → game over', () => {
   });
 });
 
-// --- 6. Skip hint drives the same reveal (no 3s auto-navigation) -------------
+// --- 6. Skip hint drives the same reveal + marks solved ----------------------
 
 describe('skip hint reveals in place instead of auto-navigating', () => {
-  it('shows Explanation + Next and does not navigate until Next is pressed', () => {
+  it('spends coins, marks solved, shows Explanation + Next, advances on Next', () => {
     const screen = render(<LogoQuizQuiz />);
 
-    // The skip HintButton is labelled "Next level" (t.skip) during a real run.
-    fireEvent.press(screen.getByText('Next level'));
+    // The skip HintButton is labelled "Skip" (t.skip) during a real run.
+    fireEvent.press(screen.getByText('Skip'));
 
     expect(mockSpendCoins).toHaveBeenCalledTimes(1);
-    expect(mockSetProgress).toHaveBeenCalledWith('logos', 1);
+    expect(mockMarkSolved).toHaveBeenCalledWith(1);
     // Reveal shown, still on the quiz screen (no auto-nav to result).
     expect(screen.getByText('Explanations')).toBeTruthy();
     expect(screen.getByText('Next')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
 
-    fireEvent.press(screen.getByText('Next')); // advance to Q1 in place
+    fireEvent.press(screen.getByText('Next')); // advance to Q2 in place
     expect(screen.getByText('Nike')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
   });

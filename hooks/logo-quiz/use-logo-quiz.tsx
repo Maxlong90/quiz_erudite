@@ -32,16 +32,21 @@ import type { CoinPack, LifePack, WheelPrize } from '@/lib/logo-quiz/economy';
  * through here and every screen reads from it.
  */
 
-const STORAGE_KEY = 'logoquiz.state.v1';
+const STORAGE_KEY = 'logoquiz.state.v2';
+/**
+ * Legacy key (levels-by-category model). Read once on first v2 hydrate to carry
+ * over the economy (coins / premium / lives / rewards); the old per-category
+ * `progress`/`completed` counters are dropped — they never recorded WHICH
+ * questions were solved, so they cannot map onto the new solved-id set.
+ */
+const LEGACY_STORAGE_KEY = 'logoquiz.state.v1';
 
 interface PersistedState {
   coins: number;
   isPremium: boolean;
   lives: LivesState;
-  /** Next-question index per category id — the sequential level the player is on. */
-  progress: Record<string, number>;
-  /** Categories finished at least once — replayed as a free, no-economy practice. */
-  completed: Record<string, boolean>;
+  /** Ids of individually solved questions — level completion & unlocking derive from this. */
+  solvedIds: Record<number, true>;
   /** Whether the one-time "rate the app" coin reward has been claimed. */
   rateRewarded: boolean;
   /** Epoch ms of the last free wheel spin (0 = never). Drives the 24h cooldown. */
@@ -71,21 +76,15 @@ interface LogoQuizValue {
   buyLives: (pack: LifePack) => void;
   /** Spend coins for a fixed batch of lives. Returns false (no change) if short on coins. */
   buyLivesForCoins: () => boolean;
-  /** Current sequential level index for a category (0 when not started). */
-  getProgress: (category: string) => number;
-  /** Persist the sequential level index reached in a category. */
-  setProgress: (category: string, index: number) => void;
-  /** Whether a category was already finished once (replays run economy-free). */
-  isCompleted: (category: string) => boolean;
-  /** Mark a category finished and rewind it to the first level for replaying. */
-  markCompleted: (category: string) => void;
-  /** Reactive per-category level index — for progress labels on the grid. */
-  progressMap: Record<string, number>;
-  /** Reactive per-category completion flags — for the grid's done checkmarks. */
-  completedMap: Record<string, boolean>;
+  /** Whether a specific question has been solved. */
+  isSolved: (id: number) => boolean;
+  /** Mark a question solved (idempotent). Level completion & unlocks derive from this. */
+  markSolved: (id: number) => void;
+  /** Reactive set of solved question ids — for grid checks, progress bars & unlocking. */
+  solvedIds: Record<number, true>;
   /** Test/QA helper — wipe progress back to a fresh start. */
   reset: () => void;
-  /** Dev/QA helper — send every category back to level 1 (clears progress + completed + wheel cooldown). */
+  /** Dev/QA helper — clear all solved questions (sends the player back to Level 1) + wheel cooldown. */
   resetProgress: () => void;
   /** Dev/QA helper — clear the wheel's 24h cooldown so a free spin is available now. */
   resetWheelCooldown: () => void;
@@ -105,11 +104,43 @@ const DEFAULT_STATE: PersistedState = {
   coins: STARTING_COINS,
   isPremium: false,
   lives: { lives: MAX_LIVES, updatedAt: 0 },
-  progress: {},
-  completed: {},
+  solvedIds: {},
   rateRewarded: false,
   wheelLastSpinAt: 0,
 };
+
+/**
+ * First-run migration from the legacy v1 economy. Carries coins / premium /
+ * lives / rewards / wheel cooldown forward; the old per-category progress is
+ * intentionally discarded (it never stored solved question ids). Returns
+ * DEFAULT_STATE (empty economy) when there is no legacy blob to read.
+ */
+async function migrateFromLegacy(): Promise<PersistedState> {
+  try {
+    const raw = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
+    const parsed = JSON.parse(raw) as Partial<{
+      coins: number;
+      isPremium: boolean;
+      lives: LivesState;
+      rateRewarded: boolean;
+      wheelLastSpinAt: number;
+    }>;
+    return {
+      coins: typeof parsed.coins === 'number' ? parsed.coins : STARTING_COINS,
+      isPremium: !!parsed.isPremium,
+      lives: {
+        lives: typeof parsed.lives?.lives === 'number' ? parsed.lives.lives : MAX_LIVES,
+        updatedAt: typeof parsed.lives?.updatedAt === 'number' ? parsed.lives.updatedAt : Date.now(),
+      },
+      solvedIds: {},
+      rateRewarded: !!parsed.rateRewarded,
+      wheelLastSpinAt: typeof parsed.wheelLastSpinAt === 'number' ? parsed.wheelLastSpinAt : 0,
+    };
+  } catch {
+    return { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
+  }
+}
 
 const LogoQuizContext = createContext<LogoQuizValue | null>(null);
 
@@ -144,16 +175,15 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
               updatedAt:
                 typeof parsed.lives?.updatedAt === 'number' ? parsed.lives.updatedAt : Date.now(),
             },
-            progress:
-              parsed.progress && typeof parsed.progress === 'object' ? parsed.progress : {},
-            completed:
-              parsed.completed && typeof parsed.completed === 'object' ? parsed.completed : {},
+            solvedIds:
+              parsed.solvedIds && typeof parsed.solvedIds === 'object' ? parsed.solvedIds : {},
             rateRewarded: !!parsed.rateRewarded,
             wheelLastSpinAt:
               typeof parsed.wheelLastSpinAt === 'number' ? parsed.wheelLastSpinAt : 0,
           };
         } else {
-          loaded = { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
+          // No v2 blob yet — carry the economy over from the legacy v1 store once.
+          loaded = await migrateFromLegacy();
         }
       } catch {
         loaded = { ...DEFAULT_STATE, lives: { lives: MAX_LIVES, updatedAt: Date.now() } };
@@ -254,31 +284,15 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
     return true;
   }, [persist]);
 
-  const getProgress = useCallback((category: string) => {
-    return stateRef.current.progress[category] ?? 0;
+  const isSolved = useCallback((id: number) => {
+    return !!stateRef.current.solvedIds[id];
   }, []);
 
-  const setProgress = useCallback(
-    (category: string, index: number) => {
+  const markSolved = useCallback(
+    (id: number) => {
       const s = stateRef.current;
-      persist({ ...s, progress: { ...s.progress, [category]: index } });
-    },
-    [persist],
-  );
-
-  const isCompleted = useCallback((category: string) => {
-    return !!stateRef.current.completed[category];
-  }, []);
-
-  const markCompleted = useCallback(
-    (category: string) => {
-      const s = stateRef.current;
-      persist({
-        ...s,
-        completed: { ...s.completed, [category]: true },
-        // Rewind to the first level so the next open replays from the start.
-        progress: { ...s.progress, [category]: 0 },
-      });
+      if (s.solvedIds[id]) return; // idempotent — already solved
+      persist({ ...s, solvedIds: { ...s.solvedIds, [id]: true } });
     },
     [persist],
   );
@@ -289,11 +303,11 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
 
   const resetProgress = useCallback(() => {
     const s = stateRef.current;
-    // Level index back to 0 everywhere + drop completion flags, so every category
-    // plays from the first level again. Also clear the wheel's cooldown so a free
-    // spin is immediately testable, and re-arm the one-time "rate the app" reward
-    // so its Home badge reappears. Coins / lives / premium are left intact.
-    persist({ ...s, progress: {}, completed: {}, wheelLastSpinAt: 0, rateRewarded: false });
+    // Clear every solved question, so the player starts again from Level 1. Also
+    // clear the wheel's cooldown so a free spin is immediately testable, and
+    // re-arm the one-time "rate the app" reward so its Home badge reappears.
+    // Coins / lives / premium are left intact.
+    persist({ ...s, solvedIds: {}, wheelLastSpinAt: 0, rateRewarded: false });
   }, [persist]);
 
   // Dev/QA only — reopen the free wheel spin without touching progress or economy.
@@ -350,12 +364,9 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       buyCoins,
       buyLives,
       buyLivesForCoins,
-      getProgress,
-      setProgress,
-      isCompleted,
-      markCompleted,
-      progressMap: state.progress,
-      completedMap: state.completed,
+      isSolved,
+      markSolved,
+      solvedIds: state.solvedIds,
       reset,
       resetProgress,
       resetWheelCooldown,
@@ -365,7 +376,7 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       canSpinWheel,
       spinWheel,
     }),
-    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, getProgress, setProgress, isCompleted, markCompleted, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
+    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, isSolved, markSolved, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
   );
 
   return <LogoQuizContext.Provider value={value}>{children}</LogoQuizContext.Provider>;
