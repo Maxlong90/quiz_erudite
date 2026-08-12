@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -56,12 +56,22 @@ export default function LogoQuizResult() {
           </View>
         </View>
 
-        {/* Emoji with a one-shot confetti burst on a win */}
+        {/* Neon badge with a one-shot confetti burst on a win */}
         <View style={styles.emojiWrap}>
           {!gameOver && <Confetti style={StyleSheet.absoluteFill} />}
-          <Text style={styles.emoji}>{gameOver ? '💥' : '🎉'}</Text>
+          <Image
+            source={
+              gameOver
+                ? require('../../assets/logo-quiz/game-over-cloud.png')
+                : require('../../assets/logo-quiz/win-smiley.png')
+            }
+            style={styles.icon}
+            resizeMode="contain"
+          />
         </View>
-        <Text style={styles.title}>{gameOver ? t.gameOver : t.roundOver}</Text>
+        <Text style={[styles.title, gameOver ? styles.titleGameOver : styles.titleWin]}>
+          {gameOver ? 'Try later' : 'Level Complete'}
+        </Text>
 
         {/* Round stats — score only */}
         <View style={[styles.statsCard, LQShadow.card]}>
@@ -131,16 +141,20 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   emojiWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  emoji: { fontSize: 64 },
-  title: { fontSize: 28, fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },
+  // 2× the old 64px emoji box; transparent neon badge, proportional (contain).
+  icon: { width: 128, height: 128 },
+  title: { fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },
+  // Game Over title ×2 (28→56); Win title ×1.5 (28→42).
+  titleGameOver: { fontSize: 56 },
+  titleWin: { fontSize: 42 },
 
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.lg,
     paddingVertical: 22,
-    width: '100%',
+    width: '50%',
   },
   statCol: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 30, fontWeight: '900', color: LQColors.text },
@@ -157,7 +171,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 12,
     paddingHorizontal: 18,
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.pill,
   },
   regenLabel: { color: LQColors.textMuted, fontWeight: '800', fontSize: 14 },

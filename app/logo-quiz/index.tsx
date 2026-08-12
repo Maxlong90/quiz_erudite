@@ -27,6 +27,9 @@ const WELCOME_ASSETS = [
   require('../../assets/logo-quiz/brand-strip.png'),
   require('../../assets/logo-quiz/wheel-icon.png'),
   require('../../assets/logo-quiz/wheel-title.png'),
+  // Result-screen badges — warmed here so they draw instantly on the result screen.
+  require('../../assets/logo-quiz/game-over-cloud.png'),
+  require('../../assets/logo-quiz/win-smiley.png'),
 ];
 
 export default function LogoQuizWelcome() {
