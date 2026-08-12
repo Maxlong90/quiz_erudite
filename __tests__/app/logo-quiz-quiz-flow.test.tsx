@@ -91,6 +91,10 @@ jest.mock('@/components/logo-quiz/hud', () => ({ CoinPill: () => null, LivesPill
 // The "…" menu is tested separately; mocking it keeps the axios-backed reports
 // client (api/reports → api/client) out of this flow test's module graph.
 jest.mock('@/components/logo-quiz/quiz-menu-modal', () => ({ QuizMenuModal: () => null }));
+// The off-screen share composition re-renders the same option labels; mock it out
+// so getByText('<brand>') resolves to the single on-screen answer button.
+jest.mock('@/components/logo-quiz/share-card', () => ({ ShareCard: () => null }));
+jest.mock('react-native-view-shot', () => ({ captureRef: jest.fn(() => Promise.resolve('file:///tmp/share.png')) }));
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();

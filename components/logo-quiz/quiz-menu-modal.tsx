@@ -23,16 +23,18 @@ import { LQColors } from '@/constants/logo-quiz/theme';
 import type { ContentSnapshot } from '@/lib/content-cache';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
-// Bottom-sheet palette matched to the Logo Quiz screens themselves: the sheet
-// uses the screens' base background (BG_BASE) with the light LQ palette on top,
-// so the in-quiz menu reads as part of the same surface rather than a dark,
-// contrasting overlay.
+// Bottom-sheet palette. The "…" menu sheet uses our blue (LQColors.primary — the
+// same blue as the Home Play/Shop/Settings buttons) with grey "quiet-button"
+// rows on top; the report sheet keeps the lighter BG_BASE surface so its dark
+// text and grey controls stay readable. Every button/input surface is the app's
+// calm grey (LQColors.surfaceAlt) for a single, unified look.
 const COLORS = {
   sheet: BG_BASE,
+  menuSheet: LQColors.primary,
   text: LQColors.text,
   textMuted: LQColors.textMuted,
   border: 'rgba(21,27,46,0.12)',
-  rowBackground: LQColors.surface,
+  rowBackground: LQColors.surfaceAlt,
   accent: LQColors.primary,
   accentSoft: 'rgba(76,111,255,0.15)',
   inputBorder: 'rgba(21,27,46,0.15)',
@@ -54,12 +56,37 @@ const REASONS: { id: ReportReason; labelKey: keyof LQLabels }[] = [
 type MenuView = 'menu' | 'report';
 type Phase = 'idle' | 'submitting' | 'success' | 'error';
 
+/**
+ * Share an image file through expo-sharing. Returns true when the share sheet was
+ * presented, false when sharing is unavailable so the caller can fall back to a
+ * text-only invite. expo-sharing is loaded lazily and guarded: it's bundled in
+ * Expo Go, but a native binary built before the dependency was added lacks it —
+ * the require then throws and we report failure instead of crashing.
+ */
+async function shareImageFile(imageUri: string, dialogTitle: string): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy + guarded so a binary lacking the native module falls back instead of crashing at import
+    const Sharing = require('expo-sharing');
+    if (!(await Sharing.isAvailableAsync())) return false;
+    await Sharing.shareAsync(imageUri, { mimeType: 'image/png', dialogTitle });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   question: LogoQuizQuestion;
   appConfig: ContentSnapshot['app'] | undefined;
   locale: string;
+  /**
+   * Captures the quiz's logo + options composition to a temp image file and
+   * returns its uri (or null on failure). When present and it yields a uri, the
+   * Share action attaches that picture; otherwise it falls back to text-only.
+   */
+  onCaptureShareImage?: () => Promise<string | null>;
 }
 
 /**
@@ -70,7 +97,14 @@ interface Props {
  * The report flow reuses the shared `submitReport` API and mirrors the
  * erudite ReportModal structure (radio reasons, comment, success state).
  */
-export function QuizMenuModal({ visible, onClose, question, appConfig, locale }: Props) {
+export function QuizMenuModal({
+  visible,
+  onClose,
+  question,
+  appConfig,
+  locale,
+  onCaptureShareImage,
+}: Props) {
   const t = useLQLabels();
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
@@ -97,7 +131,19 @@ export function QuizMenuModal({ visible, onClose, question, appConfig, locale }:
     // drops the presentation and the sheet never appears — the reason share was
     // broken. Mirrors the working erudite ShareQuestionButton (share, then close).
     try {
-      await Share.share({ message });
+      const imageUri = await onCaptureShareImage?.();
+      if (imageUri && Platform.OS === 'ios') {
+        // iOS's share sheet carries a file url AND the message together, so the
+        // picture and the invite/store link go out in one share.
+        await Share.share({ message, url: imageUri });
+      } else if (imageUri && (await shareImageFile(imageUri, message))) {
+        // Android (and anywhere expo-sharing is available): the picture was shared
+        // via expo-sharing (it can't ride text alongside the file, so the image
+        // takes priority and the invite is surfaced as the chooser title).
+      } else {
+        // No picture, or expo-sharing unavailable — fall back to the text invite.
+        await Share.share({ message });
+      }
     } catch {
       // user cancelled or the platform rejected — nothing to do
     } finally {
@@ -127,13 +173,13 @@ export function QuizMenuModal({ visible, onClose, question, appConfig, locale }:
       {view === 'menu' ? (
         <Pressable style={styles.backdrop} onPress={onClose}>
           <Animated.View
-            style={[styles.sheet, animatedStyle]}
+            style={[styles.sheet, styles.sheetMenu, animatedStyle]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.handleArea} {...panHandlers}>
-              <View style={styles.handle} />
+              <View style={styles.handleOnBlue} />
             </View>
-            <Text style={styles.title}>{t.menuTitle}</Text>
+            <Text style={[styles.title, styles.titleOnBlue]}>{t.menuTitle}</Text>
 
             <Pressable
               onPress={() => setView('report')}
@@ -193,8 +239,10 @@ export function QuizMenuModal({ visible, onClose, question, appConfig, locale }:
                         onPress={() => setReason(r.id)}
                         style={[
                           styles.reasonRow,
+                          // Every reason row is the app's calm grey; the selected
+                          // one is marked by the accent border + filled radio dot.
                           selected
-                            ? { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accent }
+                            ? { backgroundColor: COLORS.rowBackground, borderColor: COLORS.accent }
                             : { backgroundColor: COLORS.rowBackground, borderColor: COLORS.border },
                         ]}
                       >
@@ -244,7 +292,7 @@ export function QuizMenuModal({ visible, onClose, question, appConfig, locale }:
                     testID="quiz-report-submit"
                   >
                     {phase === 'submitting' ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color={COLORS.text} />
                     ) : (
                       <Text style={styles.primaryButtonText}>{t.reportSubmit}</Text>
                     )}
@@ -274,6 +322,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 10,
   },
+  // The "…" menu sheet is our blue (Home-button colour); the grey rows sit on top.
+  sheetMenu: {
+    backgroundColor: COLORS.menuSheet,
+  },
   handleArea: {
     alignSelf: 'stretch',
     alignItems: 'center',
@@ -284,6 +336,13 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: COLORS.handle,
+  },
+  // Lighter handle for legibility on the blue menu sheet.
+  handleOnBlue: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   handleStatic: {
     alignSelf: 'center',
@@ -299,6 +358,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 6,
+  },
+  // White menu title for contrast on the blue menu sheet.
+  titleOnBlue: {
+    color: '#fff',
   },
   subtitle: {
     color: COLORS.textMuted,
@@ -376,12 +439,15 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8,
   },
+  // Report actions share the app's grey "quiet-button" surface with dark text,
+  // for a single unified look across the reason list, comment field and buttons.
   secondaryButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.rowBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -396,7 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.rowBackground,
   },
   primaryButtonFull: {
     flex: undefined,
@@ -404,7 +470,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: '700',
   },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -25,6 +25,7 @@ import { AppBackground } from '@/components/logo-quiz/app-background';
 import { CoinPill, LivesPill } from '@/components/logo-quiz/hud';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { LogoDisplay } from '@/components/logo-quiz/logo-display';
+import { ShareCard } from '@/components/logo-quiz/share-card';
 import { questionsForLevel, type LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { HINT_5050_COST, HINT_SKIP_COST } from '@/lib/logo-quiz/economy';
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
@@ -62,6 +63,9 @@ export default function LogoQuizQuiz() {
   const levelNumber = Number(level ?? 0);
   const { snapshot } = useLogoQuizContent();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Off-screen composition (logo + neutral options grid) captured to a temp PNG
+  // for the "Share a logo" action — see ShareCard + captureShareImage below.
+  const shareCardRef = useRef<View>(null);
   const {
     coins,
     isPremium,
@@ -263,6 +267,22 @@ export default function LogoQuizQuiz() {
     if (runList.length > 0) goToIndex((index + 1) % runList.length);
   };
 
+  // Capture the off-screen ShareCard (logo + neutral options) to a temp PNG the
+  // "…" menu shares. Returns the file uri, or null if the capture failed so the
+  // menu can fall back to a text-only invite. react-native-view-shot is loaded
+  // lazily and guarded: it's bundled in Expo Go, but a native binary built before
+  // the dependency was added lacks it — the require then throws and we fall back.
+  const captureShareImage = useCallback(async (): Promise<string | null> => {
+    if (!shareCardRef.current) return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy + guarded so a binary lacking the native module falls back instead of crashing at import
+      const { captureRef } = require('react-native-view-shot');
+      return await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+    } catch {
+      return null;
+    }
+  }, []);
+
   if (!question) {
     return <View style={styles.fill} />;
   }
@@ -362,9 +382,9 @@ export default function LogoQuizQuiz() {
               >
                 <Text
                   style={[textTone]}
-                  numberOfLines={2}
+                  numberOfLines={1}
                   adjustsFontSizeToFit
-                  minimumFontScale={0.7}
+                  minimumFontScale={0.6}
                 >
                   {isRemoved ? '' : option}
                 </Text>
@@ -432,7 +452,21 @@ export default function LogoQuizQuiz() {
         question={question}
         appConfig={snapshot?.app}
         locale={locale}
+        onCaptureShareImage={captureShareImage}
       />
+
+      {/* Off-screen composition captured for the "Share a logo" image. Rendered
+          outside the visible viewport (never affects layout) but kept mounted so
+          react-native-view-shot can snapshot it on demand. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <ShareCard
+          ref={shareCardRef}
+          imageUri={question.imageUri}
+          options={question.options}
+          prompt={t.whichBrand}
+          title="Logo Quiz"
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -518,6 +552,9 @@ function NavButton({
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  // Parks the capture composition off-screen — laid out (so it can be snapshotted)
+  // but never visible or interactive.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -553,13 +590,17 @@ const styles = StyleSheet.create({
   // Grid slot (the flex-wrapped, animated child). The button fills it so the
   // per-option translate/opacity animation runs on the slot, not the layout.
   optionWrap: { width: '48%' },
+  // Fixed-size answer button: a constant height keeps every button identical
+  // regardless of its label length. Long text is shrunk by font only (see the
+  // <Text> below) so the button geometry never changes.
   option: {
     width: '100%',
+    height: 56,
     backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
-    paddingVertical: 16,
     paddingHorizontal: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },

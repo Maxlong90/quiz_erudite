@@ -33,6 +33,10 @@ jest.mock('@/lib/store-links', () => ({
 // Mock the reports client directly so the axios-backed api/client never loads.
 jest.mock('@/api/reports', () => ({ submitReport: jest.fn() }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  shareAsync: jest.fn(() => Promise.resolve()),
+}));
 
 // eslint-disable-next-line import/first -- component under test loads AFTER its mocks
 import { submitReport } from '@/api/reports';
@@ -120,7 +124,9 @@ describe('report flow', () => {
 // --- 3. Share substitutes the store URL into the template --------------------
 
 describe('share flow', () => {
-  it('shares the invite with the store URL substituted for {url} and closes', async () => {
+  const INVITE = 'Can you guess this logo? Play Logo Quiz: https://store.example/logo-quiz';
+
+  it('falls back to the text-only invite when no capture is available and closes', async () => {
     const shareSpy = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' } as never);
@@ -128,11 +134,28 @@ describe('share flow', () => {
 
     fireEvent.press(getByTestId('quiz-menu-share'));
 
-    expect(shareSpy).toHaveBeenCalledWith({
-      message: 'Can you guess this logo? Play Logo Quiz: https://store.example/logo-quiz',
-    });
-    // The sheet now closes AFTER the awaited Share.share resolves (share first so
-    // iOS can present the sheet before the RN Modal unmounts).
+    // No onCaptureShareImage prop → no picture → text-only invite.
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledWith({ message: INVITE }));
+    // The sheet closes AFTER the awaited share resolves (share first so iOS can
+    // present the sheet before the RN Modal unmounts).
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    shareSpy.mockRestore();
+  });
+
+  it('attaches the captured picture alongside the invite when a capture is provided', async () => {
+    const shareSpy = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction' } as never);
+    const onCaptureShareImage = jest.fn(() => Promise.resolve('file:///tmp/share.png'));
+    const { getByTestId, onClose } = renderModal({ onCaptureShareImage });
+
+    fireEvent.press(getByTestId('quiz-menu-share'));
+
+    await waitFor(() => expect(onCaptureShareImage).toHaveBeenCalledTimes(1));
+    // jest-expo defaults Platform.OS to 'ios', where RN Share carries file + text.
+    await waitFor(() =>
+      expect(shareSpy).toHaveBeenCalledWith({ message: INVITE, url: 'file:///tmp/share.png' }),
+    );
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     shareSpy.mockRestore();
   });
