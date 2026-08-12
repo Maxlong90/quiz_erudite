@@ -17,14 +17,9 @@ export default function LogoQuizResult() {
   const t = useLQLabels();
   const { coins: coinBalance, isPremium, livesState } = useLogoQuiz();
   const params = useLocalSearchParams<{
-    score?: string;
-    coins?: string;
-    total?: string;
     outcome?: string;
   }>();
 
-  const score = Number(params.score ?? 0);
-  const total = Number(params.total ?? 0);
   // The result screen is reached only for a fully cleared level (a win) or a
   // game over — the per-question flow now stays inside the quiz screen.
   const gameOver = params.outcome === 'gameover';
@@ -57,7 +52,7 @@ export default function LogoQuizResult() {
         </View>
 
         {/* Neon badge with a one-shot confetti burst on a win */}
-        <View style={[styles.emojiWrap, !gameOver && styles.emojiWrapWin]}>
+        <View style={styles.emojiWrap}>
           {!gameOver && <Confetti style={StyleSheet.absoluteFill} />}
           <Image
             source={
@@ -72,19 +67,6 @@ export default function LogoQuizResult() {
         <Text style={[styles.title, gameOver ? styles.titleGameOver : styles.titleWin]}>
           {gameOver ? 'Try later' : 'Level Complete'}
         </Text>
-
-        {/* Round stats — score only. Shown on Game Over; the Win screen omits it. */}
-        {gameOver && (
-          <View style={[styles.statsCard, LQShadow.card]}>
-            <View style={styles.statCol}>
-              <Text style={styles.scoreValue}>
-                {score}
-                <Text style={styles.scoreOf}> / {total}</Text>
-              </Text>
-              <Text style={styles.statLabel}>{t.score}</Text>
-            </View>
-          </View>
-        )}
 
         {/* Out of lives: show the countdown until the next life regenerates. */}
         {gameOver && nextLifeMs != null && (
@@ -142,34 +124,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  emojiWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  // Win only: lower the smiley + "Level Complete" title by one Home Play-button
-  // height (paddingVertical 20×2 + 44px play icon = 84) now that the score box
-  // is gone. 8 (base marginTop) + 84 = 92. The flex spacer below absorbs it, so
-  // only the composition descends — the bottom buttons stay pinned.
-  emojiWrapWin: { marginTop: 8 + 84 },
-  // 2× the old 64px emoji box; transparent neon badge, proportional (contain).
-  icon: { width: 128, height: 128 },
+  // Lower the icon + title (+ the Game Over life-regen row) by one Home Play-button
+  // height (paddingVertical 20×2 + 44px play icon = 84) now that the score box is
+  // gone on both branches. 8 (base marginTop) + 84 = 92. Applying it to the first
+  // child pushes the whole group down; the flex spacer below absorbs it, so only
+  // the composition descends — the bottom buttons stay pinned.
+  emojiWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 + 84 },
+  // 4× the old 64px emoji box; transparent neon badge, proportional (contain).
+  icon: { width: 256, height: 256 },
   title: { fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },
-  // Game Over title ×2 (28→56); Win title ×1.5 (28→42).
-  titleGameOver: { fontSize: 56 },
-  titleWin: { fontSize: 42 },
-
-  statsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: LQColors.surfaceAlt,
-    borderRadius: LQRadius.lg,
-    paddingVertical: 22,
-    width: '50%',
-  },
-  statCol: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 30, fontWeight: '900', color: LQColors.text },
-  statOf: { fontSize: 18, fontWeight: '800', color: LQColors.textFaint },
-  scoreValue: { fontSize: 48, fontWeight: '900', color: LQColors.text, lineHeight: 52 },
-  scoreOf: { fontSize: 26, fontWeight: '800', color: LQColors.textFaint },
-  statLabel: { fontSize: 13, fontWeight: '700', color: LQColors.textMuted, marginTop: 4 },
-  divider: { width: 1, height: 56, backgroundColor: LQColors.border },
+  // Game Over title ×2 (28→56); Win title ×1.5 (28→42). Both use the Wheel-of-
+  // Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
+  titleGameOver: { fontSize: 56, color: '#8B5CF6' },
+  titleWin: { fontSize: 42, color: '#8B5CF6' },
 
   regenRow: {
     flexDirection: 'row',
