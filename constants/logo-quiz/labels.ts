@@ -32,6 +32,7 @@ export interface LQLabels {
   perkCoins: string;
   premiumActive: string;
   getPremium: string;
+  perWeek: string;
   coins: string;
   coinPacks: string;
   livesPacks: string;
@@ -136,6 +137,7 @@ const EN: LQLabels = {
   perkCoins: '2× coins per correct answer',
   premiumActive: 'Premium active',
   getPremium: 'Get Premium',
+  perWeek: '/week',
   coins: 'Coins',
   coinPacks: 'Coins',
   livesPacks: 'Lives',
@@ -233,6 +235,7 @@ const RU: LQLabels = {
   perkCoins: '2× монеты за верный ответ',
   premiumActive: 'Premium активен',
   getPremium: 'Оформить Premium',
+  perWeek: '/неделя',
   coins: 'Монеты',
   coinPacks: 'Монеты',
   livesPacks: 'Жизни',
@@ -328,6 +331,7 @@ const ES: LQLabels = {
   perkCoins: '2× monedas por respuesta correcta',
   premiumActive: 'Premium activo',
   getPremium: 'Obtener Premium',
+  perWeek: '/semana',
   coins: 'Monedas',
   coinPacks: 'Monedas',
   livesPacks: 'Vidas',

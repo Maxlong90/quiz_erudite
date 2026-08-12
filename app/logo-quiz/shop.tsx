@@ -148,7 +148,7 @@ export default function LogoQuizShop() {
               onPress={onBuyPremium}
               style={({ pressed }) => [styles.premiumBuy, pressed && { opacity: 0.85 }]}
             >
-              <Text style={styles.premiumBuyText}>{t.getPremium} · $4.99</Text>
+              <Text style={styles.premiumBuyText}>{t.getPremium} · $4.99{t.perWeek}</Text>
             </Pressable>
           )}
         </GoldSurface>

@@ -376,7 +376,12 @@ export default function LogoQuizQuiz() {
           return (
             <Animated.View
               key={option}
-              layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+              // The glide-to-center only animates on a fresh solve (revealAnimated).
+              // In review — opening an already-solved logo, or paging onto one — the
+              // answer snaps straight to its final centered position with no transition.
+              layout={
+                revealAnimated ? LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic)) : undefined
+              }
               // Only wrong options fade out (on reveal). The answer never exits — it
               // stays mounted and glides — so it can't flash a fade when the level changes.
               exiting={isAnswer ? undefined : FadeOut.duration(FADE_MS)}
