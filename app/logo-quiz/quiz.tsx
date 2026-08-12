@@ -53,9 +53,6 @@ const GAMEOVER_MS = 900;
 const FADE_MS = 1000;
 const MOVE_MS = 1700;
 const UI_FADE_MS = 300;
-// After the level's LAST accessible logo is solved, let the reveal + explanation
-// show briefly, then send the player to the Victory screen.
-const VICTORY_DELAY_MS = MOVE_MS + UI_FADE_MS + 800;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
@@ -131,6 +128,12 @@ export default function LogoQuizQuiz() {
   // correct green answer — the same mounted component — glides up and centers via
   // Reanimated layout animations. Drives the whole in-place reveal (see below).
   const [revealing, setRevealing] = useState(initialAnswered);
+  // Whether the current reveal should ANIMATE in (a fresh correct answer/skip:
+  // the Explanation + ◀/▶ nav fade in together once the answer glide lands) or
+  // appear INSTANTLY (opening an already-solved logo in review). Starts false:
+  // an initial answered question is review (instant), an unanswered one isn't
+  // revealing at all.
+  const [revealAnimated, setRevealAnimated] = useState(false);
 
   // Defense-in-depth premium gate: a review/deep link that targets a premium
   // logo the current user can't play is bounced to the paywall (the grid already
@@ -184,14 +187,15 @@ export default function LogoQuizQuiz() {
       // Correct: light the answer green, award coins (2× premium), mark the
       // question solved, then play the in-place reveal.
       setSolved(true);
+      setRevealAnimated(true);
       awardCorrect();
       markSolved(question.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       startReveal();
       // Clearing the level's last accessible logo (9/9 free or 15/15 premium)
-      // wins the round → Victory screen after the reveal plays.
+      // wins the round → Victory screen immediately, no delay.
       if (completesLevel(question.id)) {
-        setTimeout(() => toResult('complete', runList.length), VICTORY_DELAY_MS);
+        toResult('complete', runList.length);
       }
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
@@ -231,11 +235,13 @@ export default function LogoQuizQuiz() {
     // the same in-place reveal as a normal solve — costs the hint fee, no reward.
     markSolved(question.id);
     setSolved(true);
+    setRevealAnimated(true);
     Haptics.selectionAsync().catch(() => {});
     startReveal();
-    // A skip that clears the level's last accessible logo still wins the round.
+    // A skip that clears the level's last accessible logo still wins the round —
+    // Victory opens immediately, no delay.
     if (completesLevel(question.id)) {
-      setTimeout(() => toResult('complete', runList.length), VICTORY_DELAY_MS);
+      toResult('complete', runList.length);
     }
   };
 
@@ -250,9 +256,11 @@ export default function LogoQuizQuiz() {
       setFiftyUsed(false);
       setOver(false);
       // An already-answered target opens revealed (review look); an unanswered
-      // one resets to normal gameplay with hints.
+      // one resets to normal gameplay with hints. Review shows the reveal UI
+      // INSTANTLY — no delayed fade — so paging onto a solved logo isn't laggy.
       setSolved(targetAnswered);
       setRevealing(targetAnswered);
+      setRevealAnimated(false);
       setIndex(nextIndex);
       Haptics.selectionAsync().catch(() => {});
     },
@@ -400,12 +408,13 @@ export default function LogoQuizQuiz() {
       </View>
 
       {/* Reveal panel — Explanation (localized `question.explanation`, omitted when
-          blank) + "Next" (play only), rendered below the centered answer. Fades in
-          only after the answer's glide lands (FadeIn.delay(MOVE_MS)); it sits below
-          the answer in normal flow, so mounting it never shifts the answer. */}
+          blank), rendered below the centered answer. On a fresh solve it fades in
+          only after the answer's glide lands (FadeIn.delay(MOVE_MS)) — in sync with
+          the ◀/▶ nav below; in review it appears instantly (no delayed fade). It
+          sits below the answer in normal flow, so mounting it never shifts the answer. */}
       {revealing && (
         <Animated.View
-          entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}
+          entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
           style={[styles.revealArea, styles.revealUi]}
         >
           {!!question.explanation && question.explanation.trim().length > 0 && (
@@ -429,10 +438,17 @@ export default function LogoQuizQuiz() {
           first/last); on an unanswered one, the hint buttons + normal gameplay. */}
       <View style={styles.hints}>
         {solved ? (
-          <>
+          // ◀/▶ paging. Uses the SAME entering animation as the Explanation panel,
+          // so on a fresh solve Next/Previous become visible at the exact same
+          // moment the Explanation does (after the answer glide); in review they
+          // show instantly alongside the instant Explanation.
+          <Animated.View
+            entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
+            style={styles.navRow}
+          >
             <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} />
             <NavButton label={t.nextLogo} icon="arrow-forward" iconRight onPress={goNext} />
-          </>
+          </Animated.View>
         ) : (
           <>
             <HintButton
@@ -632,14 +648,13 @@ const styles = StyleSheet.create({
   },
   explScroll: { maxHeight: 170, width: '100%' },
   explContent: { paddingBottom: 2 },
+  // Grey "quiet" card — the same calm grey as the hint/nav buttons, borderless.
   explCard: {
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     padding: 14,
-    borderWidth: 1,
-    borderColor: LQColors.border,
   },
-  explText: { fontSize: 14, fontWeight: '600', color: LQColors.textMuted, lineHeight: 20, textAlign: 'center' },
+  explText: { fontSize: 14, fontWeight: '600', color: LQColors.text, lineHeight: 20, textAlign: 'center' },
   hints: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -662,13 +677,16 @@ const styles = StyleSheet.create({
   },
   hintDisabled: { opacity: 0.7 },
   hintLabel: { fontSize: 15, fontWeight: '900', color: LQColors.text },
+  // Wraps the two ◀/▶ buttons so they can fade in as one unit (synced with the
+  // Explanation). Fills the hints row and lays the buttons side-by-side.
+  navRow: { flex: 1, flexDirection: 'row', gap: 12 },
   navBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: LQColors.surface,
+    backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.md,
     paddingVertical: 14,
     paddingHorizontal: 10,
