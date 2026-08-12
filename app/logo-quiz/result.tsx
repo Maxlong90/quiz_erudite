@@ -57,7 +57,7 @@ export default function LogoQuizResult() {
         </View>
 
         {/* Neon badge with a one-shot confetti burst on a win */}
-        <View style={styles.emojiWrap}>
+        <View style={[styles.emojiWrap, !gameOver && styles.emojiWrapWin]}>
           {!gameOver && <Confetti style={StyleSheet.absoluteFill} />}
           <Image
             source={
@@ -73,16 +73,18 @@ export default function LogoQuizResult() {
           {gameOver ? 'Try later' : 'Level Complete'}
         </Text>
 
-        {/* Round stats — score only */}
-        <View style={[styles.statsCard, LQShadow.card]}>
-          <View style={styles.statCol}>
-            <Text style={styles.scoreValue}>
-              {score}
-              <Text style={styles.scoreOf}> / {total}</Text>
-            </Text>
-            <Text style={styles.statLabel}>{t.score}</Text>
+        {/* Round stats — score only. Shown on Game Over; the Win screen omits it. */}
+        {gameOver && (
+          <View style={[styles.statsCard, LQShadow.card]}>
+            <View style={styles.statCol}>
+              <Text style={styles.scoreValue}>
+                {score}
+                <Text style={styles.scoreOf}> / {total}</Text>
+              </Text>
+              <Text style={styles.statLabel}>{t.score}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Out of lives: show the countdown until the next life regenerates. */}
         {gameOver && nextLifeMs != null && (
@@ -141,6 +143,11 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   emojiWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  // Win only: lower the smiley + "Level Complete" title by one Home Play-button
+  // height (paddingVertical 20×2 + 44px play icon = 84) now that the score box
+  // is gone. 8 (base marginTop) + 84 = 92. The flex spacer below absorbs it, so
+  // only the composition descends — the bottom buttons stay pinned.
+  emojiWrapWin: { marginTop: 8 + 84 },
   // 2× the old 64px emoji box; transparent neon badge, proportional (contain).
   icon: { width: 128, height: 128 },
   title: { fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },

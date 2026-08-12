@@ -133,11 +133,14 @@ export function levelFreeSolvedCount(
 }
 
 /**
- * A level is unlocked when Level 1 (always) or when every FREE question of the
- * previous level is solved. Premium questions never gate progression, so a free
- * player clears the whole game on the 9 free questions of each level. A partial
- * previous level (fewer than 9 free questions) unlocks once all its free ones
- * are solved.
+ * A level is unlocked when Level 1 (always) or when at least 9 questions of the
+ * previous level are solved — counting ANY solved question, free or premium. A
+ * free player only ever reaches the 9 free questions, so for them 9 solved is
+ * the same 9 free ones (behavior unchanged); a premium player unlocks on any
+ * mix (e.g. 7 free + 2 premium). A partial previous level (fewer than 9
+ * questions) unlocks once all of its questions are solved — the threshold is
+ * clamped to the level's own count, and `freeQuestionCount` already equals
+ * `min(9, totalQuestions)` for every level (premium slots start at position 9).
  */
 export function isLevelUnlocked(
   levels: LogoQuizLevel[],
@@ -148,5 +151,5 @@ export function isLevelUnlocked(
   const previous = levels.find((l) => l.level === level - 1);
   if (!previous) return false;
   const needed = Math.min(FREE_PER_LEVEL, freeQuestionCount(previous.questions));
-  return levelFreeSolvedCount(previous.questions, solvedIds) >= needed;
+  return levelSolvedCount(previous.questions, solvedIds) >= needed;
 }

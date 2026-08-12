@@ -173,6 +173,29 @@ describe('level progress selectors', () => {
     expect(isLevelUnlocked(levels, 2, allFree)).toBe(true);
   });
 
+  it('isLevelUnlocked: any 9 solved unlock the next level — a free/premium mix counts', () => {
+    const levels = buildLevels(makeSnapshot(orderedQuestions(30)));
+    const l1 = levels[0].questions;
+    const free = l1.filter((q) => !q.premium).map((q) => q.id);
+    const premium = l1.filter((q) => q.premium).map((q) => q.id);
+    expect(free).toHaveLength(9);
+    expect(premium).toHaveLength(6);
+
+    // A premium player who solves a 7-free + 2-premium mix (9 total, but only 7
+    // of the 9 free) unlocks level 2 — premium solves now count toward unlock.
+    const mix = Object.fromEntries(
+      [...free.slice(0, 7), ...premium.slice(0, 2)].map((id) => [id, true]),
+    ) as Record<number, true>;
+    expect(mix[free[7]]).toBeUndefined(); // two free questions left unsolved
+    expect(isLevelUnlocked(levels, 2, mix)).toBe(true);
+
+    // Only 8 total solved (6 free + 2 premium) — still locked.
+    const eight = Object.fromEntries(
+      [...free.slice(0, 6), ...premium.slice(0, 2)].map((id) => [id, true]),
+    ) as Record<number, true>;
+    expect(isLevelUnlocked(levels, 2, eight)).toBe(false);
+  });
+
   it('isLevelUnlocked clamps the threshold to a partial previous level', () => {
     // Level 1 full (15), level 2 partial with only 5 questions (all free).
     const levels = buildLevels(makeSnapshot(orderedQuestions(20)));
