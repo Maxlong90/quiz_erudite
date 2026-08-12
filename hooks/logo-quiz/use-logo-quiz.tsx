@@ -76,6 +76,10 @@ interface LogoQuizValue {
   buyLives: (pack: LifePack) => void;
   /** Spend coins for a fixed batch of lives. Returns false (no change) if short on coins. */
   buyLivesForCoins: () => boolean;
+  /** The most recently opened level — the level-select list scrolls to it on focus. */
+  lastLevel: number;
+  /** Record the level the player just opened/played (drives the level-select auto-scroll). */
+  setLastLevel: (level: number) => void;
   /** Whether a specific question has been solved. */
   isSolved: (id: number) => boolean;
   /** Mark a question solved (idempotent). Level completion & unlocks derive from this. */
@@ -147,6 +151,10 @@ const LogoQuizContext = createContext<LogoQuizValue | null>(null);
 export function LogoQuizProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
   const [ready, setReady] = useState(false);
+  // Which level the player last opened. Kept in memory only (session-scoped) so
+  // returning to the level-select list can scroll straight to it — no need to
+  // persist across app launches.
+  const [lastLevel, setLastLevel] = useState(0);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -364,6 +372,8 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       buyCoins,
       buyLives,
       buyLivesForCoins,
+      lastLevel,
+      setLastLevel,
       isSolved,
       markSolved,
       solvedIds: state.solvedIds,
@@ -376,7 +386,7 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       canSpinWheel,
       spinWheel,
     }),
-    [ready, state, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, isSolved, markSolved, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
+    [ready, state, lastLevel, getLives, addCoins, spendCoins, awardCorrect, loseLife, buyPremium, cancelSubscription, buyCoins, buyLives, buyLivesForCoins, isSolved, markSolved, reset, resetProgress, resetWheelCooldown, claimRateReward, canSpinWheel, spinWheel],
   );
 
   return <LogoQuizContext.Provider value={value}>{children}</LogoQuizContext.Provider>;

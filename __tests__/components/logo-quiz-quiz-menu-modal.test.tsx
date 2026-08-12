@@ -120,7 +120,7 @@ describe('report flow', () => {
 // --- 3. Share substitutes the store URL into the template --------------------
 
 describe('share flow', () => {
-  it('shares the invite with the store URL substituted for {url} and closes', () => {
+  it('shares the invite with the store URL substituted for {url} and closes', async () => {
     const shareSpy = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction' } as never);
@@ -131,7 +131,9 @@ describe('share flow', () => {
     expect(shareSpy).toHaveBeenCalledWith({
       message: 'Can you guess this logo? Play Logo Quiz: https://store.example/logo-quiz',
     });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    // The sheet now closes AFTER the awaited Share.share resolves (share first so
+    // iOS can present the sheet before the RN Modal unmounts).
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     shareSpy.mockRestore();
   });
 });

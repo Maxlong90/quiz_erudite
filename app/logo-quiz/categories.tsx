@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,8 +28,9 @@ interface LevelRow {
 
 export default function LogoQuizLevels() {
   const t = useLQLabels();
-  const { coins, livesState, isPremium, solvedIds } = useLogoQuiz();
+  const { coins, livesState, isPremium, solvedIds, lastLevel } = useLogoQuiz();
   const { snapshot, status } = useLogoQuizContent();
+  const listRef = useRef<FlatList<LevelRow>>(null);
 
   const levels = useMemo<LogoQuizLevel[]>(
     () => (snapshot ? buildLevels(snapshot) : []),
@@ -48,6 +49,22 @@ export default function LogoQuizLevels() {
         unlocked: isLevelUnlocked(levels, l.level, solvedIds),
       })),
     [levels, solvedIds],
+  );
+
+  // On focus (returning from a level / its Victory screen) scroll the list to
+  // the last-played level so the player lands on the card they just cleared,
+  // not the top. LevelCard heights vary (locked vs unlocked), so scrollToIndex
+  // can miss for a not-yet-rendered row — retry via onScrollToIndexFailed.
+  useFocusEffect(
+    useCallback(() => {
+      if (lastLevel <= 0) return;
+      const target = rows.findIndex((r) => r.level === lastLevel);
+      if (target < 0) return;
+      const id = setTimeout(() => {
+        listRef.current?.scrollToIndex({ index: target, viewPosition: 0.3, animated: false });
+      }, 0);
+      return () => clearTimeout(id);
+    }, [lastLevel, rows]),
   );
 
   return (
@@ -77,10 +94,19 @@ export default function LogoQuizLevels() {
       <Text style={styles.title}>{t.selectLevel}</Text>
 
       <FlatList
+        ref={listRef}
         data={rows}
         keyExtractor={(r) => String(r.level)}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        // Approximate row pitch (card ≈ 90 + 12 rowGap) so a failed scrollToIndex
+        // to an off-screen card lands close, then a follow-up snaps it exact.
+        onScrollToIndexFailed={(info) => {
+          listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: false });
+          }, 60);
+        }}
         renderItem={({ item }) => (
           <LevelCard
             level={item.level}

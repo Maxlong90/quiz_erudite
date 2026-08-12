@@ -18,23 +18,27 @@ import { submitReport, type ReportReason } from '@/api/reports';
 import { getStoreLinks } from '@/lib/store-links';
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
 import { useLQLabels, type LQLabels } from '@/constants/logo-quiz/labels';
+import { BG_BASE } from '@/components/logo-quiz/app-background';
+import { LQColors } from '@/constants/logo-quiz/theme';
 import type { ContentSnapshot } from '@/lib/content-cache';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
-// Bottom-sheet palette shared with the settings language picker / report modal
-// so the in-quiz menu is visually consistent with the rest of the app chrome.
+// Bottom-sheet palette matched to the Logo Quiz screens themselves: the sheet
+// uses the screens' base background (BG_BASE) with the light LQ palette on top,
+// so the in-quiz menu reads as part of the same surface rather than a dark,
+// contrasting overlay.
 const COLORS = {
-  sheet: '#1f1949',
-  text: '#fff',
-  textMuted: '#ffffffaa',
-  border: '#ffffff1f',
-  rowBackground: '#ffffff0d',
-  accent: '#7c5cff',
-  accentSoft: '#7c5cff33',
-  inputBorder: '#ffffff33',
-  placeholder: '#ffffff66',
-  error: '#ff8a8a',
-  handle: '#ffffff33',
+  sheet: BG_BASE,
+  text: LQColors.text,
+  textMuted: LQColors.textMuted,
+  border: 'rgba(21,27,46,0.12)',
+  rowBackground: LQColors.surface,
+  accent: LQColors.primary,
+  accentSoft: 'rgba(76,111,255,0.15)',
+  inputBorder: 'rgba(21,27,46,0.15)',
+  placeholder: LQColors.textFaint,
+  error: LQColors.wrong,
+  handle: 'rgba(21,27,46,0.25)',
 };
 
 // Backend report reasons paired with their localized logo-quiz label key.
@@ -88,11 +92,16 @@ export function QuizMenuModal({ visible, onClose, question, appConfig, locale }:
   async function handleShare() {
     const { storeUrl } = getStoreLinks(appConfig, Platform.OS);
     const message = t.shareInvite.replace('{url}', storeUrl);
-    onClose();
+    // Present the system share sheet BEFORE closing the modal. Closing first
+    // unmounts the RN Modal while iOS is trying to present the share sheet, which
+    // drops the presentation and the sheet never appears — the reason share was
+    // broken. Mirrors the working erudite ShareQuestionButton (share, then close).
     try {
       await Share.share({ message });
     } catch {
-      // user cancelled — nothing to do
+      // user cancelled or the platform rejected — nothing to do
+    } finally {
+      onClose();
     }
   }
 

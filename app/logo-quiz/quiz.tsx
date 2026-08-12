@@ -51,6 +51,9 @@ const GAMEOVER_MS = 900;
 const FADE_MS = 1000;
 const MOVE_MS = 1700;
 const UI_FADE_MS = 300;
+// After the level's LAST accessible logo is solved, let the reveal + explanation
+// show briefly, then send the player to the Victory screen.
+const VICTORY_DELAY_MS = MOVE_MS + UI_FADE_MS + 800;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
@@ -153,6 +156,14 @@ export default function LogoQuizQuiz() {
     [runList.length],
   );
 
+  // Whether solving `currentId` clears the level's whole accessible set (9 free
+  // for a non-subscriber, all 15 for a subscriber). `isSolved` reflects state
+  // before this solve is committed, so the current id is counted via the guard.
+  const completesLevel = useCallback(
+    (currentId: number) => runList.every((qq) => qq.id === currentId || isSolved(qq.id)),
+    [runList, isSolved],
+  );
+
   // Play the in-place answer reveal. Flipping `revealing` drives everything via
   // Reanimated layout animations: the wrong options unmount and fade out (~1s,
   // FadeOut), the correct green answer — the same mounted component — glides up
@@ -172,6 +183,11 @@ export default function LogoQuizQuiz() {
       markSolved(question.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       startReveal();
+      // Clearing the level's last accessible logo (9/9 free or 15/15 premium)
+      // wins the round → Victory screen after the reveal plays.
+      if (completesLevel(question.id)) {
+        setTimeout(() => toResult('complete', runList.length), VICTORY_DELAY_MS);
+      }
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
       // trying. Each mistake loses a life (game over at zero).
@@ -212,6 +228,10 @@ export default function LogoQuizQuiz() {
     setSolved(true);
     Haptics.selectionAsync().catch(() => {});
     startReveal();
+    // A skip that clears the level's last accessible logo still wins the round.
+    if (completesLevel(question.id)) {
+      setTimeout(() => toResult('complete', runList.length), VICTORY_DELAY_MS);
+    }
   };
 
   // Reset every per-question flag and show `nextIndex` in place. In review the
@@ -233,12 +253,14 @@ export default function LogoQuizQuiz() {
     },
     [runList, isSolved],
   );
-  // ◀/▶ page within the level, clamped to its first/last question (no wrap).
+  // ◀/▶ cycle within the level's accessible set (9 free / 15 premium),
+  // wrapping around: Next from the last → the first, Prev from the first → the
+  // last. Landing on an unanswered logo re-enables gameplay via goToIndex.
   const goPrev = () => {
-    if (index > 0) goToIndex(index - 1);
+    if (runList.length > 0) goToIndex((index - 1 + runList.length) % runList.length);
   };
   const goNext = () => {
-    if (index < runList.length - 1) goToIndex(index + 1);
+    if (runList.length > 0) goToIndex((index + 1) % runList.length);
   };
 
   if (!question) {
@@ -250,26 +272,23 @@ export default function LogoQuizQuiz() {
       <AppBackground />
       <StatusBar style="dark" />
 
-      {/* HUD: (back · lives · ⋯) on the left, coins on the right */}
+      {/* HUD: back on the left; ⋯ · lives · coins on the right — the same lives +
+          coins placement as the level-select and grid headers, with the ⋯ menu
+          sitting just left of the lives pill. */}
       <View style={styles.hud}>
-        <View style={styles.hudLeft}>
-          <Pressable
-            onPress={() =>
-              router.dismissTo({
-                pathname: '/logo-quiz/level',
-                params: { level: String(levelNumber) },
-              })
-            }
-            hitSlop={8}
-            style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
-          >
-            <Ionicons name="chevron-back" size={22} color={LQColors.text} />
-          </Pressable>
-          <LivesPill
-            livesState={livesState}
-            isPremium={isPremium}
-            onZeroPress={() => router.push('/logo-quiz/shop')}
-          />
+        <Pressable
+          onPress={() =>
+            router.dismissTo({
+              pathname: '/logo-quiz/level',
+              params: { level: String(levelNumber) },
+            })
+          }
+          hitSlop={8}
+          style={({ pressed }) => [styles.backBtn, LQShadow.card, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="chevron-back" size={22} color={LQColors.text} />
+        </Pressable>
+        <View style={styles.headerRight}>
           <Pressable
             onPress={() => setMenuOpen(true)}
             hitSlop={8}
@@ -278,8 +297,13 @@ export default function LogoQuizQuiz() {
           >
             <Ionicons name="ellipsis-horizontal" size={22} color={LQColors.text} />
           </Pressable>
+          <LivesPill
+            livesState={livesState}
+            isPremium={isPremium}
+            onZeroPress={() => router.push('/logo-quiz/shop')}
+          />
+          <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
         </View>
-        <CoinPill coins={coins} onPress={() => router.push('/logo-quiz/shop')} />
       </View>
 
       {/* Progress — position within the level. */}
@@ -336,7 +360,12 @@ export default function LogoQuizQuiz() {
                   pressed && !solved && !over && !isRemoved && !isWrong && { transform: [{ scale: 0.98 }] },
                 ]}
               >
-                <Text style={[textTone]} numberOfLines={1}>
+                <Text
+                  style={[textTone]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
                   {isRemoved ? '' : option}
                 </Text>
               </Pressable>
@@ -376,19 +405,8 @@ export default function LogoQuizQuiz() {
       <View style={styles.hints}>
         {solved ? (
           <>
-            <NavButton
-              label={t.prevLogo}
-              icon="arrow-back"
-              onPress={goPrev}
-              disabled={index === 0}
-            />
-            <NavButton
-              label={t.nextLogo}
-              icon="arrow-forward"
-              iconRight
-              onPress={goNext}
-              disabled={index >= runList.length - 1}
-            />
+            <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} />
+            <NavButton label={t.nextLogo} icon="arrow-forward" iconRight onPress={goNext} />
           </>
         ) : (
           <>
@@ -515,7 +533,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hudLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   progress: { textAlign: 'center', color: LQColors.textFaint, fontWeight: '800', fontSize: 13 },
 

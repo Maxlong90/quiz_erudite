@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LogoDisplay } from '@/components/logo-quiz/logo-display';
+import { ShineOverlay } from '@/components/logo-quiz/gold-gradient';
 import { GOLD_BORDER, GOLD_GRADIENT, LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 
 /**
@@ -36,9 +37,11 @@ export function LogoTile({
 
       {locked && (
         <View style={[styles.overlay, styles.lockScrim]}>
-          {/* Golden glowing lock — the same gold glow as the premium banner, so a
-              blurred premium tile reads as "unlock me" rather than a dead end. */}
+          {/* Golden lock with the same running shimmer (ShineOverlay) as the
+              premium banner, so a blurred premium tile reads as "unlock me"
+              rather than a dead end — a shifting blik sweeps across the badge. */}
           <View style={[styles.lockBadge, LQShadow.gold]}>
+            <ShineOverlay radius={LQRadius.pill} />
             <Ionicons name="lock-closed" size={Math.round(size * 0.22)} color={GOLD_GRADIENT[0]} />
           </View>
         </View>
@@ -69,6 +72,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(21,27,46,0.55)',
     borderWidth: 2,
     borderColor: GOLD_BORDER,
+    // Clip the ShineOverlay sweep to the rounded badge.
+    overflow: 'hidden',
   },
   doneBadge: {
     position: 'absolute',

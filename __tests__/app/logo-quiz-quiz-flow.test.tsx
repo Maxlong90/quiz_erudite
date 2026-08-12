@@ -4,15 +4,17 @@
  * Navigation is unified around per-question answered state (isSolved): an
  * ANSWERED logo opens revealed (green answer + Explanation) with ◀/▶ paging
  * across the level and no economy; an UNANSWERED logo plays normally (hints,
- * lives). Paging is clamped to the level's first/last question — it never wraps
- * and never rolls into a Result "complete" screen. Only a game over navigates to
- * /logo-quiz/result. A premium question the current (non-subscriber) user can't
- * play is never part of the run. These tests lock in that branch logic:
+ * lives). Paging CYCLES within the level's accessible set (9 free / 15 premium),
+ * wrapping past the ends. Clearing the last accessible logo wins the round →
+ * Result "complete"; a game over → Result "gameover". A premium question the
+ * current (non-subscriber) user can't play is never part of the run. These tests
+ * lock in that branch logic:
  *
  *  - a correct pick runs the economy (awardCorrect) + markSolved and shows the
  *    reveal + ◀/▶ nav WITHOUT navigating away;
  *  - Next on a non-last question pages in place (no navigation);
- *  - Next on the LAST question is clamped — no navigation, no Result;
+ *  - Next on the LAST question wraps to the first (no Result while unsolved logos remain);
+ *  - clearing the level's last logo navigates to Result 'complete';
  *  - an already-solved logo opens revealed with prev/next and never touches the economy;
  *  - a wrong pick at zero lives goes to Result in the 'gameover' state, no reveal;
  *  - the skip hint drives the same in-place reveal + markSolved.
@@ -196,23 +198,53 @@ describe('Next on a non-last question advances in place', () => {
   });
 });
 
-// --- 3. Next on the last question is clamped (no Result "complete") ----------
+// --- 3. Next on the last question wraps to the first -------------------------
 
-describe('Next on the last question is clamped', () => {
-  it('does not navigate to Result and stays on the last logo', () => {
+describe('Next on the last question cycles to the first', () => {
+  it('wraps to the first logo instead of opening a Result screen', () => {
     mockParams = { level: '1', q: '2' }; // start on the last question (id 2)
     const screen = render(<LogoQuizQuiz />);
 
     fireEvent.press(screen.getByText('Nike')); // correct brand of the last question
     expect(mockMarkSolved).toHaveBeenCalledWith(2);
+    // Q1 is still unsolved, so the level isn't complete — no Victory navigation.
+    expect(mockReplace).not.toHaveBeenCalled();
 
-    // The ◀/▶ nav is shown, but Next is clamped on the last question — pressing
-    // it neither pages nor opens a Result screen (the "complete" flow is gone).
+    // Next wraps from the last logo back to the first (id 1), which is unsolved,
+    // so gameplay returns (its options render) — and still no Result navigation.
     fireEvent.press(screen.getByText('Next'));
 
+    expect(screen.getByText('Paris')).toBeTruthy();
+    expect(screen.getByText('Rome')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
-    // Still on the last logo — its revealed green answer remains on screen.
-    expect(screen.getByText('Nike')).toBeTruthy();
+  });
+});
+
+// --- 3b. Clearing the last accessible logo wins the round -------------------
+
+describe("clearing the level's last logo → Result 'complete'", () => {
+  it('navigates to Result with outcome complete and the full score after the reveal', () => {
+    jest.useFakeTimers();
+    try {
+      mockSolved = { 1: true }; // Q1 already solved; only the last free logo remains
+      mockParams = { level: '1', q: '2' };
+      const screen = render(<LogoQuizQuiz />);
+
+      fireEvent.press(screen.getByText('Nike')); // solve the last free logo (id 2)
+      expect(mockMarkSolved).toHaveBeenCalledWith(2);
+
+      // After the reveal delay the Victory (complete) screen opens with 2/2.
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      const call = mockReplace.mock.calls[0][0];
+      expect(call.params.outcome).toBe('complete');
+      expect(call.params.total).toBe('2');
+      expect(call.params.score).toBe('2');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

@@ -31,12 +31,18 @@ export default function LogoQuizLevel() {
   const levelNumber = Number(level ?? 0);
   const { width } = useWindowDimensions();
   const { snapshot } = useLogoQuizContent();
-  const { coins, livesState, isPremium, isSolved, getLives, solvedIds } = useLogoQuiz();
+  const { coins, livesState, isPremium, isSolved, getLives, solvedIds, setLastLevel } =
+    useLogoQuiz();
 
   const questions = useMemo<LogoQuizQuestion[]>(
     () => (snapshot ? questionsForLevel(snapshot, levelNumber) : []),
     [snapshot, levelNumber],
   );
+
+  // Remember the level being played so the level-select list scrolls back to it.
+  useEffect(() => {
+    if (levelNumber > 0) setLastLevel(levelNumber);
+  }, [levelNumber, setLastLevel]);
 
   // A level that doesn't exist (bad deep link, or backend not emitting `order`
   // yet) sends the player back rather than showing an empty grid.
