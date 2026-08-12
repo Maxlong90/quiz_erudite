@@ -59,13 +59,18 @@ type Phase = 'idle' | 'submitting' | 'success' | 'error';
 /**
  * Share an image file through expo-sharing. Returns true when the share sheet was
  * presented, false when sharing is unavailable so the caller can fall back to a
- * text-only invite. expo-sharing is loaded lazily and guarded: it's bundled in
- * Expo Go, but a native binary built before the dependency was added lacks it —
- * the require then throws and we report failure instead of crashing.
+ * text-only invite. expo-sharing is a native module bundled in Expo Go, but a
+ * standalone binary built before the dependency was added won't have it. Probe the
+ * native module registry FIRST (requireOptionalNativeModule returns null without
+ * throwing) so we never trigger the throwing requireNativeModule init — that would
+ * surface a dev error overlay even though we catch it.
  */
 async function shareImageFile(imageUri: string, dialogTitle: string): Promise<boolean> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy + guarded so a binary lacking the native module falls back instead of crashing at import
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- expo-modules-core is always present; used to probe for the optional native module
+    const { requireOptionalNativeModule } = require('expo-modules-core');
+    if (!requireOptionalNativeModule('ExpoSharing')) return false;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy so the native module only loads when it is actually present
     const Sharing = require('expo-sharing');
     if (!(await Sharing.isAvailableAsync())) return false;
     await Sharing.shareAsync(imageUri, { mimeType: 'image/png', dialogTitle });

@@ -8,6 +8,7 @@ import {
   type StyleProp,
   type TextStyle,
   type ViewStyle,
+  TurboModuleRegistry,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -269,13 +270,17 @@ export default function LogoQuizQuiz() {
 
   // Capture the off-screen ShareCard (logo + neutral options) to a temp PNG the
   // "…" menu shares. Returns the file uri, or null if the capture failed so the
-  // menu can fall back to a text-only invite. react-native-view-shot is loaded
-  // lazily and guarded: it's bundled in Expo Go, but a native binary built before
-  // the dependency was added lacks it — the require then throws and we fall back.
+  // menu can fall back to a text-only invite. react-native-view-shot is a native
+  // module bundled in Expo Go, but a standalone binary built before the dependency
+  // was added won't have it. Probe the TurboModule registry FIRST (get() returns
+  // null without throwing) so we never trigger the library's throwing getEnforcing
+  // init — that would surface a dev error overlay even though we catch it. When the
+  // module is absent we simply fall back to sharing the text-only invite.
   const captureShareImage = useCallback(async (): Promise<string | null> => {
     if (!shareCardRef.current) return null;
+    if (!TurboModuleRegistry.get('RNViewShot')) return null;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy + guarded so a binary lacking the native module falls back instead of crashing at import
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy so the native module only loads when it is actually present
       const { captureRef } = require('react-native-view-shot');
       return await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
     } catch {
