@@ -124,23 +124,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // Lower the icon + title (+ the Game Over life-regen row) by one Home Play-button
-  // height (paddingVertical 20×2 + 44px play icon = 84) now that the score box is
-  // gone on both branches. 8 (base marginTop) + 84 = 92. Applying it to the first
-  // child pushes the whole group down; the flex spacer below absorbs it, so only
-  // the composition descends — the bottom buttons stay pinned.
-  // Lower the group by one Play-button height (8 + 84), then lift just the badge
-  // up by half a Play-button height (42) via translateY so the icon rises without
-  // moving the title.
+  // Home Play-button height = paddingVertical 20×2 + 44px icon = 84 (half = 42).
+  // The group starts lowered by one Play-button (marginTop 8 + 84) now that the
+  // score box is gone; each element is then lifted with translateY: the badge
+  // (cloud/smiley — shared, so Win == Game Over, same 358 size) and the title
+  // (Try later / Level Complete — shared position) each rise a full Play-button,
+  // and the Game Over "Next life in" row rises a full Play-button too.
   emojiWrap: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8 + 84,
-    transform: [{ translateY: -42 }],
+    transform: [{ translateY: -84 }],
   },
   // +40% over the previous 256 badge (256×1.4 ≈ 358); transparent neon badge, contain.
   icon: { width: 358, height: 358 },
-  title: { fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },
+  // Title (Try later / Level Complete — shared position) lifted a full Play-button (84).
+  title: {
+    fontWeight: '900',
+    color: LQColors.text,
+    marginTop: 6,
+    marginBottom: 24,
+    transform: [{ translateY: -84 }],
+  },
   // Game Over title ×2 then +20% (56→67); Win title ×1.5 (28→42). Both use the
   // Wheel-of-Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
   titleGameOver: { fontSize: 67, color: '#8B5CF6' },
@@ -155,6 +160,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     backgroundColor: LQColors.surfaceAlt,
     borderRadius: LQRadius.pill,
+    // "Next life in" counter lifted a full Play-button height (84).
+    transform: [{ translateY: -84 }],
   },
   regenLabel: { color: LQColors.textMuted, fontWeight: '800', fontSize: 14 },
   regenTime: { color: LQColors.text, fontWeight: '900', fontSize: 16 },

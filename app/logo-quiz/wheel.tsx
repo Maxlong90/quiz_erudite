@@ -68,7 +68,7 @@ function prizeLabel(id: string, t: LQLabels): string {
 
 export default function LogoQuizWheel() {
   const t = useLQLabels();
-  const { coins, isPremium, livesState, wheelLastSpinAt, spinWheel, resetWheelCooldown } =
+  const { coins, isPremium, livesState, wheelLastSpinAt, spinWheel } =
     useLogoQuiz();
   const now = useNow(1000);
   const remaining = wheelCooldownRemaining(wheelLastSpinAt, now);
@@ -197,18 +197,6 @@ export default function LogoQuizWheel() {
             <Text style={styles.cooldownLabel}>{t.wheelNextSpinIn}</Text>
             <Text style={styles.cooldownTime}>{formatCountdownHMS(remaining)}</Text>
           </View>
-        )}
-
-        {/* Temporary DEV tool — clears the 24h cooldown so the spin is testable.
-            Never rendered in a production build (guarded by __DEV__). */}
-        {__DEV__ && !available && (
-          <Pressable
-            onPress={resetWheelCooldown}
-            style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="refresh" size={16} color="#7A1500" />
-            <Text style={styles.devBtnText}>Сбросить таймер (DEV)</Text>
-          </Pressable>
         )}
       </View>
 
@@ -399,21 +387,6 @@ const styles = StyleSheet.create({
   cooldownLabel: { fontSize: 14, fontWeight: '700', color: LQColors.surfaceAlt },
   cooldownTime: { fontSize: 16, fontWeight: '900', color: LQColors.surfaceAlt },
 
-  devBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: LQRadius.pill,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#7A1500',
-    backgroundColor: '#ffffff88',
-  },
-  devBtnText: { color: '#7A1500', fontWeight: '800', fontSize: 13 },
 
   confettiLayer: {
     ...StyleSheet.absoluteFillObject,

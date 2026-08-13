@@ -43,7 +43,7 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function LogoQuizSettings() {
   const t = useLQLabels();
-  const { isPremium, buyPremium, cancelSubscription, resetProgress, rateRewarded, claimRateReward } =
+  const { isPremium, buyPremium, cancelSubscription, rateRewarded, claimRateReward } =
     useLogoQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const { snapshot } = useLogoQuizContent();
@@ -107,13 +107,6 @@ export default function LogoQuizSettings() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {});
   };
 
-  // Temporary DEV/QA tool: send every category back to level 1. Never rendered in
-  // a production build (guarded by __DEV__ below).
-  const onResetProgress = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-    resetProgress();
-  };
-
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
       <AppBackground />
@@ -160,17 +153,6 @@ export default function LogoQuizSettings() {
         <SettingsButton label={t.privacyPolicy} onPress={onPrivacy} />
         {/* Terms of Use — mirrors Privacy Policy, opens the external page. */}
         <SettingsButton label={t.termsOfUse} onPress={onTerms} />
-
-        {/* Temporary DEV tool — not shown in production builds. */}
-        {__DEV__ && (
-          <Pressable
-            onPress={onResetProgress}
-            style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="refresh" size={16} color="#7A1500" />
-            <Text style={styles.devBtnText}>Сброс прогресса (DEV)</Text>
-          </Pressable>
-        )}
       </View>
 
       {/* Language picker — tapping a language changes the app locale instantly. */}
@@ -316,21 +298,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   rewardBadgeText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 12 },
-
-  devBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: LQRadius.pill,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#7A1500',
-    backgroundColor: '#ffffff55',
-  },
-  devBtnText: { color: '#7A1500', fontWeight: '800', fontSize: 13 },
 
   modalBackdrop: {
     flex: 1,
