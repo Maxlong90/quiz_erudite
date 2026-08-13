@@ -12,8 +12,8 @@ export const COINS_PER_CORRECT = 5;
 export const PREMIUM_COIN_MULTIPLIER = 2;
 
 // ---- Hint costs (shown on the buttons; disabled when the player can't pay) ----
-export const HINT_5050_COST = 25;
-export const HINT_SKIP_COST = 40;
+export const HINT_5050_COST = 30;
+export const HINT_SKIP_COST = 50;
 
 // ---- Lives ----
 export const MAX_LIVES = 3;
