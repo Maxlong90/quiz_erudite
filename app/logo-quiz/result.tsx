@@ -129,13 +129,21 @@ const styles = StyleSheet.create({
   // gone on both branches. 8 (base marginTop) + 84 = 92. Applying it to the first
   // child pushes the whole group down; the flex spacer below absorbs it, so only
   // the composition descends — the bottom buttons stay pinned.
-  emojiWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 + 84 },
-  // 4× the old 64px emoji box; transparent neon badge, proportional (contain).
-  icon: { width: 256, height: 256 },
+  // Lower the group by one Play-button height (8 + 84), then lift just the badge
+  // up by half a Play-button height (42) via translateY so the icon rises without
+  // moving the title.
+  emojiWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8 + 84,
+    transform: [{ translateY: -42 }],
+  },
+  // +40% over the previous 256 badge (256×1.4 ≈ 358); transparent neon badge, contain.
+  icon: { width: 358, height: 358 },
   title: { fontWeight: '900', color: LQColors.text, marginTop: 6, marginBottom: 24 },
-  // Game Over title ×2 (28→56); Win title ×1.5 (28→42). Both use the Wheel-of-
-  // Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
-  titleGameOver: { fontSize: 56, color: '#8B5CF6' },
+  // Game Over title ×2 then +20% (56→67); Win title ×1.5 (28→42). Both use the
+  // Wheel-of-Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
+  titleGameOver: { fontSize: 67, color: '#8B5CF6' },
   titleWin: { fontSize: 42, color: '#8B5CF6' },
 
   regenRow: {
