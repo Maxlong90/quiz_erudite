@@ -145,6 +145,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 24,
     transform: [{ translateY: -84 }],
+    // Black outline (RN has no true text stroke — a tight black shadow halo on all
+    // sides) for contrast on the violet Try later / Level Complete titles.
+    textShadowColor: '#000',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3,
   },
   // Game Over title ×2 then +20% (56→67); Win title ×1.5 (28→42). Both use the
   // Wheel-of-Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
