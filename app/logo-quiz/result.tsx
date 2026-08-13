@@ -13,6 +13,32 @@ import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/t
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
 
+// Outline thickness in px, and the 8 directions the black copies are offset to.
+const OUTLINE = 2;
+const OUTLINE_OFFSETS: [number, number][] = [
+  [-OUTLINE, -OUTLINE], [0, -OUTLINE], [OUTLINE, -OUTLINE],
+  [-OUTLINE, 0], [OUTLINE, 0],
+  [-OUTLINE, OUTLINE], [0, OUTLINE], [OUTLINE, OUTLINE],
+];
+
+// Crisp black outline for the result title: 8 black copies of the text offset around
+// a centred violet fill (React Native has no native text stroke).
+function OutlinedTitle({ text, fontSize }: { text: string; fontSize: number }) {
+  return (
+    <View style={styles.titleWrap}>
+      {OUTLINE_OFFSETS.map(([x, y], i) => (
+        <Text
+          key={i}
+          style={[styles.titleBase, styles.titleOutline, { fontSize, transform: [{ translateX: x }, { translateY: y }] }]}
+        >
+          {text}
+        </Text>
+      ))}
+      <Text style={[styles.titleBase, { fontSize, color: '#8B5CF6' }]}>{text}</Text>
+    </View>
+  );
+}
+
 export default function LogoQuizResult() {
   const t = useLQLabels();
   const { coins: coinBalance, isPremium, livesState } = useLogoQuiz();
@@ -64,9 +90,7 @@ export default function LogoQuizResult() {
             resizeMode="contain"
           />
         </View>
-        <Text style={[styles.title, gameOver ? styles.titleGameOver : styles.titleWin]}>
-          {gameOver ? 'Try later' : 'Level Complete'}
-        </Text>
+        <OutlinedTitle text={gameOver ? 'Try later' : 'Level Complete'} fontSize={gameOver ? 67 : 42} />
 
         {/* Out of lives: show the countdown until the next life regenerates. */}
         {gameOver && nextLifeMs != null && (
@@ -138,23 +162,18 @@ const styles = StyleSheet.create({
   },
   // +40% over the previous 256 badge (256×1.4 ≈ 358); transparent neon badge, contain.
   icon: { width: 358, height: 358 },
-  // Title (Try later / Level Complete — shared position) lifted a full Play-button (84).
-  title: {
-    fontWeight: '900',
-    color: LQColors.text,
+  // Title wrap (Try later / Level Complete — shared position) lifted a full Play-
+  // button (84). Font size passed inline: Game Over 67 (×2 +20%), Win 42 (×1.5).
+  titleWrap: {
     marginTop: 6,
     marginBottom: 24,
     transform: [{ translateY: -84 }],
-    // Black outline (RN has no true text stroke — a tight black shadow halo on all
-    // sides) for contrast on the violet Try later / Level Complete titles.
-    textShadowColor: '#000',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  // Game Over title ×2 then +20% (56→67); Win title ×1.5 (28→42). Both use the
-  // Wheel-of-Fortune violet accent (#8B5CF6, the WHEEL_TILE_GRADIENT end stop).
-  titleGameOver: { fontSize: 67, color: '#8B5CF6' },
-  titleWin: { fontSize: 42, color: '#8B5CF6' },
+  titleBase: { fontWeight: '900' },
+  // Crisp outline: 8 black copies offset around the violet fill (RN has no text stroke).
+  titleOutline: { position: 'absolute', color: '#000' },
 
   regenRow: {
     flexDirection: 'row',
