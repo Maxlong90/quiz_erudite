@@ -45,13 +45,21 @@ export default function LogoQuizLevel() {
     if (levelNumber > 0) setLastLevel(levelNumber);
   }, [levelNumber, setLastLevel]);
 
-  // Warm every tile's artwork into the shared expo-image cache before/while the
-  // grid draws, so the logos appear all at once instead of decoding (or, for a
-  // remote fallback URI, network-fetching) one by one as tiles mount. The next
-  // level is prefetched too — after this one — so the level→level jump is instant
-  // as well. Fire-and-forget and fail-open: prefetch never blocks or breaks the UI.
+  // Warm every PLAYABLE tile's artwork into the shared expo-image cache before/
+  // while the grid draws, so the logos appear all at once instead of decoding
+  // (or, for a remote fallback URI, network-fetching) one by one as tiles mount.
+  // Premium logos are deliberately NOT prefetched: a locked tile blurs its
+  // artwork via RN's Image (see LogoDisplay), and warming the un-blurred bitmap
+  // into the shared cache is both wasted (it's behind the paywall) and the exact
+  // condition that let premium logos leak through un-blurred. They load on
+  // unlock anyway. The next level's non-premium art is prefetched too — after
+  // this one — so the level→level jump is instant as well. Fire-and-forget and
+  // fail-open: prefetch never blocks or breaks the UI.
   useEffect(() => {
-    const currentUrls = questions.map((q) => q.imageUri).filter((uri): uri is string => !!uri);
+    const currentUrls = questions
+      .filter((q) => !q.premium)
+      .map((q) => q.imageUri)
+      .filter((uri): uri is string => !!uri);
     if (currentUrls.length === 0) return;
 
     let cancelled = false;
@@ -60,6 +68,7 @@ export default function LogoQuizLevel() {
       .finally(() => {
         if (cancelled || !snapshot) return;
         const nextUrls = questionsForLevel(snapshot, levelNumber + 1)
+          .filter((q) => !q.premium)
           .map((q) => q.imageUri)
           .filter((uri): uri is string => !!uri);
         if (nextUrls.length > 0) Image.prefetch(nextUrls, { cachePolicy: 'memory-disk' }).catch(() => {});
