@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 
@@ -25,8 +26,15 @@ export function LogoDisplay({
         <Image
           source={{ uri: imageUri }}
           style={{ width: size * 0.74, height: size * 0.74 }}
-          resizeMode="contain"
+          contentFit="contain"
           blurRadius={blurRadius}
+          // Serve from the shared in-memory/on-disk cache so a logo that was
+          // already decoded (grid → quiz, or a re-entered level) paints instantly
+          // instead of re-fetching/re-decoding.
+          cachePolicy="memory-disk"
+          // Stable identity for FlatList tile recycling: reused views keep the
+          // right artwork instead of briefly flashing the previous tile's image.
+          recyclingKey={imageUri}
         />
       ) : (
         <Text style={[styles.placeholder, { fontSize: size * 0.4 }]}>?</Text>

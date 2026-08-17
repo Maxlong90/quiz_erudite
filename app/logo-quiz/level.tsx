@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,6 +44,31 @@ export default function LogoQuizLevel() {
   useEffect(() => {
     if (levelNumber > 0) setLastLevel(levelNumber);
   }, [levelNumber, setLastLevel]);
+
+  // Warm every tile's artwork into the shared expo-image cache before/while the
+  // grid draws, so the logos appear all at once instead of decoding (or, for a
+  // remote fallback URI, network-fetching) one by one as tiles mount. The next
+  // level is prefetched too — after this one — so the level→level jump is instant
+  // as well. Fire-and-forget and fail-open: prefetch never blocks or breaks the UI.
+  useEffect(() => {
+    const currentUrls = questions.map((q) => q.imageUri).filter((uri): uri is string => !!uri);
+    if (currentUrls.length === 0) return;
+
+    let cancelled = false;
+    Image.prefetch(currentUrls, { cachePolicy: 'memory-disk' })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelled || !snapshot) return;
+        const nextUrls = questionsForLevel(snapshot, levelNumber + 1)
+          .map((q) => q.imageUri)
+          .filter((uri): uri is string => !!uri);
+        if (nextUrls.length > 0) Image.prefetch(nextUrls, { cachePolicy: 'memory-disk' }).catch(() => {});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [questions, snapshot, levelNumber]);
 
   // A level that doesn't exist (bad deep link, or backend not emitting `order`
   // yet) sends the player back rather than showing an empty grid.
