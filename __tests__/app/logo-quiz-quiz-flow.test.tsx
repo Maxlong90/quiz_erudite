@@ -176,7 +176,7 @@ describe('correct answer → in-place reveal (no interstitial Result)', () => {
     expect(mockMarkSolved).toHaveBeenCalledWith(1);
 
     // Reveal is shown: Explanation text + a "Next" button appeared in place.
-    expect(screen.getByText('Explanations')).toBeTruthy();
+    expect(screen.getByText('History')).toBeTruthy();
     expect(screen.getByText('City of light.')).toBeTruthy();
     expect(screen.getByText('Next')).toBeTruthy();
 
@@ -197,7 +197,7 @@ describe('Next on a non-last question advances in place', () => {
     expect(screen.getByText('Nike')).toBeTruthy();
     expect(screen.getByText('Puma')).toBeTruthy();
     // The reveal was reset — the Explanation/Next are gone until the next solve.
-    expect(screen.queryByText('Explanations')).toBeNull();
+    expect(screen.queryByText('History')).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });
@@ -237,9 +237,19 @@ describe("clearing the level's last logo → Result 'complete'", () => {
       fireEvent.press(screen.getByText('Nike')); // solve the last free logo (id 2)
       expect(mockMarkSolved).toHaveBeenCalledWith(2);
 
-      // After the reveal delay the Victory (complete) screen opens with 2/2.
+      // The reveal + history panel play FIRST — navigation is held back, not
+      // fired synchronously on the winning pick.
+      expect(mockReplace).not.toHaveBeenCalled();
+
+      // Still held partway through the ~3s reveal window…
       act(() => {
-        jest.advanceTimersByTime(5000);
+        jest.advanceTimersByTime(2000);
+      });
+      expect(mockReplace).not.toHaveBeenCalled();
+
+      // …then the Victory (complete) screen opens once the window elapses.
+      act(() => {
+        jest.advanceTimersByTime(1000);
       });
       expect(mockReplace).toHaveBeenCalledTimes(1);
       const call = mockReplace.mock.calls[0][0];
@@ -261,7 +271,7 @@ describe('an already-solved logo pages with no economy', () => {
     const screen = render(<LogoQuizQuiz />);
 
     // Opens already revealed: the Explanation of the solved logo is shown.
-    expect(screen.getByText('Explanations')).toBeTruthy();
+    expect(screen.getByText('History')).toBeTruthy();
     expect(screen.getByText('City of light.')).toBeTruthy();
     // Paging button present; no economy has run.
     expect(screen.getByText('Next')).toBeTruthy();
@@ -288,7 +298,7 @@ describe('wrong answer at zero lives → game over', () => {
 
       expect(mockLoseLife).toHaveBeenCalledTimes(1);
       // No reveal on a loss.
-      expect(screen.queryByText('Explanations')).toBeNull();
+      expect(screen.queryByText('History')).toBeNull();
 
       // The board locks, then navigates to the game-over result after the delay.
       act(() => {
@@ -314,7 +324,7 @@ describe('skip hint reveals in place instead of auto-navigating', () => {
     expect(mockSpendCoins).toHaveBeenCalledTimes(1);
     expect(mockMarkSolved).toHaveBeenCalledWith(1);
     // Reveal shown, still on the quiz screen (no auto-nav to result).
-    expect(screen.getByText('Explanations')).toBeTruthy();
+    expect(screen.getByText('History')).toBeTruthy();
     expect(screen.getByText('Next')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
 

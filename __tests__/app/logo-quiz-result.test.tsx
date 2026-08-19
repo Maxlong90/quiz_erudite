@@ -1,8 +1,9 @@
 /**
  * Integration tests for the Logo Quiz Victory/result screen (app/logo-quiz/result.tsx)
- * AFTER explanations moved into the quiz screen. The result screen must now show
- * ONLY the score + actions (+ confetti on a win) and never render an explanations
- * block, for both the level-cleared ('complete') and 'gameover' outcomes.
+ * AFTER the history panel moved into the quiz screen. The result screen must now
+ * show ONLY the title + primary action (+ confetti on a win), never a history
+ * block, and no bottom "Home" button, for both the level-cleared ('complete') and
+ * 'gameover' outcomes.
  */
 import React from 'react';
 import { render } from '@testing-library/react-native';
@@ -49,28 +50,32 @@ jest.mock('expo-router', () => ({
 // eslint-disable-next-line import/first -- screen under test must load AFTER its mocks
 import LogoQuizResult from '@/app/logo-quiz/result';
 
-describe('result screen shows score + actions only, never explanations', () => {
-  it('level cleared (complete): score + "Back to levels", no explanations', () => {
+describe('result screen shows title + primary action only, no history or Home', () => {
+  it('level cleared (complete): "Level Complete" + "Back to levels", no history, no Home', () => {
     mockParams = { score: '2', total: '2', outcome: 'complete' };
     const screen = render(<LogoQuizResult />);
 
-    expect(screen.getByText('Round complete!')).toBeTruthy();
-    expect(screen.getByText('Score')).toBeTruthy();
+    // Win title (the outlined title stacks several offset copies of the text).
+    expect(screen.getAllByText('Level Complete').length).toBeGreaterThan(0);
+    // Primary action returns to the level list.
     expect(screen.getByText('Back to levels')).toBeTruthy();
 
-    // The explanations block is gone from the result screen.
-    expect(screen.queryByText('Explanations')).toBeNull();
+    // The history block never lives on the result screen…
+    expect(screen.queryByText('History')).toBeNull();
+    // …and the bottom "Home" button was removed.
+    expect(screen.queryByText('Home')).toBeNull();
   });
 
-  it('game over: score + "Go to Shop", no explanations', () => {
+  it('game over: "Try later" + "Go to Shop", no history, no Home, no Next', () => {
     mockParams = { score: '1', total: '2', outcome: 'gameover' };
     const screen = render(<LogoQuizResult />);
 
-    expect(screen.getByText('Game over')).toBeTruthy();
-    expect(screen.getByText('Score')).toBeTruthy();
+    expect(screen.getAllByText('Try later').length).toBeGreaterThan(0);
     expect(screen.getByText('Go to Shop')).toBeTruthy();
 
-    expect(screen.queryByText('Explanations')).toBeNull();
+    expect(screen.queryByText('History')).toBeNull();
+    // The bottom "Home" button was removed on the game-over outcome too.
+    expect(screen.queryByText('Home')).toBeNull();
     // And the mid-round "Next" continuation button no longer exists here.
     expect(screen.queryByText('Next')).toBeNull();
   });
