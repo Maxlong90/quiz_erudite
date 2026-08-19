@@ -104,7 +104,7 @@ export default function LogoQuizResult() {
         <View style={{ flex: 1 }} />
 
         {/* Actions — a cleared level returns to the level-select list. On a game
-            over the primary sends the player to the Shop. Home → Welcome. */}
+            over the primary sends the player to the Shop. */}
         {gameOver ? (
           <GoldButton
             onPress={() => router.replace('/logo-quiz/shop')}
@@ -121,9 +121,6 @@ export default function LogoQuizResult() {
             <Text style={styles.primaryText}>{t.backToLevels}</Text>
           </Pressable>
         )}
-        <Pressable style={styles.secondaryBtn} onPress={() => router.dismissTo('/logo-quiz')}>
-          <Text style={styles.secondaryText}>{t.home}</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -200,6 +197,4 @@ const styles = StyleSheet.create({
   primaryText: { color: '#fff', fontWeight: '900', fontSize: 18 },
   primaryGold: { width: '100%' },
   primaryGoldText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 18 },
-  secondaryBtn: { paddingVertical: 14, alignItems: 'center' },
-  secondaryText: { color: LQColors.textMuted, fontWeight: '800', fontSize: 15 },
 });

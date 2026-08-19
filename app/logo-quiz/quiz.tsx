@@ -53,6 +53,10 @@ const GAMEOVER_MS = 900;
 const FADE_MS = 1000;
 const MOVE_MS = 1700;
 const UI_FADE_MS = 300;
+// On the level's LAST question, keep the correct answer + history panel on screen
+// this long before advancing to the Level Complete screen. The history text fades
+// in only after the answer glide lands (MOVE_MS ≈ 1.7s), so 3s leaves ~1.3s to read.
+const LEVEL_COMPLETE_MS = 3000;
 
 export default function LogoQuizQuiz() {
   const t = useLQLabels();
@@ -134,6 +138,15 @@ export default function LogoQuizQuiz() {
   // an initial answered question is review (instant), an unanswered one isn't
   // revealing at all.
   const [revealAnimated, setRevealAnimated] = useState(false);
+  // Set true once the level's last accessible logo is answered: the reveal +
+  // history panel play out for LEVEL_COMPLETE_MS before the Level Complete screen
+  // opens. While it holds, the board and ◀/▶ nav are frozen so the player can't
+  // page away or leave the reveal early. The timer is cleared on unmount.
+  const [completing, setCompleting] = useState(false);
+  const completeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (completeTimer.current) clearTimeout(completeTimer.current);
+  }, []);
 
   // Defense-in-depth premium gate: a review/deep link that targets a premium
   // logo the current user can't play is bounced to the paywall (the grid already
@@ -181,6 +194,19 @@ export default function LogoQuizQuiz() {
     setRevealing(true);
   }, []);
 
+  // Clearing the level's last accessible logo wins the round. Rather than jumping
+  // to the Level Complete screen immediately, freeze the board and let the reveal
+  // + history panel play for LEVEL_COMPLETE_MS, then advance. `completing` guards
+  // against a second schedule (the board is already locked once solved) and
+  // freezes the ◀/▶ nav so a tap can't page away or leave early.
+  const scheduleLevelComplete = useCallback(() => {
+    if (completeTimer.current) return;
+    setCompleting(true);
+    completeTimer.current = setTimeout(() => {
+      toResult('complete', runList.length);
+    }, LEVEL_COMPLETE_MS);
+  }, [toResult, runList.length]);
+
   const onPick = (option: string) => {
     if (solved || over || wrongPicked.includes(option)) return;
     if (option === question.brand) {
@@ -193,9 +219,9 @@ export default function LogoQuizQuiz() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       startReveal();
       // Clearing the level's last accessible logo (9/9 free or 15/15 premium)
-      // wins the round → Victory screen immediately, no delay.
+      // wins the round → hold on the reveal + history for a beat, then Victory.
       if (completesLevel(question.id)) {
-        toResult('complete', runList.length);
+        scheduleLevelComplete();
       }
     } else {
       // Wrong: keep this option red and stay on the question so the player can keep
@@ -239,9 +265,9 @@ export default function LogoQuizQuiz() {
     Haptics.selectionAsync().catch(() => {});
     startReveal();
     // A skip that clears the level's last accessible logo still wins the round —
-    // Victory opens immediately, no delay.
+    // hold on the reveal + history for a beat, then Victory.
     if (completesLevel(question.id)) {
-      toResult('complete', runList.length);
+      scheduleLevelComplete();
     }
   };
 
@@ -451,8 +477,14 @@ export default function LogoQuizQuiz() {
             entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
             style={styles.navRow}
           >
-            <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} />
-            <NavButton label={t.nextLogo} icon="arrow-forward" iconRight onPress={goNext} />
+            <NavButton label={t.prevLogo} icon="arrow-back" onPress={goPrev} disabled={completing} />
+            <NavButton
+              label={t.nextLogo}
+              icon="arrow-forward"
+              iconRight
+              onPress={goNext}
+              disabled={completing}
+            />
           </Animated.View>
         ) : (
           <>
