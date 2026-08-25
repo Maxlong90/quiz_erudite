@@ -63,7 +63,7 @@ Nothing about this ships iOS on by accident. To bring iOS to parity, provide:
 
 ## Follow-up checklist
 
-- [ ] Add `EXPO_PUBLIC_REVENUECAT_IOS_KEY` to `eas.json` (preview + production).
+- [x] Add `EXPO_PUBLIC_REVENUECAT_IOS_KEY` to `eas.json` (preview + production) — **done**: an `appl_…` key is now set on both Erudite profiles, so `revenueCatEnabled` is true on an iOS release build. The App Store catalog below must still be provisioned before the offering resolves.
 - [ ] Build the App Store Connect subscription + consumable catalog matching the
       Android product ids above and attach the `premium` entitlement in RevenueCat.
 - [ ] Add `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS` to `eas.json` and replace the

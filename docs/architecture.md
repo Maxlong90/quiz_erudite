@@ -80,7 +80,7 @@ Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**One tree, two apps.** The repository builds two distinct experiences — the main general-knowledge quiz and the Logo Quiz brand-guessing game — selected by the build-time `APP_SLUG`. When it is `logo-quiz`, the home route redirects straight into the self-contained `app/logo-quiz/` flow and the erudite intro, hub, and modes never render. The two apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. See [Logo Quiz](logo-quiz.md).
+**One tree, many apps.** The repository templates several distinct experiences from one build, selected by the build-time `APP_SLUG`. The main general-knowledge quiz is the default; `logo-quiz` builds the Logo Quiz brand-guessing game, and a third slug (`flags-quiz`, an early template still under construction) redirects the same way. For any non-default slug the home route redirects straight into that app's self-contained flow (`app/logo-quiz/`, `app/flags-quiz/`) and the erudite intro, hub, and modes never render. The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-the-logo-quiz-variant)). See [Logo Quiz](logo-quiz.md).
 
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
@@ -122,8 +122,9 @@ i18n/                   String tables for en, ru, es
 app/logo-quiz/          Second app: self-contained Logo Quiz flow
 components/logo-quiz/   Logo Quiz UI (cards, HUD, wheel, confetti)
 hooks/logo-quiz/        Logo Quiz economy + backend-content providers
-lib/logo-quiz/          Logo Quiz content mapping and economy rules
+lib/logo-quiz/          Logo Quiz content mapping, economy rules, store-purchase seam
 constants/logo-quiz/    Logo Quiz labels and theme
+app.config.js           Dynamic Expo config: per-variant store identity
 ```
 
 ## See Also

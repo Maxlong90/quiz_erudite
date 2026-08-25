@@ -119,6 +119,51 @@ Both the History panel and the ◀/▶ buttons render as calm grey "quiet" cards
 
 The ◀/▶ paging buttons advance to the neighboring question in place — resetting the per-question state via `goToIndex` without any navigation — and wrap around the accessible set, so paging past the last answered logo lands back on the first rather than doing nothing. Because the explanation is read straight from the frozen question list (`question.explanation`, already localized via the snapshot's `?locale=`), no round buffer or navigation payload is needed.
 
+## The Economy and Real-Money Purchases
+
+Logo Quiz runs its own economy — coins, a regenerating lives bar, and a weekly premium subscription — separate from the main quiz. The shop originally sold everything with a **local mock**: `buyCoins`, `buyLives`, and `buyPremium` just mutated AsyncStorage, so "purchases" cost nothing and no App Store products existed. The shop is now billed for real through RevenueCat, while its visuals are unchanged. Only the grant path became real; the coin amounts, life-pack sizes, and premium perks stayed exactly as `lib/logo-quiz/economy.ts` defines them.
+
+### The store seam and the fail-closed grant
+
+`lib/logo-quiz/iap.ts` is the store-I/O seam. It mirrors the main app's `lib/iap.ts` fail-closed contract: it only runs the store call and reports the outcome, so the economy mutation stays in the `use-logo-quiz` provider. The shop screen (`app/logo-quiz/shop.tsx`) orchestrates the two — it calls `purchaseCoinPack`, `purchaseLifePack`, or `purchaseLogoQuizPremium`, and only on a resolved `'purchased'` outcome does it call the provider's grant (`buyCoins` / `buyLives` / `buyPremium`).
+
+The rule is **grant only on a confirmed purchase**. A user cancellation is a silent no-op — no coins, no lives, no premium. A store error surfaces a purchase-error alert and grants nothing. The one exception is a genuine non-store dev environment: `isDevGrantEnvironment` (Expo Go or web) lets the stub pretend the store succeeded so dev flows still exercise the grant. On a real iOS or Android device with the store unavailable, `purchaseConsumableProduct` throws `Store unavailable` and fails closed rather than handing out a free grant. This is the same defense the main app's shop and paywall enforce — see [Gamification](gamification.md#the-fail-closed-grant-policy).
+
+### The product catalog
+
+Every pack carries a stable local `id` (the React key and "bought ✓" flash) and a `storeProductId` — the App Store / Google Play / RevenueCat identifier. The store ids are a contract shared with the backend's per-app catalog; the `logoquiz_` prefix keeps them globally unique in the Apple account so they never collide with Erudite's products. Changing an id here without changing it there breaks purchasing, so the ids are treated as immutable.
+
+| Store product id | Grant | Price | Type |
+|------------------|-------|-------|------|
+| `logoquiz_coins_100` | +100 coins | $0.99 | Consumable |
+| `logoquiz_coins_500` | +500 coins | $3.99 (Popular) | Consumable |
+| `logoquiz_coins_1000` | +1000 coins | $6.99 | Consumable |
+| `logoquiz_lives_3` | +3 lives | $0.99 | Consumable |
+| `logoquiz_lives_10` | +10 lives | $2.99 (Popular) | Consumable |
+| `logoquiz_premium_weekly` | Premium (weekly) | $4.99/week | Subscription (no trial) |
+
+Bought lives stock **above** the regenerating bar (`MAX_LIVES`); they are consumed first and never expire, so a pack of ten is a real reserve rather than a value clamped to three. Premium grants two perks, both kept from the mock: lives regenerate 3× faster (one every 10 minutes instead of 30) and each correct answer pays double coins. Premium never restores infinite lives — that earlier model is gone.
+
+### Coin-bought lives stay an in-game action
+
+The shop's "3 lives for 100 coins" row is **not** an IAP. It is a coin sink: `buyLivesForCoins` spends in-game coins (`LIVES_FOR_COINS_COST`) for a fixed batch of lives (`LIVES_FOR_COINS_AMOUNT`) and touches no store. It is untouched by the real-money flow, is disabled when the balance is short, and gives players a way to spend the coins they earn or buy.
+
+### Premium is derived from the entitlement, not a raw flag
+
+`buyPremium` purchases `logoquiz_premium_weekly` through the shared `$rc_weekly` package in the `default` offering. What actually decides premium is the RevenueCat `premium` entitlement in `customerInfo`, not the button press. On start the provider reconciles the live entitlement with `isPremiumEntitlementActive` — **upgrade-only**: a live entitlement flips `isPremium` on, but a false result or an error (offline, store off) never downgrades. This survives a reinstall and a device that was premium before the local flag existed, and it uses a silent `getCustomerInfo` so it never triggers a store-login prompt.
+
+Two deliberate exits round out the model. **Restore Purchases** on the Settings screen (`restorePremium`) re-activates a previously bought subscription and reflects it into the local state; it reports "nothing found" in Expo Go or when there is nothing to restore. **Cancel subscription** (`cancelSubscription`) is the only path that drops back to free, and only ever as a deliberate user action — the upgrade-only start sync will never reverse it on its own.
+
+### Prices come from the store
+
+The shop fetches live localized prices once RevenueCat is enabled. `getLogoQuizStorePrices` resolves each pack's `priceString` keyed by the pack `id`, and `getLogoQuizPremiumPrice` resolves the weekly price. Both fall back silently: a disabled store, an unpopulated offering, or an error leaves each pack on its hardcoded `price` and premium on `PREMIUM_FALLBACK_PRICE`. So the shop always shows a price, real when available and the committed default otherwise.
+
+### Per-variant store identity
+
+Store products only resolve when the build carries App 2's own store identity, not Erudite's. `app.config.js` is a dynamic Expo config layered over the static `app.json`. For every build except the Logo Quiz variant it returns `app.json` byte-for-byte, so Erudite is unaffected. When `EXPO_PUBLIC_APP_SLUG` is `logo-quiz` it overrides the app `name`, the iOS `bundleIdentifier`, and the Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`. The Expo project `slug` is intentionally left alone — it identifies the EAS project, not the store listing.
+
+The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` carry those identity vars plus App 2's own RevenueCat keys. Until an operator fills the placeholders, the vars fall back to the Erudite identity, so store products do not resolve and the shop fails closed on a device — local-granting only in Expo Go. The RevenueCat catalog itself (the products, the shared `premium` entitlement, and the `default` offering with the weekly package) is provisioned per-app on the backend; see its per-app App Store Connect / RevenueCat catalog resolver. See also [Development](development.md#building-the-logo-quiz-variant).
+
 ## Progress and Persistence
 
 Player progress is a set of solved question ids, held in `hooks/logo-quiz/use-logo-quiz.tsx` and persisted to AsyncStorage under `logoquiz.state.v2`. Level completion, the `X/total` card counts, and every unlock are derived from this set — nothing about levels is stored. `markSolved` is idempotent, so replaying a solved question never double-counts it.
