@@ -11,6 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
+import { APP_SLUG } from '@/api/client';
 import { useTranslation } from '@/hooks/use-translation';
 
 const SPLASH_DURATION_MS = 5000;
@@ -50,6 +52,50 @@ export default function SplashScreen() {
     opacity: taglineOpacity.value,
   }));
 
+  // Logo Quiz builds get the light brand palette; every other build keeps the
+  // dark erudite splash. APP_SLUG is a build-time constant, so this branch is
+  // stable across renders and lives *after* all hooks — hook order is untouched.
+  const isLogoQuiz = APP_SLUG === 'logo-quiz';
+  const letterStyle = isLogoQuiz ? styles.letterLight : styles.letter;
+  const accentStyle = isLogoQuiz ? styles.letterAccentLight : styles.letterAccent;
+  const taglineBaseStyle = isLogoQuiz ? styles.taglineLight : styles.tagline;
+
+  // The animated wordmark + tagline are identical across themes — only the
+  // colours differ — so build the block once and drop it into either backdrop.
+  const content = (
+    <View style={styles.content}>
+      <Animated.View style={[styles.wordmark, wordmarkStyle]}>
+        {LETTERS.map((ch, i) => {
+          // Highlight the three middle Z's in the brand purple so the
+          // wordmark reads as QUI-ZZZ-ES, signalling the "quiz triple".
+          const isAccent = i >= 3 && i <= 5;
+          return (
+            <Text key={i} style={[letterStyle, isAccent && accentStyle]}>
+              {ch}
+            </Text>
+          );
+        })}
+      </Animated.View>
+
+      <Animated.Text style={[taglineBaseStyle, taglineStyle]}>
+        {t('splash.tagline')}
+      </Animated.Text>
+    </View>
+  );
+
+  if (isLogoQuiz) {
+    // Solid BG_BASE backing under the SVG mesh guarantees a full-screen light
+    // fill with no dark flash before AppBackground paints. No <Stars /> — the
+    // speckle overlay is tuned for the dark backdrop.
+    return (
+      <View style={[styles.flex, { backgroundColor: BG_BASE }]}>
+        <AppBackground />
+        <StatusBar style="dark" />
+        {content}
+      </View>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
@@ -58,27 +104,7 @@ export default function SplashScreen() {
     >
       <StatusBar style="light" />
 
-      <View style={styles.content}>
-        <Animated.View style={[styles.wordmark, wordmarkStyle]}>
-          {LETTERS.map((ch, i) => {
-            // Highlight the three middle Z's in the brand purple so the
-            // wordmark reads as QUI-ZZZ-ES, signalling the "quiz triple".
-            const isAccent = i >= 3 && i <= 5;
-            return (
-              <Text
-                key={i}
-                style={[styles.letter, isAccent && styles.letterAccent]}
-              >
-                {ch}
-              </Text>
-            );
-          })}
-        </Animated.View>
-
-        <Animated.Text style={[styles.tagline, taglineStyle]}>
-          {t('splash.tagline')}
-        </Animated.Text>
-      </View>
+      {content}
 
       <Stars />
     </LinearGradient>
@@ -148,10 +174,28 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(167, 139, 255, 0.85)',
     textShadowRadius: 22,
   },
+  // Light-theme wordmark for the Logo Quiz build: dark-grey QUI/ES and purple
+  // ZZZ that read on the pale periwinkle backdrop, with the dark-tuned glow
+  // dropped entirely.
+  letterLight: {
+    fontSize: 56,
+    fontWeight: '900',
+    color: '#4A4A5E',
+    letterSpacing: 2,
+  },
+  letterAccentLight: {
+    color: '#7C5CFF',
+  },
   tagline: {
     fontSize: 16,
     fontWeight: '500',
     color: '#ffffffaa',
+    letterSpacing: 0.4,
+  },
+  taglineLight: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#5A5A6E',
     letterSpacing: 0.4,
   },
   star: {
