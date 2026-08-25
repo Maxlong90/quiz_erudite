@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type PurchasesModule from 'react-native-purchases';
 import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
@@ -213,6 +213,39 @@ export async function restorePremium(): Promise<boolean> {
   if (!purchases) return false;
   const info = await purchases.restorePurchases();
   return isPremiumActive(info);
+}
+
+/**
+ * Open the platform's native "manage subscriptions" screen so the user can
+ * cancel or change their subscription. An app CANNOT cancel an auto-renewable
+ * subscription programmatically (App Store Guideline 3.1.2 / Google policy) —
+ * it must route the user to the system UI, and premium stays active until the
+ * paid period actually ends (reflected later by the entitlement reconcile).
+ *
+ * Prefers RevenueCat's native helper; falls back to the store's subscription
+ * management URL. Returns false only when nothing could be opened (web / Expo
+ * Go / no handler), so the caller can degrade gracefully.
+ */
+export async function openManageSubscriptions(): Promise<boolean> {
+  if (purchases) {
+    try {
+      await purchases.showManageSubscriptions();
+      return true;
+    } catch {
+      // Fall through to the URL below.
+    }
+  }
+
+  const url =
+    Platform.OS === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions';
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

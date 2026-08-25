@@ -24,7 +24,7 @@ import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
-import { restorePremium } from '@/lib/revenuecat';
+import { openManageSubscriptions, restorePremium } from '@/lib/revenuecat';
 
 // Each language shown in its own name, so the list reads the same regardless of
 // the currently active locale.
@@ -43,8 +43,7 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function LogoQuizSettings() {
   const t = useLQLabels();
-  const { isPremium, buyPremium, cancelSubscription, rateRewarded, claimRateReward } =
-    useLogoQuiz();
+  const { isPremium, buyPremium, rateRewarded, claimRateReward } = useLogoQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const { snapshot } = useLogoQuizContent();
   const [langOpen, setLangOpen] = useState(false);
@@ -62,11 +61,13 @@ export default function LogoQuizSettings() {
   };
 
   // Cancel the subscription only when premium is active; a free account taps to
-  // nothing (per spec). Guarded here and in the hook.
+  // nothing (per spec). An app cannot cancel an auto-renewable subscription
+  // itself — route the user to the system "manage subscriptions" screen. Premium
+  // stays on until the paid period ends (the entitlement reconcile reflects it).
   const onCancelSubscription = () => {
     if (!isPremium) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    cancelSubscription();
+    openManageSubscriptions();
   };
 
   // Restore a previously bought subscription via the real RevenueCat flow, then
