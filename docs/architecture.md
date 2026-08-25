@@ -44,7 +44,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 
 | Route | Screen | Role |
 |-------|--------|------|
-| `splash` | Splash | Animated intro; routes onward by first-launch flags |
+| `splash` | Splash | Animated intro; always hands off to `language` (themed per app) |
 | `language` | Language | Locale picker (en, ru, es) |
 | `onboarding` | Onboarding | One-time intro carousel |
 | `index` | Home | Hub with Categories and Modes tabs plus the bottom bar |

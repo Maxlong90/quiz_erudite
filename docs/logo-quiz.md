@@ -8,6 +8,16 @@ Logo Quiz is a different game with its own art direction, economy, and flow (Wel
 
 The build-time constant `APP_SLUG` (from `EXPO_PUBLIC_APP_SLUG`) decides which experience a build is. When it is `logo-quiz`, the home route (`app/index.tsx`) immediately redirects to `/logo-quiz` and the erudite intro, hub, and modes are never shown. Everything Logo Quiz needs lives under the `logo-quiz` slug in each module directory: screens in `app/logo-quiz/`, UI in `components/logo-quiz/`, state in `hooks/logo-quiz/`, domain logic in `lib/logo-quiz/`, and strings in `constants/logo-quiz/`.
 
+## The Branded Splash and Background
+
+Logo Quiz's palette is a light periwinkle-to-pink pastel, the opposite of Erudite's dark purple. Its cold-start face has to match that palette, not inherit Erudite's. On TestFlight the launch screen instead showed a small square logo on a dark navy field. That was Erudite's splash defaults leaking onto the second app, so the app read as the wrong brand while it booted.
+
+Every Logo Quiz screen sits on a shared pastel mesh drawn by `AppBackground` (`components/logo-quiz/app-background.tsx`): a periwinkle linear base with a white radial bloom up top and a pink radial bloom low-center, built from real SVG radial gradients so the blooms fill any screen aspect. It exports `BG_BASE` (`#AEC1F5`), the flat color used as a backing fill during stack transitions and loaders so no dark frame ever flashes between screens.
+
+The animated intro splash (`app/splash.tsx`) is a single component shared by both apps that renders two themes, chosen by the build-time `APP_SLUG`. Erudite keeps the dark gradient with drifting stars and a white, softly glowing `QUIZZZES` wordmark. A `logo-quiz` build instead paints `AppBackground` over a solid `BG_BASE` fill, drops the star field (tuned for the dark backdrop), and recolors the wordmark to dark-grey `QUI`/`ES` with purple `ZZZ` so it reads on the pale mesh. Because `APP_SLUG` is a build-time constant, the branch is stable across renders and lives after every hook, so hook order is never disturbed.
+
+Both apps run through this same splash on every cold start before the home route redirects a Logo Quiz build into its own flow, so the splash is Logo Quiz's first impression. The JS splash is only the second half of the boot: the native launch screen shown before JavaScript loads is configured per app in the backend build pipeline, so its background color and image must be set on App 2 to match — otherwise the dark native default reappears in the moment before `app/splash.tsx` mounts.
+
 ## From Mock Data to Backend Content
 
 Logo Quiz originally shipped its questions as hardcoded mock data on the device. It now pulls the same backend snapshot the main app uses, so brands, explanations, and the level layout are edited in the backend admin (Nova) and localized per language — no app release required. The mock catalog (`constants/logo-quiz/mock-data.ts`) is gone; only the UI strings in `constants/logo-quiz/labels.ts` remain hardcoded, because they are screen chrome, not content.
