@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
@@ -7,33 +8,44 @@ import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 /**
  * Wide glossy-blue action button — the same design language as the home Play
  * button and the Settings / Shop icon tiles (blue gradient, top gloss band,
- * navy rim, navy label). Used for the Settings screen rows. `inactive` dims it
- * for actions that currently do nothing; an optional leading `icon` (e.g. a
- * language flag) sits before the label.
+ * navy rim, navy label).
+ *
+ * - `sublabel`  — optional smaller line under the title.
+ * - `icon`      — optional leading node (e.g. a language flag).
+ * - `locked`    — dims the button, shows a trailing padlock, and disables it
+ *                 (for "coming soon" actions).
+ * - `inactive`  — dims + disables without the padlock.
  */
 export function GlossyButton({
   label,
+  sublabel,
   onPress,
   icon,
+  locked,
   inactive,
   fontSize = 20,
+  paddingVertical = 14,
 }: {
   label: string;
+  sublabel?: string;
   onPress: () => void;
   icon?: ReactNode;
+  locked?: boolean;
   inactive?: boolean;
   fontSize?: number;
+  paddingVertical?: number;
 }) {
+  const disabled = locked || inactive;
   return (
     <Pressable
-      onPress={inactive ? undefined : onPress}
-      style={({ pressed }) => pressed && !inactive && styles.pressed}
+      onPress={disabled ? undefined : onPress}
+      style={({ pressed }) => pressed && !disabled && styles.pressed}
     >
       <LinearGradient
         colors={[FQColors.tileLight, FQColors.tileDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.btn, FQShadow.card, inactive && styles.inactive]}
+        style={[styles.btn, { paddingVertical }, FQShadow.card, disabled && styles.dimmed]}
       >
         <LinearGradient
           colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
@@ -41,14 +53,22 @@ export function GlossyButton({
           pointerEvents="none"
         />
         {icon}
-        <Text
-          style={[styles.text, { fontSize }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-        >
-          {label}
-        </Text>
+        <View style={styles.textCol}>
+          <Text
+            style={[styles.text, { fontSize }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {label}
+          </Text>
+          {sublabel ? <Text style={styles.sub}>{sublabel}</Text> : null}
+        </View>
+        {locked ? (
+          <View style={styles.lockWrap} pointerEvents="none">
+            <Ionicons name="lock-closed" size={fontSize} color={FQColors.tileGlyph} />
+          </View>
+        ) : null}
       </LinearGradient>
     </Pressable>
   );
@@ -63,7 +83,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
-    paddingVertical: 14,
     paddingHorizontal: 18,
   },
   gloss: {
@@ -75,7 +94,24 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  text: { color: FQColors.tileGlyph, fontWeight: '900' },
-  inactive: { opacity: 0.45 },
+  textCol: { alignItems: 'center', justifyContent: 'center' },
+  text: { color: FQColors.tileGlyph, fontWeight: '900', textAlign: 'center' },
+  sub: {
+    color: FQColors.tileGlyph,
+    opacity: 0.8,
+    fontWeight: '800',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  dimmed: { opacity: 0.5 },
+  // Padlock pinned to the right edge, vertically centred, without shifting the
+  // centred title.
+  lockWrap: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
 });

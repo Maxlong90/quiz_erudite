@@ -14,7 +14,11 @@ import { FQColors } from '@/constants/flags-quiz/theme';
  * (see FQColors.tile*).
  */
 
-export type GlossyGlyph = 'settings-sharp' | 'bag-handle' | 'chevron-back';
+export type GlossyGlyph =
+  | 'settings-sharp'
+  | 'bag-handle'
+  | 'chevron-back'
+  | 'phone-portrait';
 
 interface Props {
   glyph: GlossyGlyph;
