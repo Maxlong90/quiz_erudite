@@ -11,6 +11,13 @@ export interface FQLabels {
   play: string;
   shop: string;
   settings: string;
+  // Play screen
+  allCountries: string;
+  byContinents: string;
+  challenge: string;
+  drawFlag: string;
+  otherApps: string;
+  comingSoon: string;
   // Settings screen
   cancelSubscription: string;
   restorePurchases: string;
@@ -34,6 +41,12 @@ const EN: FQLabels = {
   play: 'Play',
   shop: 'Shop',
   settings: 'Settings',
+  allCountries: 'All countries',
+  byContinents: 'By continent',
+  challenge: 'Challenge',
+  drawFlag: 'Draw a flag',
+  otherApps: 'Other apps',
+  comingSoon: 'Soon',
   cancelSubscription: 'Cancel Subscription',
   restorePurchases: 'Restore Purchases',
   selectLanguage: 'Language',
@@ -55,6 +68,12 @@ const RU: FQLabels = {
   play: 'Играть',
   shop: 'Магазин',
   settings: 'Настройки',
+  allCountries: 'Все страны',
+  byContinents: 'По континентам',
+  challenge: 'Челлендж',
+  drawFlag: 'Нарисовать флаг',
+  otherApps: 'Другие приложения',
+  comingSoon: 'Скоро',
   cancelSubscription: 'Отменить подписку',
   restorePurchases: 'Восстановить покупки',
   selectLanguage: 'Язык',
