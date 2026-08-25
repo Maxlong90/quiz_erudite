@@ -42,31 +42,48 @@ export const LIVES_FOR_COINS_COST = 100;
 // ---- Per-question round timer (seconds) ----
 export const QUESTION_TIME_SEC = 30;
 
-// ---- Coin packs sold for real money (mock IAP) ----
+// ---- Weekly premium subscription (real IAP) ----
+/**
+ * RevenueCat / store product id for the Logo Quiz weekly subscription. It lives
+ * in the `default` offering under the `$rc_weekly` package (see the backend
+ * per-app catalog: prefix `logoquiz_premium`, no trial). The shop fetches its
+ * live price via lib/logo-quiz/iap.ts and falls back to PREMIUM_FALLBACK_PRICE.
+ */
+export const PREMIUM_WEEKLY_PRODUCT_ID = 'logoquiz_premium_weekly';
+/** Display price shown until the live store price loads (or the store is off). */
+export const PREMIUM_FALLBACK_PRICE = '$4.99';
+
+// ---- Coin packs sold for real money (real IAP via RevenueCat) ----
+// `id` is the stable local token (React key, "bought" flash, persisted nowhere).
+// `storeProductId` is the App Store / Google Play / RevenueCat product id — it
+// must match the backend per-app catalog (`logoquiz_coins_*`) and must not change.
 export interface CoinPack {
   id: string;
+  storeProductId: string;
   coins: number;
   price: string;
   popular?: boolean;
 }
 export const COIN_PACKS: CoinPack[] = [
-  { id: 'coins_100', coins: 100, price: '$0.99' },
-  { id: 'coins_500', coins: 500, price: '$3.99', popular: true },
-  { id: 'coins_1000', coins: 1000, price: '$6.99' },
+  { id: 'coins_100', storeProductId: 'logoquiz_coins_100', coins: 100, price: '$0.99' },
+  { id: 'coins_500', storeProductId: 'logoquiz_coins_500', coins: 500, price: '$3.99', popular: true },
+  { id: 'coins_1000', storeProductId: 'logoquiz_coins_1000', coins: 1000, price: '$6.99' },
 ];
 
-// ---- Life packs sold for real money (mock IAP) ----
+// ---- Life packs sold for real money (real IAP via RevenueCat) ----
 // Bought lives stock ABOVE the regenerating bar (MAX_LIVES); they are consumed
 // first and never expire, so a pack of 10 is a real reserve, not clamped to 3.
+// `storeProductId` mirrors the backend catalog (`logoquiz_lives_*`).
 export interface LifePack {
   id: string;
+  storeProductId: string;
   lives: number;
   price: string;
   popular?: boolean;
 }
 export const LIFE_PACKS: LifePack[] = [
-  { id: 'lives_3', lives: 3, price: '$0.99' },
-  { id: 'lives_10', lives: 10, price: '$2.99', popular: true },
+  { id: 'lives_3', storeProductId: 'logoquiz_lives_3', lives: 3, price: '$0.99' },
+  { id: 'lives_10', storeProductId: 'logoquiz_lives_10', lives: 10, price: '$2.99', popular: true },
 ];
 
 /** How many coins a correct answer is worth for this player. */

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { isPremiumEntitlementActive } from '@/lib/revenuecat';
 import {
   LIVES_FOR_COINS_AMOUNT,
   LIVES_FOR_COINS_COST,
@@ -210,6 +211,21 @@ export function LogoQuizProvider({ children }: { children: ReactNode }) {
       // anchor clamped to now) survives on disk, not just in memory this session.
       persist(reconciled);
       setReady(true);
+
+      // Reconcile the real RevenueCat `premium` entitlement (survives reinstall /
+      // a device that was premium before the local flag existed). UPGRADE-ONLY:
+      // a live entitlement flips isPremium on, but a false / error (offline,
+      // store off, RC disabled) NEVER downgrades — cancelling premium stays a
+      // deliberate user action (cancelSubscription). Silent getCustomerInfo, so
+      // it never triggers a store login prompt the way restorePurchases would.
+      isPremiumEntitlementActive()
+        .then((active) => {
+          if (cancelled) return;
+          if (active && !stateRef.current.isPremium) {
+            persist({ ...stateRef.current, isPremium: true });
+          }
+        })
+        .catch(() => {});
     })();
     return () => {
       cancelled = true;

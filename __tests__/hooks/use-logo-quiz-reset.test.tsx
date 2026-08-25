@@ -100,7 +100,7 @@ describe('resetWheelCooldown — clears ONLY the wheel timer', () => {
 
     // Build up some state, then arm the cooldown.
     await act(async () => {
-      result.current.buyCoins({ id: 'coins_500', coins: 500, price: '$3.99' });
+      result.current.buyCoins({ id: 'coins_500', storeProductId: 'logoquiz_coins_500', coins: 500, price: '$3.99' });
       result.current.markSolved(301);
       result.current.spinWheel(wheelPrizeById('coins100')); // +100 coins, arms cooldown
     });
@@ -157,7 +157,7 @@ describe('resetProgress — also re-arms the one-time rate-app reward', () => {
     // Build up economy/account state, then claim the rate reward.
     await act(async () => {
       result.current.buyPremium();
-      result.current.buyCoins({ id: 'coins_500', coins: 500, price: '$3.99' });
+      result.current.buyCoins({ id: 'coins_500', storeProductId: 'logoquiz_coins_500', coins: 500, price: '$3.99' });
       result.current.claimRateReward(); // +RATE_APP_REWARD_COINS, sets the flag
     });
 

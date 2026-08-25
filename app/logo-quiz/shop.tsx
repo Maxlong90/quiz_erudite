@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -17,11 +17,20 @@ import {
   LIFE_PACKS,
   LIVES_FOR_COINS_AMOUNT,
   LIVES_FOR_COINS_COST,
+  PREMIUM_FALLBACK_PRICE,
   formatCountdownHMS,
   wheelCooldownRemaining,
   type CoinPack,
   type LifePack,
 } from '@/lib/logo-quiz/economy';
+import {
+  getLogoQuizPremiumPrice,
+  getLogoQuizStorePrices,
+  purchaseCoinPack,
+  purchaseLifePack,
+  purchaseLogoQuizPremium,
+} from '@/lib/logo-quiz/iap';
+import { revenueCatEnabled } from '@/lib/revenuecat';
 import { LQColors, LQRadius, LQShadow, GOLD_TEXT, WHEEL_TILE_GRADIENT } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz, useNow } from '@/hooks/logo-quiz/use-logo-quiz';
@@ -41,6 +50,17 @@ export default function LogoQuizShop() {
   const [boughtPack, setBoughtPack] = useState<string | null>(null);
   const [boughtLife, setBoughtLife] = useState<string | null>(null);
   const [boughtCoinLives, setBoughtCoinLives] = useState(false);
+  // Which purchase is awaiting the native store sheet (disables its button and
+  // shows a spinner). Only one real-money purchase runs at a time.
+  const [pendingPack, setPendingPack] = useState<string | null>(null);
+  const [pendingLife, setPendingLife] = useState<string | null>(null);
+  const [premiumPending, setPremiumPending] = useState(false);
+  // Live store prices, keyed by pack id; empty until RevenueCat resolves them
+  // (or forever if the store is off / the catalog isn't live) — then each pack
+  // falls back to its hardcoded `price`. Premium falls back to PREMIUM_FALLBACK_PRICE.
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+  const [premiumPrice, setPremiumPrice] = useState<string | null>(null);
+  const purchaseBusy = pendingPack !== null || pendingLife !== null || premiumPending;
 
   const now = useNow(1000);
   const wheelRemaining = wheelCooldownRemaining(wheelLastSpinAt, now);
@@ -48,23 +68,80 @@ export default function LogoQuizShop() {
 
   const canAffordCoinLives = coins >= LIVES_FOR_COINS_COST;
 
-  const onBuyPremium = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    buyPremium();
+  // Load live store prices once, mirroring the paywall. Only meaningful when
+  // RevenueCat is enabled; a disabled store has nothing to fetch, so the UI keeps
+  // the hardcoded fallbacks. Errors are swallowed — fallbacks already cover them.
+  useEffect(() => {
+    if (!revenueCatEnabled) return;
+    let active = true;
+    getLogoQuizStorePrices()
+      .then((prices) => active && setStorePrices(prices))
+      .catch(() => {});
+    getLogoQuizPremiumPrice()
+      .then((price) => active && setPremiumPrice(price))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const showPurchaseError = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    Alert.alert(t.purchaseErrorTitle, t.purchaseErrorMessage, [{ text: t.ok }]);
   };
 
-  const onBuyPack = (pack: CoinPack) => {
-    Haptics.selectionAsync().catch(() => {});
-    buyCoins(pack);
-    setBoughtPack(pack.id);
-    setTimeout(() => setBoughtPack((p) => (p === pack.id ? null : p)), 1400);
+  const onBuyPremium = async () => {
+    if (purchaseBusy) return;
+    setPremiumPending(true);
+    try {
+      const result = await purchaseLogoQuizPremium();
+      // Cancellation is a silent no-op; only unlock once the entitlement is live.
+      if (result.outcome === 'purchased' && result.premiumActive) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        buyPremium();
+      }
+    } catch {
+      showPurchaseError();
+    } finally {
+      setPremiumPending(false);
+    }
   };
 
-  const onBuyLives = (pack: LifePack) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    buyLives(pack);
-    setBoughtLife(pack.id);
-    setTimeout(() => setBoughtLife((p) => (p === pack.id ? null : p)), 1400);
+  const onBuyPack = async (pack: CoinPack) => {
+    if (purchaseBusy) return;
+    setPendingPack(pack.id);
+    try {
+      const outcome = await purchaseCoinPack(pack);
+      if (outcome === 'purchased') {
+        Haptics.selectionAsync().catch(() => {});
+        buyCoins(pack);
+        setBoughtPack(pack.id);
+        setTimeout(() => setBoughtPack((p) => (p === pack.id ? null : p)), 1400);
+      }
+      // 'cancelled' → no grant, no error.
+    } catch {
+      showPurchaseError();
+    } finally {
+      setPendingPack((p) => (p === pack.id ? null : p));
+    }
+  };
+
+  const onBuyLives = async (pack: LifePack) => {
+    if (purchaseBusy) return;
+    setPendingLife(pack.id);
+    try {
+      const outcome = await purchaseLifePack(pack);
+      if (outcome === 'purchased') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        buyLives(pack);
+        setBoughtLife(pack.id);
+        setTimeout(() => setBoughtLife((p) => (p === pack.id ? null : p)), 1400);
+      }
+    } catch {
+      showPurchaseError();
+    } finally {
+      setPendingLife((p) => (p === pack.id ? null : p));
+    }
   };
 
   // Buy lives with in-game coins. No-op (nothing happens) when short on coins.
@@ -146,9 +223,21 @@ export default function LogoQuizShop() {
           ) : (
             <Pressable
               onPress={onBuyPremium}
-              style={({ pressed }) => [styles.premiumBuy, pressed && { opacity: 0.85 }]}
+              disabled={purchaseBusy}
+              style={({ pressed }) => [
+                styles.premiumBuy,
+                pressed && { opacity: 0.85 },
+                purchaseBusy && !premiumPending && styles.packBuyDisabled,
+              ]}
             >
-              <Text style={styles.premiumBuyText}>{t.getPremium} · $4.99{t.perWeek}</Text>
+              {premiumPending ? (
+                <ActivityIndicator size="small" color={GOLD_TEXT} />
+              ) : (
+                <Text style={styles.premiumBuyText}>
+                  {t.getPremium} · {premiumPrice ?? PREMIUM_FALLBACK_PRICE}
+                  {t.perWeek}
+                </Text>
+              )}
             </Pressable>
           )}
         </GoldSurface>
@@ -172,11 +261,20 @@ export default function LogoQuizShop() {
             </View>
             <Pressable
               onPress={() => onBuyPack(pack)}
-              style={({ pressed }) => [styles.packBuy, pressed && { opacity: 0.85 }]}
+              disabled={purchaseBusy}
+              style={({ pressed }) => [
+                styles.packBuy,
+                pressed && { opacity: 0.85 },
+                purchaseBusy && pendingPack !== pack.id && styles.packBuyDisabled,
+              ]}
             >
-              <Text style={styles.packBuyText}>
-                {boughtPack === pack.id ? '✓' : pack.price}
-              </Text>
+              {pendingPack === pack.id ? (
+                <ActivityIndicator size="small" color={LQColors.surfaceAlt} />
+              ) : (
+                <Text style={styles.packBuyText}>
+                  {boughtPack === pack.id ? '✓' : storePrices[pack.id] ?? pack.price}
+                </Text>
+              )}
             </Pressable>
           </View>
         ))}
@@ -196,12 +294,12 @@ export default function LogoQuizShop() {
           </View>
           <Pressable
             onPress={onBuyLivesForCoins}
-            disabled={!canAffordCoinLives}
+            disabled={!canAffordCoinLives || purchaseBusy}
             style={({ pressed }) => [
               styles.packBuy,
               styles.lifeBuy,
-              !canAffordCoinLives && styles.packBuyDisabled,
-              pressed && canAffordCoinLives && { opacity: 0.85 },
+              (!canAffordCoinLives || purchaseBusy) && styles.packBuyDisabled,
+              pressed && canAffordCoinLives && !purchaseBusy && { opacity: 0.85 },
             ]}
           >
             {boughtCoinLives ? (
@@ -232,11 +330,21 @@ export default function LogoQuizShop() {
             </View>
             <Pressable
               onPress={() => onBuyLives(pack)}
-              style={({ pressed }) => [styles.packBuy, styles.lifeBuy, pressed && { opacity: 0.85 }]}
+              disabled={purchaseBusy}
+              style={({ pressed }) => [
+                styles.packBuy,
+                styles.lifeBuy,
+                pressed && { opacity: 0.85 },
+                purchaseBusy && pendingLife !== pack.id && styles.packBuyDisabled,
+              ]}
             >
-              <Text style={styles.packBuyText}>
-                {boughtLife === pack.id ? '✓' : pack.price}
-              </Text>
+              {pendingLife === pack.id ? (
+                <ActivityIndicator size="small" color={LQColors.surfaceAlt} />
+              ) : (
+                <Text style={styles.packBuyText}>
+                  {boughtLife === pack.id ? '✓' : storePrices[pack.id] ?? pack.price}
+                </Text>
+              )}
             </Pressable>
           </View>
         ))}

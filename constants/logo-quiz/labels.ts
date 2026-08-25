@@ -98,6 +98,9 @@ export interface LQLabels {
   restoreNoneMessage: string;
   restoreErrorTitle: string;
   restoreErrorMessage: string;
+  // purchase-failure alert strings
+  purchaseErrorTitle: string;
+  purchaseErrorMessage: string;
   ok: string;
   // wheel of fortune
   wheelTitle: string;
@@ -197,6 +200,8 @@ const EN: LQLabels = {
   restoreNoneMessage: "We couldn't find any previous purchases to restore.",
   restoreErrorTitle: 'Restore Failed',
   restoreErrorMessage: 'Something went wrong. Please try again later.',
+  purchaseErrorTitle: 'Purchase Failed',
+  purchaseErrorMessage: "We couldn't complete the purchase. Please try again later.",
   ok: 'OK',
   wheelTitle: 'Wheel of Fortune',
   wheelSpin: 'SPIN',
@@ -295,6 +300,8 @@ const RU: LQLabels = {
   restoreNoneMessage: 'Не удалось найти предыдущие покупки для восстановления.',
   restoreErrorTitle: 'Не удалось восстановить',
   restoreErrorMessage: 'Что-то пошло не так. Попробуйте позже.',
+  purchaseErrorTitle: 'Покупка не удалась',
+  purchaseErrorMessage: 'Не удалось завершить покупку. Попробуйте позже.',
   ok: 'ОК',
   wheelTitle: 'Колесо фортуны',
   wheelSpin: 'СПИН',
@@ -390,6 +397,8 @@ const ES: LQLabels = {
   restoreNoneMessage: 'No encontramos compras anteriores para restaurar.',
   restoreErrorTitle: 'Error al restaurar',
   restoreErrorMessage: 'Algo salió mal. Inténtalo de nuevo más tarde.',
+  purchaseErrorTitle: 'Error en la compra',
+  purchaseErrorMessage: 'No se pudo completar la compra. Inténtalo de nuevo más tarde.',
   ok: 'OK',
   wheelTitle: 'Rueda de la fortuna',
   wheelSpin: 'GIRAR',
