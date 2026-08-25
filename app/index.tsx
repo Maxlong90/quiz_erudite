@@ -68,6 +68,12 @@ export default function HomeRoute() {
   if (APP_SLUG === 'logo-quiz') {
     return <Redirect href="/logo-quiz" />;
   }
+  // Flags Quiz (App Template: Geography) is likewise a self-contained
+  // experience with its own blue home; APP_SLUG is a build-time constant, so
+  // this branch is stable across renders and never changes the hook order.
+  if (APP_SLUG === 'flags-quiz') {
+    return <Redirect href="/flags-quiz" />;
+  }
   const [redirectToIntro] = useState(() => consumeColdStart());
   if (redirectToIntro) {
     return <Redirect href="/splash" />;

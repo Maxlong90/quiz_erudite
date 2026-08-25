@@ -1,0 +1,217 @@
+import { useState } from 'react';
+import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+
+import { AppBackground, BG_BASE, useFlagsBgReady } from '@/components/flags-quiz/app-background';
+import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
+import { GlossyButton } from '@/components/flags-quiz/glossy-button';
+import { Flag } from '@/components/flags-quiz/flag';
+import { FQColors } from '@/constants/flags-quiz/theme';
+import { useFQLabels, FQ_LANGUAGE_NAMES } from '@/constants/flags-quiz/labels';
+import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { getStoreLinks } from '@/lib/store-links';
+import { restorePremium } from '@/lib/revenuecat';
+
+// External URLs / support — mirror the main app + Logo Quiz so a real page is a
+// one-line change everywhere.
+const PRIVACY_URL = 'https://quizzzes.com/privacy';
+const TERMS_URL = 'https://quizzzes.com/terms';
+const SUPPORT_EMAIL = 'support@quizzzes.com';
+
+// Native store subscription-management pages — the real "cancel subscription"
+// destination on each platform.
+const MANAGE_SUBSCRIPTION_URL = Platform.select({
+  ios: 'itms-apps://apps.apple.com/account/subscriptions',
+  android: 'https://play.google.com/store/account/subscriptions',
+  default: 'https://play.google.com/store/account/subscriptions',
+});
+
+/**
+ * Flags Quiz settings (App Template: Geography). Layout is taken from the Logo
+ * Quiz settings screen but recoloured to the Flags Quiz language: glossy-blue
+ * buttons with navy labels on the flags background. Back (top-left) returns to
+ * the home screen. Language switching (ru/en/es) uses the shared LocaleProvider
+ * and a flag-per-language picker, like Logo Quiz.
+ */
+export default function FlagsQuizSettings() {
+  const t = useFQLabels();
+  const { locale, changeLocale, supportedLocales } = useLocale();
+  const [langOpen, setLangOpen] = useState(false);
+  const bgReady = useFlagsBgReady();
+
+  const openUrl = (url: string) => {
+    Linking.openURL(url).catch(() => {});
+  };
+
+  const onSelectLanguage = (l: SupportedLocale) => {
+    Haptics.selectionAsync().catch(() => {});
+    changeLocale(l);
+    setLangOpen(false);
+  };
+
+  // Cancel subscription → the platform's own subscription-management page (the
+  // only place a store subscription can actually be cancelled).
+  const onCancelSubscription = () => {
+    openUrl(MANAGE_SUBSCRIPTION_URL);
+  };
+
+  // Restore a previously bought subscription via the real RevenueCat flow.
+  // Resolves false (→ "nothing to restore") in Expo Go / when nothing is found.
+  const onRestorePurchases = async () => {
+    try {
+      const restored = await restorePremium();
+      if (restored) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Alert.alert(t.restoreDoneTitle, t.restoreDoneMessage, [{ text: t.ok }]);
+      } else {
+        Alert.alert(t.restoreNoneTitle, t.restoreNoneMessage, [{ text: t.ok }]);
+      }
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      Alert.alert(t.restoreErrorTitle, t.restoreErrorMessage, [{ text: t.ok }]);
+    }
+  };
+
+  // Rate the app — opens the native review flow (no coin reward for now).
+  const onRate = () => {
+    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(null, Platform.OS);
+    Linking.openURL(rateDeepLink).catch(() => openUrl(rateFallbackUrl));
+  };
+
+  const onSupport = () => {
+    const subject = 'Flags Quiz — support';
+    Linking.openURL(
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`,
+    ).catch(() => {});
+  };
+
+  // Match the home screen: hold on a plain blue base until the flags artwork is
+  // cached, then reveal background + content together.
+  if (!bgReady) {
+    return <View style={[styles.fill, { backgroundColor: BG_BASE }]} />;
+  }
+
+  return (
+    <View style={styles.fill}>
+      <AppBackground />
+      <StatusBar style="light" />
+
+      <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+        {/* Header: back button only (no title). */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={8}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <GlossyIconButton glyph="chevron-back" size={44} />
+          </Pressable>
+        </View>
+
+        <View style={styles.actions}>
+          <GlossyButton label={t.cancelSubscription} onPress={onCancelSubscription} />
+          <GlossyButton label={t.restorePurchases} onPress={onRestorePurchases} />
+          <GlossyButton
+            label={t.selectLanguage}
+            onPress={() => setLangOpen(true)}
+            icon={<Flag locale={locale} />}
+          />
+          <GlossyButton label={t.rateApp} onPress={onRate} />
+          <GlossyButton label={t.contactSupport} onPress={onSupport} />
+          <GlossyButton label={t.privacyPolicy} onPress={() => openUrl(PRIVACY_URL)} />
+          <GlossyButton label={t.termsOfUse} onPress={() => openUrl(TERMS_URL)} />
+        </View>
+      </SafeAreaView>
+
+      {/* Language picker — each row shows the language's flag; a tap switches the
+          whole app locale instantly via the shared LocaleProvider. */}
+      <Modal
+        visible={langOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLangOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setLangOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>{t.selectLanguage}</Text>
+            {supportedLocales.map((l) => {
+              const active = l === locale;
+              return (
+                <Pressable
+                  key={l}
+                  onPress={() => onSelectLanguage(l)}
+                  style={({ pressed }) => [
+                    styles.langRow,
+                    active && styles.langRowActive,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Flag locale={l} height={22} />
+                  <Text style={[styles.langText, active && styles.langTextActive]}>
+                    {FQ_LANGUAGE_NAMES[l]}
+                  </Text>
+                  {active && (
+                    <Ionicons name="checkmark-circle" size={20} color={FQColors.tileDark} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  fill: { flex: 1, backgroundColor: 'transparent' },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+
+  actions: { paddingHorizontal: 24, paddingTop: 12, gap: 14 },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: FQColors.tileGlyph,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: '#EEF4FF',
+  },
+  langRowActive: { backgroundColor: '#D9E8FF' },
+  langText: { flex: 1, fontSize: 17, fontWeight: '800', color: FQColors.tileGlyph },
+  langTextActive: { color: FQColors.tileDark },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+});
