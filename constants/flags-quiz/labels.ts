@@ -8,6 +8,8 @@ import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 
 export interface FQLabels {
   appName: string;
+  /** Onboarding splash tagline under the QUIZZZES wordmark. */
+  tagline: string;
   play: string;
   shop: string;
   settings: string;
@@ -16,8 +18,19 @@ export interface FQLabels {
   byContinents: string;
   challenge: string;
   drawFlag: string;
+  maps: string;
   otherApps: string;
   comingSoon: string;
+  whichCountry: string;
+  shareInvite: string;
+  // Continents screen
+  questions: string;
+  africa: string;
+  northAmerica: string;
+  southAmerica: string;
+  asia: string;
+  europe: string;
+  oceania: string;
   // Settings screen
   cancelSubscription: string;
   restorePurchases: string;
@@ -34,10 +47,22 @@ export interface FQLabels {
   restoreErrorTitle: string;
   restoreErrorMessage: string;
   ok: string;
+  // Result screen (shown after all questions are answered)
+  resultTitle: string;
+  resultCaption: string;
+  resultExcellent: string;
+  resultGood: string;
+  resultKeepGoing: string;
+  playAgain: string;
+  retryMistakes: string;
+  backHome: string;
+  // Gameplay
+  tapToContinue: string;
 }
 
 const EN: FQLabels = {
   appName: 'Flags Quiz',
+  tagline: 'Train your brain!',
   play: 'Play',
   shop: 'Shop',
   settings: 'Settings',
@@ -45,8 +70,18 @@ const EN: FQLabels = {
   byContinents: 'By continent',
   challenge: 'Challenge',
   drawFlag: 'Draw a flag',
+  maps: 'Maps',
   otherApps: 'Other apps',
-  comingSoon: 'Soon',
+  comingSoon: 'Available soon',
+  whichCountry: 'Which country\nis this flag?',
+  shareInvite: 'Can you guess the flags? Play Flags Quiz: {url}',
+  questions: 'Questions',
+  africa: 'Africa',
+  northAmerica: 'North America',
+  southAmerica: 'South America',
+  asia: 'Asia',
+  europe: 'Europe',
+  oceania: 'Oceania',
   cancelSubscription: 'Cancel Subscription',
   restorePurchases: 'Restore Purchases',
   selectLanguage: 'Language',
@@ -61,10 +96,20 @@ const EN: FQLabels = {
   restoreErrorTitle: 'Restore Failed',
   restoreErrorMessage: 'Something went wrong. Please try again later.',
   ok: 'OK',
+  resultTitle: 'Results',
+  resultCaption: 'Correct answers',
+  resultExcellent: 'Excellent! You really know your flags.',
+  resultGood: 'Nicely done — keep it up!',
+  resultKeepGoing: 'Keep practising, you’ll get there!',
+  playAgain: 'Play again',
+  retryMistakes: 'Retry mistakes',
+  backHome: 'Home',
+  tapToContinue: 'Tap to continue',
 };
 
 const RU: FQLabels = {
   appName: 'Флаги',
+  tagline: 'Прокачай мозг!',
   play: 'Играть',
   shop: 'Магазин',
   settings: 'Настройки',
@@ -72,8 +117,18 @@ const RU: FQLabels = {
   byContinents: 'По континентам',
   challenge: 'Челлендж',
   drawFlag: 'Нарисовать флаг',
+  maps: 'Карты',
   otherApps: 'Другие приложения',
-  comingSoon: 'Скоро',
+  comingSoon: 'Будет доступно в скором времени',
+  whichCountry: 'Какой стране\nпринадлежит флаг?',
+  shareInvite: 'Угадаешь флаги? Играй в Flags Quiz: {url}',
+  questions: 'Вопросов',
+  africa: 'Африка',
+  northAmerica: 'Северная Америка',
+  southAmerica: 'Южная Америка',
+  asia: 'Азия',
+  europe: 'Европа',
+  oceania: 'Океания',
   cancelSubscription: 'Отменить подписку',
   restorePurchases: 'Восстановить покупки',
   selectLanguage: 'Язык',
@@ -88,10 +143,20 @@ const RU: FQLabels = {
   restoreErrorTitle: 'Ошибка восстановления',
   restoreErrorMessage: 'Что-то пошло не так. Попробуйте позже.',
   ok: 'ОК',
+  resultTitle: 'Результат',
+  resultCaption: 'Правильных ответов',
+  resultExcellent: 'Отлично! Ты прекрасно знаешь флаги.',
+  resultGood: 'Хорошо — так держать!',
+  resultKeepGoing: 'Продолжай тренироваться, всё получится!',
+  playAgain: 'Пройти заново',
+  retryMistakes: 'Повторить ошибки',
+  backHome: 'На главную',
+  tapToContinue: 'Нажми, чтобы продолжить',
 };
 
 const ES: FQLabels = {
   appName: 'Quiz de Banderas',
+  tagline: '¡Entrena tu mente!',
   play: 'Jugar',
   shop: 'Tienda',
   settings: 'Ajustes',
@@ -99,8 +164,18 @@ const ES: FQLabels = {
   byContinents: 'Por continentes',
   challenge: 'Reto',
   drawFlag: 'Dibujar bandera',
+  maps: 'Mapas',
   otherApps: 'Otras apps',
-  comingSoon: 'Pronto',
+  comingSoon: 'Disponible próximamente',
+  whichCountry: '¿De qué país\nes esta bandera?',
+  shareInvite: '¿Adivinas las banderas? Juega a Flags Quiz: {url}',
+  questions: 'Preguntas',
+  africa: 'África',
+  northAmerica: 'América del Norte',
+  southAmerica: 'América del Sur',
+  asia: 'Asia',
+  europe: 'Europa',
+  oceania: 'Oceanía',
   cancelSubscription: 'Cancelar suscripción',
   restorePurchases: 'Restaurar compras',
   selectLanguage: 'Idioma',

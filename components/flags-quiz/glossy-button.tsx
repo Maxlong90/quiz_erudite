@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  dimmed: { opacity: 0.5 },
+  dimmed: { opacity: 0.85 },
   // Padlock pinned to the right edge, vertically centred, without shifting the
   // centred title.
   lockWrap: {

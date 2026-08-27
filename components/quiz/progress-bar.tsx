@@ -4,7 +4,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 
 interface ProgressBarProps {
   progress: number;
@@ -12,15 +15,12 @@ interface ProgressBarProps {
   total: number;
 }
 
-// Quiz screen always sits on the dark purple gradient regardless of
-// the device's system theme, so the bar and counter use fixed white /
-// violet colors. Routing them through Colors[theme] made them
-// invisible on devices in light mode.
-const FILL_COLOR = '#a78bff';
-const TRACK_COLOR = '#ffffff22';
-const LABEL_COLOR = '#ffffffd9';
-
+// The fill/track/label colours follow the app-selected appearance. In light
+// mode accentSoft is darkened (see EruditeColors) so the fill stays visible on
+// the light backdrop — the reason these were once hardcoded.
 export function ProgressBar({ progress, currentIndex, total }: ProgressBarProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const animatedProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function ProgressBar({ progress, currentIndex, total }: ProgressBarProps)
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   label: {
-    color: LABEL_COLOR,
+    color: c.textMuted,
     fontSize: 14,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
@@ -67,11 +67,11 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
-    backgroundColor: TRACK_COLOR,
+    backgroundColor: c.border,
   },
   fill: {
     height: '100%',
     borderRadius: 3,
-    backgroundColor: FILL_COLOR,
+    backgroundColor: c.accentSoft,
   },
 });

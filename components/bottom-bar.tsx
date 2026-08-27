@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 
 export type BottomBarKey = 'home' | 'premium' | 'account' | 'shop' | 'stats' | 'settings' | null;
 
@@ -10,10 +13,6 @@ interface Props {
   /** Which destination is currently on screen — that icon is brightened. */
   current?: BottomBarKey;
 }
-
-const ACTIVE_COLOR = '#fff';
-const INACTIVE_COLOR = '#ffffff66';
-const ACCENT_COLOR = '#ffd23a'; // crown stays gold whether active or not
 
 const REGULAR_SIZE = 24;
 const HOME_SIZE = 32;
@@ -27,6 +26,8 @@ const HOME_SIZE = 32;
  */
 export function BottomBar({ current = null }: Props) {
   const { isPremium } = usePremium();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       {isPremium ? (
@@ -43,7 +44,7 @@ export function BottomBar({ current = null }: Props) {
           onPress={() => router.push('/paywall')}
           icon="crown.fill"
           // Crown stays gold whether active or not — it's a brand colour.
-          color={ACCENT_COLOR}
+          color={colors.gold}
           testID="crown-button"
           accessibilityLabel="Premium"
         />
@@ -100,7 +101,9 @@ function BarButton({
   testID,
   accessibilityLabel,
 }: BarButtonProps) {
-  const tint = color ?? (active ? ACTIVE_COLOR : INACTIVE_COLOR);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const tint = color ?? (active ? colors.text : colors.textDisabled);
   return (
     <Pressable
       // The currently-displayed destination is a no-op: tapping the
@@ -119,7 +122,7 @@ function BarButton({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 2,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ffffff1f',
+    borderTopColor: c.border,
   },
   button: {
     width: 56,

@@ -18,7 +18,10 @@ export type GlossyGlyph =
   | 'settings-sharp'
   | 'bag-handle'
   | 'chevron-back'
-  | 'phone-portrait';
+  | 'phone-portrait'
+  | 'ellipsis-horizontal'
+  | 'flag'
+  | 'share-social';
 
 interface Props {
   glyph: GlossyGlyph;

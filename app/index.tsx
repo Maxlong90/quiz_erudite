@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import { ClaimLivesModal } from '@/components/lives/claim-lives-modal';
 import { HardModeModal } from '@/components/home/hard-mode-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -72,7 +74,7 @@ export default function HomeRoute() {
   // experience with its own blue home; APP_SLUG is a build-time constant, so
   // this branch is stable across renders and never changes the hook order.
   if (APP_SLUG === 'flags-quiz') {
-    return <Redirect href="/flags-quiz" />;
+    return <Redirect href="/flags-quiz/splash" />;
   }
   // Every cold start shows the QUIZZES splash; the splash then decides whether
   // to run the first-run intro (language + onboarding) or skip straight to
@@ -85,6 +87,8 @@ export default function HomeRoute() {
 }
 
 function HomeScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const { locale } = useLocale();
   const { snapshot } = useContentCache();
@@ -347,12 +351,7 @@ function HomeScreen() {
   );
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.wordmarkRow}>
           <Wordmark />
@@ -369,7 +368,7 @@ function HomeScreen() {
 
         {phase === 'loading' && (
           <View style={styles.center}>
-            <ActivityIndicator color="#fff" size="large" />
+            <ActivityIndicator color={colors.text} size="large" />
           </View>
         )}
 
@@ -454,7 +453,7 @@ function HomeScreen() {
           setClaimDismissed(true);
         }}
       />
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -466,6 +465,8 @@ interface SegmentedTabsProps {
 }
 
 function SegmentedTabs({ tab, onChange, leftLabel, rightLabel }: SegmentedTabsProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isLeft = tab === 'categories';
   return (
     <View style={styles.segmented}>
@@ -492,6 +493,8 @@ function SegmentedTabs({ tab, onChange, leftLabel, rightLabel }: SegmentedTabsPr
 }
 
 function Wordmark() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.wordmark}>
       <Text style={styles.wordmarkLight}>QUI</Text>
@@ -507,6 +510,8 @@ interface TileProps {
 }
 
 function CategoryTile({ category, onPress }: TileProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useTranslation();
   const visual = CATEGORY_VISUALS[category.slug] ?? FALLBACK_VISUAL;
   const displayName = localizeCategoryName(category.slug, locale, category.name);
@@ -550,6 +555,8 @@ function CategoryTile({ category, onPress }: TileProps) {
 }
 
 function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boolean }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const isLocked = !mode.available;
   const lockedLabel = mode.disabledLabelKey ? t(mode.disabledLabelKey) : t('home.tile.soon');
@@ -579,7 +586,7 @@ function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boole
       >
         {premiumLocked && (
           <View style={styles.crownBadge}>
-            <IconSymbol name="crown.fill" size={16} color="#ffd23a" />
+            <IconSymbol name="crown.fill" size={16} color={colors.gold} />
           </View>
         )}
         <Text style={styles.tileEmoji}>{mode.emoji}</Text>
@@ -597,16 +604,21 @@ function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boole
 }
 
 function ComingSoonTile() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   return (
     <View style={[styles.tileWrap, styles.tileWrapComing]} testID="category-coming-soon">
       <View style={styles.tileComing}>
         <Text style={styles.tileEmoji}>✨</Text>
         <View style={styles.tileFooter}>
-          <Text style={styles.tileName} numberOfLines={2}>
+          {/* This is the one tile that sits on the screen backdrop (a dashed
+              card) rather than a colored brand gradient, so its text uses the
+              on-background tokens instead of the white on-accent tokens. */}
+          <Text style={styles.tileNameOnBg} numberOfLines={2}>
             {t('home.tile.coming.title')}
           </Text>
-          <Text style={styles.tileMeta} numberOfLines={2}>
+          <Text style={styles.tileMetaOnBg} numberOfLines={2}>
             {t('home.tile.coming.meta')}
           </Text>
         </View>
@@ -615,7 +627,7 @@ function ComingSoonTile() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -632,7 +644,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ffffff1f',
+    borderTopColor: c.border,
   },
   tabsRow: {
     paddingHorizontal: 16,
@@ -654,7 +666,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordmarkLight: {
-    color: '#fff',
+    color: c.text,
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 1.8,
@@ -663,7 +675,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   wordmarkAccent: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 1.8,
@@ -673,7 +685,7 @@ const styles = StyleSheet.create({
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 999,
     padding: 4,
     alignSelf: 'center',
@@ -687,16 +699,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentActive: {
-    backgroundColor: '#fff',
+    backgroundColor: c.onAccent,
   },
   segmentLabel: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   segmentLabelActive: {
-    color: '#7c5cff',
+    color: c.accent,
   },
   center: {
     flex: 1,
@@ -709,7 +721,7 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   errorText: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     textAlign: 'center',
     fontSize: 14,
   },
@@ -751,6 +763,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    // Theme-agnostic dark pill overlay so the gold crown reads on any tile.
     backgroundColor: '#00000066',
     alignItems: 'center',
     justifyContent: 'center',
@@ -758,9 +771,9 @@ const styles = StyleSheet.create({
   },
   tileWrapComing: {
     borderWidth: 1,
-    borderColor: '#ffffff22',
+    borderColor: c.borderStrong,
     borderStyle: 'dashed',
-    backgroundColor: '#ffffff08',
+    backgroundColor: c.surfaceSoft,
   },
   tileComing: {
     flex: 1,
@@ -783,8 +796,10 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
   },
+  // Tile labels sit on colored brand gradients (identical in both themes),
+  // so they stay white via onAccent regardless of appearance.
   tileName: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
@@ -792,7 +807,24 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   tileMeta: {
-    color: '#ffffffcc',
+    color: c.onAccent,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+    minHeight: 32,
+  },
+  // On-background variants for the ComingSoon tile (dashed card on the screen
+  // backdrop, not a gradient) — must follow the text color, not stay white.
+  tileNameOnBg: {
+    color: c.text,
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    lineHeight: 22,
+    minHeight: 44,
+  },
+  tileMetaOnBg: {
+    color: c.textMuted,
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,

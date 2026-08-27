@@ -17,13 +17,12 @@ const PLAY_LIFT_RATIO = 0.7;
 
 /**
  * Flags Quiz home (App Template: Geography). The spiral-of-flags artwork is the
- * full-screen background. Settings (gear) sits top-left and Shop (bag) top-right
- * at equal insets; the Play button uses the SAME glossy-blue tile design as those
- * icons (navy label), sits a little above centre, and opens the Play screen.
+ * full-screen background. Settings (gear) sits top-left; the Play button uses the
+ * SAME glossy-blue tile design (navy label), sits a little above centre, and opens
+ * the Play screen.
  *
  * Content is gated on the background finishing its warm-up so the artwork and the
- * buttons appear together (no one-second pop-in). The Shop destination isn't built
- * yet, so that handler is a no-op for now.
+ * buttons appear together (no one-second pop-in).
  */
 export default function FlagsQuizWelcome() {
   const t = useFQLabels();
@@ -42,7 +41,7 @@ export default function FlagsQuizWelcome() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top']}>
-        {/* Top bar: Settings hard-left, Shop hard-right, equal 16px insets. */}
+        {/* Top bar: Settings only (Shop removed). */}
         <View style={styles.topRow}>
           <Pressable
             hitSlop={8}
@@ -50,16 +49,6 @@ export default function FlagsQuizWelcome() {
             onPress={() => router.push('/flags-quiz/settings')}
           >
             <GlossyIconButton glyph="settings-sharp" />
-          </Pressable>
-
-          <Pressable
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-            onPress={() => {
-              // TODO: router.push('/flags-quiz/shop') once the shop exists.
-            }}
-          >
-            <GlossyIconButton glyph="bag-handle" />
           </Pressable>
         </View>
 
@@ -102,7 +91,8 @@ const styles = StyleSheet.create({
 
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    // Settings gear sits in the top-right corner.
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 8,
   },

@@ -22,6 +22,28 @@ module.exports = ({ config } = {}) => {
   const base = config ?? require('./app.json').expo;
 
   const appSlug = process.env.EXPO_PUBLIC_APP_SLUG ?? 'erudite-quiz';
+
+  // Flags Quiz variant: give it its OWN Expo project identity (name + slug) so it
+  // is a separate app in Expo Go. Sharing the base "quiz-erudit" slug with the
+  // logo-quiz build makes the two collide in Expo Go (opening one shows the
+  // other's cached bundle). Store identity (bundle id / package) falls back to
+  // the erudit identity until an operator supplies flags-quiz values.
+  if (appSlug === 'flags-quiz') {
+    return {
+      ...base,
+      name: 'Flags Quiz',
+      slug: 'flags-quiz',
+      ios: {
+        ...base.ios,
+        bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
+      },
+      android: {
+        ...base.android,
+        package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+      },
+    };
+  }
+
   if (appSlug !== 'logo-quiz') {
     return base;
   }

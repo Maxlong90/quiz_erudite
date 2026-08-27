@@ -13,15 +13,36 @@ const RATIO: Record<SupportedLocale, number> = { en: 2, es: 1.5, ru: 1.5 };
  * react-native-svg (not emoji) so it renders identically on Android, where
  * regional-indicator flag emoji are not supported by the system font.
  */
-export function Flag({ locale, height = 18 }: { locale: SupportedLocale; height?: number }) {
+export function Flag({
+  locale,
+  height = 18,
+  width,
+}: {
+  locale: SupportedLocale;
+  height?: number;
+  /**
+   * Fixed width. When given, the flag is drawn at exactly width×height (filling
+   * the box, aspect ratio not preserved) so every flag renders at the SAME size
+   * regardless of its native ratio. When omitted, width follows the flag's own
+   * ratio (used for the small language chip).
+   */
+  width?: number;
+}) {
   const ratio = RATIO[locale];
-  const width = Math.round(height * ratio);
+  const fixed = typeof width === 'number';
+  const w = fixed ? width! : Math.round(height * ratio);
   // viewBox is 60 wide; its height follows the flag's own ratio.
   const vbHeight = 60 / ratio;
 
   return (
-    <View style={[styles.frame, { width, height }]}>
-      <Svg width={width} height={height} viewBox={`0 0 60 ${vbHeight}`}>
+    <View style={[styles.frame, { width: w, height }]}>
+      <Svg
+        width={w}
+        height={height}
+        viewBox={`0 0 60 ${vbHeight}`}
+        // Fill the fixed box exactly (uniform flag size); the chip keeps aspect.
+        preserveAspectRatio={fixed ? 'none' : 'xMidYMid meet'}
+      >
         {locale === 'ru' && <RussiaFlag />}
         {locale === 'es' && <SpainFlag />}
         {locale === 'en' && <UnionJack />}

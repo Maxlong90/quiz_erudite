@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { submitReport, type ReportReason } from '@/api/reports';
 import { getStoreLinks } from '@/lib/store-links';
@@ -92,6 +93,23 @@ interface Props {
    * Share action attaches that picture; otherwise it falls back to text-only.
    */
   onCaptureShareImage?: () => Promise<string | null>;
+  /**
+   * Which view the sheet opens on. Defaults to the two-row menu; pass 'report'
+   * to open straight into the report form (used when the caller exposes Report
+   * as its own button instead of via the "…" menu).
+   */
+  initialView?: MenuView;
+  /**
+   * When set, the report's primary action buttons (Submit / Done) are drawn with
+   * this two-stop gradient + white text instead of the default grey — lets a host
+   * (e.g. Flags Quiz) match its own button palette. Cancel stays grey.
+   */
+  primaryGradient?: readonly [string, string];
+  /**
+   * When set, the report sheet's background is drawn with this vertical two-stop
+   * gradient instead of the flat pastel surface (host palette match).
+   */
+  sheetGradient?: readonly [string, string];
 }
 
 /**
@@ -109,11 +127,14 @@ export function QuizMenuModal({
   appConfig,
   locale,
   onCaptureShareImage,
+  initialView = 'menu',
+  primaryGradient,
+  sheetGradient,
 }: Props) {
   const t = useLQLabels();
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
-  const [view, setView] = useState<MenuView>('menu');
+  const [view, setView] = useState<MenuView>(initialView);
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [comment, setComment] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -121,12 +142,12 @@ export function QuizMenuModal({
   // Reset to a fresh menu every time the sheet opens.
   useEffect(() => {
     if (visible) {
-      setView('menu');
+      setView(initialView);
       setReason(null);
       setComment('');
       setPhase('idle');
     }
-  }, [visible]);
+  }, [visible, initialView]);
 
   async function handleShare() {
     const { storeUrl } = getStoreLinks(appConfig, Platform.OS);
@@ -212,7 +233,15 @@ export function QuizMenuModal({
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, sheetGradient && styles.sheetTransparent]}>
+            {sheetGradient && (
+              <LinearGradient
+                colors={sheetGradient}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <View style={styles.handleStatic} />
 
             {phase === 'success' ? (
@@ -224,10 +253,23 @@ export function QuizMenuModal({
                   style={({ pressed }) => [
                     styles.primaryButton,
                     styles.primaryButtonFull,
+                    primaryGradient && styles.primaryButtonGradient,
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.primaryButtonText}>{t.reportDone}</Text>
+                  {primaryGradient && (
+                    <LinearGradient
+                      colors={primaryGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  )}
+                  <Text
+                    style={[styles.primaryButtonText, primaryGradient && styles.primaryButtonTextOnGradient]}
+                  >
+                    {t.reportDone}
+                  </Text>
                 </Pressable>
               </View>
             ) : (
@@ -291,15 +333,28 @@ export function QuizMenuModal({
                     disabled={!reason || phase === 'submitting'}
                     style={({ pressed }) => [
                       styles.primaryButton,
+                      primaryGradient && styles.primaryButtonGradient,
                       (!reason || phase === 'submitting') && styles.disabled,
                       pressed && styles.pressed,
                     ]}
                     testID="quiz-report-submit"
                   >
+                    {primaryGradient && (
+                      <LinearGradient
+                        colors={primaryGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    )}
                     {phase === 'submitting' ? (
-                      <ActivityIndicator color={COLORS.text} />
+                      <ActivityIndicator color={primaryGradient ? '#fff' : COLORS.text} />
                     ) : (
-                      <Text style={styles.primaryButtonText}>{t.reportSubmit}</Text>
+                      <Text
+                        style={[styles.primaryButtonText, primaryGradient && styles.primaryButtonTextOnGradient]}
+                      >
+                        {t.reportSubmit}
+                      </Text>
                     )}
                   </Pressable>
                 </View>
@@ -330,6 +385,11 @@ const styles = StyleSheet.create({
   // The "…" menu sheet is our blue (Home-button colour); the grey rows sit on top.
   sheetMenu: {
     backgroundColor: COLORS.menuSheet,
+  },
+  // Host-supplied gradient background clips to the sheet's rounded top.
+  sheetTransparent: {
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
   handleArea: {
     alignSelf: 'stretch',
@@ -478,6 +538,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '700',
+  },
+  // When a host passes `primaryGradient`, clip the gradient to the button and
+  // switch the label to white.
+  primaryButtonGradient: {
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  primaryButtonTextOnGradient: {
+    color: '#fff',
+    fontWeight: '900',
   },
   disabled: {
     opacity: 0.4,

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -6,6 +6,9 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   /** Seconds left for the current question. */
@@ -20,6 +23,8 @@ interface Props {
  * final 5 seconds.
  */
 export function QuizTimer({ secondsLeft, totalSeconds }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const fill = useSharedValue(1);
 
   useEffect(() => {
@@ -32,7 +37,7 @@ export function QuizTimer({ secondsLeft, totalSeconds }: Props) {
   }));
 
   const isCritical = secondsLeft <= 5 && secondsLeft > 0;
-  const color = isCritical ? '#ef4444' : '#a78bff';
+  const color = isCritical ? colors.danger : colors.accentSoft;
 
   return (
     <View style={styles.wrap}>
@@ -48,7 +53,7 @@ export function QuizTimer({ secondsLeft, totalSeconds }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   wrap: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -63,7 +68,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#ffffff22',
+    backgroundColor: c.border,
     overflow: 'hidden',
   },
   fill: {
