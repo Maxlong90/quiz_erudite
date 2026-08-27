@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,11 +18,10 @@ import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
-import { Flag } from '@/components/flags-quiz/flag';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
-import { FLAG_HISTORY } from '@/constants/flags-quiz/flag-history';
-import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { useLocale } from '@/hooks/use-locale';
+import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
 import { getStoreLinks } from '@/lib/store-links';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
@@ -22,81 +31,45 @@ const REVEAL_MS = 900;
 // Fixed answer-button height.
 const OPTION_H = 68;
 
-// Country name per app language + the FLAG_HISTORY slug (they line up 1:1).
-type CountryKey =
-  | 'russia'
-  | 'spain'
-  | 'germany'
-  | 'france'
-  | 'italy'
-  | 'portugal'
-  | 'usa'
-  | 'australia'
-  | 'uk'
-  | 'canada';
-const COUNTRY: Record<CountryKey, Record<SupportedLocale, string>> = {
-  russia: { ru: 'Россия', en: 'Russia', es: 'Rusia' },
-  spain: { ru: 'Испания', en: 'Spain', es: 'España' },
-  germany: { ru: 'Германия', en: 'Germany', es: 'Alemania' },
-  france: { ru: 'Франция', en: 'France', es: 'Francia' },
-  italy: { ru: 'Италия', en: 'Italy', es: 'Italia' },
-  portugal: { ru: 'Португалия', en: 'Portugal', es: 'Portugal' },
-  usa: { ru: 'США', en: 'USA', es: 'EE. UU.' },
-  australia: { ru: 'Австралия', en: 'Australia', es: 'Australia' },
-  uk: { ru: 'Великобритания', en: 'United Kingdom', es: 'Reino Unido' },
-  canada: { ru: 'Канада', en: 'Canada', es: 'Canadá' },
-};
-
-// Placeholder question set for the "All countries" mode — a few real flags drawn
-// with the vector Flag component (ru/es/en). Real content (all ~200 flags) will
-// come from the backend.
-interface SampleQuestion {
-  id: number;
-  flag: SupportedLocale;
-  answer: CountryKey;
-  options: CountryKey[];
-}
-const SAMPLE: SampleQuestion[] = [
-  { id: 1, flag: 'ru', answer: 'russia', options: ['russia', 'spain', 'germany', 'france'] },
-  { id: 2, flag: 'es', answer: 'spain', options: ['france', 'spain', 'italy', 'portugal'] },
-  { id: 3, flag: 'en', answer: 'uk', options: ['usa', 'australia', 'uk', 'canada'] },
-];
-
 type OptionState = 'idle' | 'correct' | 'wrong';
 
 /**
- * Flags Quiz "All countries" gameplay screen (App Template: Geography). A flag,
- * the question, and a 2×2 grid of glossy-blue answer buttons.
+ * Flags Quiz "All countries" gameplay screen (App Template: Geography). A flag
+ * PICTURE, the question, and a 2×2 grid of glossy-blue TEXT answer buttons. The
+ * catalogue is the backend's full set of `image_questions` (every country),
+ * served in the content snapshot and shared via the content provider.
  *
  * Answer flow (shared with the "By continent" mode):
  * - WRONG pick → flashes red, is recorded, then skips to the next question.
- * - CORRECT pick → flashes green and reveals the flag HISTORY below the options;
+ * - CORRECT pick → flashes green and reveals the flag note below the options;
  *   tapping it advances.
  * - After the last question → the result screen (score + retry-mistakes).
  *
- * Content is a small placeholder set; the real catalogue comes from the backend.
+ * With a `retry` param the run is rebuilt from ONLY the passed question indices,
+ * so the player can re-attempt the ones they missed.
  */
 export default function FlagsQuizGame() {
   const t = useFQLabels();
   const { locale } = useLocale();
   const { retry } = useLocalSearchParams<{ retry?: string }>();
+  const { countryQuestions, status } = useFlagsQuizContent();
   const [reportOpen, setReportOpen] = useState(false);
 
-  // Which SAMPLE questions to ask: all of them, or — on a retry — only the ones
-  // the player got wrong last time.
+  // Which questions to ask: all of them, or — on a retry — only the ones the
+  // player got wrong last time (indices into countryQuestions).
   const askIdxs = useMemo(() => {
     if (retry) {
       const idxs = retry
         .split(',')
         .map((s) => Number.parseInt(s, 10))
-        .filter((n) => Number.isInteger(n) && n >= 0 && n < SAMPLE.length);
+        .filter((n) => Number.isInteger(n) && n >= 0 && n < countryQuestions.length);
       if (idxs.length > 0) return idxs;
     }
-    return SAMPLE.map((_, i) => i);
-  }, [retry]);
+    return countryQuestions.map((_, i) => i);
+  }, [retry, countryQuestions]);
 
   const [pos, setPos] = useState(0);
-  const [picked, setPicked] = useState<CountryKey | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
   const [wrong, setWrong] = useState<number[]>([]);
 
   useEffect(() => {
@@ -105,10 +78,10 @@ export default function FlagsQuizGame() {
     setWrong([]);
   }, [askIdxs]);
 
-  const sampleIdx = askIdxs[pos];
-  const question = SAMPLE[sampleIdx];
+  const questionIdx = askIdxs[pos];
+  const question = countryQuestions[questionIdx];
   const answered = picked !== null;
-  const isCorrectPick = answered && picked === question.answer;
+  const isCorrectPick = answered && question != null && picked === question.correctIndex;
 
   function finish(finalWrong: number[]) {
     const total = askIdxs.length;
@@ -134,20 +107,20 @@ export default function FlagsQuizGame() {
     setPos(next);
   }
 
-  const onPick = (option: CountryKey) => {
-    if (answered) return;
+  const onPick = (option: number) => {
+    if (answered || !question) return;
     setPicked(option);
-    const correct = option === question.answer;
+    const correct = option === question.correctIndex;
     Haptics.notificationAsync(
       correct
         ? Haptics.NotificationFeedbackType.Success
         : Haptics.NotificationFeedbackType.Error,
     ).catch(() => {});
     if (correct) {
-      // Stay put and show the flag history; the player taps it to continue.
+      // Stay put and show the flag note; the player taps it to continue.
       return;
     }
-    const newWrong = [...wrong, sampleIdx];
+    const newWrong = [...wrong, questionIdx];
     setWrong(newWrong);
     setTimeout(() => advance(newWrong), REVEAL_MS);
   };
@@ -157,11 +130,11 @@ export default function FlagsQuizGame() {
     advance(wrong);
   };
 
-  const stateFor = (option: CountryKey): OptionState => {
-    if (!answered) return 'idle';
+  const stateFor = (option: number): OptionState => {
+    if (!answered || !question) return 'idle';
     // Only the tapped option lights up: green if correct, red if wrong. A wrong
     // pick never reveals the correct answer.
-    if (option === picked) return picked === question.answer ? 'correct' : 'wrong';
+    if (option === picked) return picked === question.correctIndex ? 'correct' : 'wrong';
     return 'idle';
   };
 
@@ -174,7 +147,25 @@ export default function FlagsQuizGame() {
     }
   };
 
-  const historyText = FLAG_HISTORY[question.answer]?.[locale] ?? null;
+  // Content still loading (no questions yet) — show a light loader rather than
+  // an empty screen.
+  if (!question) {
+    return (
+      <View style={styles.fill}>
+        <GradientBackground />
+        <StatusBar style="light" />
+        <SafeAreaView style={[styles.fill, styles.center]} edges={['top', 'bottom']}>
+          {status === 'error' ? (
+            <Text style={styles.loaderText}>{t.resultKeepGoing}</Text>
+          ) : (
+            <ActivityIndicator size="large" color="#FFFFFF" />
+          )}
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  const historyText = question.explanation;
 
   return (
     <View style={styles.fill}>
@@ -216,25 +207,34 @@ export default function FlagsQuizGame() {
           <View style={styles.imageArea}>
             <Text style={styles.progress}>{`${pos + 1}/${askIdxs.length}`}</Text>
             <View style={styles.imageFrame}>
-              <Flag locale={question.flag} width={216} height={144} />
+              {question.imageUri ? (
+                <Image
+                  source={{ uri: question.imageUri }}
+                  style={styles.flagImg}
+                  contentFit="cover"
+                  transition={0}
+                />
+              ) : (
+                <View style={[styles.flagImg, styles.flagFallback]} />
+              )}
             </View>
-            <Text style={styles.prompt}>{t.whichCountry}</Text>
+            <Text style={styles.prompt}>{question.prompt || t.whichCountry}</Text>
           </View>
 
-          {/* 2×2 answer grid — options localized to the active language. */}
+          {/* 2×2 answer grid — options localized by the backend snapshot. */}
           <View style={styles.options}>
-            {question.options.map((option) => (
+            {question.options.map((option, i) => (
               <OptionButton
-                key={option}
-                label={COUNTRY[option][locale]}
-                state={stateFor(option)}
+                key={`${question.id}-${i}`}
+                label={option}
+                state={stateFor(i)}
                 disabled={answered}
-                onPress={() => onPick(option)}
+                onPress={() => onPick(i)}
               />
             ))}
           </View>
 
-          {/* Flag history — revealed under the options only on a CORRECT answer.
+          {/* Flag note — revealed under the options only on a CORRECT answer.
               White fill, blue rim and navy text (like the Play button). Tapping
               it advances to the next question. */}
           {isCorrectPick && historyText ? (
@@ -243,6 +243,14 @@ export default function FlagsQuizGame() {
               style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
             >
               <Text style={styles.historyText}>{historyText}</Text>
+              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
+            </Pressable>
+          ) : isCorrectPick ? (
+            // Correct but no note text — a bare "tap to continue" affordance.
+            <Pressable
+              onPress={onContinue}
+              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
+            >
               <Text style={styles.historyHint}>{t.tapToContinue}</Text>
             </Pressable>
           ) : null}
@@ -317,6 +325,14 @@ function OptionButton({
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  loaderText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -333,7 +349,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#FFFFFF',
     fontWeight: '900',
-    // +20% over the previous 18 → ~22.
     fontSize: 22,
     marginBottom: 10,
     textShadowColor: 'rgba(4, 40, 96, 0.5)',
@@ -341,8 +356,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
 
-  // Progress + flag + question, sitting right below the top bar (raised like the
-  // "By continent" screen).
+  // Progress + flag + question, sitting right below the top bar.
   imageArea: { alignItems: 'center', marginTop: 16 },
   // Rim frame like the buttons — navy border hugging the flag with no gap.
   imageFrame: {
@@ -353,7 +367,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // +30% over the previous 20 → 26, centred.
+  flagImg: { width: 216, height: 144 },
+  flagFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },
   prompt: {
     color: '#FFFFFF',
     fontSize: 26,
@@ -394,10 +409,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  // +20% over the previous 19 → ~23. Single line; long labels shrink to fit.
   optionText: { fontSize: 23, fontWeight: '900', textAlign: 'center' },
 
-  // White card, blue rim, navy text — the flag-history reveal (task 4).
+  // White card, blue rim, navy text — the flag-note reveal.
   historyBox: {
     marginTop: 24,
     marginHorizontal: 20,
@@ -414,7 +428,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 21,
   },
-  // "Tap to continue" — a light-blue outlined pill so it stands out on the white card.
   historyHint: {
     color: FQColors.tileGlyph,
     fontSize: 12,

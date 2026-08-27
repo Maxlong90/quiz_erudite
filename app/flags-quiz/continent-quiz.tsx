@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,12 +18,11 @@ import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
-import { FlagImage } from '@/components/flags-quiz/flag-image';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
-import { CONTINENT_COUNTRIES, type ContinentKey } from '@/constants/flags-quiz/continent-flags';
-import { FLAG_HISTORY } from '@/constants/flags-quiz/flag-history';
+import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
+import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
 import { getStoreLinks } from '@/lib/store-links';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
@@ -60,72 +61,62 @@ type OptionState = 'idle' | 'correct' | 'wrong';
 
 /**
  * Flags Quiz "By continent" gameplay screen (App Template: Geography). Opens from
- * a continent button. The QUESTION is a country name (from the chosen continent);
- * the four answer options are flag PICTURES (one correct).
+ * a continent button. The QUESTION is a country name; the four answer options are
+ * flag PICTURES (one correct). Content is the backend's `image_answer_questions`
+ * for the chosen continent — each question already carries its four pre-baked
+ * image options and the correct index, shared via the content provider.
  *
  * Answer flow:
  * - WRONG pick → flashes red, is recorded, then skips to the next question.
- * - CORRECT pick → flashes green and reveals the flag's HISTORY beneath the
- *   options; tapping it advances to the next question.
+ * - CORRECT pick → flashes green and reveals the flag's note beneath the options;
+ *   tapping it advances to the next question.
  * - After the last question → the result screen (score + retry-mistakes).
  *
- * With a `retry` param the run is rebuilt from ONLY the passed country indices,
+ * With a `retry` param the run is rebuilt from ONLY the passed question indices,
  * so the player can re-attempt the flags they missed.
- *
- * Content is a simplified placeholder catalogue; real flags come from the backend.
  */
 export default function FlagsQuizContinentGame() {
   const t = useFQLabels();
   const { locale } = useLocale();
   const { continent, retry } = useLocalSearchParams<{ continent?: string; retry?: string }>();
+  const { pictureByContinent, status } = useFlagsQuizContent();
   const key = (CONTINENT_KEYS.includes(continent as ContinentKey) ? continent : 'africa') as ContinentKey;
-  const countries = CONTINENT_COUNTRIES[key];
+  const questions = useMemo(() => pictureByContinent[key] ?? [], [pictureByContinent, key]);
 
-  // Which countries are asked this run: all of the continent, or — on a retry —
-  // only the ones the player got wrong last time.
-  const answerIdxs = useMemo(() => {
+  // Which questions are asked this run: all of the continent (shuffled), or — on
+  // a retry — only the ones the player got wrong last time (indices into
+  // `questions`, kept in the passed order).
+  const askIdxs = useMemo(() => {
     if (retry) {
       const idxs = retry
         .split(',')
         .map((s) => Number.parseInt(s, 10))
-        .filter((n) => Number.isInteger(n) && n >= 0 && n < countries.length);
+        .filter((n) => Number.isInteger(n) && n >= 0 && n < questions.length);
       if (idxs.length > 0) return idxs;
     }
-    return countries.map((_, i) => i);
-  }, [retry, countries]);
+    return shuffle(questions.map((_, i) => i));
+  }, [retry, questions]);
 
-  // Build one run: each asked country appears exactly once as the correct answer
-  // (no repeats), each paired with 3 random distractors from the SAME continent.
-  const buildRun = useCallback(() => {
-    const order = shuffle(answerIdxs);
-    return order.map((correct) => {
-      const pool = countries.map((_, i) => i).filter((i) => i !== correct);
-      const distract = shuffle(pool).slice(0, 3);
-      return { correct, opts: shuffle([correct, ...distract]) };
-    });
-  }, [answerIdxs, countries]);
-
-  const [questions, setQuestions] = useState(buildRun);
-  const [index, setIndex] = useState(0);
+  const [pos, setPos] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [wrong, setWrong] = useState<number[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
 
   // Restart a fresh run whenever the continent (or the retry set) changes.
   useEffect(() => {
-    setQuestions(buildRun());
-    setIndex(0);
+    setPos(0);
     setPicked(null);
     setWrong([]);
-  }, [buildRun]);
+  }, [askIdxs]);
 
-  const q = questions[index];
+  const questionIdx = askIdxs[pos];
+  const q = questions[questionIdx];
   const answered = picked !== null;
-  const isCorrectPick = answered && picked === q.correct;
+  const isCorrectPick = answered && q != null && picked === q.correctIndex;
 
   const finish = useCallback(
     (finalWrong: number[]) => {
-      const total = questions.length;
+      const total = askIdxs.length;
       const correctCount = total - finalWrong.length;
       router.replace({
         pathname: '/flags-quiz/result',
@@ -138,35 +129,35 @@ export default function FlagsQuizContinentGame() {
         },
       });
     },
-    [questions.length, key],
+    [askIdxs.length, key],
   );
 
   const advance = useCallback(
     (finalWrong: number[]) => {
-      const next = index + 1;
-      if (next >= questions.length) {
+      const next = pos + 1;
+      if (next >= askIdxs.length) {
         finish(finalWrong);
         return;
       }
       setPicked(null);
-      setIndex(next);
+      setPos(next);
     },
-    [index, questions.length, finish],
+    [pos, askIdxs.length, finish],
   );
 
   const onPick = (optIdx: number) => {
-    if (answered) return;
+    if (answered || !q) return;
     setPicked(optIdx);
-    const correct = optIdx === q.correct;
+    const correct = optIdx === q.correctIndex;
     Haptics.notificationAsync(
       correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error,
     ).catch(() => {});
     if (correct) {
-      // Stay put and show the flag history; the player taps it to continue.
+      // Stay put and show the flag note; the player taps it to continue.
       return;
     }
-    // Wrong → record the missed country and skip to the next question.
-    const newWrong = [...wrong, q.correct];
+    // Wrong → record the missed question and skip to the next.
+    const newWrong = [...wrong, questionIdx];
     setWrong(newWrong);
     setTimeout(() => advance(newWrong), REVEAL_MS);
   };
@@ -177,10 +168,10 @@ export default function FlagsQuizContinentGame() {
   };
 
   const stateFor = (optIdx: number): OptionState => {
-    if (!answered) return 'idle';
+    if (!answered || !q) return 'idle';
     // Only the option the player tapped changes colour: green if right, red if
     // wrong. A wrong pick never reveals the correct flag.
-    if (optIdx === picked) return picked === q.correct ? 'correct' : 'wrong';
+    if (optIdx === picked) return picked === q.correctIndex ? 'correct' : 'wrong';
     return 'idle';
   };
 
@@ -193,7 +184,24 @@ export default function FlagsQuizContinentGame() {
     }
   };
 
-  const historyText = FLAG_HISTORY[countries[q.correct].slug]?.[locale] ?? null;
+  // Content still loading (no questions for this continent yet) — light loader.
+  if (!q) {
+    return (
+      <View style={styles.fill}>
+        <GradientBackground />
+        <StatusBar style="light" />
+        <SafeAreaView style={[styles.fill, styles.center]} edges={['top', 'bottom']}>
+          {status === 'error' ? (
+            <Text style={styles.loaderText}>{t.resultKeepGoing}</Text>
+          ) : (
+            <ActivityIndicator size="large" color="#FFFFFF" />
+          )}
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  const historyText = q.explanation;
 
   return (
     <View style={styles.fill}>
@@ -234,13 +242,13 @@ export default function FlagsQuizContinentGame() {
         >
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
-            <Text style={styles.progress}>{`${index + 1}/${questions.length}`}</Text>
-            <Text style={styles.country}>{countries[q.correct].name[locale]}</Text>
+            <Text style={styles.progress}>{`${pos + 1}/${askIdxs.length}`}</Text>
+            <Text style={styles.country}>{q.title}</Text>
           </View>
 
           {/* 2×2 flag-picture options, one correct. */}
           <View style={styles.options}>
-            {q.opts.map((optIdx) => {
+            {q.optionImageUris.map((uri, optIdx) => {
               const s = stateFor(optIdx);
               const ring =
                 s === 'correct' ? '#37B24D' : s === 'wrong' ? '#E03131' : 'transparent';
@@ -255,13 +263,24 @@ export default function FlagsQuizContinentGame() {
                     pressed && !answered && styles.pressed,
                   ]}
                 >
-                  <FlagImage spec={countries[optIdx].flag} width={OPT_W} height={OPT_H} />
+                  <View style={styles.optionFrame}>
+                    {uri ? (
+                      <Image
+                        source={{ uri }}
+                        style={{ width: OPT_W, height: OPT_H }}
+                        contentFit="cover"
+                        transition={0}
+                      />
+                    ) : (
+                      <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
+                    )}
+                  </View>
                 </Pressable>
               );
             })}
           </View>
 
-          {/* Flag history — revealed under the options only on a CORRECT answer.
+          {/* Flag note — revealed under the options only on a CORRECT answer.
               White fill, blue rim and navy text (like the Play button). Tapping
               it advances to the next question. */}
           {isCorrectPick && historyText ? (
@@ -272,15 +291,22 @@ export default function FlagsQuizContinentGame() {
               <Text style={styles.historyText}>{historyText}</Text>
               <Text style={styles.historyHint}>{t.tapToContinue}</Text>
             </Pressable>
+          ) : isCorrectPick ? (
+            <Pressable
+              onPress={onContinue}
+              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
+            >
+              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
+            </Pressable>
           ) : null}
         </ScrollView>
       </SafeAreaView>
 
-      {/* Report — placeholder question id until backend content is wired. */}
+      {/* Report — real backend question id. */}
       <QuizMenuModal
         visible={reportOpen}
         onClose={() => setReportOpen(false)}
-        question={{ id: index + 1 } as unknown as LogoQuizQuestion}
+        question={{ id: q.id } as unknown as LogoQuizQuestion}
         appConfig={undefined}
         locale={locale}
         initialView="report"
@@ -293,6 +319,14 @@ export default function FlagsQuizContinentGame() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  loaderText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,20 +338,17 @@ const styles = StyleSheet.create({
 
   body: { paddingBottom: 32 },
 
-  // Progress (1/6) + country name, sitting right below the top bar — the gap to
-  // the icons matches the gap between the answer flags (options.rowGap = 16).
+  // Progress (1/6) + country name, sitting right below the top bar.
   head: { alignItems: 'center', marginTop: 16 },
   progress: {
     color: '#FFFFFF',
     fontWeight: '900',
-    // +20% over the previous 18 → ~22.
     fontSize: 22,
     marginBottom: 12,
     textShadowColor: 'rgba(4, 40, 96, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  // +20% over the previous 34 → 41.
   country: {
     color: '#FFFFFF',
     fontSize: 41,
@@ -345,8 +376,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 3,
   },
+  // Same navy rim frame as the flag on the "All countries" screen.
+  optionFrame: {
+    borderWidth: 3,
+    borderColor: FQColors.tileRim,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  optionFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },
 
-  // White card, blue rim, navy text — the flag-history reveal (task 4).
+  // White card, blue rim, navy text — the flag-note reveal.
   historyBox: {
     marginTop: 28,
     marginHorizontal: 20,
@@ -363,7 +402,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 21,
   },
-  // "Tap to continue" — a light-blue outlined pill so it stands out on the white card.
   historyHint: {
     color: FQColors.tileGlyph,
     fontSize: 12,

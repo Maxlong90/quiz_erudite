@@ -75,9 +75,9 @@ export default function FlagsQuizResult() {
 
   return (
     <View style={styles.fill}>
-      {/* Same spiral-of-flags background as home, softened (~40% blur) so the
+      {/* Same spiral-of-flags background as home, softened (~30% blur) so the
           result content reads clearly on top. */}
-      <AppBackground blurRadius={18} />
+      <AppBackground blurRadius={13} />
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>

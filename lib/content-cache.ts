@@ -329,8 +329,40 @@ export async function syncContent({
   return snapshot;
 }
 
+/**
+ * Download an arbitrary set of image URLs into the given app's namespaced image
+ * cache and return a URL → local-file map. Reuses the SAME directory scheme and
+ * unique-filename hashing as the snapshot sync, so a URL cached here resolves
+ * exactly like a snapshot image. Used for content served OUTSIDE the snapshot —
+ * e.g. the Flags Quiz "image is an answer" options, which come from their own
+ * endpoint. On web (no writable filesystem) returns an empty map and callers
+ * fall back to the remote URLs. Best-effort: failed downloads are skipped.
+ */
+export async function cacheImages(
+  urls: (string | null | undefined)[],
+  appSlug: string = APP_SLUG,
+  onProgress?: (progress: number) => void,
+): Promise<Record<string, string>> {
+  const unique = Array.from(new Set(urls.filter((u): u is string => !!u)));
+  if (unique.length === 0) {
+    onProgress?.(1);
+    return {};
+  }
+  const dir = imageDirFor(appSlug);
+  await ensureImageDir(dir);
+  return downloadImagesWithLimit(unique, dir, ({ total, done }) => {
+    onProgress?.(total === 0 ? 1 : done / total);
+  });
+}
+
 /** Resolve an image URL to a local file path if we have one cached. */
 export function resolveLocalImage(snapshot: ContentSnapshot | null, url: string | null): string | null {
   if (!url) return null;
   return snapshot?.imageMap?.[url] ?? url;
+}
+
+/** Resolve an image URL against a bare URL→local-file map (no snapshot). */
+export function resolveFromMap(map: Record<string, string>, url: string | null): string | null {
+  if (!url) return null;
+  return map[url] ?? url;
 }

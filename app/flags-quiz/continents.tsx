@@ -20,6 +20,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
+import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
 import { getStoreLinks } from '@/lib/store-links';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
@@ -61,16 +62,16 @@ function useContinentIconsReady(): boolean {
   return ready;
 }
 
-// Continents in play order, with the flag (question) count per region. America is
-// split into North & South per spec. Counts are placeholders (≈ real country
-// counts, ~195 total) until the backend catalogue is wired.
-const CONTINENTS: { key: ContinentKey; count: number }[] = [
-  { key: 'africa', count: 54 },
-  { key: 'northAmerica', count: 23 },
-  { key: 'southAmerica', count: 12 },
-  { key: 'asia', count: 48 },
-  { key: 'europe', count: 44 },
-  { key: 'oceania', count: 14 },
+// Continents in play order. America is split into North & South per spec. The
+// per-continent question COUNT is read live from the backend content provider
+// (image_answer_questions grouped by continent) — no hardcoded totals.
+const CONTINENT_ORDER: ContinentKey[] = [
+  'africa',
+  'northAmerica',
+  'southAmerica',
+  'asia',
+  'europe',
+  'oceania',
 ];
 
 /**
@@ -83,6 +84,7 @@ const CONTINENTS: { key: ContinentKey; count: number }[] = [
 export default function FlagsQuizContinents() {
   const t = useFQLabels();
   const { locale } = useLocale();
+  const { countsByContinent } = useFlagsQuizContent();
   const [reportOpen, setReportOpen] = useState(false);
   const iconsReady = useContinentIconsReady();
   // Measured height of a single continent button — the whole list is nudged down
@@ -138,30 +140,34 @@ export default function FlagsQuizContinents() {
             contentContainerStyle={[styles.actions, btnH ? { paddingTop: 8 + btnH / 2 } : null]}
             showsVerticalScrollIndicator={false}
           >
-            {CONTINENTS.map((c, i) => (
-              <View
-                key={c.key}
-                onLayout={i === 0 ? (e) => setBtnH(e.nativeEvent.layout.height) : undefined}
-              >
-                <GlossyButton
-                  label={t[c.key]}
-                  sublabel={`${t.questions}: ${c.count}`}
-                  fontSize={24}
-                  paddingVertical={20}
-                  icon={
-                    <Image
-                      source={CONTINENT_ICON[c.key]}
-                      style={styles.contIcon}
-                      resizeMode="contain"
-                      fadeDuration={0}
-                    />
-                  }
-                  onPress={() =>
-                    router.push({ pathname: '/flags-quiz/continent-quiz', params: { continent: c.key } })
-                  }
-                />
-              </View>
-            ))}
+            {CONTINENT_ORDER.map((key, i) => {
+              const count = countsByContinent[key];
+              return (
+                <View
+                  key={key}
+                  onLayout={i === 0 ? (e) => setBtnH(e.nativeEvent.layout.height) : undefined}
+                >
+                  <GlossyButton
+                    label={t[key]}
+                    // Show the live count once loaded; a lone "…" while syncing.
+                    sublabel={`${t.questions}: ${count != null ? count : '…'}`}
+                    fontSize={24}
+                    paddingVertical={20}
+                    icon={
+                      <Image
+                        source={CONTINENT_ICON[key]}
+                        style={styles.contIcon}
+                        resizeMode="contain"
+                        fadeDuration={0}
+                      />
+                    }
+                    onPress={() =>
+                      router.push({ pathname: '/flags-quiz/continent-quiz', params: { continent: key } })
+                    }
+                  />
+                </View>
+              );
+            })}
           </ScrollView>
         ) : null}
       </SafeAreaView>
