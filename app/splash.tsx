@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -16,6 +17,7 @@ import { APP_SLUG } from '@/api/client';
 import { useTranslation } from '@/hooks/use-translation';
 
 const SPLASH_DURATION_MS = 3000;
+const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
@@ -30,12 +32,19 @@ export default function SplashScreen() {
     wordmarkScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
-    // The splash is only ever reached on the first-run intro (Home gates the
-    // redirect here on the persisted `onboarding.seen.v1` flag — see
-    // app/index.tsx). So once we're here, always hand off to the next intro
-    // step: splash -> language -> onboarding -> paywall (when enabled) -> home.
-    const timer = setTimeout(() => {
-      router.replace('/language');
+    // The QUIZZES splash plays on every cold start. After it, branch on the
+    // persisted `onboarding.seen.v1` flag: the first launch ever runs the full
+    // first-run intro (language -> onboarding -> paywall -> home); every later
+    // launch skips straight to home. So the language picker and the onboarding
+    // carousel are shown exactly once, while the splash itself shows each launch.
+    const timer = setTimeout(async () => {
+      let seenOnboarding = false;
+      try {
+        seenOnboarding = (await AsyncStorage.getItem(ONBOARDING_SEEN_KEY)) === '1';
+      } catch {
+        seenOnboarding = false;
+      }
+      router.replace(seenOnboarding ? '/' : '/language');
     }, SPLASH_DURATION_MS);
 
     return () => clearTimeout(timer);

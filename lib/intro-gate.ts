@@ -7,12 +7,13 @@
 // splash -> language -> onboarding -> (paywall) -> home.
 //
 // This module holds a single process-lifetime flag: true until the first Home
-// mount consumes it. The first Home mount of a cold start is the only place the
-// intro *can* start; Home then additionally checks the persisted
-// `onboarding.seen.v1` flag and only redirects to /splash when onboarding has
-// never been completed. So the full intro runs exactly once — on the first
-// launch ever — and every later launch (and every later return to Home from
-// onboarding, quiz, the bottom bar, etc.) renders Home normally.
+// mount consumes it. The first Home mount of a cold start redirects to /splash,
+// so the QUIZZES splash plays on every cold start. The splash then branches on
+// the persisted `onboarding.seen.v1` flag: the first launch ever continues into
+// the language picker + onboarding carousel, while every later launch skips
+// straight to Home. So the splash shows each launch, but the rest of the intro
+// shows exactly once. Every later return to Home (from onboarding, quiz, the
+// bottom bar, etc.) renders Home normally.
 let coldStartPending = true;
 
 /**
