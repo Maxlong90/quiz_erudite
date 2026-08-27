@@ -1,6 +1,6 @@
 # Logo Quiz
 
-The codebase ships two trivia experiences from one Expo build tree. The primary one is the general-knowledge quiz documented across the rest of `docs/`. The second is Logo Quiz — a self-contained brand-guessing game where the player identifies a company from its real logo. This document explains why Logo Quiz exists as a separate app, how it draws its content from the same backend as the main quiz, and how its levels, gameplay, and result screen behave.
+The codebase ships three trivia experiences from one Expo build tree. The primary one is the general-knowledge quiz documented across the rest of `docs/`. The second is Logo Quiz — a self-contained brand-guessing game where the player identifies a company from its real logo. (The third, [Flags Quiz](flags-quiz.md), follows the same build-variant pattern.) This document explains why Logo Quiz exists as a separate app, how it draws its content from the same backend as the main quiz, and how its levels, gameplay, and result screen behave.
 
 ## Why a Second App
 
@@ -172,7 +172,7 @@ The shop fetches live localized prices once RevenueCat is enabled. `getLogoQuizS
 
 Store products only resolve when the build carries App 2's own store identity, not Erudite's. `app.config.js` is a dynamic Expo config layered over the static `app.json`. For every build except the Logo Quiz variant it returns `app.json` byte-for-byte, so Erudite is unaffected. When `EXPO_PUBLIC_APP_SLUG` is `logo-quiz` it overrides the app `name`, the iOS `bundleIdentifier`, and the Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`. The Expo project `slug` is intentionally left alone — it identifies the EAS project, not the store listing.
 
-The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` carry those identity vars plus App 2's own RevenueCat keys. Until an operator fills the placeholders, the vars fall back to the Erudite identity, so store products do not resolve and the shop fails closed on a device — local-granting only in Expo Go. The RevenueCat catalog itself (the products, the shared `premium` entitlement, and the `default` offering with the weekly package) is provisioned per-app on the backend; see its per-app App Store Connect / RevenueCat catalog resolver. See also [Development](development.md#building-the-logo-quiz-variant).
+The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` carry those identity vars plus App 2's own RevenueCat keys. Until an operator fills the placeholders, the vars fall back to the Erudite identity, so store products do not resolve and the shop fails closed on a device — local-granting only in Expo Go. The RevenueCat catalog itself (the products, the shared `premium` entitlement, and the `default` offering with the weekly package) is provisioned per-app on the backend; see its per-app App Store Connect / RevenueCat catalog resolver. See also [Development](development.md#building-a-sibling-app-variant).
 
 ## Progress and Persistence
 

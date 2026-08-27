@@ -35,9 +35,15 @@ The web platform has no writable filesystem, so it skips the local image cache e
 
 ## Per-App Cache Namespacing
 
-One build tree ships two apps — the main quiz and the Logo Quiz — selected by the build's `APP_SLUG`. Both draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering the other's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
+One build tree ships three apps — the main quiz, the Logo Quiz, and the Flags Quiz — selected by the build's `APP_SLUG`. All three draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
 
 The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys and `snapshot-images/` directory, so namespacing is a no-op for the primary app. Any other slug synced into the same build — for example a Logo Quiz screen syncing `logo-quiz` from an erudite build — gets a `:{slug}`-suffixed key set and its own `snapshot-images-{slug}/` directory. See [Logo Quiz](logo-quiz.md#from-mock-data-to-backend-content).
+
+## Caching Content Served Outside the Snapshot
+
+Not all content rides the snapshot. The Flags Quiz "By continent" mode is backed by `image_answer_questions`, served from their own endpoint rather than the snapshot bundle (see [Flags Quiz](flags-quiz.md#the-two-game-modes)). Their flag-option images therefore cannot ride the snapshot's own image download.
+
+`cacheImages` exists for this case. It downloads an arbitrary set of image URLs into a given app's namespaced image cache and returns the same URL → local-file map, reusing the exact directory scheme and unique-filename hashing as the snapshot sync. So a URL cached this way resolves through `resolveFromMap` just like a snapshot image resolves through `resolveLocalImage`, and it lands in the same `snapshot-images-{slug}/` directory. It is best-effort — failed downloads are skipped — and on web returns an empty map so callers fall back to the remote URLs. The Flags Quiz provider persists the raw image-answer payload alongside this map so the mode plays fully offline once synced.
 
 ## Cache Freshness
 
@@ -59,7 +65,7 @@ Because these URLs ride the snapshot, they inherit its 24-hour freshness window:
 
 ## Answer-Statistics Sync
 
-The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; the Logo Quiz content provider syncs the same way but skips it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
+The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; the Logo Quiz and Flags Quiz content providers sync the same way but skip it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
 
 ## Cross-Session No-Repeats
 
@@ -84,3 +90,4 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Gamification](gamification.md) -- Stats and achievements built on seen sets
 - [Architecture](architecture.md) -- The content cache provider
 - [Logo Quiz](logo-quiz.md) -- The second app that shares this cache under its own namespace
+- [Flags Quiz](flags-quiz.md) -- The third app, which also caches a second content source outside the snapshot

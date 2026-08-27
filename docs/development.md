@@ -20,19 +20,19 @@ The app reads these public env vars at build time:
 | Variable | Purpose | Default if unset |
 |----------|---------|------------------|
 | EXPO_PUBLIC_API_URL | Backend base URL (see `api/client.ts`) | `https://quiz-erudit-backend.turbosuslik.online/api/v1` |
-| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path; also selects which app the build is — `logo-quiz` builds the Logo Quiz, anything else builds the main quiz (see `api/client.ts`, `app/index.tsx`) | `erudite-quiz` |
+| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path; also selects which app the build is — `logo-quiz` builds the Logo Quiz, `flags-quiz` builds the Flags Quiz, anything else builds the main quiz (see `api/client.ts`, `app/index.tsx`) | `erudite-quiz` |
 | EXPO_PUBLIC_REVENUECAT_ANDROID_KEY | RevenueCat public Android billing key (see `lib/revenuecat.ts`) | `goog_hFgRbNrOlUHcMtKClkwWcYIBLvd` |
 | EXPO_PUBLIC_REVENUECAT_IOS_KEY | RevenueCat public iOS billing key — enables iOS billing when set (see `lib/revenuecat.ts`) | *(empty — iOS billing stays off)* |
 | EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID | AdMob rewarded ad-unit id for "watch ad → +1 life" on Android (see `lib/ads.ts`) | Google's test rewarded id `ca-app-pub-3940256099942544/5224354917` |
 | EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS | AdMob rewarded ad-unit id for iOS — enables iOS rewarded ads when set (see `lib/ads.ts`) | *(empty — iOS ads stay off)* |
-| EXPO_PUBLIC_IOS_BUNDLE_ID | iOS bundle identifier for the Logo Quiz variant — gives that build App 2's own store identity so its store products resolve (see `app.config.js`) | *(falls back to the Erudite bundle id)* |
-| EXPO_PUBLIC_ANDROID_PACKAGE | Android package for the Logo Quiz variant — the Android counterpart of the bundle id (see `app.config.js`) | *(falls back to the Erudite package)* |
+| EXPO_PUBLIC_IOS_BUNDLE_ID | iOS bundle identifier for a sibling variant (`logo-quiz` / `flags-quiz`) — gives that build its own store identity so its store products resolve (see `app.config.js`) | *(falls back to the Erudite bundle id)* |
+| EXPO_PUBLIC_ANDROID_PACKAGE | Android package for a sibling variant — the Android counterpart of the bundle id (see `app.config.js`) | *(falls back to the Erudite package)* |
 
 Android keys carry a committed default, so the app builds and runs without an `.env` file. The RevenueCat Android key is a public SDK key and is safe to commit; it has a literal fallback that matches the in-code default. The iOS RevenueCat key and iOS rewarded unit id have **no** committed fallback, so iOS monetization stays safely off until the owner supplies them — see [iOS Monetization Parity](ios-monetization-parity.md).
 
 For EAS cloud builds the RevenueCat keys are also wired explicitly in `eas.json` under the `preview` and `production` profiles, so release builds carry them through EAS env rather than relying on the in-code fallback. Both the Android key and the iOS key (`appl_…`) are now set on those two Erudite profiles, so an Erudite App Store build ships with iOS billing on. The `development` profile leaves them unset and falls back to the committed Android default. Each key must point at the RevenueCat project the backend provisions, or the `default` offering comes back empty and the paywall has no packages to sell.
 
-Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set, or `EXPO_PUBLIC_APP_SLUG=logo-quiz` to build the Logo Quiz app from the same tree — see [Logo Quiz](logo-quiz.md).
+Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set, or a sibling slug (`logo-quiz`, `flags-quiz`) to build that app from the same tree — see [Logo Quiz](logo-quiz.md) and [Flags Quiz](flags-quiz.md).
 
 ## Run the App
 
@@ -56,15 +56,15 @@ The "watch ad → +1 life" reward uses AdMob via `react-native-google-mobile-ads
 
 Like RevenueCat, rewarded ads are gated by capability, not a hardcoded `Platform.OS`: `adsEnabled` is true on any native platform that has a rewarded unit id configured. Android always has one (its test fallback); iOS stays off until its unit id and real AdMob App ID are supplied, then lights up automatically. In Expo Go / web, or wherever no unit id exists, `adsEnabled` is `false`, the watch-ad buttons hide, and no life is ever granted where an ad can't run. Testing the real rewarded flow requires an Android device build (`npm run android` against a prebuild); AdMob may show the app as "verification required" until the SDK serves its first requests, which is expected and does not block integration. See [Gamification](gamification.md#the-rewarded-ad-watch-ad--1-life) and [iOS Monetization Parity](ios-monetization-parity.md).
 
-## Building the Logo Quiz variant
+## Building a sibling app variant
 
-The Logo Quiz app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG` to `logo-quiz` (see [Logo Quiz](logo-quiz.md)). A store build also needs App 2's own store identity so its RevenueCat products resolve, which `app.config.js` supplies.
+Both sibling apps — the Logo Quiz and the Flags Quiz — are built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG` to `logo-quiz` or `flags-quiz` (see [Logo Quiz](logo-quiz.md) and [Flags Quiz](flags-quiz.md)). A store build also needs the sibling's own store identity so its RevenueCat products resolve, which `app.config.js` supplies.
 
-`app.config.js` is a dynamic Expo config layered over the static `app.json`. For every build except the Logo Quiz variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. When `EXPO_PUBLIC_APP_SLUG` is `logo-quiz` it overrides the app `name`, the iOS `bundleIdentifier`, and the Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`. The Expo project `slug` is left unchanged — it identifies the EAS project, not the store listing.
+`app.config.js` is a dynamic Expo config layered over the static `app.json`. For any build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. When `EXPO_PUBLIC_APP_SLUG` is `logo-quiz` it overrides the app `name`, the iOS `bundleIdentifier`, and the Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`. The `flags-quiz` branch does the same for store identity but *also* overrides the Expo project `slug` to `flags-quiz`, so it is a separate app in Expo Go rather than colliding with the logo variant's cached bundle. For the logo variant the Expo project `slug` is deliberately left unchanged — it identifies the EAS project, not the store listing.
 
-The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` set `EXPO_PUBLIC_APP_SLUG=logo-quiz` plus App 2's bundle id, package, and RevenueCat keys. Those values ship as `REPLACE_WITH_APP2_…` placeholders; until an operator fills them, the identity vars fall back to the Erudite identity, so App 2's store products do not resolve and the shop fails closed on a device (local-granting only in Expo Go). Filling the placeholders is a separate ops step, not a code change.
+The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` set `EXPO_PUBLIC_APP_SLUG=logo-quiz` plus that app's bundle id, package, and RevenueCat keys. Those values ship as `REPLACE_WITH_APP2_…` placeholders; until an operator fills them, the identity vars fall back to the Erudite identity, so the sibling's store products do not resolve and the shop fails closed on a device (local-granting only in Expo Go). Filling the placeholders is a separate ops step, not a code change. The Flags Quiz has no dedicated `eas.json` profile yet; its bundle id and package likewise fall back to the Erudite identity until an operator supplies them, and it ships no shop or paywall so no store products need to resolve.
 
-Real Logo Quiz purchases run through the same RevenueCat wrapper (`lib/revenuecat.ts`) as the main app, using the shared `premium` entitlement and `default` offering. So the same capability gating applies: enabled on a native platform with a configured key, fail-closed on a real device with the store off, local-grant only in Expo Go / web.
+Real sibling purchases run through the same RevenueCat wrapper (`lib/revenuecat.ts`) as the main app, using the shared `premium` entitlement and `default` offering. So the same capability gating applies: enabled on a native platform with a configured key, fail-closed on a real device with the store off, local-grant only in Expo Go / web.
 
 ## Over-the-Air Updates (EAS Update)
 
@@ -177,4 +177,5 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 - [Architecture](architecture.md) -- System structure and component organization
 - [Content and Offline](content-and-offline.md) -- Snapshot sync and caching
 - [Logo Quiz](logo-quiz.md) -- Building the second app via `APP_SLUG`
+- [Flags Quiz](flags-quiz.md) -- Building the third app via `APP_SLUG`
 - [INDEX](INDEX.md) -- Documentation entry point

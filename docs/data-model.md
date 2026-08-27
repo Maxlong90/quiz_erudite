@@ -130,9 +130,12 @@ The base URL is `quiz-erudit-backend.turbosuslik.online/api/v1` (overridable via
 | `GET /apps/{slug}/questions/random?count=&locale=&category=` | Random questions, optionally scoped to a category |
 | `POST /apps/{slug}/answers` | Report an anonymous batch of answer picks for the statistics hint |
 | `GET /apps/{slug}/question-stats?since=` | Aggregated per-question answer distributions (threshold-gated) |
+| `GET /apps/{slug}/image-answer-questions?locale=` | Flags Quiz "image is the answer" questions, served outside the snapshot |
 | `POST /reports` | Submit a content report for a question |
 
 Each read endpoint tolerates either a bare array or a `{ data: [...] }` wrapper; `fetchCategories` and `fetchRandomQuestions` normalize both. Reports (`api/reports.ts`) carry a content type, content ID, a reason from a fixed set (incorrect answer, unclear wording, inappropriate, broken media, translation issue, other), an optional comment, and the locale.
+
+The image-answer endpoint serves the Flags Quiz "By continent" mode, whose questions invert the normal shape: the prompt is a country name and each of the four options is a flag *image*. Each row carries a `category_slug` (mapped to a continent), a `title` (the country), an `options` array of `{ image_url }`, a `correct_index`, and an `explanation`. These questions are kept out of the snapshot on purpose — their option images are downloaded separately and cached in the app's namespaced image directory. See [Flags Quiz](flags-quiz.md#the-two-game-modes). The Flags Quiz "All countries" mode, by contrast, uses ordinary snapshot questions (flag image plus text options).
 
 The answer-statistics endpoints (`lib/answer-stats.ts`) power the real-data path of the statistics hint and are anonymous, aggregate-only — no accounts, PII, or device identifiers. `POST /apps/{slug}/answers` takes `{ "answers": [{ question_id, option_index }] }` (an optional `is_correct` is ignored), returns `202 { "accepted": N }`, caps a batch at 200 rows (so the client flushes in batches of ≤ 200), is rate-limited to 60 requests/minute per IP, and silently drops malformed / out-of-range (`option_index` must be an integer in `[0, 15]`) / foreign rows without failing the batch. `GET /apps/{slug}/question-stats` returns `{ "threshold": N, "stats": { "<question_id>": { "total", "counts": [...] } } }` where `stats` is an object keyed by stringified question id (`{}` when nothing has reached threshold) and `counts[]` is index-aligned to the question's options and zero-filled; the server only includes a question once its total sample count reaches `threshold`, so any present question is real data. The optional `?since=<unix-seconds>` filters to questions whose counters changed at/after that time, for incremental refresh.
 
@@ -149,3 +152,4 @@ Progress stores accumulate monotonically as the player plays — stats and seen 
 - [Quiz Flow](quiz-flow.md) -- How entities are used during gameplay
 - [Architecture](architecture.md) -- System structure and providers
 - [Logo Quiz](logo-quiz.md) -- The second app and its `order`-driven level model
+- [Flags Quiz](flags-quiz.md) -- The third app and its image-answer question shape
