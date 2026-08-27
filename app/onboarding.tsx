@@ -12,15 +12,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenBackground } from '@/components/screen-background';
 import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -80,6 +82,9 @@ export default function OnboardingScreen() {
   const { markSeen } = useOnboarding();
   const { snapshot } = useContentCache();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const { theme } = useThemePref();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Latest snapshot, readable inside the async navigation wait below without
   // stale-closure issues.
@@ -136,13 +141,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
-
+    <ScreenBackground>
       {page === 0 && (
         <Pressable
           onPress={() => router.replace('/language')}
@@ -151,7 +150,7 @@ export default function OnboardingScreen() {
           accessibilityLabel="Back to language picker"
           testID="onboarding-back"
         >
-          <IconSymbol name="chevron.left" size={26} color="#ffffffcc" />
+          <IconSymbol name="chevron.left" size={26} color={colors.textMuted} />
         </Pressable>
       )}
 
@@ -197,13 +196,15 @@ export default function OnboardingScreen() {
         </View>
       </View>
 
-      <Stars />
-    </LinearGradient>
+      {theme === 'dark' && <Stars />}
+    </ScreenBackground>
   );
 }
 
 function PageView({ page }: { page: PageDef }) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const orbits = useMemo(
     () =>
       page.iconOrbit.map((src, i) => {
@@ -244,6 +245,8 @@ function PageView({ page }: { page: PageDef }) {
 }
 
 function Stars() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Decorative twinkle layer; pure CSS-style positioning, non-interactive.
   const positions = [
     { top: 60, left: 30, size: 3 },
@@ -277,7 +280,7 @@ function Stars() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -300,7 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   skipText: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -342,13 +345,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#fff',
+    color: c.text,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: 15,
-    color: '#ffffffcc',
+    color: c.textMuted,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -368,21 +371,21 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ffffff44',
+    backgroundColor: c.borderStrong,
   },
   dotActive: {
-    backgroundColor: '#fff',
+    backgroundColor: c.text,
     width: 24,
   },
   buttonWrap: {
     paddingHorizontal: 24,
   },
   button: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     borderRadius: 28,
     alignItems: 'center',
-    shadowColor: '#7c5cff',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
@@ -393,7 +396,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   buttonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,

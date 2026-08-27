@@ -46,11 +46,19 @@ export function useFlagsBgReady(): boolean {
   return ready;
 }
 
-/** Spiral-of-flags background — home & settings. */
-export function AppBackground() {
+/** Spiral-of-flags background — home & settings. Pass `blurRadius` to soften the
+ *  artwork (used by the result screen for a frosted look); RN Image blurRadius is
+ *  Expo-Go-safe (no native BlurView). */
+export function AppBackground({ blurRadius }: { blurRadius?: number } = {}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Image source={FLAGS_BG} style={styles.image} resizeMode="cover" fadeDuration={0} />
+      <Image
+        source={FLAGS_BG}
+        style={styles.image}
+        resizeMode="cover"
+        fadeDuration={0}
+        blurRadius={blurRadius}
+      />
     </View>
   );
 }

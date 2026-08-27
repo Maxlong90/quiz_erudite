@@ -57,15 +57,24 @@ jest.mock('@/components/logo-quiz/app-background', () => {
   };
 });
 
+// App-selected appearance. The erudite splash now follows the theme preference
+// (dark keeps the glowing wordmark + stars; light reuses the pale variants), so
+// drive it here rather than depending on a ThemePrefProvider. Defaults to dark.
+let mockTheme: 'dark' | 'light' = 'dark';
+jest.mock('@/hooks/use-theme-pref', () => ({
+  useThemePref: () => ({ theme: mockTheme, ready: true, setTheme: jest.fn() }),
+}));
+
 import SplashScreen from '@/app/splash';
 
 function colorOf(node: { props: { style: unknown } }): string | undefined {
-  return StyleSheet.flatten(node.props.style)?.color;
+  return (StyleSheet.flatten(node.props.style) as { color?: string } | undefined)?.color;
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   statusBarStyle = undefined;
+  mockTheme = 'dark';
 });
 
 describe('SplashScreen theming', () => {
@@ -83,6 +92,22 @@ describe('SplashScreen theming', () => {
     // No logo-quiz mesh; erudite keeps its own <Stars/> backdrop.
     expect(queryByTestId('app-background')).toBeNull();
     expect(statusBarStyle).toBe('light');
+  });
+
+  it('erudite (light theme): pale wordmark, dark status bar, no stars', () => {
+    mockAppSlug = 'erudite-quiz';
+    mockTheme = 'light';
+    const { getByText, getAllByText, queryByTestId } = render(<SplashScreen />);
+
+    expect(getByText('splash.tagline')).toBeTruthy();
+
+    // Light theme reuses the pale wordmark variants (dark-grey QUI/ES, purple ZZZ).
+    expect(colorOf(getByText('Q'))).toBe('#4A4A5E');
+    getAllByText('Z').forEach((z) => expect(colorOf(z)).toBe('#7C5CFF'));
+
+    // No logo-quiz mesh; the dark-tuned <Stars/> are gated off in light.
+    expect(queryByTestId('app-background')).toBeNull();
+    expect(statusBarStyle).toBe('dark');
   });
 
   it('logo-quiz slug: light palette, mesh background, dark status bar', () => {

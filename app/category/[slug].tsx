@@ -10,24 +10,27 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenBackground } from '@/components/screen-background';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { useLocale } from '@/hooks/use-locale';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
+import type { EruditePalette } from '@/constants/theme';
 import { localizeCategoryName } from '@/i18n/categories';
 
 const DEFAULT_QUESTIONS = 10;
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { locale } = useLocale();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [parent, setParent] = useState<Category | null>(null);
   const [subs, setSubs] = useState<Category[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -72,8 +75,7 @@ export default function CategoryScreen() {
   }
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Pressable
@@ -85,7 +87,7 @@ export default function CategoryScreen() {
             <IconSymbol
               name="chevron.right"
               size={24}
-              color="#fff"
+              color={colors.text}
               style={styles.backIcon}
             />
           </Pressable>
@@ -100,7 +102,7 @@ export default function CategoryScreen() {
 
         {phase === 'loading' && (
           <View style={styles.center}>
-            <ActivityIndicator color="#fff" size="large" />
+            <ActivityIndicator color={colors.text} size="large" />
           </View>
         )}
 
@@ -131,7 +133,7 @@ export default function CategoryScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -151,6 +153,8 @@ function SubcategoryTile({
   onPress,
 }: TileProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const total = subcategory.total_questions_count ?? 0;
   const isEmpty = total === 0;
   const iconUrl = subcategory.icon_url ?? null;
@@ -189,7 +193,7 @@ function SubcategoryTile({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -211,7 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   headerTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -239,7 +243,7 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   errorText: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     textAlign: 'center',
     fontSize: 14,
   },
@@ -284,7 +288,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   tileName: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -292,7 +296,7 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
   tileMeta: {
-    color: '#ffffffcc',
+    color: c.onAccent,
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,

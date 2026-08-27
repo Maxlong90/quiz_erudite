@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,19 +12,9 @@ import {
 } from 'react-native';
 
 import { reviewerUnlock } from '@/api/paywall';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
-
-const COLORS = {
-  sheet: '#1f1949',
-  text: '#fff',
-  textMuted: '#ffffffaa',
-  border: '#ffffff1f',
-  rowBackground: '#ffffff0d',
-  accent: '#7c5cff',
-  inputBorder: '#ffffff33',
-  placeholder: '#ffffff66',
-  error: '#ff8a8a',
-};
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -37,6 +27,8 @@ type Phase = 'idle' | 'submitting';
 
 export function ReviewerUnlockModal({ visible, onClose, onUnlocked }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -93,7 +85,7 @@ export function ReviewerUnlockModal({ visible, onClose, onUnlocked }: Props) {
           <TextInput
             style={styles.input}
             placeholder={t('paywall.review.login')}
-            placeholderTextColor={COLORS.placeholder}
+            placeholderTextColor={colors.textDisabled}
             value={login}
             onChangeText={setLogin}
             autoCapitalize="none"
@@ -104,7 +96,7 @@ export function ReviewerUnlockModal({ visible, onClose, onUnlocked }: Props) {
           <TextInput
             style={styles.input}
             placeholder={t('paywall.review.password')}
-            placeholderTextColor={COLORS.placeholder}
+            placeholderTextColor={colors.textDisabled}
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
@@ -135,7 +127,7 @@ export function ReviewerUnlockModal({ visible, onClose, onUnlocked }: Props) {
               testID="paywall-review-submit"
             >
               {phase === 'submitting' ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.onAccent} />
               ) : (
                 <Text style={styles.primaryButtonText}>{t('paywall.review.submit')}</Text>
               )}
@@ -147,14 +139,14 @@ export function ReviewerUnlockModal({ visible, onClose, onUnlocked }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: COLORS.sheet,
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -167,24 +159,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
     marginBottom: 8,
   },
   title: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: COLORS.textMuted,
+    color: c.textFaint,
     fontSize: 14,
     textAlign: 'center',
   },
   input: {
-    color: COLORS.text,
-    backgroundColor: COLORS.rowBackground,
-    borderColor: COLORS.inputBorder,
+    color: c.text,
+    backgroundColor: c.surfaceSoft,
+    borderColor: c.borderStrong,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -192,7 +184,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   errorText: {
-    color: COLORS.error,
+    color: c.danger,
     textAlign: 'center',
     fontSize: 13,
   },
@@ -208,10 +200,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: c.border,
   },
   secondaryButtonText: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -221,10 +213,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: c.accent,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

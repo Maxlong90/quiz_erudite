@@ -57,6 +57,13 @@ jest.mock('expo-linear-gradient', () => ({
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
 
+// The screen now renders through <ScreenBackground>, which reads the app-selected
+// appearance. Provide it directly instead of wrapping in a ThemePrefProvider; the
+// theme is irrelevant to these navigation-gating assertions.
+jest.mock('@/hooks/use-theme-pref', () => ({
+  useThemePref: () => ({ theme: 'dark', ready: true, setTheme: jest.fn() }),
+}));
+
 import OnboardingScreen from '@/app/onboarding';
 
 /** Override Platform.OS for the duration of a single test. */

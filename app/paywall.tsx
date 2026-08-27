@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenBackground } from '@/components/screen-background';
 import { ReviewerUnlockModal } from '@/components/paywall/reviewer-unlock-modal';
 import { adsEnabled } from '@/lib/ads';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 import {
   fetchPremiumPackages,
@@ -104,6 +105,8 @@ export default function PaywallScreen() {
   const { t } = useTranslation();
   const { setPremium } = usePremium();
   const { snapshot } = useContentCache();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Backend-controlled, per-app flag (Nova: "Show Paywall Review Button").
   // Turned on only while a build is under store review. Capability-gated on
@@ -279,12 +282,7 @@ export default function PaywallScreen() {
   const ctaLoading = purchasing || (revenueCatEnabled && offeringStatus === 'loading');
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <View style={styles.spacer} />
@@ -296,7 +294,7 @@ export default function PaywallScreen() {
               accessibilityLabel="Close paywall"
               testID="paywall-close"
             >
-              <IconSymbol name="xmark" size={22} color="#ffffffcc" />
+              <IconSymbol name="xmark" size={22} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -444,12 +442,14 @@ export default function PaywallScreen() {
           />
         )}
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
 function CompareCell({ value, premium }: { value: string; premium?: boolean }) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (value === CHECK) {
     return <Text style={[styles.cellCheck, premium && styles.cellCheckPremium]}>{CHECK}</Text>;
   }
@@ -470,7 +470,7 @@ function CompareCell({ value, premium }: { value: string; premium?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -505,16 +505,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#fff',
+    color: c.text,
     letterSpacing: 0.4,
     textAlign: 'center',
+    // Purple glow kept theme-agnostic (matches Home's wordmark shadow).
     textShadowColor: 'rgba(124, 92, 255, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 14,
   },
   subtitle: {
     fontSize: 15,
-    color: '#ffffffcc',
+    color: c.textMuted,
     textAlign: 'center',
   },
   table: {
@@ -625,8 +626,8 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#ffffff22',
-    backgroundColor: '#ffffff0d',
+    borderColor: c.border,
+    backgroundColor: c.surfaceSoft,
     paddingVertical: 11,
     paddingHorizontal: 16,
   },
@@ -634,8 +635,8 @@ const styles = StyleSheet.create({
     borderColor: '#ffd23a55',
   },
   tierCardSelected: {
-    borderColor: '#7c5cff',
-    backgroundColor: '#7c5cff26',
+    borderColor: c.accent,
+    backgroundColor: c.accentBg,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -682,26 +683,26 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#ffffff55',
+    borderColor: c.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tierRadioSelected: {
-    borderColor: '#7c5cff',
+    borderColor: c.accent,
   },
   tierRadioDot: {
     width: 11,
     height: 11,
     borderRadius: 6,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
   },
   tierLabel: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     fontSize: 16,
     fontWeight: '700',
   },
   tierLabelSelected: {
-    color: '#fff',
+    color: c.text,
   },
   tierPriceRow: {
     flexDirection: 'row',
@@ -709,16 +710,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   tierPrice: {
-    color: '#ffffffdd',
+    color: c.textMuted,
     fontSize: 17,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   tierPriceSelected: {
-    color: '#fff',
+    color: c.text,
   },
   tierSuffix: {
-    color: '#ffffff88',
+    color: c.textFaint,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -731,11 +732,11 @@ const styles = StyleSheet.create({
   },
   cta: {
     width: '100%',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 15,
     borderRadius: 28,
     alignItems: 'center',
-    shadowColor: '#7c5cff',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6,
     shadowRadius: 16,
@@ -749,19 +750,19 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   ctaText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
   restoreText: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     fontSize: 14,
     fontWeight: '600',
     paddingVertical: 3,
   },
   disclaimer: {
-    color: '#ffffff66',
+    color: c.textDisabled,
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 12,
@@ -774,13 +775,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ffffff33',
+    borderColor: c.borderStrong,
   },
   reviewAccessPressed: {
     opacity: 0.6,
   },
   reviewAccessText: {
-    color: '#ffffff88',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',

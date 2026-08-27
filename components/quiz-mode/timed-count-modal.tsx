@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -20,6 +23,8 @@ interface Props {
  */
 export function TimedCountModal({ visible, options, onClose, onPick }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
   return (
@@ -54,14 +59,14 @@ export function TimedCountModal({ visible, options, onClose, onPick }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -78,22 +83,22 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 4,
   },
   label: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -111,7 +116,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 22,
     borderRadius: 18,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     alignItems: 'center',
   },
   chipPressed: {
@@ -119,7 +124,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   chipLabel: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 18,
     fontWeight: '800',
   },

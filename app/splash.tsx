@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
@@ -13,7 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
+import { ScreenBackground } from '@/components/screen-background';
 import { APP_SLUG } from '@/api/client';
+import { useThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
 
 const SPLASH_DURATION_MS = 3000;
@@ -22,6 +23,7 @@ const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
   const { t } = useTranslation();
+  const { theme } = useThemePref();
 
   const wordmarkOpacity = useSharedValue(0);
   const wordmarkScale = useSharedValue(0.92);
@@ -64,9 +66,13 @@ export default function SplashScreen() {
   // dark erudite splash. APP_SLUG is a build-time constant, so this branch is
   // stable across renders and lives *after* all hooks — hook order is untouched.
   const isLogoQuiz = APP_SLUG === 'logo-quiz';
-  const letterStyle = isLogoQuiz ? styles.letterLight : styles.letter;
-  const accentStyle = isLogoQuiz ? styles.letterAccentLight : styles.letterAccent;
-  const taglineBaseStyle = isLogoQuiz ? styles.taglineLight : styles.tagline;
+  // Logo Quiz is always light; the erudite build follows the app appearance
+  // preference. Both share the pale-lavender letter styles, so the light
+  // wordmark variants are reused whenever either is true.
+  const useLightWordmark = isLogoQuiz || theme === 'light';
+  const letterStyle = useLightWordmark ? styles.letterLight : styles.letter;
+  const accentStyle = useLightWordmark ? styles.letterAccentLight : styles.letterAccent;
+  const taglineBaseStyle = useLightWordmark ? styles.taglineLight : styles.tagline;
 
   // The animated wordmark + tagline are identical across themes — only the
   // colours differ — so build the block once and drop it into either backdrop.
@@ -105,17 +111,12 @@ export default function SplashScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
-
+    <ScreenBackground>
       {content}
 
-      <Stars />
-    </LinearGradient>
+      {/* The speckle overlay is tuned for the dark backdrop only. */}
+      {theme === 'dark' && <Stars />}
+    </ScreenBackground>
   );
 }
 

@@ -341,8 +341,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
 
-  // Progress + flag + question, dropped one button-height lower than before.
-  imageArea: { alignItems: 'center', marginTop: 12 + OPTION_H },
+  // Progress + flag + question, sitting right below the top bar (raised like the
+  // "By continent" screen).
+  imageArea: { alignItems: 'center', marginTop: 16 },
   // Rim frame like the buttons — navy border hugging the flag with no gap.
   imageFrame: {
     borderWidth: 3,

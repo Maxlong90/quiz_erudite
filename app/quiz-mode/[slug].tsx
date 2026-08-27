@@ -9,26 +9,29 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenBackground } from '@/components/screen-background';
 import { TimedCountModal } from '@/components/quiz-mode/timed-count-modal';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
 import { useLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 import { localizeCategoryName } from '@/i18n/categories';
 
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 const TIMED_COUNT_OPTIONS = [10, 20, 30] as const;
 
 export default function QuizModeScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { locale } = useLocale();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { isPremium } = usePremium();
   const lockedByPremium = !isPremium;
   const [sub, setSub] = useState<Category | null>(null);
@@ -101,8 +104,7 @@ export default function QuizModeScreen() {
   }
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Pressable
@@ -111,7 +113,7 @@ export default function QuizModeScreen() {
             style={({ pressed }) => [styles.iconButton, pressed && styles.iconPressed]}
             accessibilityLabel="Back"
           >
-            <IconSymbol name="chevron.left" size={24} color="#fff" />
+            <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={styles.headerEmoji}>{subEmoji}</Text>
@@ -124,7 +126,7 @@ export default function QuizModeScreen() {
 
         {phase === 'loading' && (
           <View style={styles.center}>
-            <ActivityIndicator color="#fff" size="large" />
+            <ActivityIndicator color={colors.text} size="large" />
           </View>
         )}
 
@@ -195,7 +197,7 @@ export default function QuizModeScreen() {
           onPick={(n) => startQuiz('timed', n, 30)}
         />
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -220,6 +222,8 @@ function ModeCard({
   onPress,
   lockLabel,
 }: ModeCardProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   function handlePress() {
     if (premiumLocked) {
       router.push('/paywall');
@@ -254,7 +258,7 @@ function ModeCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -272,7 +276,7 @@ const styles = StyleSheet.create({
   },
   headerEmoji: { fontSize: 22 },
   headerTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#ffffff99',
+    color: c.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginBottom: 4,
@@ -346,13 +350,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardTitle: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
   cardSubtitle: {
-    color: '#ffffffcc',
+    color: c.onAccent,
     fontSize: 13,
     fontWeight: '500',
   },

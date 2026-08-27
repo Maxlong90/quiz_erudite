@@ -75,6 +75,12 @@ jest.mock('@/components/ui/icon-symbol', () => ({ IconSymbol: () => null }));
 jest.mock('@/components/paywall/reviewer-unlock-modal', () => ({
   ReviewerUnlockModal: () => null,
 }));
+// The screen now renders through <ScreenBackground>, which reads the app-selected
+// appearance. Provide it directly rather than wrapping in a ThemePrefProvider;
+// the theme is irrelevant to these behavior assertions.
+jest.mock('@/hooks/use-theme-pref', () => ({
+  useThemePref: () => ({ theme: 'dark', ready: true, setTheme: jest.fn() }),
+}));
 jest.mock('react-native-safe-area-context', () => {
   const ReactModule = require('react');
   const { View } = require('react-native');
