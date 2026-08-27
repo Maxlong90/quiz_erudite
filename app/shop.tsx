@@ -1,25 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
 import { LivesInfoModal } from '@/components/lives/lives-info-modal';
 import { HintsInfoModal } from '@/components/shop/hints-info-modal';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import { adsEnabled, watchAdForLife } from '@/lib/ads';
 import { BUNDLES, getBundleStorePrices, purchaseBundle, type ShopBundle } from '@/lib/iap';
-
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
+import type { EruditePalette } from '@/constants/theme';
 
 export default function ShopScreen() {
   const { t } = useTranslation();
   const { isPremium } = usePremium();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { count: livesCount, reload: reloadLives } = useLives();
   const { state: hints, reload: reloadHints } = useHintsState();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -90,8 +90,7 @@ export default function ShopScreen() {
   const comboBundles = BUNDLES.filter((b) => b.category === 'combo');
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('shop.title')}</Text>
@@ -195,17 +194,21 @@ export default function ShopScreen() {
         hints={hints}
         onClose={() => setHintsInfoOpen(false)}
       />
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
 function SectionLabel({ labelKey }: { labelKey: Parameters<ReturnType<typeof useTranslation>['t']>[0] }) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <Text style={styles.sectionLabel}>{t(labelKey)}</Text>;
 }
 
 interface BalanceProps { emoji: string; label: string; value: string; onPress?: () => void; }
 function BalanceTile({ emoji, label, value, onPress }: BalanceProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const content = (
     <>
       <Text style={styles.balanceEmoji}>{emoji}</Text>
@@ -229,6 +232,8 @@ function BalanceTile({ emoji, label, value, onPress }: BalanceProps) {
 interface CardProps { bundle: ShopBundle; price: string; pending: boolean; onBuy: () => void; }
 function BundleCard({ bundle, price, pending, onBuy }: CardProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       onPress={onBuy}
@@ -247,7 +252,7 @@ function BundleCard({ bundle, price, pending, onBuy }: CardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -257,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -274,10 +279,10 @@ const styles = StyleSheet.create({
   balance: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#ffffff0f',
+    backgroundColor: c.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
     alignItems: 'center',
     gap: 4,
   },
@@ -285,20 +290,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   balanceValue: {
-    color: '#fff',
+    color: c.text,
     fontSize: 26,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   balanceLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   sectionLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -308,10 +313,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: '#ffffff0f',
+    backgroundColor: c.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   adRow: {
@@ -324,23 +329,23 @@ const styles = StyleSheet.create({
     fontSize: 30,
   },
   adTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '800',
   },
   adSubtitle: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     marginTop: 2,
   },
   adCta: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 999,
   },
   adCtaText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -351,10 +356,10 @@ const styles = StyleSheet.create({
   },
   bundle: {
     width: '48%',
-    backgroundColor: '#ffffff0f',
+    backgroundColor: c.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
     padding: 14,
     gap: 4,
     alignItems: 'flex-start',
@@ -363,7 +368,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#7c5cff33',
+    backgroundColor: c.accentBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -372,12 +377,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   bundleTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 14,
     fontWeight: '800',
   },
   bundleSubtitle: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     minHeight: 32,
   },
@@ -386,11 +391,11 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     alignItems: 'center',
   },
   buyText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,

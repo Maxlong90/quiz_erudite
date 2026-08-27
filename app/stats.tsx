@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AchievementRow } from '@/components/achievements/achievement-row';
 import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
 import { useContentCache } from '@/hooks/use-content-cache';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import { localizeCategoryName } from '@/i18n/categories';
 import {
@@ -17,8 +17,7 @@ import {
 } from '@/lib/achievements';
 import { getMistakeIds } from '@/lib/mistakes';
 import { getAllSeenIds, getStats } from '@/lib/quiz-stats';
-
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
+import type { EruditePalette } from '@/constants/theme';
 
 interface PerSubject {
   /** Top-level slug, used to navigate / for keying. */
@@ -32,6 +31,8 @@ interface PerSubject {
 
 export default function StatsScreen() {
   const { t, locale } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { snapshot } = useContentCache();
   const [quizzesTaken, setQuizzesTaken] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
@@ -119,8 +120,7 @@ export default function StatsScreen() {
   const isEmpty = quizzesTaken === 0 && totalSeenAcrossSubjects === 0;
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('stats.title')}</Text>
@@ -218,7 +218,7 @@ export default function StatsScreen() {
 
         <BottomBar current="stats" />
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -231,6 +231,8 @@ function Row({
   value: string;
   accent?: string;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -240,6 +242,8 @@ function Row({
 }
 
 function Divider() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <View style={styles.divider} />;
 }
 
@@ -254,7 +258,7 @@ function formatSeconds(sec: number): string {
   return `${sec}s`;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -264,7 +268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -282,13 +286,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   emptySubtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   sectionLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -308,11 +312,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: '#ffffff0f',
+    backgroundColor: c.surface,
     borderRadius: 18,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
   },
   row: {
     flexDirection: 'row',
@@ -322,18 +326,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   rowLabel: {
-    color: '#ffffffd9',
+    color: c.textMuted,
     fontSize: 15,
   },
   rowValue: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#ffffff1f',
+    backgroundColor: c.border,
     marginHorizontal: 16,
   },
   tableHeader: {
@@ -341,10 +345,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ffffff1f',
+    borderBottomColor: c.border,
   },
   th: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   td: {
-    color: '#ffffffd9',
+    color: c.textMuted,
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
@@ -375,10 +379,10 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
     fontWeight: '600',
-    color: '#fff',
+    color: c.text,
   },
   totalLabel: {
-    color: '#fff',
+    color: c.text,
     fontWeight: '800',
   },
   perfRow: {
@@ -390,14 +394,14 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   perfName: {
-    color: '#fff',
+    color: c.text,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
     marginRight: 8,
   },
   perfPct: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
@@ -405,17 +409,17 @@ const styles = StyleSheet.create({
   perfBarTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#ffffff1f',
+    backgroundColor: c.border,
     marginHorizontal: 16,
     overflow: 'hidden',
   },
   perfBarFill: {
     height: '100%',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 3,
   },
   perfMeta: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     paddingHorizontal: 16,
     paddingTop: 4,

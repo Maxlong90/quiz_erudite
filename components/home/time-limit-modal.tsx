@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 
 const OPTIONS_MIN = [5, 10, 15, 20] as const;
 
@@ -19,6 +21,8 @@ interface Props {
  */
 export function TimeLimitModal({ visible, onClose, onStart }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [minutes, setMinutes] = useState<number>(10);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
@@ -65,14 +69,14 @@ export function TimeLimitModal({ visible, onClose, onStart }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -89,16 +93,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 4,
@@ -113,31 +117,31 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 22,
     borderRadius: 999,
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: '#7c5cff',
-    borderColor: '#7c5cff',
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   chipLabel: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     fontSize: 15,
     fontWeight: '700',
   },
   chipLabelActive: {
-    color: '#fff',
+    color: c.onAccent,
   },
   startButton: {
     marginTop: 12,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
   },
   startText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,

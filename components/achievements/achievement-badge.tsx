@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import type { AchievementProgress } from '@/lib/achievements';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   progress: AchievementProgress;
@@ -15,6 +18,8 @@ interface Props {
  * subject.
  */
 export function AchievementBadge({ progress, size = 56 }: Props) {
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => makeStyles(themeColors), [themeColors]);
   const { def, level } = progress;
   const locked = level === 0;
   const radius = Math.round(size * 0.28);
@@ -49,7 +54,7 @@ export function AchievementBadge({ progress, size = 56 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   badge: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -58,14 +63,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lockedBox: {
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderWidth: 1,
-    borderColor: '#ffffff22',
+    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   lockedText: {
-    color: '#ffffff66',
+    color: c.textDisabled,
     fontWeight: '800',
   },
 });

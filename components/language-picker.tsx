@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import type { SupportedLocale } from '@/hooks/use-locale';
+import type { EruditePalette } from '@/constants/theme';
 
 const LANGUAGES: { value: SupportedLocale; label: string }[] = [
   { value: 'en', label: 'English' },
@@ -14,6 +17,8 @@ interface Props {
 }
 
 export function LanguagePicker({ selected, onPick }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.list}>
       {LANGUAGES.map((lang) => {
@@ -39,7 +44,7 @@ export function LanguagePicker({ selected, onPick }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   list: {
     gap: 14,
     width: '100%',
@@ -48,13 +53,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 28,
     alignItems: 'center',
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderWidth: 1,
-    borderColor: '#ffffff22',
+    borderColor: c.border,
   },
   buttonSelected: {
-    backgroundColor: '#7c5cff',
-    borderColor: '#a78bff',
+    backgroundColor: c.accent,
+    borderColor: c.accentSoft,
   },
   buttonPressed: {
     opacity: 0.85,
@@ -63,10 +68,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffffcc',
+    color: c.textMuted,
     letterSpacing: 0.3,
   },
   labelSelected: {
-    color: '#fff',
+    color: c.onAccent,
   },
 });

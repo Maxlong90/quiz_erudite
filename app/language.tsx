@@ -1,16 +1,20 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import { useMemo } from 'react';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LanguagePicker } from '@/components/language-picker';
+import { ScreenBackground } from '@/components/screen-background';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 
 export default function LanguageScreen() {
   const { locale, changeLocale } = useLocale();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   async function handlePick(picked: SupportedLocale) {
     await changeLocale(picked);
@@ -21,12 +25,7 @@ export default function LanguageScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.content}>
           <View style={styles.heading}>
@@ -36,11 +35,11 @@ export default function LanguageScreen() {
           <LanguagePicker selected={locale} onPick={handlePick} />
         </View>
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -57,13 +56,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#fff',
+    color: c.text,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: 14,
-    color: '#ffffff99',
+    color: c.textFaint,
     textAlign: 'center',
   },
 });

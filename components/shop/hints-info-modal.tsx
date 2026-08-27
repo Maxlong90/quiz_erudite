@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import type { HintKind, HintsState } from '@/lib/hints';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 
 interface Props {
@@ -42,6 +45,8 @@ const SOURCE_ROWS: SourceRow[] = [
  */
 export function HintsInfoModal({ visible, hints, onClose }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
   return (
@@ -106,14 +111,14 @@ export function HintsInfoModal({ visible, hints, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -137,10 +142,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
@@ -149,7 +154,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   sectionLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -159,10 +164,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: '#ffffff0d',
+    backgroundColor: c.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ffffff1f',
+    borderColor: c.border,
     overflow: 'hidden',
   },
   row: {
@@ -178,12 +183,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rowTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '800',
   },
   rowSubtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
     marginTop: 2,
     lineHeight: 17,
@@ -193,29 +198,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     alignItems: 'center',
   },
   badgeText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#ffffff1f',
+    backgroundColor: c.border,
     marginLeft: 58,
   },
   cta: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 4,
   },
   ctaText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
   },

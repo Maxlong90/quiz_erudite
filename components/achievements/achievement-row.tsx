@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AchievementBadge } from '@/components/achievements/achievement-badge';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import type { AchievementProgress } from '@/lib/achievements';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   progress: AchievementProgress;
@@ -11,6 +14,8 @@ interface Props {
 /** Single row of the achievements list on the Stats screen. */
 export function AchievementRow({ progress }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { def, value, level, isMaxed, nextThreshold, ratio } = progress;
 
   const levelLabel = isMaxed
@@ -43,7 +48,7 @@ export function AchievementRow({ progress }: Props) {
                 styles.barFill,
                 {
                   width: `${Math.round(ratio * 100)}%`,
-                  backgroundColor: level === 0 ? '#ffffff44' : '#7c5cff',
+                  backgroundColor: level === 0 ? colors.borderStrong : colors.accent,
                 },
               ]}
             />
@@ -57,7 +62,7 @@ export function AchievementRow({ progress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,25 +76,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   levelLabel: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
   },
   levelLabelLocked: {
-    color: '#ffffff66',
+    color: c.textDisabled,
   },
   right: {
     flex: 1,
     gap: 4,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 13,
   },
   barRow: {
@@ -102,7 +107,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     overflow: 'hidden',
   },
   barFill: {
@@ -110,7 +115,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   count: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 13,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
@@ -118,6 +123,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   countLocked: {
-    color: '#ffffff77',
+    color: c.textDisabled,
   },
 });

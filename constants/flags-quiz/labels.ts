@@ -190,6 +190,15 @@ const ES: FQLabels = {
   restoreErrorTitle: 'Error al restaurar',
   restoreErrorMessage: 'Algo salió mal. Inténtalo más tarde.',
   ok: 'OK',
+  resultTitle: 'Resultado',
+  resultCaption: 'Respuestas correctas',
+  resultExcellent: '¡Excelente! Conoces muy bien las banderas.',
+  resultGood: '¡Bien hecho, sigue así!',
+  resultKeepGoing: '¡Sigue practicando, lo lograrás!',
+  playAgain: 'Jugar de nuevo',
+  retryMistakes: 'Repetir errores',
+  backHome: 'Inicio',
+  tapToContinue: 'Toca para continuar',
 };
 
 const TABLE: Record<SupportedLocale, FQLabels> = { en: EN, ru: RU, es: ES };

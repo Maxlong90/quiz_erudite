@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -10,21 +10,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
-
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
+import type { EruditePalette } from '@/constants/theme';
 
 type Mode = 'signup' | 'login';
 
 export default function AccountScreen() {
   const { t } = useTranslation();
   const { isPremium } = usePremium();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [mode, setMode] = useState<Mode>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,8 +39,7 @@ export default function AccountScreen() {
   const canSubmit = email.trim().length > 3 && password.length >= 6;
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('account.title')}</Text>
@@ -88,7 +88,7 @@ export default function AccountScreen() {
               autoCorrect={false}
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor="#ffffff55"
+              placeholderTextColor={colors.textFaint}
               style={styles.input}
             />
 
@@ -98,7 +98,7 @@ export default function AccountScreen() {
               onChangeText={setPassword}
               secureTextEntry
               placeholder="••••••••"
-              placeholderTextColor="#ffffff55"
+              placeholderTextColor={colors.textFaint}
               style={styles.input}
             />
 
@@ -151,11 +151,11 @@ export default function AccountScreen() {
 
         <BottomBar current="account" />
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: { flex: 1 },
   header: {
     paddingHorizontal: 16,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -187,14 +187,14 @@ const styles = StyleSheet.create({
   },
   premiumEmoji: { fontSize: 18 },
   premiumText: {
-    color: '#ffd23a',
+    color: c.gold,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 999,
     padding: 4,
     alignSelf: 'center',
@@ -207,11 +207,11 @@ const styles = StyleSheet.create({
     minWidth: 130,
     alignItems: 'center',
   },
-  segmentActive: { backgroundColor: '#fff' },
-  segmentLabel: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  segmentLabelActive: { color: '#7c5cff' },
+  segmentActive: { backgroundColor: c.onAccent },
+  segmentLabel: { color: c.onAccent, fontSize: 15, fontWeight: '700' },
+  segmentLabelActive: { color: c.accent },
   fieldLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
@@ -220,18 +220,18 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   input: {
-    backgroundColor: '#ffffff10',
+    backgroundColor: c.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#ffffff33',
+    borderColor: c.borderStrong,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#fff',
+    color: c.text,
     fontSize: 16,
     marginBottom: 16,
   },
   primary: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   primaryDisabled: { opacity: 0.4 },
   primaryText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -253,10 +253,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   dividerText: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   switchText: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 14,
     fontWeight: '600',
   },

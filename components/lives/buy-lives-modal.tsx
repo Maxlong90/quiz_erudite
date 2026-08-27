@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import { BUNDLES, purchaseBundle, type ShopBundle } from '@/lib/iap';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -22,6 +24,8 @@ const LIVES_BUNDLES = BUNDLES.filter((b) => b.category === 'lives');
  */
 export function BuyLivesModal({ visible, onClose, onPurchased }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -75,14 +79,14 @@ export function BuyLivesModal({ visible, onClose, onPurchased }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -99,16 +103,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 6,
@@ -119,9 +123,9 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: '#ffffff0d',
+    backgroundColor: c.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#ffffff1f',
+    borderColor: c.border,
   },
   rowEmoji: {
     fontSize: 26,
@@ -130,12 +134,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rowTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '800',
   },
   rowSubtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 12,
     marginTop: 2,
   },
@@ -143,10 +147,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
   },
   priceText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],

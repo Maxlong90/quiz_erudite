@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -11,7 +11,9 @@ import {
 
 import { CategoryPicker } from '@/components/home/category-picker';
 import { useContentCache } from '@/hooks/use-content-cache';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 
 const COUNT_OPTIONS = [10, 20, 30, 40, 50] as const;
 const PER_QUESTION_OPTIONS = [20, 40, 60, 80, 100, 120] as const;
@@ -31,6 +33,8 @@ interface Props {
  */
 export function QuizConfigModal({ visible, title, withTimer, onClose, onStart }: Props) {
   const { t, locale } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { snapshot } = useContentCache();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [count, setCount] = useState<number>(10);
@@ -117,6 +121,8 @@ interface ChipGroupProps<T extends number> {
 }
 
 function ChipGroup<T extends number>({ options, value, onChange, renderLabel }: ChipGroupProps<T>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.chipRow}>
       {options.map((opt) => {
@@ -137,14 +143,14 @@ function ChipGroup<T extends number>({ options, value, onChange, renderLabel }: 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -157,18 +163,18 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
     marginBottom: 8,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 4,
   },
   sectionLabel: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -185,31 +191,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: '#7c5cff',
-    borderColor: '#7c5cff',
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   chipLabel: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
   chipLabelActive: {
-    color: '#fff',
+    color: c.onAccent,
   },
   startButton: {
     marginTop: 20,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
   },
   startText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,

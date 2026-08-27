@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { AchievementBadge } from '@/components/achievements/achievement-badge';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import type { AchievementProgress } from '@/lib/achievements';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -18,6 +21,8 @@ interface Props {
  */
 export function AchievementUnlockModal({ visible, progress, onDismiss }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!progress) return null;
 
   async function handleShare() {
@@ -68,10 +73,10 @@ export function AchievementUnlockModal({ visible, progress, onDismiss }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: c.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -79,7 +84,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderRadius: 24,
     paddingVertical: 28,
     paddingHorizontal: 24,
@@ -87,7 +92,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   eyebrow: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.4,
@@ -96,28 +101,28 @@ const styles = StyleSheet.create({
   badgeWrap: {
     marginTop: 10,
     marginBottom: 4,
-    shadowColor: '#7c5cff',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6,
     shadowRadius: 24,
     elevation: 10,
   },
   levelLabel: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
     marginTop: 4,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 22,
     fontWeight: '800',
     textAlign: 'center',
     marginTop: 4,
   },
   subtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 12,
@@ -128,7 +133,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#fff',
+    backgroundColor: c.accent,
     paddingVertical: 14,
     borderRadius: 999,
     marginTop: 8,
@@ -137,7 +142,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   shareText: {
-    color: '#7c5cff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -150,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   continueText: {
-    color: '#ffffffcc',
+    color: c.textMuted,
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 1,

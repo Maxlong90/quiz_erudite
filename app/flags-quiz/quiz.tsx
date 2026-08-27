@@ -333,7 +333,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 18,
+    // +20% over the previous 18 → ~22.
+    fontSize: 22,
     marginBottom: 10,
     textShadowColor: 'rgba(4, 40, 96, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
@@ -412,13 +413,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 21,
   },
+  // "Tap to continue" — a light-blue outlined pill so it stands out on the white card.
   historyHint: {
     color: FQColors.tileGlyph,
-    opacity: 0.6,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
-    marginTop: 12,
+    alignSelf: 'center',
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: '#3FA9F5',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    overflow: 'hidden',
   },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },

@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 
 interface Props {
@@ -38,6 +41,8 @@ const OPTIONS: Option[] = [
  */
 export function HardModeModal({ visible, onClose, onPick }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
   return (
@@ -70,14 +75,14 @@ export function HardModeModal({ visible, onClose, onPick }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -94,17 +99,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
     marginBottom: 4,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 6,
@@ -115,9 +120,9 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#ffffff0d',
+    backgroundColor: c.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#ffffff1f',
+    borderColor: c.border,
   },
   optionEmoji: {
     fontSize: 32,
@@ -128,12 +133,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   optionTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 16,
     fontWeight: '800',
   },
   optionSubtitle: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 13,
   },
 });

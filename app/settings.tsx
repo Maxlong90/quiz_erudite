@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import {
   Alert,
   Linking,
@@ -18,13 +16,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LanguageModal } from '@/components/settings/language-modal';
 import { AppearanceModal } from '@/components/settings/appearance-modal';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useThemePref, type ThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
 import { clearCache as clearContentCache } from '@/lib/content-cache';
 import { getAndroidPackage, getStoreLinks } from '@/lib/store-links';
 import { useContentCache } from '@/hooks/use-content-cache';
@@ -62,6 +63,8 @@ export default function SettingsScreen() {
   const { resetPremium } = usePremium();
   const { theme, setTheme } = useThemePref();
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { snapshot } = useContentCache();
   const [languageOpen, setLanguageOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -168,12 +171,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
-      locations={[0, 0.55, 1]}
-      style={styles.flex}
-    >
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
@@ -318,12 +316,14 @@ export default function SettingsScreen() {
         onClose={() => setAppearanceOpen(false)}
         onPick={(picked) => setTheme(picked)}
       />
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
 function SectionLabel({ labelKey }: { labelKey: StringKey }) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <Text style={styles.sectionLabel}>{t(labelKey)}</Text>;
 }
 
@@ -336,28 +336,32 @@ interface RowProps {
 }
 
 function Row({ icon, label, value, onPress }: RowProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.rowIcon}>
-        <IconSymbol name={icon} size={20} color="#a78bff" />
+        <IconSymbol name={icon} size={20} color={colors.accentSoft} />
       </View>
       <Text style={styles.rowLabel} numberOfLines={1}>
         {label}
       </Text>
       {value && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
-      <IconSymbol name="chevron.right" size={18} color="#ffffff66" />
+      <IconSymbol name="chevron.right" size={18} color={colors.textDisabled} />
     </Pressable>
   );
 }
 
 function Divider() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <View style={styles.divider} />;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -369,7 +373,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: c.text,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
@@ -381,7 +385,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#ffffff99',
+    color: c.textFaint,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginTop: 20,
@@ -389,10 +393,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: '#ffffff0f',
+    backgroundColor: c.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   row: {
@@ -403,7 +407,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   rowPressed: {
-    backgroundColor: '#ffffff0a',
+    backgroundColor: c.surfaceSoft,
   },
   rowIcon: {
     width: 28,
@@ -411,19 +415,19 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '600',
   },
   rowValue: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 14,
     fontWeight: '500',
     marginRight: 4,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#ffffff1f',
+    backgroundColor: c.border,
     marginLeft: 58,
   },
   devSection: {
@@ -433,13 +437,13 @@ const styles = StyleSheet.create({
   devSectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#ffffff66',
+    color: c.textDisabled,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     paddingHorizontal: 4,
   },
   devButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: c.danger,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -448,19 +452,19 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   devButtonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   devHint: {
-    color: '#ffffff77',
+    color: c.textDisabled,
     fontSize: 12,
     paddingHorizontal: 8,
     lineHeight: 16,
   },
   versionText: {
-    color: '#ffffff66',
+    color: c.textDisabled,
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',

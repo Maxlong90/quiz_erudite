@@ -1,9 +1,12 @@
+import { useMemo } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSheetDrag } from '@/hooks/use-sheet-drag';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useTranslation } from '@/hooks/use-translation';
 import type { ThemePref } from '@/hooks/use-theme-pref';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 
 const OPTIONS: {
@@ -29,6 +32,8 @@ interface Props {
  */
 export function AppearanceModal({ visible, selected, onClose, onPick }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
 
   return (
@@ -56,7 +61,7 @@ export function AppearanceModal({ visible, selected, onClose, onPick }: Props) {
                 ]}
                 testID={`theme-modal-${opt.value}`}
               >
-                <IconSymbol name={opt.icon} size={22} color={active ? '#fff' : '#a78bff'} />
+                <IconSymbol name={opt.icon} size={22} color={active ? colors.text : colors.accentSoft} />
                 <Text style={[styles.label, active && styles.labelActive]}>
                   {t(opt.labelKey)}
                 </Text>
@@ -70,14 +75,14 @@ export function AppearanceModal({ visible, selected, onClose, onPick }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -94,10 +99,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
@@ -110,27 +115,27 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 14,
-    backgroundColor: '#ffffff0d',
+    backgroundColor: c.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#ffffff1f',
+    borderColor: c.border,
   },
   rowActive: {
-    backgroundColor: '#7c5cff33',
-    borderColor: '#7c5cff',
+    backgroundColor: c.accentBg,
+    borderColor: c.accent,
   },
   label: {
     flex: 1,
-    color: '#fff',
+    color: c.text,
     fontSize: 16,
     fontWeight: '600',
   },
   labelActive: {
-    color: '#fff',
+    color: c.text,
   },
   check: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
   },
 });

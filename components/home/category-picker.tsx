@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import type { ContentSnapshot } from '@/lib/content-cache';
 import { localizeCategoryName } from '@/i18n/categories';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import type { SupportedLocale } from '@/hooks/use-locale';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   snapshot: ContentSnapshot | null;
@@ -19,6 +21,8 @@ interface Props {
  * are convenience togglers that flip every leaf under them at once.
  */
 export function CategoryPicker({ snapshot, locale, selected, onChange }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const tops = snapshot?.categories ?? [];
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
@@ -100,7 +104,7 @@ export function CategoryPicker({ snapshot, locale, selected, onChange }: Props) 
                 <IconSymbol
                   name="chevron.right"
                   size={18}
-                  color="#ffffff99"
+                  color={colors.textFaint}
                   style={isExpanded ? styles.chevronOpen : undefined}
                 />
               </Pressable>
@@ -140,6 +144,8 @@ function Checkbox({
   indeterminate?: boolean;
   small?: boolean;
 }) {
+  const colors = useThemeColors();
+  const cbStyles = useMemo(() => makeCbStyles(colors), [colors]);
   const size = small ? 18 : 22;
   return (
     <View
@@ -156,38 +162,38 @@ function Checkbox({
   );
 }
 
-const cbStyles = StyleSheet.create({
+const makeCbStyles = (c: EruditePalette) => StyleSheet.create({
   box: {
     borderWidth: 2,
-    borderColor: '#ffffff66',
+    borderColor: c.textDisabled,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   boxChecked: {
-    backgroundColor: '#7c5cff',
-    borderColor: '#7c5cff',
+    backgroundColor: c.accent,
+    borderColor: c.accent,
   },
   boxIndeterminate: {
-    borderColor: '#7c5cff',
+    borderColor: c.accent,
   },
   checkmark: {
     width: 6,
     height: 10,
     borderRightWidth: 2,
     borderBottomWidth: 2,
-    borderColor: '#fff',
+    borderColor: c.onAccent,
     transform: [{ rotate: '45deg' }, { translateY: -1 }],
   },
   dash: {
     width: 8,
     height: 2,
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 1,
   },
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   scroll: {
     maxHeight: 360,
   },
@@ -201,11 +207,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ffffff22',
+    borderBottomColor: c.border,
     marginBottom: 4,
   },
   allText: {
-    color: '#fff',
+    color: c.text,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -225,7 +231,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   topName: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
@@ -249,7 +255,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   subName: {
-    color: '#ffffffd9',
+    color: c.textMuted,
     fontSize: 14,
     flexShrink: 1,
   },

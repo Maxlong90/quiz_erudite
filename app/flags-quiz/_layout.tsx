@@ -16,16 +16,10 @@ export default function FlagsQuizLayout() {
       }}
     >
       <Stack.Screen name="splash" options={{ animation: 'none' }} />
-      {/* Onboarding splash DISSOLVES to reveal the home screen underneath (a
-          CapCut-style "mix" cross-dissolve), rather than home sliding/fading in
-          on top. `router.replace('/flags-quiz')` from the splash is a replace, so
-          `animationTypeForReplace: 'pop'` runs the CLOSING animation on the
-          outgoing splash — combined with `animation: 'fade'`, the splash fades
-          out while home sits beneath it. */}
-      <Stack.Screen
-        name="index"
-        options={{ animation: 'fade', animationTypeForReplace: 'pop' }}
-      />
+      {/* Onboarding splash crossfades into the home screen (plain fade, not the
+          right-to-left slide). The animation of the screen navigated TO is what
+          plays, so `index` carries the fade. */}
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
       <Stack.Screen name="play" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="continents" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="continent-quiz" options={{ animation: 'slide_from_right' }} />
