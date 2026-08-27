@@ -44,6 +44,7 @@ export type StringKey =
   | 'settings.appearanceModal.title'
   | 'settings.theme.light'
   | 'settings.theme.dark'
+  | 'settings.version'
   | 'common.cancel'
   | 'lives.outOf.title'
   | 'lives.outOf.body'
@@ -303,6 +304,8 @@ export type StringKey =
   | 'mode.title'
   | 'mode.daily.title'
   | 'mode.daily.subtitle'
+  | 'mode.random.title'
+  | 'mode.random.subtitle'
   | 'mode.quick.title'
   | 'mode.quick.subtitle'
   | 'mode.timed.title'
@@ -368,6 +371,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.appearanceModal.title': 'Appearance',
     'settings.theme.light': 'Light',
     'settings.theme.dark': 'Dark',
+    'settings.version': 'Version',
     'common.cancel': 'Cancel',
 
     'lives.outOf.title': 'Out of lives',
@@ -588,7 +592,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Ad-free, distraction-free',
     'paywall.feature.alllanguages': 'All languages and topics',
     'paywall.feature.exclusive': 'Exclusive premium-only categories',
-    'paywall.cta': 'Subscribe',
+    'paywall.cta': 'Continue',
     'paywall.tier.weekly': 'Weekly',
     'paywall.tier.monthly': 'Monthly',
     'paywall.tier.yearly': 'Yearly',
@@ -631,6 +635,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'mode.title': 'Choose a mode',
     'mode.daily.title': "Today's question",
     'mode.daily.subtitle': 'A single question to keep you sharp',
+    'mode.random.title': 'Random question',
+    'mode.random.subtitle': 'A random question from this category',
     'mode.quick.title': 'Quick quiz',
     'mode.quick.subtitle': '10 questions, no time limit',
     'mode.timed.title': 'Timed quiz',
@@ -692,6 +698,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.appearanceModal.title': 'Apariencia',
     'settings.theme.light': 'Claro',
     'settings.theme.dark': 'Oscuro',
+    'settings.version': 'Versión',
     'common.cancel': 'Cancelar',
 
     'lives.outOf.title': 'Sin vidas',
@@ -912,7 +919,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Sin anuncios, sin distracciones',
     'paywall.feature.alllanguages': 'Todos los idiomas y temas',
     'paywall.feature.exclusive': 'Categorías exclusivas para Premium',
-    'paywall.cta': 'Suscribirse',
+    'paywall.cta': 'Continuar',
     'paywall.tier.weekly': 'Semanal',
     'paywall.tier.monthly': 'Mensual',
     'paywall.tier.yearly': 'Anual',
@@ -955,6 +962,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'mode.title': 'Elige un modo',
     'mode.daily.title': 'Pregunta del día',
     'mode.daily.subtitle': 'Una pregunta para entrenar la mente',
+    'mode.random.title': 'Pregunta aleatoria',
+    'mode.random.subtitle': 'Una pregunta al azar de esta categoría',
     'mode.quick.title': 'Quiz rápido',
     'mode.quick.subtitle': '10 preguntas, sin límite de tiempo',
     'mode.timed.title': 'Quiz cronometrado',
@@ -1016,6 +1025,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.appearanceModal.title': 'Оформление',
     'settings.theme.light': 'Светлая',
     'settings.theme.dark': 'Тёмная',
+    'settings.version': 'Версия',
     'common.cancel': 'Отмена',
 
     'lives.outOf.title': 'Закончились жизни',
@@ -1236,7 +1246,7 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'paywall.feature.adfree': 'Без рекламы и отвлечений',
     'paywall.feature.alllanguages': 'Все языки и темы',
     'paywall.feature.exclusive': 'Эксклюзивные категории для Premium',
-    'paywall.cta': 'Оформить',
+    'paywall.cta': 'Продолжить',
     'paywall.tier.weekly': 'Неделя',
     'paywall.tier.monthly': 'Месяц',
     'paywall.tier.yearly': 'Год',
@@ -1279,6 +1289,8 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'mode.title': 'Выберите режим',
     'mode.daily.title': 'Вопрос дня',
     'mode.daily.subtitle': 'Один вопрос, чтобы держать форму',
+    'mode.random.title': 'Рандомный вопрос',
+    'mode.random.subtitle': 'Случайный вопрос из этой категории',
     'mode.quick.title': 'Быстрый квиз',
     'mode.quick.subtitle': '10 вопросов без таймера',
     'mode.timed.title': 'На время',

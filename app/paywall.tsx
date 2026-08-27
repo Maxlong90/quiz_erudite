@@ -524,9 +524,9 @@ const styles = StyleSheet.create({
     marginTop: 84,
     marginBottom: 14,
     borderRadius: 18,
-    // Highlighted in the "Оформить" CTA purple (#7c5cff) so the benefits block
-    // stands out, tying it visually to the subscribe button.
-    backgroundColor: '#7c5cff26',
+    // Highlighted in a vivid purple close to the CTA button (#7c5cff) so the
+    // benefits block clearly stands out and reads as the "premium" panel.
+    backgroundColor: '#7c5cffcc',
     borderWidth: 1,
     borderColor: '#7c5cff',
     overflow: 'hidden',

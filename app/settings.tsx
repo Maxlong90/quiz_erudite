@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -41,6 +42,9 @@ const QUIZ_PREFIX = 'quiz.';
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
+
+// Current app version, read from the build's Expo config (app.json `version`).
+const APP_VERSION = Constants.expoConfig?.version ?? '';
 
 const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
   en: 'English',
@@ -290,6 +294,12 @@ export default function SettingsScreen() {
               </Text>
             </View>
           )}
+
+          {!!APP_VERSION && (
+            <Text style={styles.versionText}>
+              {t('settings.version')} {APP_VERSION}
+            </Text>
+          )}
         </ScrollView>
 
         <BottomBar current="settings" />
@@ -448,5 +458,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingHorizontal: 8,
     lineHeight: 16,
+  },
+  versionText: {
+    color: '#ffffff66',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 24,
+    letterSpacing: 0.3,
   },
 });

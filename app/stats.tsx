@@ -100,11 +100,13 @@ export default function StatsScreen() {
           total,
         };
       })
-      .filter((s) => s.total > 0);
+      // Only surface subjects the player has actually answered questions in —
+      // stats reflect answered questions, never the full catalog.
+      .filter((s) => s.seen > 0);
   }, [snapshot, seenIds, locale]);
 
   const totalSeenAcrossSubjects = subjects.reduce((acc, s) => acc + s.seen, 0);
-  const totalAvailableAcrossSubjects = subjects.reduce((acc, s) => acc + s.total, 0);
+  const maxSeenInSubject = subjects.reduce((acc, s) => Math.max(acc, s.seen), 0);
 
   const accuracy = totalQuestions > 0
     ? Math.round((totalCorrect / totalQuestions) * 100)
@@ -156,7 +158,6 @@ export default function StatsScreen() {
               <View style={styles.tableHeader}>
                 <Text style={[styles.th, styles.thSubject]}>{t('stats.headerSubject')}</Text>
                 <Text style={[styles.th, styles.thCell]}>{t('stats.headerViewed')}</Text>
-                <Text style={[styles.th, styles.thCell]}>{t('stats.headerTotal')}</Text>
               </View>
               {subjects.map((s, idx) => (
                 <View key={s.slug}>
@@ -166,7 +167,6 @@ export default function StatsScreen() {
                       {s.name}
                     </Text>
                     <Text style={[styles.td, styles.tdCell]}>{s.seen}</Text>
-                    <Text style={[styles.td, styles.tdCell]}>{s.total}</Text>
                   </View>
                 </View>
               ))}
@@ -178,30 +178,27 @@ export default function StatsScreen() {
                 <Text style={[styles.td, styles.tdCell, styles.totalLabel]}>
                   {totalSeenAcrossSubjects}
                 </Text>
-                <Text style={[styles.td, styles.tdCell, styles.totalLabel]}>
-                  {totalAvailableAcrossSubjects}
-                </Text>
               </View>
             </View>
 
             <Text style={styles.sectionLabel}>{t('stats.performanceBySubject')}</Text>
             <View style={styles.card}>
               {subjects.map((s, idx) => {
-                const ratio = s.total > 0 ? Math.min(1, s.seen / s.total) : 0;
+                // Bar length is each subject's answered count relative to the
+                // most-answered subject — an "answered by subject" breakdown
+                // that never references the full catalog.
+                const ratio = maxSeenInSubject > 0 ? s.seen / maxSeenInSubject : 0;
                 const pct = Math.round(ratio * 100);
                 return (
                   <View key={s.slug}>
                     {idx > 0 && <View style={styles.perfSpacer} />}
                     <View style={styles.perfRow}>
                       <Text style={styles.perfName} numberOfLines={1}>{s.name}</Text>
-                      <Text style={styles.perfPct}>{pct}%</Text>
+                      <Text style={styles.perfPct}>{s.seen}</Text>
                     </View>
                     <View style={styles.perfBarTrack}>
                       <View style={[styles.perfBarFill, { width: `${pct}%` }]} />
                     </View>
-                    <Text style={styles.perfMeta}>
-                      {s.seen} / {s.total}
-                    </Text>
                   </View>
                 );
               })}

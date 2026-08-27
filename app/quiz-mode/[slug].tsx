@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TimedCountModal } from '@/components/quiz-mode/timed-count-modal';
 import { fetchCategories, type Category } from '@/api/categories';
 import { APP_SLUG } from '@/api/client';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
@@ -22,7 +23,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import { localizeCategoryName } from '@/i18n/categories';
 
 const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
-const TIMED_COUNT_OPTIONS = [10, 20, 30, 50] as const;
+const TIMED_COUNT_OPTIONS = [10, 20, 30] as const;
 
 export default function QuizModeScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -33,7 +34,7 @@ export default function QuizModeScreen() {
   const [sub, setSub] = useState<Category | null>(null);
   const [parentSlug, setParentSlug] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [timedCount, setTimedCount] = useState<number>(20);
+  const [timedModalOpen, setTimedModalOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -81,6 +82,9 @@ export default function QuizModeScreen() {
   const flashcardsCount = sub?.total_flashcards_count ?? 0;
   const hasQuestions = questionsCount > 0;
   const hasFlashcards = flashcardsCount > 0;
+  // Timed-quiz question-count options, capped by how many questions exist
+  // (but always offer at least the smallest option).
+  const timedOptions = TIMED_COUNT_OPTIONS.filter((n) => n <= Math.max(questionsCount, 10));
 
   function startQuiz(mode: 'daily' | 'quick' | 'timed' | 'survival', count: number, timer = 0) {
     if (!slug) return;
@@ -132,12 +136,12 @@ export default function QuizModeScreen() {
             <Text style={styles.sectionLabel}>{t('mode.title')}</Text>
 
             <ModeCard
-              icon="📅"
-              title={t('mode.daily.title')}
-              subtitle={t('mode.daily.subtitle')}
+              icon="🎲"
+              title={t('mode.random.title')}
+              subtitle={t('mode.random.subtitle')}
               gradient={visual.gradient}
               disabled={!hasQuestions}
-              onPress={() => startQuiz('daily', 1)}
+              onPress={() => startQuiz('quick', 1)}
             />
 
             <ModeCard
@@ -149,14 +153,14 @@ export default function QuizModeScreen() {
               onPress={() => startQuiz('quick', 10)}
             />
 
-            <TimedModeCard
+            <ModeCard
+              icon="⏱️"
+              title={t('mode.timed.title')}
+              subtitle={t('mode.timed.subtitle')}
               gradient={visual.gradient}
               disabled={!hasQuestions}
               premiumLocked={lockedByPremium}
-              questionsCount={questionsCount}
-              selected={timedCount}
-              onSelectCount={setTimedCount}
-              onStart={() => startQuiz('timed', timedCount, 30)}
+              onPress={() => setTimedModalOpen(true)}
             />
 
             <ModeCard
@@ -183,6 +187,13 @@ export default function QuizModeScreen() {
             )}
           </ScrollView>
         )}
+
+        <TimedCountModal
+          visible={timedModalOpen}
+          options={timedOptions}
+          onClose={() => setTimedModalOpen(false)}
+          onPick={(n) => startQuiz('timed', n, 30)}
+        />
       </SafeAreaView>
     </LinearGradient>
   );
@@ -240,87 +251,6 @@ function ModeCard({
         </View>
       </LinearGradient>
     </Pressable>
-  );
-}
-
-interface TimedModeCardProps {
-  gradient: readonly [string, string];
-  disabled: boolean;
-  premiumLocked?: boolean;
-  questionsCount: number;
-  selected: number;
-  onSelectCount: (n: number) => void;
-  onStart: () => void;
-}
-
-function TimedModeCard({
-  gradient,
-  disabled,
-  premiumLocked,
-  questionsCount,
-  selected,
-  onSelectCount,
-  onStart,
-}: TimedModeCardProps) {
-  const { t } = useTranslation();
-  const options = TIMED_COUNT_OPTIONS.filter((n) => n <= Math.max(questionsCount, 10));
-
-  function handleStart() {
-    if (premiumLocked) {
-      router.push('/paywall');
-      return;
-    }
-    onStart();
-  }
-
-  return (
-    <View style={styles.cardWrap}>
-      <LinearGradient
-        colors={gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.card, styles.cardTall, disabled && styles.cardDisabled]}
-      >
-        {premiumLocked && (
-          <View style={styles.crownBadge}>
-            <IconSymbol name="crown.fill" size={16} color="#ffd23a" />
-          </View>
-        )}
-        <View style={styles.timedHeader}>
-          <Text style={styles.cardIcon}>⏱️</Text>
-          <View style={styles.cardCopy}>
-            <Text style={styles.cardTitle}>{t('mode.timed.title')}</Text>
-            <Text style={styles.cardSubtitle}>{t('mode.timed.subtitle')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.chipRow}>
-          <Text style={styles.chipLabel}>{t('mode.timed.questionsLabel')}</Text>
-          <View style={styles.chips}>
-            {options.map((n) => {
-              const active = n === selected;
-              return (
-                <Pressable
-                  key={n}
-                  onPress={() => onSelectCount(n)}
-                  style={[styles.chip, active && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{n}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <Pressable
-          onPress={handleStart}
-          disabled={disabled}
-          style={({ pressed }) => [styles.startBtn, pressed && styles.startBtnPressed]}
-        >
-          <Text style={styles.startBtnText}>{t('mode.timed.startCta')}</Text>
-        </Pressable>
-      </LinearGradient>
-    </View>
   );
 }
 
