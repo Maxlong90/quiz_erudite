@@ -72,29 +72,26 @@ The app ships with `expo-updates` wired to [EAS Update](https://docs.expo.dev/ea
 
 ### Config
 
-`app.json` carries the update endpoint and runtime policy:
+The committed `app.json` carries only the OTA **runtime version** — a fixed string:
 
 ```jsonc
-"runtimeVersion": { "policy": "appVersion" },
-"updates": {
-  "url": "https://u.expo.dev/0a83f1d3-35b1-4026-9e39-022bccc5442d",
-  "fallbackToCacheTimeout": 0
-}
+"runtimeVersion": "1.0.0"
 ```
 
-- `updates.url` points at the existing EAS project (the same `extra.eas.projectId`, Erudite Quiz). It is **not** a new Expo project.
-- `fallbackToCacheTimeout: 0` means the app never blocks startup waiting for an update — it launches the cached bundle and downloads any newer one in the background, applying it on the next launch (best UX).
-- The `expo-updates` config plugin is applied automatically at prebuild once the package is installed and `updates.url` is set — there is no explicit entry in `expo.plugins`. Because `ios/` and `android/` are gitignored (managed/prebuild workflow), EAS regenerates the native updates config (Android manifest `expo.modules.updates.*` with `ENABLED=true`, iOS `Expo.plist`) from `app.json` on every build; do not hand-edit the native files.
+The other two pieces of OTA config — the update endpoint (`updates.url`) and the EAS project id (`extra.eas.projectId`) — are deliberately **not** committed. The build backend (`php artisan build:process`, `ProcessBuildTask::injectConfig`) stamps them into `app.json` per app at build time, deriving the endpoint as `https://u.expo.dev/<expo_project_id>` from the App record it is building.
 
-Each build profile in `eas.json` declares a `channel` (`development` → `development`, `preview` → `preview`, `production` → `production`) so `eas update --channel <name>` maps to the matching builds predictably.
+- **Why they are injected, not committed.** This one tree builds several apps (Erudite, Logo Quiz, Flags Quiz), and each is its own EAS/Expo project with its own `updates.url`. A hardcoded Erudite endpoint in the repo would publish and pull *every* sibling's OTA against the wrong project. The base config stays app-neutral, and the backend supplies the correct project per build.
+- **Startup behavior.** With no `fallbackToCacheTimeout` committed, the app uses Expo's default: it never blocks startup on an update. It launches the cached bundle, downloads any newer one in the background, and applies it on the next launch.
+- **Native config is generated, not hand-written.** The `expo-updates` config plugin is applied automatically at prebuild once the package is installed and `updates.url` is present — there is no explicit entry in `expo.plugins`. Because `ios/` and `android/` are gitignored (managed/prebuild workflow), EAS regenerates the native updates config (Android manifest `expo.modules.updates.*` with `ENABLED=true`, iOS `Expo.plist`) on every build. Do not hand-edit the native files.
 
-### runtimeVersion policy: `appVersion`
+Each build profile in `eas.json` declares a `channel` (`development` → `development`, `preview` → `preview`, `production` → `production`) so `eas update --channel <name>` — equivalently `eas update --branch <name>` — maps to the matching builds predictably.
 
-An OTA update is only served to binaries whose **runtime version** matches the one it was published for. We use the `appVersion` policy, which ties the runtime to `expo.version` (`1.0.3` today).
+### runtimeVersion: a fixed constant
 
-- **Why `appVersion`:** it's the simplest safe default. Because the runtime is the store version, an OTA can never reach a binary from a *different* app version, and bumping the store version cleanly segments OTA audiences. The tradeoff is the wider a runtimeVersion's scope, the greater the risk of delivering a bundle incompatible with the native layer — `appVersion` keeps that scope as narrow as one store release. Cost: after every store release that bumps `version`, publish a fresh OTA targeting that new version.
-- **Not `fingerprint`:** it auto-invalidates the runtime on any native change (more precise) but adds a fingerprint runtime and can shift the runtime string on unrelated native tweaks; not worth the extra machinery here given the app's existing native config (google-mobile-ads, Sentry, new architecture).
-- **Not a fixed manual string:** it decouples OTA compatibility from any real signal and makes it easy to ship a bundle incompatible with the native layer.
+An OTA update is only served to binaries whose **runtime version** matches the one it was published for. This tree pins runtimeVersion to a **fixed string** (`1.0.0`) rather than the `appVersion` policy or a fingerprint.
+
+- **Why a fixed constant:** the runtime must stay stable across native rebuilds even as the marketing `version` bumps (`1.0.3 → 1.0.4 …`), so one published bundle reaches every build regardless of its store version. The `appVersion` policy would tie the runtime to `expo.version` and fragment the OTA audience on every version bump, forcing a fresh publish per version — the opposite of what a rolling preview / TestFlight channel needs.
+- **The drift invariant:** the value committed here MUST equal the constant the build backend stamps into every build (`OTA_RUNTIME_VERSION = "1.0.0"` in `ProcessBuildTask`). The publishing side (`eas update --branch <channel>`) resolves the runtime from the committed `app.json`. If the committed value and the backend-stamped value ever drift, published updates match no installed build and OTA silently stops delivering. Bump the runtime ONLY when a native change breaks OTA JS compatibility — and change both places together.
 
 ### Publishing an OTA
 
@@ -103,7 +100,7 @@ eas update --channel production --message "Fix typo on results screen"
 eas update --channel preview    --message "QA build for testers"
 ```
 
-The published bundle reaches installed apps that were built from the matching channel **and** share the same runtime version (i.e. the same `version`).
+The published bundle reaches installed apps that were built from the matching channel **and** carry the fixed runtime version (`1.0.0`) — which, because it is a constant rather than the `appVersion` policy, is every build regardless of its store `version`.
 
 ### When OTA does NOT apply — a new store build is required
 
@@ -115,13 +112,13 @@ OTA only carries the JS bundle and bundled assets. Anything that touches the **n
 
 Rule of thumb: if the change would alter what `expo prebuild` generates, it is **not** OTA-eligible.
 
-### First build after enabling updates (one-time)
+### Only builds made with the updates runtime can receive OTA
 
-`expo-updates` was added to a binary that never shipped it. **The App Store build currently live (Erudite Quiz, Apple ID 6787385686) was built without the updates runtime and can never receive OTA.** Exactly one new store build must be produced *after* this change to embed the updates runtime; only builds made from then on can accept OTA. Bundle this rebuild with the store-links change (task #876) so a single `production` rebuild + resubmit ships both.
+A binary can accept OTA only if it was built *after* `expo-updates` (with the injected `updates.url` and runtimeVersion) was in place. Any older store binary produced before OTA was wired — including the first Erudite App Store build — can never receive an over-the-air update, no matter what is published to its channel. To bring such a binary onto the OTA track, produce one fresh native build through the backend pipeline; every build made from then on picks up published updates on its channel.
 
 ### Multi-app note
 
-This tree builds several apps (see [Logo Quiz](logo-quiz.md) and the `EXPO_PUBLIC_APP_SLUG` switch). The build backend injects each app's `extra.eas.projectId` at build time, but the committed `updates.url` above is Erudite Quiz's. Before enabling OTA for a sibling app built from this same tree, the backend's build-time config injection must also set `updates.url` from that app's own `expo_project_id` — otherwise a sibling build would point OTA at Erudite Quiz's EAS project.
+Because `updates.url` and `extra.eas.projectId` are injected per app from each App record's `expo_project_id` (see [Config](#config) above), every sibling built from this tree — Logo Quiz, Flags Quiz — automatically publishes and pulls OTA against its own EAS project. No app-specific endpoint is committed, so nothing in the repo changes when a new sibling comes online; the backend needs only that app's `expo_project_id`.
 
 ## Lint
 
@@ -130,6 +127,14 @@ npm run lint
 ```
 
 Uses ESLint with the `eslint-config-expo` preset.
+
+## Unit Tests (Jest)
+
+```
+npm test
+```
+
+Runs the Jest suite (`jest-expo` preset). The tests live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing, the hint and lives economies, answer stats, store links, RevenueCat gating, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. They are fast unit tests with no device, emulator, or backend dependency, so the suite runs in seconds and is safe to run on every change.
 
 ## E2E Flows (Maestro)
 
@@ -166,7 +171,7 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 
 | File | Purpose |
 |------|---------|
-| app.json | Expo project config (bundle ID, plugins, new architecture; the AdMob App ID lives in the `react-native-google-mobile-ads` plugin entry; EAS Update `updates.url` + `runtimeVersion` for OTA) |
+| app.json | Expo project config (bundle ID, plugins, new architecture; the AdMob App ID lives in the `react-native-google-mobile-ads` plugin entry; the fixed EAS Update `runtimeVersion` for OTA — `updates.url` + EAS `projectId` are injected per-app by the build backend) |
 | eas.json | EAS build profiles (per-profile public env: Sentry DSN, RevenueCat Android key, AdMob rewarded unit id; per-profile EAS Update `channel`) |
 | package.json | Dependencies and npm scripts |
 | tsconfig.json | TypeScript config with the `@/` path alias |
