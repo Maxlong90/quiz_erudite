@@ -40,6 +40,10 @@ export type StringKey =
   | 'settings.signIn.titleAlert'
   | 'settings.signIn.messageAlert'
   | 'settings.languageModal.title'
+  | 'settings.appearance'
+  | 'settings.appearanceModal.title'
+  | 'settings.theme.light'
+  | 'settings.theme.dark'
   | 'common.cancel'
   | 'lives.outOf.title'
   | 'lives.outOf.body'
@@ -360,6 +364,10 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.signIn.titleAlert': 'Sign in is coming soon',
     'settings.signIn.messageAlert': 'Accounts will be optional — keep your progress across devices once signed in.',
     'settings.languageModal.title': 'Choose language',
+    'settings.appearance': 'Appearance',
+    'settings.appearanceModal.title': 'Appearance',
+    'settings.theme.light': 'Light',
+    'settings.theme.dark': 'Dark',
     'common.cancel': 'Cancel',
 
     'lives.outOf.title': 'Out of lives',
@@ -680,6 +688,10 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.signIn.titleAlert': 'Inicio de sesión próximamente',
     'settings.signIn.messageAlert': 'Las cuentas serán opcionales — guarda tu progreso entre dispositivos cuando inicies sesión.',
     'settings.languageModal.title': 'Elige el idioma',
+    'settings.appearance': 'Apariencia',
+    'settings.appearanceModal.title': 'Apariencia',
+    'settings.theme.light': 'Claro',
+    'settings.theme.dark': 'Oscuro',
     'common.cancel': 'Cancelar',
 
     'lives.outOf.title': 'Sin vidas',
@@ -1000,6 +1012,10 @@ export const STRINGS: Record<SupportedLocale, Bundle> = {
     'settings.signIn.titleAlert': 'Вход скоро',
     'settings.signIn.messageAlert': 'Аккаунт необязателен — после входа прогресс будет синхронизироваться между устройствами.',
     'settings.languageModal.title': 'Выбор языка',
+    'settings.appearance': 'Оформление',
+    'settings.appearanceModal.title': 'Оформление',
+    'settings.theme.light': 'Светлая',
+    'settings.theme.dark': 'Тёмная',
     'common.cancel': 'Отмена',
 
     'lives.outOf.title': 'Закончились жизни',

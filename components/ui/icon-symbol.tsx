@@ -31,6 +31,8 @@ const MAPPING = {
   'arrow.clockwise': 'refresh',
   'creditcard.fill': 'credit-card',
   'moon.fill': 'dark-mode',
+  'sun.max.fill': 'light-mode',
+  'paintpalette.fill': 'palette',
   'star.fill': 'star',
   'globe': 'language',
   'person.fill': 'person',

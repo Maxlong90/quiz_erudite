@@ -19,8 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomBar } from '@/components/bottom-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LanguageModal } from '@/components/settings/language-modal';
+import { AppearanceModal } from '@/components/settings/appearance-modal';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { usePremium } from '@/hooks/use-premium';
+import { useThemePref, type ThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
 import { clearCache as clearContentCache } from '@/lib/content-cache';
 import { getAndroidPackage, getStoreLinks } from '@/lib/store-links';
@@ -46,12 +48,19 @@ const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
   ru: 'Русский',
 };
 
+const THEME_LABEL_KEY: Record<ThemePref, StringKey> = {
+  dark: 'settings.theme.dark',
+  light: 'settings.theme.light',
+};
+
 export default function SettingsScreen() {
   const { locale, changeLocale, resetLocale } = useLocale();
   const { resetPremium } = usePremium();
+  const { theme, setTheme } = useThemePref();
   const { t } = useTranslation();
   const { snapshot } = useContentCache();
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   async function handleReset() {
     const allKeys = await AsyncStorage.getAllKeys();
@@ -193,6 +202,13 @@ export default function SettingsScreen() {
               value={LANGUAGE_LABEL[locale]}
               onPress={() => setLanguageOpen(true)}
             />
+            <Divider />
+            <Row
+              icon="paintpalette.fill"
+              label={t('settings.appearance')}
+              value={t(THEME_LABEL_KEY[theme])}
+              onPress={() => setAppearanceOpen(true)}
+            />
           </View>
 
           <SectionLabel labelKey="settings.section.account" />
@@ -284,6 +300,13 @@ export default function SettingsScreen() {
         selected={locale}
         onClose={() => setLanguageOpen(false)}
         onPick={(picked) => changeLocale(picked)}
+      />
+
+      <AppearanceModal
+        visible={appearanceOpen}
+        selected={theme}
+        onClose={() => setAppearanceOpen(false)}
+        onPick={(picked) => setTheme(picked)}
       />
     </LinearGradient>
   );

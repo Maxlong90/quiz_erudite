@@ -7,11 +7,12 @@
 // splash -> language -> onboarding -> (paywall) -> home.
 //
 // This module holds a single process-lifetime flag: true until the first Home
-// mount consumes it. The first Home mount of a cold start redirects to /splash;
-// every later return to Home (from onboarding, quiz, the bottom bar, etc.)
-// renders Home normally. The flag resets only on a full app restart, so the
-// full intro runs on every cold start — and, like the rest of the flow, it is
-// never gated on any persisted AsyncStorage "seen"/"picked" flag.
+// mount consumes it. The first Home mount of a cold start is the only place the
+// intro *can* start; Home then additionally checks the persisted
+// `onboarding.seen.v1` flag and only redirects to /splash when onboarding has
+// never been completed. So the full intro runs exactly once — on the first
+// launch ever — and every later launch (and every later return to Home from
+// onboarding, quiz, the bottom bar, etc.) renders Home normally.
 let coldStartPending = true;
 
 /**

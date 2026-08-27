@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Image,
@@ -56,10 +57,19 @@ interface ModeDef {
   onPress?: () => void;
 }
 
+// Persisted "first-run intro completed" flag. Written by useOnboarding()
+// (hooks/use-onboarding.ts) when the user finishes/skips onboarding; read here
+// so the whole intro (splash -> language -> onboarding) runs exactly ONCE, on
+// the very first launch, and never again on later cold starts.
+const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
+
 // Home is the route expo-router opens on a cold launch (`/`), so it doubles as
 // the entry gate: the first mount of a cold start bounces into the intro flow
 // (splash -> language -> onboarding -> paywall -> home) instead of rendering
-// Home. Every later return to Home renders it normally. See lib/intro-gate.ts.
+// Home — but ONLY if onboarding hasn't been completed before. Once the
+// persisted `onboarding.seen.v1` flag is set, every launch renders Home
+// directly. Every later return to Home also renders it normally. See
+// lib/intro-gate.ts.
 export default function HomeRoute() {
   // The Logo Quiz app template is a self-contained experience with its own
   // flow (Welcome → Shop → Quiz → Result) and economy — it skips the erudite
@@ -74,8 +84,39 @@ export default function HomeRoute() {
   if (APP_SLUG === 'flags-quiz') {
     return <Redirect href="/flags-quiz" />;
   }
-  const [redirectToIntro] = useState(() => consumeColdStart());
-  if (redirectToIntro) {
+  // Only the first Home mount of a cold start is a candidate for the intro.
+  const [isColdStart] = useState(() => consumeColdStart());
+  // Whether the first-run intro should play. `null` = still reading the
+  // persisted flag; we hold on a plain gradient for that one async tick so we
+  // never flash Home before deciding, nor replay the intro after it's seen.
+  const [playIntro, setPlayIntro] = useState<boolean | null>(isColdStart ? null : false);
+
+  useEffect(() => {
+    if (!isColdStart) return;
+    let active = true;
+    AsyncStorage.getItem(ONBOARDING_SEEN_KEY)
+      .then((v) => {
+        if (active) setPlayIntro(v !== '1');
+      })
+      .catch(() => {
+        if (active) setPlayIntro(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isColdStart]);
+
+  if (playIntro === null) {
+    // Reading the flag — hold on the app's base gradient (no flash of Home).
+    return (
+      <LinearGradient
+        colors={['#1a1a47', '#2d1f5e', '#1a1a47']}
+        locations={[0, 0.55, 1]}
+        style={styles.flex}
+      />
+    );
+  }
+  if (playIntro) {
     return <Redirect href="/splash" />;
   }
   return <HomeScreen />;

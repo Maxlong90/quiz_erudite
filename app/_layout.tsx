@@ -9,6 +9,7 @@ import { ContentCacheProvider } from '@/hooks/use-content-cache';
 import { useImmersiveNavBar } from '@/hooks/use-immersive-nav-bar';
 import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
+import { ThemePrefProvider } from '@/hooks/use-theme-pref';
 // Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
 import { Sentry, sentryEnabled } from '@/lib/sentry';
 // Side-effect import: configures RevenueCat on supported Android builds; a
@@ -41,6 +42,7 @@ function RootLayout() {
 
   return (
     <LocaleProvider>
+      <ThemePrefProvider>
       <PremiumProvider>
       <ContentCacheProvider>
       <ThemeProvider value={NAV_THEME}>
@@ -114,6 +116,7 @@ function RootLayout() {
       </ThemeProvider>
       </ContentCacheProvider>
       </PremiumProvider>
+      </ThemePrefProvider>
     </LocaleProvider>
   );
 }

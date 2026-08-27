@@ -15,7 +15,7 @@ import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
 import { APP_SLUG } from '@/api/client';
 import { useTranslation } from '@/hooks/use-translation';
 
-const SPLASH_DURATION_MS = 5000;
+const SPLASH_DURATION_MS = 3000;
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 export default function SplashScreen() {
@@ -30,11 +30,10 @@ export default function SplashScreen() {
     wordmarkScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
-    // Always run the full intro on every cold start: splash -> language ->
-    // onboarding -> paywall (when enabled) -> home. We deliberately do NOT
-    // gate on any persisted "seen"/"picked" flag, so a restored Android Auto
-    // Backup can never skip the first-run flow. The language picker is the
-    // first step of onboarding, so the splash always hands off to it.
+    // The splash is only ever reached on the first-run intro (Home gates the
+    // redirect here on the persisted `onboarding.seen.v1` flag — see
+    // app/index.tsx). So once we're here, always hand off to the next intro
+    // step: splash -> language -> onboarding -> paywall (when enabled) -> home.
     const timer = setTimeout(() => {
       router.replace('/language');
     }, SPLASH_DURATION_MS);

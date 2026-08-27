@@ -519,12 +519,16 @@ const styles = StyleSheet.create({
   },
   table: {
     marginHorizontal: 20,
-    marginTop: 14,
+    // Pushed down by roughly one subscription-button height so the benefits
+    // block sits lower on the (yearly-default) paywall.
+    marginTop: 84,
     marginBottom: 14,
     borderRadius: 18,
-    backgroundColor: '#ffffff0d',
+    // Highlighted in the "Оформить" CTA purple (#7c5cff) so the benefits block
+    // stands out, tying it visually to the subscribe button.
+    backgroundColor: '#7c5cff26',
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: '#7c5cff',
     overflow: 'hidden',
   },
   tableHeaderRow: {
