@@ -19,7 +19,8 @@ The app exists to deliver a fast, replayable general-knowledge trivia experience
 │                                                            │
 │  ┌──────────────────────────────────────────────────────┐ │
 │  │  Context providers (top of tree)                     │ │
-│  │  LocaleProvider → PremiumProvider → ContentCache     │ │
+│  │  LocaleProvider → ThemePrefProvider →                │ │
+│  │  PremiumProvider → ContentCache                      │ │
 │  └──────────────────────────────────────────────────────┘ │
 │  ┌──────────────────────┐  ┌──────────────────────────┐   │
 │  │  Local persistence   │  │  API client (Axios)      │   │
@@ -40,7 +41,7 @@ The app exists to deliver a fast, replayable general-knowledge trivia experience
 
 ## Navigation
 
-Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. Every cold start runs the full intro — splash → language → onboarding → home — regardless of any persisted "seen"/"picked" flag; the flow is deliberately *not* gated on AsyncStorage, so a restored Android Auto Backup can never skip splash, language, or onboarding. Onboarding can divert once to a forced paywall before home, but only when store billing is enabled on the platform (`revenueCatEnabled`) and the per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a hardcoded dark purple gradient. Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
+Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. Every cold start runs the full intro — splash → language → onboarding → home — regardless of any persisted "seen"/"picked" flag; the flow is deliberately *not* gated on AsyncStorage, so a restored Android Auto Backup can never skip splash, language, or onboarding. Onboarding can divert once to a forced paywall before home, but only when store billing is enabled on the platform (`revenueCatEnabled`) and the per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a full-screen themed gradient — dark purple by default, or a light lavender tint when the light appearance is selected (see [Theming and Appearance](#theming-and-appearance)). Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
 
 | Route | Screen | Role |
 |-------|--------|------|
@@ -55,20 +56,60 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | `stats` | Stats | Career totals and achievement progress |
 | `shop` | Shop | Lives and hint bundles (RevenueCat where store billing is enabled; local-grant only in Expo Go / web) |
 | `account` | Account | Sign-up/login UI (not wired to a backend) |
-| `settings` | Settings | Language, reset, legal links |
+| `settings` | Settings | Language, appearance, reset, legal links |
 | `paywall` | Paywall | Premium pitch; tapping a locked mode lands here |
 
 The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, and settings, and hides itself on the quiz and results screens.
 
 ## State and Context
 
-Three React context providers wrap the whole tree, in this order: `LocaleProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
+Four React context providers wrap the whole tree, in this order: `LocaleProvider`, `ThemePrefProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
 
 - **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`). It seeds from the device locale and falls back to English.
+- **`ThemePrefProvider`** (`hooks/use-theme-pref.ts`) holds the app-selected appearance (`dark` or `light`), hydrated from storage and flipped by the Settings appearance switcher. Because the choice lives in React state above every screen, changing it repaints the whole app instantly. See [Theming and Appearance](#theming-and-appearance).
 - **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Wherever store billing is enabled (any native platform with a RevenueCat key — Android today, iOS once its key is supplied) it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
 
 Quiz gameplay state is local to the quiz screen via `useQuizSession` (`hooks/use-quiz-session.ts`), a `useReducer` state machine. See [Quiz Flow](quiz-flow.md).
+
+## Theming and Appearance
+
+The Erudite app ships two full appearances — a default dark purple and an added light lavender — that the player toggles from the **Appearance** row in Settings. The choice repaints every screen instantly, with no restart, and persists across launches. This exists so the app is comfortable in bright and dim environments without asking the player to follow the OS setting; the preference is deliberately independent of the device colour scheme.
+
+### Why a token layer
+
+Before this system, roughly 650 hardcoded hex values were scattered across screens: each screen carried its own inline `LinearGradient` backdrop and white text. That made a second theme impossible to add without touching every file, and impossible to keep consistent. The fix is a single semantic palette that every screen reads through a hook, so a colour decision lives in one place and both themes stay in lockstep.
+
+`constants/theme.ts` defines `EruditePalette` — a set of semantic tokens named by role, not by colour (`text`, `textMuted`, `surface`, `sheet`, `scrim`, `border`, `accent`, `success`, `danger`, `gold`, and quiz-option tokens such as `optCorrectBg` and `explanationBg`). `EruditeColors` provides one concrete `dark` and one `light` value for every token. The dark values are a byte-for-byte lift of the old hardcoded colours, so the dark theme is unchanged from before the migration — the light theme is purely additive, and dark remains the default.
+
+Two tokens carry deliberate design intent worth knowing. The brand accent `#7c5cff` is identical in both themes — it anchors the identity regardless of appearance. The `accentSoft` token, however, is *darkened* in light mode (`#6a45f5` instead of `#a78bff`): the pale dark-mode accent is invisible on a white surface, so light mode uses a stronger tone for progress bars and labels. The `onAccent` token stays white in both themes because it sits on coloured gradients (category and mode tiles) that keep their brand colours regardless of appearance.
+
+### How screens consume the palette
+
+```
+┌────────────────────┐   theme: 'dark'|'light'   ┌──────────────────┐
+│  ThemePrefProvider │ ────────────────────────→ │  useThemeColors  │
+│  (React state,     │                           │  (picks palette) │
+│   AsyncStorage)    │                           └────────┬─────────┘
+└────────────────────┘                                    │ EruditePalette
+        ↑ setTheme                                         ↓
+┌────────────────────┐                            ┌──────────────────┐
+│  AppearanceModal   │                            │  Every screen /  │
+│  (Settings row)    │                            │  component       │
+└────────────────────┘                            └──────────────────┘
+```
+
+`useThemeColors` (`hooks/use-theme-colors.ts`) reads the active preference from `useThemePref` and returns the matching `EruditePalette`. Screens follow one recipe: call `useThemeColors()`, then build a memoised stylesheet with `const styles = useMemo(() => makeStyles(colors), [colors])`, where `makeStyles` is a factory that receives the palette and substitutes each token for what used to be a hex literal. When the preference flips, `colors` changes identity, the memo recomputes, and the screen restyles. Every sub-component that references styles gets its own `useThemeColors()` call — the palette is not threaded through props.
+
+`ScreenBackground` (`components/screen-background.tsx`) replaces the old per-screen inline gradients. It renders the appearance-specific `bgGradient` plus a matching `StatusBar` style (light glyphs on dark, dark glyphs on light), so a screen drops it in place of the former `LinearGradient` + `StatusBar` pair and inherits themed chrome for free.
+
+### The reactive root
+
+The navigator itself must repaint too. `app/_layout.tsx` splits into an outer `RootLayout` (which mounts the providers) and an inner `ThemedRoot` (which runs *under* `ThemePrefProvider`, so it can consume the theme). `ThemedRoot` drives three things off the palette that used to be module-level constants: the react-navigation theme (`background`/`card` set to `bgSolid` so sliding screens do not flash a white card), the Stack `contentStyle` background, and the Android system root-view colour via `SystemUI.setBackgroundColorAsync` (so the translucent system navigation bar stays on-theme). A `ready` gate holds a neutral `bgSolid` fill on cold start until the persisted preference loads, avoiding a one-frame dark flash for light-mode users.
+
+### Scope: Erudite only
+
+The sibling apps [Logo Quiz](logo-quiz.md) and Flags Quiz keep their own bespoke palettes under `constants/logo-quiz/` and `constants/flags-quiz/` and are untouched by this system. The token layer is additive: the legacy `Colors`/`QuizColors` maps in `constants/theme.ts` (which back an Expo-starter OS-scheme path) remain in place, and the OS-driven `ThemedText`/`ThemedView` primitives are intentionally *not* reused here — they read the device colour scheme, which is the wrong signal for an app-selected appearance.
 
 ## Key Design Decisions
 
@@ -98,13 +139,17 @@ api/                    Backend communication
   reports.ts            Content report submission
   types.ts              Shared API interfaces
 components/
+  screen-background.tsx Themed full-screen gradient + status bar
   bottom-bar.tsx        Cross-screen nav bar
   home/                 Category picker and mode config modals
   quiz/                 Question cards, hint bar, lives bar, timer, report
+  settings/             Appearance switcher and other settings modals
   achievements/         Achievement rows, badges, unlock modal
   lives/  shop/         Claim, buy, and info modals
 hooks/                  Locale, premium, content cache, quiz session,
                         lives, hints, mistakes, achievements, translation
+  use-theme-pref.ts     App-selected appearance (dark/light), persisted
+  use-theme-colors.ts   Resolves the active EruditePalette
 lib/                    Device-local business logic and persistence
   content-cache.ts      Snapshot download + image cache
   lives.ts  hints.ts    Currency stores
@@ -116,7 +161,7 @@ lib/                    Device-local business logic and persistence
   revenuecat.ts         RevenueCat wrapper; capability-gated per platform; off in Expo Go / web
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
-  theme.ts              Colors and typography
+  theme.ts              EruditePalette tokens (dark/light), legacy colors, fonts
 i18n/                   String tables for en, ru, es
 
 app/logo-quiz/          Second app: self-contained Logo Quiz flow
