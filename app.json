@@ -13,7 +13,7 @@
     },
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.quizzzes.erudite",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
