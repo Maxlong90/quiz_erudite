@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import type { HintKind, HintsState } from '@/lib/hints';
 import type { StringKey } from '@/i18n/strings';
 
@@ -46,6 +49,8 @@ interface Props {
  */
 export function HintBar({ state, used, disabled, hard, unlimited, onUse }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const defs = hard ? HARD : REGULAR;
   return (
     <View style={styles.row}>
@@ -76,7 +81,7 @@ export function HintBar({ state, used, disabled, hard, unlimited, onUse }: Props
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -94,13 +99,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 14,
-    backgroundColor: '#7c5cff22',
+    backgroundColor: c.accentBgSoft,
     borderWidth: 1,
-    borderColor: '#7c5cff66',
+    borderColor: c.accentBorderSoft,
   },
   btnOff: {
-    backgroundColor: '#ffffff08',
-    borderColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
+    borderColor: c.borderSoft,
   },
   btnPressed: {
     opacity: 0.7,
@@ -109,23 +114,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   label: {
-    color: '#fff',
+    color: c.text,
     fontSize: 13,
     fontWeight: '700',
   },
   labelOff: {
-    color: '#ffffff66',
+    color: c.textDisabled,
   },
   badge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: '#ffffff22',
+    backgroundColor: c.borderStrong,
     minWidth: 22,
     alignItems: 'center',
   },
   badgeText: {
-    color: '#fff',
+    color: c.text,
     fontSize: 11,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import {
   submitReport,
   type ReportContentType,
@@ -28,19 +30,6 @@ const REASONS: { id: ReportReason; labelKey: StringKey }[] = [
   { id: 'other', labelKey: 'report.reason.other' },
 ];
 
-const COLORS = {
-  sheet: '#1f1949',
-  text: '#fff',
-  textMuted: '#ffffffaa',
-  border: '#ffffff1f',
-  rowBackground: '#ffffff0d',
-  accent: '#7c5cff',
-  accentSoft: '#7c5cff33',
-  inputBorder: '#ffffff33',
-  placeholder: '#ffffff66',
-  error: '#ff8a8a',
-};
-
 interface Props {
   visible: boolean;
   contentType: ReportContentType;
@@ -53,6 +42,8 @@ type Phase = 'idle' | 'submitting' | 'success' | 'error';
 
 export function ReportModal({ visible, contentType, contentId, locale, onClose }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [comment, setComment] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -126,14 +117,14 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                       style={[
                         styles.reasonRow,
                         selected
-                          ? { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accent }
-                          : { backgroundColor: COLORS.rowBackground, borderColor: COLORS.border },
+                          ? { backgroundColor: colors.accentBg, borderColor: colors.accent }
+                          : { backgroundColor: colors.surfaceSoft, borderColor: colors.border },
                       ]}
                     >
                       <View
                         style={[
                           styles.radio,
-                          { borderColor: selected ? COLORS.accent : COLORS.textMuted },
+                          { borderColor: selected ? colors.accent : colors.textFaint },
                         ]}
                       >
                         {selected && <View style={styles.radioDot} />}
@@ -147,7 +138,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
               <TextInput
                 style={styles.commentInput}
                 placeholder={t('report.commentPlaceholder')}
-                placeholderTextColor={COLORS.placeholder}
+                placeholderTextColor={colors.textDisabled}
                 value={comment}
                 onChangeText={setComment}
                 multiline
@@ -175,7 +166,7 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
                   ]}
                 >
                   {phase === 'submitting' ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <Text style={styles.primaryButtonText}>{t('report.submit')}</Text>
                   )}
@@ -189,14 +180,14 @@ export function ReportModal({ visible, contentType, contentId, locale, onClose }
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: COLORS.sheet,
+    backgroundColor: c.sheet,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -209,17 +200,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#ffffff33',
+    backgroundColor: c.borderStrong,
     marginBottom: 8,
   },
   title: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
-    color: COLORS.textMuted,
+    color: c.textFaint,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -248,17 +239,17 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: COLORS.accent,
+    backgroundColor: c.accent,
   },
   reasonLabel: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 15,
     flexShrink: 1,
   },
   commentInput: {
-    color: COLORS.text,
-    backgroundColor: COLORS.rowBackground,
-    borderColor: COLORS.inputBorder,
+    color: c.text,
+    backgroundColor: c.surfaceSoft,
+    borderColor: c.borderStrong,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -268,7 +259,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   errorText: {
-    color: COLORS.error,
+    color: c.danger,
     textAlign: 'center',
     fontSize: 13,
   },
@@ -284,10 +275,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: c.border,
   },
   secondaryButtonText: {
-    color: COLORS.text,
+    color: c.text,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -297,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accent,
+    backgroundColor: c.accent,
   },
   primaryButtonFull: {
     flex: undefined,
@@ -305,7 +296,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

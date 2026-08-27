@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -6,11 +6,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
-import { ThemedText } from '@/components/themed-text';
-import { QuizColors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import type { EruditePalette } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 
 interface OptionButtonProps {
   text: string;
@@ -33,7 +32,8 @@ export function OptionButton({
   onPress,
   disabled,
 }: OptionButtonProps) {
-  const theme = useColorScheme() ?? 'light';
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const bgOpacity = useSharedValue(0);
@@ -62,28 +62,28 @@ export function OptionButton({
 
   const getBackgroundColor = () => {
     if (!isRevealed) {
-      return theme === 'dark' ? QuizColors.neutralDark : QuizColors.neutral;
+      return colors.optIdleBg;
     }
     if (isCorrectOption) {
-      return theme === 'dark' ? '#166534' : QuizColors.correctLight;
+      return colors.optCorrectBg;
     }
     if (isSelected && !isCorrectOption) {
-      return theme === 'dark' ? '#991b1b' : QuizColors.wrongLight;
+      return colors.optWrongBg;
     }
-    return theme === 'dark' ? QuizColors.neutralDark : QuizColors.neutral;
+    return colors.optIdleBg;
   };
 
   const getBorderColor = () => {
     if (!isRevealed) {
-      return theme === 'dark' ? '#4b5563' : '#d1d5db';
+      return colors.optIdleBorder;
     }
     if (isCorrectOption) {
-      return QuizColors.correct;
+      return colors.success;
     }
     if (isSelected && !isCorrectOption) {
-      return QuizColors.wrong;
+      return colors.danger;
     }
-    return theme === 'dark' ? '#4b5563' : '#d1d5db';
+    return colors.optIdleBorder;
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -106,10 +106,10 @@ export function OptionButton({
           animatedStyle,
         ]}
       >
-        <ThemedText style={[styles.label, isRevealed && isCorrectOption && styles.correctLabel, isRevealed && isSelected && !isCorrectOption && styles.wrongLabel]}>
+        <Text style={[styles.label, isRevealed && isCorrectOption && styles.correctLabel, isRevealed && isSelected && !isCorrectOption && styles.wrongLabel]}>
           {OPTION_LABELS[index]}
-        </ThemedText>
-        <ThemedText
+        </Text>
+        <Text
           style={[
             styles.text,
             isRevealed && isCorrectOption && styles.correctText,
@@ -117,13 +117,13 @@ export function OptionButton({
           ]}
         >
           {text}
-        </ThemedText>
+        </Text>
       </Animated.View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -137,22 +137,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     width: 24,
     textAlign: 'center',
+    color: c.text,
   },
   text: {
     fontSize: 16,
     flex: 1,
+    color: c.text,
   },
   correctLabel: {
-    color: QuizColors.correct,
+    color: c.success,
   },
   wrongLabel: {
-    color: QuizColors.wrong,
+    color: c.danger,
   },
   correctText: {
-    color: QuizColors.correct,
+    color: c.success,
     fontWeight: '600',
   },
   wrongText: {
-    color: QuizColors.wrong,
+    color: c.danger,
   },
 });

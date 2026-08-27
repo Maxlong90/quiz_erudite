@@ -1,4 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   count: number;
@@ -12,6 +16,8 @@ interface Props {
  * same pattern Duolingo / Wordscapes use once lives are abundant.
  */
 export function LivesBar({ count, unlimited }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const empty = !unlimited && count <= 0;
   return (
     <View style={[styles.wrap, empty && styles.wrapEmpty]} testID="lives-bar">
@@ -21,7 +27,7 @@ export function LivesBar({ count, unlimited }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -32,13 +38,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef444433',
   },
   wrapEmpty: {
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
   },
   heart: {
     fontSize: 14,
   },
   count: {
-    color: '#fff',
+    color: c.text,
     fontSize: 14,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],

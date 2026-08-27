@@ -78,6 +78,10 @@ export interface EruditePalette {
   accentSoft: string;
   /** Translucent accent background (chips, highlights). */
   accentBg: string;
+  /** Fainter accent-tint chip background (active hint button, stats header, replaceNotice). */
+  accentBgSoft: string;
+  /** Soft accent border matching accentBgSoft chips. */
+  accentBorderSoft: string;
   /** Text/icon sitting on a solid/gradient accent — white in both themes. */
   onAccent: string;
   success: string;
@@ -110,6 +114,8 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     accent: '#7c5cff',
     accentSoft: '#a78bff',
     accentBg: '#7c5cff33',
+    accentBgSoft: '#7c5cff22',
+    accentBorderSoft: '#7c5cff66',
     onAccent: '#fff',
     success: '#22c55e',
     danger: '#ef4444',
@@ -139,6 +145,8 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     accent: '#7c5cff',
     accentSoft: '#6a45f5',
     accentBg: '#7c5cff1a',
+    accentBgSoft: '#7c5cff14',
+    accentBorderSoft: '#7c5cff66',
     onAccent: '#fff',
     success: '#16a34a',
     danger: '#dc2626',

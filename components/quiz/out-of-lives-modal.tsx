@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -28,6 +30,8 @@ export function OutOfLivesModal({
   adAvailable = true,
 }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [pending, setPending] = useState(false);
 
   async function handleWatch() {
@@ -75,10 +79,10 @@ export function OutOfLivesModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: c.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -86,7 +90,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#1f1949',
+    backgroundColor: c.sheet,
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
@@ -97,26 +101,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    color: '#fff',
+    color: c.text,
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
   },
   body: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 12,
   },
   primary: {
     alignSelf: 'stretch',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
   },
   primaryText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -126,10 +130,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ffffff33',
+    borderColor: c.borderStrong,
   },
   secondaryText: {
-    color: '#fff',
+    color: c.text,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -138,7 +142,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dismissText: {
-    color: '#ffffff77',
+    color: c.textDisabled,
     fontSize: 13,
   },
 });

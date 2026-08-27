@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -22,8 +20,11 @@ import { QuestionCard } from '@/components/quiz/question-card';
 import { QuizTimer } from '@/components/quiz/quiz-timer';
 import { ReportButton } from '@/components/quiz/report-button';
 import { ReportModal } from '@/components/quiz/report-modal';
+import { ScreenBackground } from '@/components/screen-background';
 import { ShareQuestionButton } from '@/components/quiz/share-question-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import { useHintsState } from '@/hooks/use-hints';
 import { useLives } from '@/hooks/use-lives';
 import { usePremium } from '@/hooks/use-premium';
@@ -53,8 +54,6 @@ import {
   type QuestionStatsCache,
 } from '@/lib/answer-stats';
 import { getTodayQuestionId } from '@/lib/today-question';
-
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 type QuizMode = 'daily' | 'quick' | 'timed' | 'survival' | 'hard';
 
@@ -310,6 +309,8 @@ export default function QuizScreen() {
     : (category ? [category] : []);
 
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { snapshot } = useContentCache();
 
   const {
@@ -877,20 +878,18 @@ export default function QuizScreen() {
 
   if (status === 'loading') {
     return (
-      <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-        <StatusBar style="light" />
+      <ScreenBackground>
         <SafeAreaView style={styles.centered}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color={colors.text} />
           <Text style={styles.loadingText}>{t('quiz.loading')}</Text>
         </SafeAreaView>
-      </LinearGradient>
+      </ScreenBackground>
     );
   }
 
   if (status === 'error') {
     return (
-      <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-        <StatusBar style="light" />
+      <ScreenBackground>
         <SafeAreaView style={styles.centered}>
           <Text style={styles.emoji}>😕</Text>
           <Text style={styles.errorTitle}>{t('quiz.error.title')}</Text>
@@ -931,7 +930,7 @@ export default function QuizScreen() {
             loadQuestions();
           }}
         />
-      </LinearGradient>
+      </ScreenBackground>
     );
   }
 
@@ -940,8 +939,7 @@ export default function QuizScreen() {
   const isLastQuestion = currentIndex === questions.length - 1;
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.header}>
           <Pressable
@@ -951,7 +949,7 @@ export default function QuizScreen() {
             accessibilityLabel={t('quiz.error.home')}
             testID="close-quiz"
           >
-            <IconSymbol name="xmark" size={22} color="#ffffffcc" />
+            <IconSymbol name="xmark" size={22} color={colors.textMuted} />
           </Pressable>
           {livesApply && <LivesBar count={livesCount} unlimited={premiumUnlimited} />}
           <View style={styles.progressWrap}>
@@ -1081,7 +1079,7 @@ export default function QuizScreen() {
           }}
         />
       </SafeAreaView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -1091,30 +1089,32 @@ export default function QuizScreen() {
  * tint in the last 10 seconds.
  */
 function TotalTimer({ secondsLeft, totalSeconds }: { secondsLeft: number; totalSeconds: number }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeTotalTimerStyles(colors), [colors]);
   const m = Math.max(0, Math.floor(secondsLeft / 60));
   const s = Math.max(0, secondsLeft % 60);
   const label = `${m}:${s.toString().padStart(2, '0')}`;
   const isCritical = secondsLeft <= 10 && secondsLeft > 0;
-  const color = isCritical ? '#ef4444' : '#a78bff';
+  const color = isCritical ? colors.danger : colors.accentSoft;
   const ratio = totalSeconds > 0 ? Math.max(0, Math.min(1, secondsLeft / totalSeconds)) : 0;
   return (
-    <View style={totalTimerStyles.wrap}>
-      <View style={totalTimerStyles.row}>
-        <View style={totalTimerStyles.track}>
+    <View style={styles.wrap}>
+      <View style={styles.row}>
+        <View style={styles.track}>
           <View
             style={[
-              totalTimerStyles.fill,
+              styles.fill,
               { backgroundColor: color, width: `${ratio * 100}%` },
             ]}
           />
         </View>
-        <Text style={[totalTimerStyles.label, { color }]}>{label}</Text>
+        <Text style={[styles.label, { color }]}>{label}</Text>
       </View>
     </View>
   );
 }
 
-const totalTimerStyles = StyleSheet.create({
+const makeTotalTimerStyles = (c: EruditePalette) => StyleSheet.create({
   wrap: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -1129,7 +1129,7 @@ const totalTimerStyles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#ffffff22',
+    backgroundColor: c.border,
     overflow: 'hidden',
   },
   fill: {
@@ -1145,7 +1145,7 @@ const totalTimerStyles = StyleSheet.create({
   },
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -1159,20 +1159,20 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#ffffffcc',
+    color: c.textMuted,
   },
   emoji: {
     fontSize: 48,
     marginBottom: 8,
   },
   errorTitle: {
-    color: '#fff',
+    color: c.text,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   errorText: {
-    color: '#ffffffaa',
+    color: c.textFaint,
     textAlign: 'center',
     fontSize: 14,
     marginBottom: 8,
@@ -1181,7 +1181,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   homeLinkText: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -1218,13 +1218,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#7c5cff22',
+    backgroundColor: c.accentBgSoft,
     borderWidth: 1,
-    borderColor: '#7c5cff66',
+    borderColor: c.accentBorderSoft,
     alignItems: 'center',
   },
   replaceNoticeText: {
-    color: '#c9bbff',
+    color: c.accentSoft,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
@@ -1234,22 +1234,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ffffff1f',
+    borderTopColor: c.border,
   },
   primaryButton: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 28,
     alignItems: 'center',
-    shadowColor: '#7c5cff',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 6,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,

@@ -10,6 +10,8 @@ import { Image } from 'expo-image';
 import Animated, { FadeInDown, SlideInRight } from 'react-native-reanimated';
 
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import type { Question } from '@/api/types';
 
 export type HardVariant = 'typing' | 'letters';
@@ -43,6 +45,8 @@ export function HardQuestionCard({
   isCorrectSubmitted,
   onSubmit,
 }: Props) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const correctText = question.options[question.correct_option] ?? '';
 
   return (
@@ -105,6 +109,8 @@ function TypingVariant({
   onSubmit,
 }: VariantProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [value, setValue] = useState('');
   useEffect(() => {
     if (!isRevealed) setValue('');
@@ -118,8 +124,8 @@ function TypingVariant({
   }
 
   const borderColor = !isRevealed
-    ? '#ffffff44'
-    : isCorrectSubmitted ? '#22c55e' : '#ef4444';
+    ? colors.borderStrong
+    : isCorrectSubmitted ? colors.success : colors.danger;
 
   return (
     <View style={styles.section}>
@@ -133,7 +139,7 @@ function TypingVariant({
         autoCapitalize="none"
         autoCorrect={false}
         placeholder={t('hard.typing.placeholder')}
-        placeholderTextColor="#ffffff55"
+        placeholderTextColor={colors.textDisabled}
         style={[styles.input, { borderColor }]}
         onSubmitEditing={handleSubmit}
         returnKeyType="done"
@@ -173,6 +179,8 @@ function LettersVariant({
   onSubmit,
 }: VariantProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const initialRef = useRef<BankState | null>(null);
 
   const initialState = useMemo<BankState>(() => {
@@ -236,8 +244,8 @@ function LettersVariant({
   const allFilled = state.slots.every((s) => s.letter !== '');
   const slotsBg = (filled: boolean) =>
     !isRevealed
-      ? filled ? '#7c5cff' : '#ffffff14'
-      : isCorrectSubmitted ? '#22c55e' : '#ef4444';
+      ? filled ? colors.accent : colors.borderSoft
+      : isCorrectSubmitted ? colors.success : colors.danger;
 
   return (
     <View style={styles.section}>
@@ -256,10 +264,10 @@ function LettersVariant({
               disabled={isRevealed || !filled}
               style={[
                 styles.slot,
-                { backgroundColor: slotsBg(filled), borderColor: filled ? 'transparent' : '#ffffff33' },
+                { backgroundColor: slotsBg(filled), borderColor: filled ? 'transparent' : colors.borderStrong },
               ]}
             >
-              <Text style={[styles.slotLetter, !filled && { color: '#ffffff55' }]}>
+              <Text style={[styles.slotLetter, !filled && { color: colors.textDisabled }]}>
                 {isRevealed ? Array.from(correctText)[i]?.toUpperCase() : s.letter}
               </Text>
             </Pressable>
@@ -303,14 +311,14 @@ function LettersVariant({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 16,
   },
   imageWrapper: {
     alignItems: 'center',
-    backgroundColor: '#0e0e2a',
+    backgroundColor: c.surfaceSunken,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -323,28 +331,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 26,
-    color: '#fff',
+    color: c.text,
   },
   section: {
     gap: 12,
   },
   hint: {
-    color: '#ffffff99',
+    color: c.textFaint,
     fontSize: 13,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#ffffff10',
+    backgroundColor: c.surfaceSoft,
     borderWidth: 1.5,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '600',
   },
   checkButton: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
@@ -357,7 +365,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   checkText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -380,7 +388,7 @@ const styles = StyleSheet.create({
     width: 14,
   },
   slotLetter: {
-    color: '#fff',
+    color: c.text,
     fontSize: 18,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -395,27 +403,27 @@ const styles = StyleSheet.create({
     width: 38,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderWidth: 1,
-    borderColor: '#ffffff22',
+    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bankTileUsed: {
-    backgroundColor: '#ffffff05',
-    borderColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
+    borderColor: c.borderSoft,
   },
   explanationBox: {
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#0e1a3a',
+    backgroundColor: c.explanationBg,
     borderWidth: 1,
-    borderColor: '#ffffff14',
+    borderColor: c.borderSoft,
   },
   explanationText: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#ffffffd9',
+    color: c.explanationText,
     fontStyle: 'italic',
   },
 });

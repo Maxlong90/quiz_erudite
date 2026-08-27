@@ -3,6 +3,7 @@ import { Platform, Pressable, Share, StyleSheet } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
 import { getStoreLinks } from '@/lib/store-links';
 import type { Question } from '@/api/types';
 
@@ -18,6 +19,7 @@ interface Props {
  */
 export function ShareQuestionButton({ question }: Props) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
   const { snapshot } = useContentCache();
   const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
 
@@ -48,7 +50,7 @@ export function ShareQuestionButton({ question }: Props) {
       accessibilityLabel={t('shareQuestion.helper')}
       testID="share-question-button"
     >
-      <IconSymbol name="square.and.arrow.up" size={20} color="#ffffffcc" />
+      <IconSymbol name="square.and.arrow.up" size={20} color={colors.textMuted} />
     </Pressable>
   );
 }

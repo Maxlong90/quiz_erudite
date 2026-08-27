@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { AchievementUnlockModal } from '@/components/achievements/achievement-unlock-modal';
+import { ScreenBackground } from '@/components/screen-background';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
 import {
   ACHIEVEMENTS,
@@ -16,8 +17,6 @@ import {
   gatherMetrics,
   type AchievementProgress,
 } from '@/lib/achievements';
-
-const GRADIENT = ['#1a1a47', '#2d1f5e', '#1a1a47'] as const;
 
 export default function ResultsScreen() {
   const {
@@ -49,6 +48,8 @@ export default function ResultsScreen() {
   }>();
 
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { snapshot } = useContentCache();
   const [unlockQueue, setUnlockQueue] = useState<AchievementProgress[]>([]);
 
@@ -123,8 +124,7 @@ export default function ResultsScreen() {
   }
 
   return (
-    <LinearGradient colors={GRADIENT} locations={[0, 0.55, 1]} style={styles.flex}>
-      <StatusBar style="light" />
+    <ScreenBackground>
       <SafeAreaView style={styles.flex}>
         <View style={styles.content}>
           <Animated.View
@@ -174,11 +174,11 @@ export default function ResultsScreen() {
         progress={unlockQueue[0] ?? null}
         onDismiss={dismissCurrentUnlock}
       />
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#fff',
+    color: c.text,
     letterSpacing: 0.3,
     textAlign: 'center',
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     borderWidth: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff0a',
+    backgroundColor: c.surfaceSoft,
   },
   scoreNumber: {
     fontSize: 56,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   scoreDivider: {
     fontSize: 20,
-    color: '#ffffff99',
+    color: c.textFaint,
     fontVariant: ['tabular-nums'],
   },
   percentage: {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 16,
-    color: '#ffffffcc',
+    color: c.textMuted,
     textAlign: 'center',
     paddingHorizontal: 16,
   },
@@ -245,11 +245,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     paddingVertical: 16,
     borderRadius: 28,
     alignItems: 'center',
-    shadowColor: '#7c5cff',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   primaryButtonText: {
-    color: '#fff',
+    color: c.onAccent,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -270,14 +270,14 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ffffff44',
-    backgroundColor: '#ffffff0a',
+    borderColor: c.borderStrong,
+    backgroundColor: c.surfaceSoft,
   },
   secondaryPressed: {
     opacity: 0.7,
   },
   secondaryButtonText: {
-    color: '#fff',
+    color: c.text,
     fontSize: 16,
     fontWeight: '600',
   },

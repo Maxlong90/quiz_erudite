@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import { useMemo } from 'react';
 import Animated, {
   FadeInDown,
   SlideInRight,
 } from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
 import { OptionButton } from '@/components/quiz/option-button';
 import { useTranslation } from '@/hooks/use-translation';
+import { useThemeColors } from '@/hooks/use-theme-colors';
+import type { EruditePalette } from '@/constants/theme';
 import type { Question } from '@/api/types';
 
 interface QuestionCardProps {
@@ -28,6 +30,8 @@ export function QuestionCard({
   stats,
 }: QuestionCardProps) {
   const { t } = useTranslation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isRevealed = selectedOption !== null;
   const showStats = Array.isArray(stats);
 
@@ -45,7 +49,7 @@ export function QuestionCard({
         </View>
       )}
 
-      <ThemedText style={styles.questionText}>{question.question}</ThemedText>
+      <Text style={styles.questionText}>{question.question}</Text>
 
       {showStats && (
         <Animated.View entering={FadeInDown.duration(300)} style={styles.statsHeader}>
@@ -83,23 +87,23 @@ export function QuestionCard({
 
       {isRevealed && question.explanation && (
         <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.explanationBox}>
-          <ThemedText style={styles.explanationText}>
+          <Text style={styles.explanationText}>
             {question.explanation}
-          </ThemedText>
+          </Text>
         </Animated.View>
       )}
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     gap: 16,
   },
   imageWrapper: {
     alignItems: 'center',
-    backgroundColor: '#0e0e2a',
+    backgroundColor: c.surfaceSunken,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -112,18 +116,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 26,
-    color: '#fff',
+    color: c.text,
   },
   statsHeader: {
-    backgroundColor: '#7c5cff22',
-    borderColor: '#7c5cff66',
+    backgroundColor: c.accentBgSoft,
+    borderColor: c.accentBorderSoft,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   statsHeaderText: {
-    color: '#c9bbff',
+    color: c.accentSoft,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -144,17 +148,17 @@ const styles = StyleSheet.create({
   statsTrack: {
     flex: 1,
     height: 8,
-    backgroundColor: '#ffffff14',
+    backgroundColor: c.borderSoft,
     borderRadius: 4,
     overflow: 'hidden',
   },
   statsFill: {
     height: '100%',
-    backgroundColor: '#7c5cff',
+    backgroundColor: c.accent,
     borderRadius: 4,
   },
   statsText: {
-    color: '#a78bff',
+    color: c.accentSoft,
     fontSize: 12,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
@@ -164,12 +168,12 @@ const styles = StyleSheet.create({
   explanationBox: {
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: c.explanationBg,
   },
   explanationText: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#1e40af',
+    color: c.explanationText,
     fontStyle: 'italic',
   },
 });
