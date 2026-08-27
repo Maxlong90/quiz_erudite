@@ -50,3 +50,6 @@ AGENTS.md
 
 # Playwright MCP session logs
 .playwright-mcp/
+# >>> suslik-managed skills (auto)
+/.claude/skills/deliver-file/
+# <<< suslik-managed skills
