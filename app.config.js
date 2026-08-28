@@ -48,6 +48,28 @@ module.exports = ({ config } = {}) => {
     };
   }
 
+  // Coat of Arms variant (App Template): its own Expo project identity (name +
+  // slug) so it is a separate app in Expo Go and never shows the erudite/flags
+  // cached bundle. Store identity falls back to the erudite identity until an
+  // operator supplies coat-of-arms values. Mirrors the flags-quiz branch above.
+  if (appSlug === 'coat-of-arms') {
+    return {
+      ...base,
+      name: 'Coat of Arms',
+      slug: 'coat-of-arms',
+      ios: {
+        ...base.ios,
+        bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
+        // iPhone-only for now — no tablet layout yet (same as flags-quiz).
+        supportsTablet: false,
+      },
+      android: {
+        ...base.android,
+        package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+      },
+    };
+  }
+
   if (appSlug !== 'logo-quiz') {
     return base;
   }
