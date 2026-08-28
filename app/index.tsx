@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Image,
@@ -76,14 +77,36 @@ export default function HomeRoute() {
   if (APP_SLUG === 'flags-quiz') {
     return <Redirect href="/flags-quiz/splash" />;
   }
-  // Every cold start shows the QUIZZES splash; the splash then decides whether
-  // to run the first-run intro (language + onboarding) or skip straight to
-  // Home, based on the persisted onboarding.seen.v1 flag. See app/splash.tsx.
-  const [redirectToIntro] = useState(() => consumeColdStart());
-  if (redirectToIntro) {
-    return <Redirect href="/splash" />;
+  // Coat of Arms (App Template) is likewise a self-contained experience with its
+  // own blue home; APP_SLUG is a build-time constant, so this branch is stable
+  // across renders and never changes the hook order.
+  if (APP_SLUG === 'coat-of-arms') {
+    return <Redirect href="/coat-of-arms" />;
+  }
+  // On a cold start we go STRAIGHT to the first-run intro (language +
+  // onboarding) or Home — no QUIZZES splash animation in between. The branch
+  // is decided by the persisted onboarding.seen.v1 flag inside ColdStartGate.
+  const [isColdStart] = useState(() => consumeColdStart());
+  if (isColdStart) {
+    return <ColdStartGate />;
   }
   return <HomeScreen />;
+}
+
+// Cold-start gate: reads the onboarding flag and immediately routes to the
+// language/onboarding intro (first launch) or Home (every later launch).
+// While the (instant) AsyncStorage read resolves it paints only the plain
+// backdrop — no wordmark/tagline — so no splash flashes before onboarding.
+function ColdStartGate() {
+  const [target, setTarget] = useState<'intro' | 'home' | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem('onboarding.seen.v1')
+      .then((v) => setTarget(v === '1' ? 'home' : 'intro'))
+      .catch(() => setTarget('intro'));
+  }, []);
+  if (target === 'intro') return <Redirect href="/language" />;
+  if (target === 'home') return <HomeScreen />;
+  return <ScreenBackground />;
 }
 
 function HomeScreen() {

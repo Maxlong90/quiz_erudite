@@ -137,12 +137,12 @@ const makeStyles = (c: EruditePalette) => StyleSheet.create({
     fontWeight: '700',
     width: 24,
     textAlign: 'center',
-    color: c.text,
+    color: c.optIdleText,
   },
   text: {
     fontSize: 16,
     flex: 1,
-    color: c.text,
+    color: c.optIdleText,
   },
   correctLabel: {
     color: c.success,

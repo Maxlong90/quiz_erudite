@@ -87,6 +87,9 @@ const makeStyles = (c: EruditePalette) => StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 16,
+    // Drop the hint row lower, ~half an answer-option button's height below
+    // the question's options, so it reads as a separate control cluster.
+    marginTop: 26,
     paddingTop: 4,
     paddingBottom: 4,
   },

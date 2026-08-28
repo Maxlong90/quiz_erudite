@@ -89,6 +89,8 @@ export interface EruditePalette {
   gold: string;
   optIdleBg: string;
   optIdleBorder: string;
+  /** Label + text color for idle (unanswered) option pills. */
+  optIdleText: string;
   optCorrectBg: string;
   optWrongBg: string;
   explanationBg: string;
@@ -120,10 +122,13 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     success: '#22c55e',
     danger: '#ef4444',
     gold: '#ffd23a',
-    optIdleBg: '#374151',
-    optIdleBorder: '#4b5563',
-    optCorrectBg: '#166534',
-    optWrongBg: '#991b1b',
+    // Dark theme keeps LIGHT option pills with dark text (per design): the
+    // A/B/C/D cards read as pale cards on the dark backdrop, not dark-on-dark.
+    optIdleBg: '#e5e7eb',
+    optIdleBorder: '#d1d5db',
+    optIdleText: '#1c1740',
+    optCorrectBg: QuizColors.correctLight,
+    optWrongBg: QuizColors.wrongLight,
     explanationBg: '#0e1a3a',
     explanationText: '#ffffffd9',
   },
@@ -151,8 +156,11 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     success: '#16a34a',
     danger: '#dc2626',
     gold: '#ffd23a',
-    optIdleBg: QuizColors.neutral,
-    optIdleBorder: '#d1d5db',
+    // Light theme option pills are a filled purple in the hint-button family
+    // (~20% darker than the pale accent chips) with white text.
+    optIdleBg: '#6349cc',
+    optIdleBorder: '#6349cc',
+    optIdleText: '#ffffff',
     optCorrectBg: QuizColors.correctLight,
     optWrongBg: QuizColors.wrongLight,
     explanationBg: '#f0f9ff',
