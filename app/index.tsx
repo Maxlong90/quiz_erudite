@@ -81,7 +81,7 @@ export default function HomeRoute() {
   // own blue home; APP_SLUG is a build-time constant, so this branch is stable
   // across renders and never changes the hook order.
   if (APP_SLUG === 'coat-of-arms') {
-    return <Redirect href="/coat-of-arms" />;
+    return <Redirect href="/coat-of-arms/splash" />;
   }
   // On a cold start we go STRAIGHT to the first-run intro (language +
   // onboarding) or Home — no QUIZZES splash animation in between. The branch

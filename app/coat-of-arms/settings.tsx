@@ -97,9 +97,13 @@ export default function CoatOfArmsSettings() {
           <GlossyButton label={t.termsOfUse} onPress={() => openUrl(TERMS_URL)} />
         </View>
 
-        {/* App version pinned to the bottom of the screen. */}
+        {/* App version pinned to the bottom of the screen. Sits on a translucent
+            navy plate so it stays readable even when a coat of arms is directly
+            behind it (plain text was invisible over a light emblem). */}
         {APP_VERSION ? (
-          <Text style={styles.version}>{`${t.version} ${APP_VERSION}`}</Text>
+          <View style={styles.versionWrap}>
+            <Text style={styles.version}>{`${t.version} ${APP_VERSION}`}</Text>
+          </View>
         ) : null}
       </SafeAreaView>
 
@@ -155,19 +159,26 @@ const styles = StyleSheet.create({
 
   actions: { paddingHorizontal: 24, paddingTop: 12, gap: 14 },
 
-  // Muted version line, pushed to the bottom of the screen.
-  version: {
+  // Version line pushed to the bottom of the screen and centered so its plate
+  // hugs the text.
+  versionWrap: {
     marginTop: 'auto',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  // The text itself is a translucent navy pill: the backdrop guarantees the
+  // white label reads over any coat of arms behind it.
+  version: {
     textAlign: 'center',
     color: '#FFFFFF',
-    opacity: 0.75,
     fontSize: 13,
     fontWeight: '700',
-    paddingTop: 16,
-    paddingBottom: 8,
-    textShadowColor: 'rgba(4, 40, 96, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    backgroundColor: 'rgba(4, 32, 79, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 
   modalBackdrop: {
