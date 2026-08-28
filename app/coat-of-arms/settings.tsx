@@ -102,7 +102,10 @@ export default function CoatOfArmsSettings() {
             behind it (plain text was invisible over a light emblem). */}
         {APP_VERSION ? (
           <View style={styles.versionWrap}>
-            <Text style={styles.version}>{`${t.version} ${APP_VERSION}`}</Text>
+            {/* The shared Flags Quiz EN labels are missing `version` (it shows
+                "undefined" in English there); fall back to "Version" so Coat of
+                Arms never leaks that gap. ru/es/fr resolve normally. */}
+            <Text style={styles.version}>{`${t.version ?? 'Version'} ${APP_VERSION}`}</Text>
           </View>
         ) : null}
       </SafeAreaView>
