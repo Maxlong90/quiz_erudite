@@ -52,6 +52,11 @@ jest.mock('@/hooks/use-content-cache', () => ({
   useContentCache: () => ({ snapshot: mockSnapshot }),
 }));
 jest.mock('@/hooks/use-locale', () => ({ useLocale: () => ({ locale: 'en' }) }));
+// Pin the theme so useThemeColors and ScreenBackground resolve without a
+// ThemePrefProvider wrapping the render.
+jest.mock('@/hooks/use-theme-pref', () => ({
+  useThemePref: () => ({ theme: 'dark', ready: true, setTheme: jest.fn() }),
+}));
 
 jest.mock('@/lib/lives', () => ({
   spendLife: (...a: unknown[]) => mockSpendLife(...a),
