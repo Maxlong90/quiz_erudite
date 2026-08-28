@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   progress: { textAlign: 'center', color: LQColors.textFaint, fontWeight: '800', fontSize: 13 },
 
   logoArea: { alignItems: 'center', marginTop: 8, marginBottom: 14 },
-  prompt: { fontSize: 17, fontWeight: '800', color: LQColors.text, marginTop: 16 },
+  prompt: { fontSize: 17, fontWeight: '800', color: LQColors.text, marginTop: 16, textAlign: 'center' },
 
   options: {
     flexDirection: 'row',

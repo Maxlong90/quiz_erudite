@@ -32,6 +32,7 @@ const LANGUAGE_NAMES: Record<SupportedLocale, string> = {
   en: 'English',
   ru: 'Русский',
   es: 'Español',
+  fr: 'Français',
 };
 
 // External URLs — mirrors the main app's settings so a real Privacy page is a

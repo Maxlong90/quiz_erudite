@@ -51,6 +51,7 @@ const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
   en: 'English',
   es: 'Español',
   ru: 'Русский',
+  fr: 'Français',
 };
 
 const THEME_LABEL_KEY: Record<ThemePref, StringKey> = {

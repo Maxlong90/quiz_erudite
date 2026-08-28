@@ -4,9 +4,9 @@ import Svg, { ClipPath, Defs, Path, Rect } from 'react-native-svg';
 import type { SupportedLocale } from '@/hooks/use-locale';
 
 // Aspect ratio (width / height) per flag so each renders in its true proportions:
-// the Union Jack is 2:1, Russia and Spain are 3:2. English maps to the Union Jack
-// to match the main app's language picker.
-const RATIO: Record<SupportedLocale, number> = { en: 2, es: 1.5, ru: 1.5 };
+// the Union Jack is 2:1, Russia, Spain and France are 3:2. English maps to the
+// Union Jack to match the main app's language picker.
+const RATIO: Record<SupportedLocale, number> = { en: 2, es: 1.5, ru: 1.5, fr: 1.5 };
 
 /**
  * Small vector flag chip for the currently selected language. Drawn with
@@ -25,6 +25,7 @@ export function Flag({ locale, height = 18 }: { locale: SupportedLocale; height?
         {locale === 'ru' && <RussiaFlag />}
         {locale === 'es' && <SpainFlag />}
         {locale === 'en' && <UnionJack />}
+        {locale === 'fr' && <FrenchFlag />}
       </Svg>
     </View>
   );
@@ -47,6 +48,17 @@ function SpainFlag() {
     <>
       <Rect x={0} y={0} width={60} height={40} fill="#AA151B" />
       <Rect x={0} y={10} width={60} height={20} fill="#F1BF00" />
+    </>
+  );
+}
+
+// Three equal vertical bands: blue / white / red (viewBox 60×40).
+function FrenchFlag() {
+  return (
+    <>
+      <Rect x={0} y={0} width={20} height={40} fill="#0055A4" />
+      <Rect x={20} y={0} width={20} height={40} fill="#FFFFFF" />
+      <Rect x={40} y={0} width={20} height={40} fill="#EF4135" />
     </>
   );
 }

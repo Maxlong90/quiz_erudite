@@ -58,6 +58,7 @@ export interface FQLabels {
   backHome: string;
   // Gameplay
   tapToContinue: string;
+  next: string;
 }
 
 const EN: FQLabels = {
@@ -105,6 +106,7 @@ const EN: FQLabels = {
   retryMistakes: 'Retry mistakes',
   backHome: 'Home',
   tapToContinue: 'Tap to continue',
+  next: 'Next',
 };
 
 const RU: FQLabels = {
@@ -120,7 +122,7 @@ const RU: FQLabels = {
   maps: 'Карты',
   otherApps: 'Другие приложения',
   comingSoon: 'Будет доступно в скором времени',
-  whichCountry: 'Какой стране\nпринадлежит флаг?',
+  whichCountry: 'Какой стране\nпринадлежит этот флаг?',
   shareInvite: 'Угадаешь флаги? Играй в Flags Quiz: {url}',
   questions: 'Вопросов',
   africa: 'Африка',
@@ -152,6 +154,7 @@ const RU: FQLabels = {
   retryMistakes: 'Повторить ошибки',
   backHome: 'На главную',
   tapToContinue: 'Нажми, чтобы продолжить',
+  next: 'Далее',
 };
 
 const ES: FQLabels = {
@@ -199,15 +202,65 @@ const ES: FQLabels = {
   retryMistakes: 'Repetir errores',
   backHome: 'Inicio',
   tapToContinue: 'Toca para continuar',
+  next: 'Siguiente',
 };
 
-const TABLE: Record<SupportedLocale, FQLabels> = { en: EN, ru: RU, es: ES };
+const FR: FQLabels = {
+  appName: 'Quiz des Drapeaux',
+  tagline: 'Entraîne ton cerveau !',
+  play: 'Jouer',
+  shop: 'Boutique',
+  settings: 'Réglages',
+  allCountries: 'Tous les pays',
+  byContinents: 'Par continent',
+  challenge: 'Défi',
+  drawFlag: 'Dessiner un drapeau',
+  maps: 'Cartes',
+  otherApps: 'Autres applis',
+  comingSoon: 'Bientôt disponible',
+  whichCountry: 'À quel pays\nappartient ce drapeau ?',
+  shareInvite: 'Sauras-tu deviner les drapeaux ? Joue à Flags Quiz : {url}',
+  questions: 'Questions',
+  africa: 'Afrique',
+  northAmerica: 'Amérique du Nord',
+  southAmerica: 'Amérique du Sud',
+  asia: 'Asie',
+  europe: 'Europe',
+  oceania: 'Océanie',
+  cancelSubscription: 'Annuler l’abonnement',
+  restorePurchases: 'Restaurer les achats',
+  selectLanguage: 'Langue',
+  rateApp: 'Noter l’application',
+  contactSupport: 'Contacter le support',
+  privacyPolicy: 'Politique de confidentialité',
+  termsOfUse: 'Conditions d’utilisation',
+  restoreDoneTitle: 'Achats restaurés',
+  restoreDoneMessage: 'Votre accès premium a été restauré.',
+  restoreNoneTitle: 'Rien à restaurer',
+  restoreNoneMessage: 'Nous n’avons trouvé aucun achat précédent.',
+  restoreErrorTitle: 'Échec de la restauration',
+  restoreErrorMessage: 'Une erreur est survenue. Réessayez plus tard.',
+  ok: 'OK',
+  resultTitle: 'Résultats',
+  resultCaption: 'Bonnes réponses',
+  resultExcellent: 'Excellent ! Tu connais vraiment tes drapeaux.',
+  resultGood: 'Bien joué — continue comme ça !',
+  resultKeepGoing: 'Continue à t’entraîner, tu vas y arriver !',
+  playAgain: 'Rejouer',
+  retryMistakes: 'Revoir les erreurs',
+  backHome: 'Accueil',
+  tapToContinue: 'Touche pour continuer',
+  next: 'Suivant',
+};
+
+const TABLE: Record<SupportedLocale, FQLabels> = { en: EN, ru: RU, es: ES, fr: FR };
 
 /** Each language shown in its own name, regardless of the active locale. */
 export const FQ_LANGUAGE_NAMES: Record<SupportedLocale, string> = {
   en: 'English',
   ru: 'Русский',
   es: 'Español',
+  fr: 'Français',
 };
 
 export function useFQLabels(): FQLabels {

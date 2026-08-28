@@ -708,8 +708,11 @@ export default function QuizScreen() {
     if (livesApply && !premiumUnlimited) {
       const lives = await getLives();
       if (lives <= 0) {
+        // Gate the run WITHOUT dispatching an error: the generic error
+        // screen would read "Something went wrong", which this isn't.
+        // Leave status on 'loading' so the OutOfLivesModal shows over a
+        // neutral background; the modal drives the next step.
         setOutOfLivesOpen(true);
-        dispatch({ type: 'SET_ERROR', payload: 'No lives' });
         return;
       }
     }
@@ -883,28 +886,17 @@ export default function QuizScreen() {
           <ActivityIndicator size="large" color={colors.text} />
           <Text style={styles.loadingText}>{t('quiz.loading')}</Text>
         </SafeAreaView>
-      </ScreenBackground>
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <ScreenBackground>
-        <SafeAreaView style={styles.centered}>
-          <Text style={styles.emoji}>😕</Text>
-          <Text style={styles.errorTitle}>{t('quiz.error.title')}</Text>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          <Pressable onPress={loadQuestions} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>{t('quiz.error.retry')}</Text>
-          </Pressable>
-          <Pressable onPress={() => router.replace('/')} style={styles.homeLink}>
-            <Text style={styles.homeLinkText}>{t('quiz.error.home')}</Text>
-          </Pressable>
-        </SafeAreaView>
+        {/*
+         * Pre-quiz lives gate. When the player has no lives the loading
+         * status is kept (no error dispatch) so this modal floats over the
+         * neutral loading background instead of a broken error screen.
+         */}
         <OutOfLivesModal
           visible={outOfLivesOpen}
           adAvailable={adsEnabled}
-          onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
+          // "Later" here means the player can't start the run — send them to
+          // the shop rather than home, so buying lives is one tap away.
+          onClose={() => { setOutOfLivesOpen(false); router.replace('/shop'); }}
           onWatchAd={async () => {
             // Real rewarded ad: +1 life ONLY when the user earns the reward.
             // Dismiss / failure / no-fill grant nothing.
@@ -930,6 +922,24 @@ export default function QuizScreen() {
             loadQuestions();
           }}
         />
+      </ScreenBackground>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <ScreenBackground>
+        <SafeAreaView style={styles.centered}>
+          <Text style={styles.emoji}>😕</Text>
+          <Text style={styles.errorTitle}>{t('quiz.error.title')}</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <Pressable onPress={loadQuestions} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{t('quiz.error.retry')}</Text>
+          </Pressable>
+          <Pressable onPress={() => router.replace('/')} style={styles.homeLink}>
+            <Text style={styles.homeLinkText}>{t('quiz.error.home')}</Text>
+          </Pressable>
+        </SafeAreaView>
       </ScreenBackground>
     );
   }
@@ -1047,9 +1057,10 @@ export default function QuizScreen() {
         <OutOfLivesModal
           visible={outOfLivesOpen}
           adAvailable={adsEnabled}
-          // Closing the gate mid-quiz means giving up the run — there's
-          // no way to keep playing without a life, so we bail home.
-          onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
+          // Closing the gate mid-quiz means giving up the run — there's no
+          // way to keep playing without a life, so we send the player to the
+          // shop (consistent with the pre-quiz gate) rather than home.
+          onClose={() => { setOutOfLivesOpen(false); router.replace('/shop'); }}
           onWatchAd={async () => {
             // Real rewarded ad: +1 life ONLY when the user earns the reward.
             const result = await watchAdForLife();

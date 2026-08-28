@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,35 +18,40 @@ import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
+import { GlossyButton } from '@/components/flags-quiz/glossy-button';
+import { FlagsShareCard } from '@/components/flags-quiz/share-card';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
 import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
+import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { getStoreLinks } from '@/lib/store-links';
+import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
 const REVEAL_MS = 900;
 
-// Option flag box sized to fit two columns uniformly. Each option's wrapper adds
-// a 4px ring + 3px padding on every side (14px total), so the flag itself must be
-// that much narrower for two to fit the row.
+// Answer-reveal timings (mirrors Logo Quiz): the wrong options clear while the
+// correct flag glides up and centers under the country name; once it lands, the
+// flag note + "Next" button fade in.
+const MOVE_MS = 900;
+const UI_FADE_MS = 300;
+// The flag note is height-capped (it scrolls internally when long) so the answer +
+// "Next" button always fit one screen — identical layout on tall and short phones.
+const NOTE_MAX_H = 160;
+
+// Option flag box sized to fit two columns uniformly. Around each flag sit three
+// concentric edges that all eat horizontal space: the frame's 3px navy border,
+// the wrapper's 3px padding, and the wrapper's 4px reveal ring — 10px per side,
+// 20px total. The flag itself must be that much narrower for two to fit the row.
 const SCREEN_W = Dimensions.get('window').width;
 const GRID_PAD = 20; // options paddingHorizontal
-const WRAP_EXTRA = 14; // ring (4×2) + padding (3×2)
+const WRAP_EXTRA = 20; // frame border (3×2) + padding (3×2) + ring (4×2)
 const OPT_W = Math.floor((SCREEN_W - GRID_PAD * 2 - WRAP_EXTRA * 2 - 8) / 2);
 const OPT_H = Math.round(OPT_W * 0.62);
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 const CONTINENT_KEYS: ContinentKey[] = [
   'africa',
@@ -63,17 +68,19 @@ type OptionState = 'idle' | 'correct' | 'wrong';
  * Flags Quiz "By continent" gameplay screen (App Template: Geography). Opens from
  * a continent button. The QUESTION is a country name; the four answer options are
  * flag PICTURES (one correct). Content is the backend's `image_answer_questions`
- * for the chosen continent — each question already carries its four pre-baked
- * image options and the correct index, shared via the content provider.
+ * for the chosen continent, shared via the content provider.
+ *
+ * The run order is SHUFFLED and PERSISTED per continent (see useRunProgress):
+ * exiting mid-run and returning resumes at the same question with the same score,
+ * and only a finished (or brand-new) run reshuffles. A `retry` run replays ONLY
+ * the passed missed-question indices and is not persisted.
  *
  * Answer flow:
  * - WRONG pick → flashes red, is recorded, then skips to the next question.
- * - CORRECT pick → flashes green and reveals the flag's note beneath the options;
- *   tapping it advances to the next question.
+ * - CORRECT pick → the wrong flags fade out, the correct flag glides to the centre
+ *   under the country name, the flag note appears below it and a "Next" button
+ *   advances the run (mirrors Logo Quiz).
  * - After the last question → the result screen (score + retry-mistakes).
- *
- * With a `retry` param the run is rebuilt from ONLY the passed question indices,
- * so the player can re-attempt the flags they missed.
  */
 export default function FlagsQuizContinentGame() {
   const t = useFQLabels();
@@ -82,41 +89,39 @@ export default function FlagsQuizContinentGame() {
   const { pictureByContinent, status } = useFlagsQuizContent();
   const key = (CONTINENT_KEYS.includes(continent as ContinentKey) ? continent : 'africa') as ContinentKey;
   const questions = useMemo(() => pictureByContinent[key] ?? [], [pictureByContinent, key]);
-
-  // Which questions are asked this run: all of the continent (shuffled), or — on
-  // a retry — only the ones the player got wrong last time (indices into
-  // `questions`, kept in the passed order).
-  const askIdxs = useMemo(() => {
-    if (retry) {
-      const idxs = retry
-        .split(',')
-        .map((s) => Number.parseInt(s, 10))
-        .filter((n) => Number.isInteger(n) && n >= 0 && n < questions.length);
-      if (idxs.length > 0) return idxs;
-    }
-    return shuffle(questions.map((_, i) => i));
-  }, [retry, questions]);
-
-  const [pos, setPos] = useState(0);
-  const [picked, setPicked] = useState<number | null>(null);
-  const [wrong, setWrong] = useState<number[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
+  // Off-screen composition (country name + flag options) captured to a PNG for Share.
+  const shareCardRef = useRef<View>(null);
 
-  // Restart a fresh run whenever the continent (or the retry set) changes.
-  useEffect(() => {
-    setPos(0);
-    setPicked(null);
-    setWrong([]);
-  }, [askIdxs]);
+  // On a retry we replay only the missed indices (in order); otherwise the run is
+  // resumed-or-freshly-shuffled and persisted per continent by useRunProgress.
+  const retryIdxs = useMemo(() => {
+    if (!retry) return null;
+    const idxs = retry
+      .split(',')
+      .map((s) => Number.parseInt(s, 10))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n < questions.length);
+    return idxs.length > 0 ? idxs : null;
+  }, [retry, questions.length]);
 
-  const questionIdx = askIdxs[pos];
+  const { hydrated, order, pos, wrong, setPos, addWrong, clear } = useRunProgress({
+    key: `flags.progress.continent.${key}.v1`,
+    count: questions.length,
+    retry: retryIdxs,
+    ready: questions.length > 0,
+  });
+
+  const [picked, setPicked] = useState<number | null>(null);
+
+  const questionIdx = order[pos];
   const q = questions[questionIdx];
   const answered = picked !== null;
   const isCorrectPick = answered && q != null && picked === q.correctIndex;
 
   const finish = useCallback(
     (finalWrong: number[]) => {
-      const total = askIdxs.length;
+      clear();
+      const total = order.length;
       const correctCount = total - finalWrong.length;
       router.replace({
         pathname: '/flags-quiz/result',
@@ -129,20 +134,20 @@ export default function FlagsQuizContinentGame() {
         },
       });
     },
-    [askIdxs.length, key],
+    [order.length, key, clear],
   );
 
   const advance = useCallback(
     (finalWrong: number[]) => {
       const next = pos + 1;
-      if (next >= askIdxs.length) {
+      if (next >= order.length) {
         finish(finalWrong);
         return;
       }
       setPicked(null);
       setPos(next);
     },
-    [pos, askIdxs.length, finish],
+    [pos, order.length, finish, setPos],
   );
 
   const onPick = (optIdx: number) => {
@@ -153,12 +158,11 @@ export default function FlagsQuizContinentGame() {
       correct ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error,
     ).catch(() => {});
     if (correct) {
-      // Stay put and show the flag note; the player taps it to continue.
+      // Play the reveal; the player taps "Next" to continue.
       return;
     }
-    // Wrong → record the missed question and skip to the next.
     const newWrong = [...wrong, questionIdx];
-    setWrong(newWrong);
+    addWrong(questionIdx);
     setTimeout(() => advance(newWrong), REVEAL_MS);
   };
 
@@ -175,17 +179,16 @@ export default function FlagsQuizContinentGame() {
     return 'idle';
   };
 
-  const onShare = async () => {
+  // Share the question: capture the off-screen ShareCard to a PNG and share it
+  // with the invite (mirrors Logo Quiz's "Share a logo").
+  const onShare = () => {
     const { storeUrl } = getStoreLinks(undefined, Platform.OS);
-    try {
-      await Share.share({ message: t.shareInvite.replace('{url}', storeUrl) });
-    } catch {
-      // cancelled / unavailable
-    }
+    const message = t.shareInvite.replace('{url}', storeUrl);
+    shareQuestionImage(shareCardRef, message);
   };
 
-  // Content still loading (no questions for this continent yet) — light loader.
-  if (!q) {
+  // Content or saved progress still loading — light loader.
+  if (!hydrated || !q) {
     return (
       <View style={styles.fill}>
         <GradientBackground />
@@ -202,6 +205,7 @@ export default function FlagsQuizContinentGame() {
   }
 
   const historyText = q.explanation;
+  const revealing = isCorrectPick;
 
   return (
     <View style={styles.fill}>
@@ -242,62 +246,69 @@ export default function FlagsQuizContinentGame() {
         >
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
-            <Text style={styles.progress}>{`${pos + 1}/${askIdxs.length}`}</Text>
+            <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
             <Text style={styles.country}>{q.title}</Text>
           </View>
 
-          {/* 2×2 flag-picture options, one correct. */}
-          <View style={styles.options}>
+          {/* 2×2 flag-picture options. On a correct reveal the wrong flags unmount
+              (FadeOut) while the correct flag — kept mounted — glides up and centers. */}
+          <View key={q.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {q.optionImageUris.map((uri, optIdx) => {
+              if (revealing && optIdx !== q.correctIndex) return null;
               const s = stateFor(optIdx);
               const ring =
                 s === 'correct' ? '#37B24D' : s === 'wrong' ? '#E03131' : 'transparent';
               return (
-                <Pressable
+                <Animated.View
                   key={optIdx}
-                  onPress={() => onPick(optIdx)}
-                  disabled={answered}
-                  style={({ pressed }) => [
-                    styles.optionWrap,
-                    { borderColor: ring },
-                    pressed && !answered && styles.pressed,
-                  ]}
+                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
                 >
-                  <View style={styles.optionFrame}>
-                    {uri ? (
-                      <Image
-                        source={{ uri }}
-                        style={{ width: OPT_W, height: OPT_H }}
-                        contentFit="cover"
-                        transition={0}
-                      />
-                    ) : (
-                      <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
-                    )}
-                  </View>
-                </Pressable>
+                  <Pressable
+                    onPress={() => onPick(optIdx)}
+                    disabled={answered}
+                    style={({ pressed }) => [
+                      styles.optionWrap,
+                      { borderColor: ring },
+                      pressed && !answered && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.optionFrame}>
+                      {uri ? (
+                        <Image
+                          source={{ uri }}
+                          style={{ width: OPT_W, height: OPT_H }}
+                          contentFit="cover"
+                          transition={0}
+                        />
+                      ) : (
+                        <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
+                      )}
+                    </View>
+                  </Pressable>
+                </Animated.View>
               );
             })}
           </View>
 
-          {/* Flag note — revealed under the options only on a CORRECT answer.
-              White fill, blue rim and navy text (like the Play button). Tapping
-              it advances to the next question. */}
-          {isCorrectPick && historyText ? (
-            <Pressable
-              onPress={onContinue}
-              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
-            >
-              <Text style={styles.historyText}>{historyText}</Text>
-              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
-            </Pressable>
-          ) : isCorrectPick ? (
-            <Pressable
-              onPress={onContinue}
-              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
-            >
-              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
-            </Pressable>
+          {/* Reveal panel — the flag note (when present) then a "Next" button, in
+              the Flags Quiz button style. Fades in once the flag glide lands. */}
+          {revealing ? (
+            <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+              {historyText ? (
+                <View style={[styles.historyBox, FQShadow.card]}>
+                  <ScrollView
+                    style={styles.historyScroll}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                  >
+                    <Text style={styles.historyText}>{historyText}</Text>
+                  </ScrollView>
+                </View>
+              ) : null}
+              <View style={styles.nextWrap}>
+                <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
+              </View>
+            </Animated.View>
           ) : null}
         </ScrollView>
       </SafeAreaView>
@@ -313,12 +324,27 @@ export default function FlagsQuizContinentGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Off-screen composition captured for the Share image. Laid out (so it can be
+          snapshotted) but parked outside the viewport, never affecting layout. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <FlagsShareCard
+          ref={shareCardRef}
+          variant="continent"
+          title={t.appName}
+          prompt={q.title}
+          imageOptions={q.optionImageUris}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  // Parks the share composition off-screen — laid out (so it can be snapshotted)
+  // but never visible or interactive.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
   center: { alignItems: 'center', justifyContent: 'center' },
   loaderText: {
     color: '#FFFFFF',
@@ -344,7 +370,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 22,
-    marginBottom: 12,
+    // Equal to the options' top margin so the country name sits centered in the
+    // gap between the progress counter and the answer flags.
+    marginBottom: 44,
     textShadowColor: 'rgba(4, 40, 96, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -366,9 +394,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     rowGap: 16,
-    // Wider gap between the question and the answer flags.
-    marginTop: 76,
+    // Matches the progress counter's bottom margin so the country name is centered
+    // between the counter and the answer flags.
+    marginTop: 44,
   },
+  // While revealing only the correct flag remains — center the lone survivor so
+  // its glide lands under the country name, and pull the block up to make room for
+  // the note + "Next" button within one screen.
+  optionsRevealing: { justifyContent: 'center', marginTop: 24 },
   // Colored ring appears (green/red) on reveal; transparent otherwise.
   optionWrap: {
     borderWidth: 4,
@@ -385,37 +418,27 @@ const styles = StyleSheet.create({
   },
   optionFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },
 
-  // White card, blue rim, navy text — the flag-note reveal.
+  // White card, blue rim, navy text — the flag-note reveal (display only now; the
+  // "Next" button below advances). Height-capped so the button stays on screen.
   historyBox: {
-    marginTop: 28,
+    marginTop: 20,
     marginHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 18,
   },
+  historyScroll: { maxHeight: NOTE_MAX_H },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 21,
   },
-  historyHint: {
-    color: FQColors.tileGlyph,
-    fontSize: 12,
-    fontWeight: '800',
-    textAlign: 'center',
-    alignSelf: 'center',
-    marginTop: 14,
-    borderWidth: 1.5,
-    borderColor: '#3FA9F5',
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
-  },
+  // "Next" matches an answer button's width, centered under the answer.
+  nextWrap: { width: '48%', alignSelf: 'center', marginTop: 18 },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

@@ -35,9 +35,18 @@ export default function FlagsQuizResult() {
 
   const tier = percentage >= 80 ? 'excellent' : percentage >= 40 ? 'good' : 'keepGoing';
   const tierColor = tier === 'excellent' ? '#37B24D' : tier === 'good' ? '#F59F00' : '#E03131';
-  // 🥲 (Smiling Face with Tear) when the player got nothing right, otherwise the
-  // tiered emoji.
-  const emoji = score === 0 ? '🥲' : tier === 'excellent' ? '🏆' : tier === 'good' ? '👍' : '💪';
+  // A perfect run (every question correct) always earns the trophy 🏆. Otherwise:
+  // 🥲 when nothing was right, and a tiered emoji in between.
+  const allCorrect = outOf > 0 && score === outOf;
+  const emoji = allCorrect
+    ? '🏆'
+    : score === 0
+      ? '🥲'
+      : tier === 'excellent'
+        ? '🎉'
+        : tier === 'good'
+          ? '👍'
+          : '💪';
   const message =
     tier === 'excellent' ? t.resultExcellent : tier === 'good' ? t.resultGood : t.resultKeepGoing;
 

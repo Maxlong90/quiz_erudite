@@ -11,7 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 
-const SUPPORTED_LOCALES = ['en', 'ru', 'es'] as const;
+const SUPPORTED_LOCALES = ['en', 'ru', 'es', 'fr'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const STORAGE_KEY = 'app.locale.v1';

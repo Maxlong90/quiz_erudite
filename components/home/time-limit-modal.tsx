@@ -50,7 +50,7 @@ export function TimeLimitModal({ visible, onClose, onStart }: Props) {
                   style={[styles.chip, active && styles.chipActive]}
                 >
                   <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
-                    {m} min
+                    {`${m} ${t('home.timeLimit.minutesShort')}`}
                   </Text>
                 </Pressable>
               );
@@ -114,12 +114,16 @@ const makeStyles = (c: EruditePalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   chip: {
+    // ~48% width so the row wraps to exactly two chips (5/10 then 15/20).
+    flexBasis: '48%',
+    flexGrow: 0,
     paddingVertical: 14,
     paddingHorizontal: 22,
     borderRadius: 999,
     backgroundColor: c.borderSoft,
     borderWidth: 1,
     borderColor: 'transparent',
+    alignItems: 'center',
   },
   chipActive: {
     backgroundColor: c.accent,

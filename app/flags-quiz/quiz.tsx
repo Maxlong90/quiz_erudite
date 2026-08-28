@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,11 +19,16 @@ import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
+import { GlossyButton } from '@/components/flags-quiz/glossy-button';
+import { FlagsShareCard } from '@/components/flags-quiz/share-card';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useLocale } from '@/hooks/use-locale';
 import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
+import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { getStoreLinks } from '@/lib/store-links';
+import { wrapLabel } from '@/lib/flags-quiz/label';
+import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
@@ -30,8 +36,43 @@ import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 const REVEAL_MS = 900;
 // Fixed answer-button height.
 const OPTION_H = 68;
+// Persisted-progress key for the "All countries" run (resume where you left off).
+const PROGRESS_KEY = 'flags.progress.all.v1';
+
+// Answer-reveal timings (mirrors Logo Quiz): the wrong options clear while the
+// correct answer glides up and centers under the question; once it lands, the
+// flag note + "Next" button fade in.
+const MOVE_MS = 900;
+const UI_FADE_MS = 300;
+// The flag note is height-capped (it scrolls internally when long) so the answer +
+// "Next" button always fit one screen — identical layout on tall and short phones.
+const NOTE_MAX_H = 160;
+
+// Font-fitting for the answer labels. The option button is 48% of the row width
+// (options padding 20 each side) with 12px inner padding, so this is the text
+// width one label has to live in. For a MULTI-word name we size the font DOWN
+// from the max until the longest whole word fits that width — never breaking a
+// word across lines. A single-word name shrinks reliably via adjustsFontSizeToFit.
+const SCREEN_W = Dimensions.get('window').width;
+const OPTION_TEXT_W = 0.48 * (SCREEN_W - 40) - 24;
+const OPTION_FONT_MAX = 23;
+const OPTION_FONT_MIN = 8;
+// Conservative per-character advance (fraction of font size) for the bold label
+// font; a little high on purpose so the computed size always leaves margin on the
+// narrowest phones (where a too-large size would clip a whole word).
+const CHAR_ADV = 0.72;
 
 type OptionState = 'idle' | 'correct' | 'wrong';
+
+/** Largest font size (within the min/max band) at which the longest of these
+ *  lines still fits the option's text width on ONE line — so whole words never
+ *  wrap mid-word. Used for the multi-line (multi-word) labels. */
+function fitFontSize(lines: string[]): number {
+  const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
+  if (longest === 0) return OPTION_FONT_MAX;
+  const fit = Math.floor(OPTION_TEXT_W / (longest * CHAR_ADV));
+  return Math.max(OPTION_FONT_MIN, Math.min(OPTION_FONT_MAX, fit));
+}
 
 /**
  * Flags Quiz "All countries" gameplay screen (App Template: Geography). A flag
@@ -39,14 +80,17 @@ type OptionState = 'idle' | 'correct' | 'wrong';
  * catalogue is the backend's full set of `image_questions` (every country),
  * served in the content snapshot and shared via the content provider.
  *
- * Answer flow (shared with the "By continent" mode):
- * - WRONG pick → flashes red, is recorded, then skips to the next question.
- * - CORRECT pick → flashes green and reveals the flag note below the options;
- *   tapping it advances.
- * - After the last question → the result screen (score + retry-mistakes).
+ * The run order is SHUFFLED and PERSISTED (see useRunProgress): exiting mid-run
+ * and returning resumes at the same question with the same score, and only a
+ * finished (or brand-new) run reshuffles. A `retry` run replays ONLY the passed
+ * missed-question indices and is not persisted.
  *
- * With a `retry` param the run is rebuilt from ONLY the passed question indices,
- * so the player can re-attempt the ones they missed.
+ * Answer flow:
+ * - WRONG pick → flashes red, is recorded, then skips to the next question.
+ * - CORRECT pick → the wrong options fade out, the correct answer glides to the
+ *   centre under the question, the flag note appears below it and a "Next" button
+ *   advances the run (mirrors Logo Quiz).
+ * - After the last question → the result screen (score + retry-mistakes).
  */
 export default function FlagsQuizGame() {
   const t = useFQLabels();
@@ -54,58 +98,64 @@ export default function FlagsQuizGame() {
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useFlagsQuizContent();
   const [reportOpen, setReportOpen] = useState(false);
+  // Off-screen composition (flag + prompt + options) captured to a PNG for Share.
+  const shareCardRef = useRef<View>(null);
 
-  // Which questions to ask: all of them, or — on a retry — only the ones the
-  // player got wrong last time (indices into countryQuestions).
-  const askIdxs = useMemo(() => {
-    if (retry) {
-      const idxs = retry
-        .split(',')
-        .map((s) => Number.parseInt(s, 10))
-        .filter((n) => Number.isInteger(n) && n >= 0 && n < countryQuestions.length);
-      if (idxs.length > 0) return idxs;
-    }
-    return countryQuestions.map((_, i) => i);
-  }, [retry, countryQuestions]);
+  // On a retry we replay only the missed indices (in order); otherwise the run is
+  // resumed-or-freshly-shuffled and persisted by useRunProgress.
+  const retryIdxs = useMemo(() => {
+    if (!retry) return null;
+    const idxs = retry
+      .split(',')
+      .map((s) => Number.parseInt(s, 10))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n < countryQuestions.length);
+    return idxs.length > 0 ? idxs : null;
+  }, [retry, countryQuestions.length]);
 
-  const [pos, setPos] = useState(0);
+  const { hydrated, order, pos, wrong, setPos, addWrong, clear } = useRunProgress({
+    key: PROGRESS_KEY,
+    count: countryQuestions.length,
+    retry: retryIdxs,
+    ready: countryQuestions.length > 0,
+  });
+
   const [picked, setPicked] = useState<number | null>(null);
-  const [wrong, setWrong] = useState<number[]>([]);
 
-  useEffect(() => {
-    setPos(0);
-    setPicked(null);
-    setWrong([]);
-  }, [askIdxs]);
-
-  const questionIdx = askIdxs[pos];
+  const questionIdx = order[pos];
   const question = countryQuestions[questionIdx];
   const answered = picked !== null;
   const isCorrectPick = answered && question != null && picked === question.correctIndex;
 
-  function finish(finalWrong: number[]) {
-    const total = askIdxs.length;
-    const correct = total - finalWrong.length;
-    router.replace({
-      pathname: '/flags-quiz/result',
-      params: {
-        mode: 'all',
-        correct: String(correct),
-        total: String(total),
-        wrong: finalWrong.join(','),
-      },
-    });
-  }
+  const finish = useCallback(
+    (finalWrong: number[]) => {
+      clear();
+      const total = order.length;
+      const correct = total - finalWrong.length;
+      router.replace({
+        pathname: '/flags-quiz/result',
+        params: {
+          mode: 'all',
+          correct: String(correct),
+          total: String(total),
+          wrong: finalWrong.join(','),
+        },
+      });
+    },
+    [order.length, clear],
+  );
 
-  function advance(finalWrong: number[]) {
-    const next = pos + 1;
-    if (next >= askIdxs.length) {
-      finish(finalWrong);
-      return;
-    }
-    setPicked(null);
-    setPos(next);
-  }
+  const advance = useCallback(
+    (finalWrong: number[]) => {
+      const next = pos + 1;
+      if (next >= order.length) {
+        finish(finalWrong);
+        return;
+      }
+      setPicked(null);
+      setPos(next);
+    },
+    [pos, order.length, finish, setPos],
+  );
 
   const onPick = (option: number) => {
     if (answered || !question) return;
@@ -117,11 +167,11 @@ export default function FlagsQuizGame() {
         : Haptics.NotificationFeedbackType.Error,
     ).catch(() => {});
     if (correct) {
-      // Stay put and show the flag note; the player taps it to continue.
+      // Play the reveal; the player taps "Next" to continue.
       return;
     }
     const newWrong = [...wrong, questionIdx];
-    setWrong(newWrong);
+    addWrong(questionIdx);
     setTimeout(() => advance(newWrong), REVEAL_MS);
   };
 
@@ -138,18 +188,17 @@ export default function FlagsQuizGame() {
     return 'idle';
   };
 
-  const onShare = async () => {
+  // Share the question: capture the off-screen ShareCard to a PNG and share it
+  // with the invite (mirrors Logo Quiz's "Share a logo").
+  const onShare = () => {
     const { storeUrl } = getStoreLinks(undefined, Platform.OS);
-    try {
-      await Share.share({ message: t.shareInvite.replace('{url}', storeUrl) });
-    } catch {
-      // cancelled / unavailable — nothing to do
-    }
+    const message = t.shareInvite.replace('{url}', storeUrl);
+    shareQuestionImage(shareCardRef, message);
   };
 
-  // Content still loading (no questions yet) — show a light loader rather than
-  // an empty screen.
-  if (!question) {
+  // Content or saved progress still loading — show a light loader rather than an
+  // empty screen.
+  if (!hydrated || !question) {
     return (
       <View style={styles.fill}>
         <GradientBackground />
@@ -166,6 +215,7 @@ export default function FlagsQuizGame() {
   }
 
   const historyText = question.explanation;
+  const revealing = isCorrectPick;
 
   return (
     <View style={styles.fill}>
@@ -205,7 +255,7 @@ export default function FlagsQuizGame() {
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           {/* Flag block: progress right above the flag, then the flag, then the question. */}
           <View style={styles.imageArea}>
-            <Text style={styles.progress}>{`${pos + 1}/${askIdxs.length}`}</Text>
+            <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
             <View style={styles.imageFrame}>
               {question.imageUri ? (
                 <Image
@@ -218,41 +268,50 @@ export default function FlagsQuizGame() {
                 <View style={[styles.flagImg, styles.flagFallback]} />
               )}
             </View>
-            <Text style={styles.prompt}>{question.prompt || t.whichCountry}</Text>
+            <Text style={styles.prompt}>{t.whichCountry}</Text>
           </View>
 
-          {/* 2×2 answer grid — options localized by the backend snapshot. */}
-          <View style={styles.options}>
-            {question.options.map((option, i) => (
-              <OptionButton
-                key={`${question.id}-${i}`}
-                label={option}
-                state={stateFor(i)}
-                disabled={answered}
-                onPress={() => onPick(i)}
-              />
-            ))}
+          {/* 2×2 answer grid. On a correct reveal the wrong options unmount (FadeOut)
+              while the correct answer — kept mounted — glides up and centers. */}
+          <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
+            {question.options.map((option, i) => {
+              if (revealing && i !== question.correctIndex) return null;
+              return (
+                <Animated.View
+                  key={`${question.id}-${i}`}
+                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                  style={styles.optionWrap}
+                >
+                  <OptionButton
+                    label={option}
+                    state={stateFor(i)}
+                    disabled={answered}
+                    onPress={() => onPick(i)}
+                  />
+                </Animated.View>
+              );
+            })}
           </View>
 
-          {/* Flag note — revealed under the options only on a CORRECT answer.
-              White fill, blue rim and navy text (like the Play button). Tapping
-              it advances to the next question. */}
-          {isCorrectPick && historyText ? (
-            <Pressable
-              onPress={onContinue}
-              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
-            >
-              <Text style={styles.historyText}>{historyText}</Text>
-              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
-            </Pressable>
-          ) : isCorrectPick ? (
-            // Correct but no note text — a bare "tap to continue" affordance.
-            <Pressable
-              onPress={onContinue}
-              style={({ pressed }) => [styles.historyBox, FQShadow.card, pressed && styles.pressed]}
-            >
-              <Text style={styles.historyHint}>{t.tapToContinue}</Text>
-            </Pressable>
+          {/* Reveal panel — the flag note (when present) then a "Next" button, in
+              the Flags Quiz button style. Fades in once the answer glide lands. */}
+          {revealing ? (
+            <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+              {historyText ? (
+                <View style={[styles.historyBox, FQShadow.card]}>
+                  <ScrollView
+                    style={styles.historyScroll}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                  >
+                    <Text style={styles.historyText}>{historyText}</Text>
+                  </ScrollView>
+                </View>
+              ) : null}
+              <View style={styles.nextWrap}>
+                <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
+              </View>
+            </Animated.View>
           ) : null}
         </ScrollView>
       </SafeAreaView>
@@ -268,6 +327,19 @@ export default function FlagsQuizGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Off-screen composition captured for the Share image. Laid out (so it can be
+          snapshotted) but parked outside the viewport, never affecting layout. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <FlagsShareCard
+          ref={shareCardRef}
+          variant="country"
+          title={t.appName}
+          prompt={t.whichCountry}
+          flagUri={question.imageUri}
+          textOptions={question.options}
+        />
+      </View>
     </View>
   );
 }
@@ -293,11 +365,14 @@ function OptionButton({
         : ([FQColors.tileLight, FQColors.tileDark] as const);
   const rim = state === 'correct' ? '#2B8A3E' : state === 'wrong' ? '#C92A2A' : FQColors.tileRim;
   const textColor = state === 'idle' ? FQColors.tileGlyph : '#FFFFFF';
+  const display = wrapLabel(label);
+  const lines = display.split('\n');
+  const multiline = lines.length > 1;
 
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [styles.optionWrap, pressed && !disabled && styles.pressed]}
+      style={({ pressed }) => [styles.optionFill, pressed && !disabled && styles.pressed]}
     >
       <LinearGradient
         colors={gradient}
@@ -310,13 +385,16 @@ function OptionButton({
           style={styles.optionGloss}
           pointerEvents="none"
         />
+        {/* Single-word labels shrink reliably on one line (adjustsFontSizeToFit,
+            never clipped). Multi-word labels use a computed size that fits the
+            longest whole word, so words wrap only at real word boundaries. */}
         <Text
-          style={[styles.optionText, { color: textColor }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
+          style={[styles.optionText, { color: textColor }, multiline ? { fontSize: fitFontSize(lines) } : null]}
+          numberOfLines={lines.length}
+          adjustsFontSizeToFit={!multiline}
           minimumFontScale={0.5}
         >
-          {label}
+          {display}
         </Text>
       </LinearGradient>
     </Pressable>
@@ -325,6 +403,9 @@ function OptionButton({
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  // Parks the share composition off-screen — laid out (so it can be snapshotted)
+  // but never visible or interactive.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
   center: { alignItems: 'center', justifyContent: 'center' },
   loaderText: {
     color: '#FFFFFF',
@@ -350,7 +431,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 22,
-    marginBottom: 10,
+    marginBottom: 22,
     textShadowColor: 'rgba(4, 40, 96, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -373,7 +454,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '900',
-    marginTop: 22,
+    marginTop: 16,
     textAlign: 'center',
     alignSelf: 'center',
     paddingHorizontal: 24,
@@ -388,10 +469,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     rowGap: 14,
-    // Two button-heights below the question, then raised half a button back up.
-    marginTop: OPTION_H * 1.5,
+    // Two button-heights below the question, then raised a full button back up.
+    marginTop: OPTION_H * 1.0,
   },
+  // While revealing only the correct answer remains — center the lone survivor so
+  // its glide lands under the question, and pull the block up to make room for the
+  // note + "Next" button within one screen.
+  optionsRevealing: { justifyContent: 'center', marginTop: 32 },
   optionWrap: { width: '48%' },
+  optionFill: { width: '100%' },
   option: {
     height: OPTION_H,
     borderRadius: 18,
@@ -411,37 +497,27 @@ const styles = StyleSheet.create({
   },
   optionText: { fontSize: 23, fontWeight: '900', textAlign: 'center' },
 
-  // White card, blue rim, navy text — the flag-note reveal.
+  // White card, blue rim, navy text — the flag-note reveal (display only now; the
+  // "Next" button below advances). Height-capped so the button stays on screen.
   historyBox: {
-    marginTop: 24,
+    marginTop: 20,
     marginHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 18,
   },
+  historyScroll: { maxHeight: NOTE_MAX_H },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 21,
   },
-  historyHint: {
-    color: FQColors.tileGlyph,
-    fontSize: 12,
-    fontWeight: '800',
-    textAlign: 'center',
-    alignSelf: 'center',
-    marginTop: 14,
-    borderWidth: 1.5,
-    borderColor: '#3FA9F5',
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
-  },
+  // "Next" matches an answer button: same 48% width, centered under the answer.
+  nextWrap: { width: '48%', alignSelf: 'center', marginTop: 18 },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

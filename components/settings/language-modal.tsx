@@ -11,6 +11,7 @@ const LANGUAGES: { value: SupportedLocale; label: string; flag: string }[] = [
   { value: 'en', label: 'English', flag: '🇬🇧' },
   { value: 'es', label: 'Español', flag: '🇪🇸' },
   { value: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { value: 'fr', label: 'Français', flag: '🇫🇷' },
 ];
 
 interface Props {

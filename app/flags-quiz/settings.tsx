@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,21 +14,12 @@ import { FQColors } from '@/constants/flags-quiz/theme';
 import { useFQLabels, FQ_LANGUAGE_NAMES } from '@/constants/flags-quiz/labels';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
-import { restorePremium } from '@/lib/revenuecat';
 
 // External URLs / support — mirror the main app + Logo Quiz so a real page is a
 // one-line change everywhere.
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
-
-// Native store subscription-management pages — the real "cancel subscription"
-// destination on each platform.
-const MANAGE_SUBSCRIPTION_URL = Platform.select({
-  ios: 'itms-apps://apps.apple.com/account/subscriptions',
-  android: 'https://play.google.com/store/account/subscriptions',
-  default: 'https://play.google.com/store/account/subscriptions',
-});
 
 /**
  * Flags Quiz settings (App Template: Geography). Layout is taken from the Logo
@@ -51,29 +42,6 @@ export default function FlagsQuizSettings() {
     Haptics.selectionAsync().catch(() => {});
     changeLocale(l);
     setLangOpen(false);
-  };
-
-  // Cancel subscription → the platform's own subscription-management page (the
-  // only place a store subscription can actually be cancelled).
-  const onCancelSubscription = () => {
-    openUrl(MANAGE_SUBSCRIPTION_URL);
-  };
-
-  // Restore a previously bought subscription via the real RevenueCat flow.
-  // Resolves false (→ "nothing to restore") in Expo Go / when nothing is found.
-  const onRestorePurchases = async () => {
-    try {
-      const restored = await restorePremium();
-      if (restored) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        Alert.alert(t.restoreDoneTitle, t.restoreDoneMessage, [{ text: t.ok }]);
-      } else {
-        Alert.alert(t.restoreNoneTitle, t.restoreNoneMessage, [{ text: t.ok }]);
-      }
-    } catch {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert(t.restoreErrorTitle, t.restoreErrorMessage, [{ text: t.ok }]);
-    }
   };
 
   // Rate the app — opens the native review flow (no coin reward for now).
@@ -113,8 +81,6 @@ export default function FlagsQuizSettings() {
         </View>
 
         <View style={styles.actions}>
-          <GlossyButton label={t.cancelSubscription} onPress={onCancelSubscription} />
-          <GlossyButton label={t.restorePurchases} onPress={onRestorePurchases} />
           <GlossyButton
             label={t.selectLanguage}
             onPress={() => setLangOpen(true)}

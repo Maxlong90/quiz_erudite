@@ -29,7 +29,7 @@ The heart of Flags Quiz is two game modes backed by two *different* question sha
 
 The "All countries" mode (`app/flags-quiz/quiz.tsx`) shows a flag image and four text options, one correct. These questions are the app's `image_questions`, served inside the shared content snapshot at `GET /apps/flags-quiz/snapshot`. `buildCountryQuestions` (`lib/flags-quiz/content.ts`) is a pure transform from snapshot rows to `FlagCountryQuestion`, resolving each flag image through the snapshot's downloaded image map.
 
-The run walks every country question in snapshot order — it is not shuffled, because the catalogue itself is the intended order.
+A fresh run is shuffled, so "All countries" no longer always leads with the same flag; an unfinished run is resumed where the player left off, and only a finished (or brand-new) run reshuffles. See [Resuming a run](#resuming-a-run).
 
 ### By continent — country name, flag-picture answers
 
@@ -37,7 +37,7 @@ The "By continent" mode (`app/flags-quiz/continent-quiz.tsx`) inverts the questi
 
 Each continent question is mapped to a frontend `ContinentKey` through `CONTINENT_BY_SLUG`, which pins a backend category slug (for example `flags-africa`) to a section key (`africa`). A question whose category slug is not in that map has no matching section and is dropped, so a stray backend category never produces an empty or mislabelled continent. The continent list (`app/flags-quiz/continents.tsx`) shows a live per-continent question count read from `continentCounts` — no hardcoded totals — and America is split into North and South.
 
-Unlike "All countries", a "By continent" run is shuffled at the start of every play, so repeat rounds within one continent are not identical.
+Like "All countries", a "By continent" run is shuffled when fresh and resumed when unfinished (persisted per continent), so repeat rounds within one continent are not identical while an interrupted round is preserved. See [Resuming a run](#resuming-a-run).
 
 ## The Content Provider and Its Two Sources
 
@@ -58,13 +58,17 @@ The image-answer options are the first content in the codebase served *outside* 
 
 ## The Answer Flow
 
-Both gameplay screens share one answer flow, and neither has an economy — there are no lives, coins, or hints, so the HUD is only a back button plus report and share. A run is a fixed list of questions (`askIdxs`), and the header shows a `position/total` progress counter.
+Both gameplay screens share one answer flow, and neither has an economy — there are no lives, coins, or hints, so the HUD is only a back button plus report and share. A run's order lives in `order` (see [Resuming a run](#resuming-a-run)), and the header shows a `position/total` progress counter.
 
 - A **wrong** pick flashes the tapped option red, records the question's index in a `wrong` list, and after a brief reveal (`REVEAL_MS`, 900 ms) skips to the next question. Only the tapped option changes colour — a wrong pick never reveals the correct answer, so the player has to learn it elsewhere.
-- A **correct** pick flashes the option green and reveals the flag note (the question's `explanation`) beneath the options. The player taps the note to advance. When a question has no note, the reveal is a bare "tap to continue" affordance.
+- A **correct** pick plays an in-place reveal borrowed from [Logo Quiz](logo-quiz.md): the three wrong options clear while the correct answer — the same mounted component — glides up and centers under the question (`LinearTransition`). Once it lands, the flag note (the question's `explanation`) fades in below it, followed by a **"Next"** button (`GlossyButton`, the Flags Quiz button style, sized to match one answer button) that advances the run. When a question has no note, only the "Next" button shows. The note is **height-capped** (`NOTE_MAX_H`, scrolls internally when long) so the answer + Next always fit one screen — the layout stays consistent across tall and short phones rather than pushing Next below the fold on shorter devices. The options are cleared without an exit animation on purpose: an exit fade would otherwise linger over the *next* question's options after a wrong pick advances the run.
 - After the **last** question the run navigates to the result screen with the score and the list of missed question indices.
 
 Both correct and wrong picks fire a matching haptic. Answering is locked once a pick is registered, so a double-tap cannot register two answers.
+
+### Resuming a run
+
+A run's progress is persisted so leaving mid-run and coming back resumes exactly where the player left off — same question, same score. `useRunProgress` (`hooks/flags-quiz/use-run-progress.ts`) owns the run's `{ order, pos, wrong }` and mirrors it to AsyncStorage under a per-mode key (`flags.progress.all.v1`, or `flags.progress.continent.<continent>.v1`). On entry it resumes a saved run if it is still valid (every index in range), and otherwise starts a fresh SHUFFLED run; every answer writes the new state back, and finishing a run `clear()`s the key so the next entry reshuffles. This replaces the earlier reshuffle-on-focus: variety now comes from a *finished* run starting fresh, while an *unfinished* one is preserved. A `retry` run is the exception — it replays the passed missed-question indices verbatim and is never persisted.
 
 ### Retry only the misses
 
@@ -75,7 +79,7 @@ The result screen (`app/flags-quiz/result.tsx`) mirrors the Erudite results form
 Flags Quiz leans on shared building blocks rather than its own copies:
 
 - **Report a problem** reuses Logo Quiz's `QuizMenuModal` opened straight to its report view, so flag questions flow through the same `/reports` pipeline as the other apps. The gameplay screens report the real backend question id; the continent-list screen has no per-question context, so it reports a placeholder id.
-- **Share** builds the store link through `getStoreLinks` for the current platform and shares a localized invite. See [Content and Offline](content-and-offline.md#store-links-from-the-app-config).
+- **Share** captures an off-screen `FlagsShareCard` (the current question rendered NEUTRAL — no highlighted option — as a "guess this flag" challenge) to a PNG and shares it alongside a localized invite built from `getStoreLinks`, mirroring Logo Quiz's "Share a logo". The capture (`lib/flags-quiz/share-image.ts`) probes `react-native-view-shot` via the TurboModule registry and degrades to a text-only invite when the native module is absent (e.g. a build made before the dependency was added). The card has two shapes matching the two modes: flag-picture + text options ("All countries") and country-name + flag-picture options ("By continent"). See [Content and Offline](content-and-offline.md#store-links-from-the-app-config).
 - **Settings** (`app/flags-quiz/settings.tsx`) uses the shared `LocaleProvider` for its flag-per-language picker (ru/en/es) and the shared RevenueCat wrapper for Restore Purchases; Cancel Subscription opens the platform's own subscription-management page.
 
 Several surfaces are intentionally forward-looking. The Play screen shows five modes, but Challenge, Draw a flag, and Maps are locked "coming soon" buttons with no handler. Settings carries Restore Purchases and Cancel Subscription even though Flags Quiz has no shop or paywall yet, so premium is not exercised in gameplay. And `constants/flags-quiz/continent-flags.ts` holds a placeholder catalogue of SVG-drawn flags that predates the backend content; the live "By continent" game draws from `image_answer_questions`, so only that file's `ContinentKey` type is still on the live path.

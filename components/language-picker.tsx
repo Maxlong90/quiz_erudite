@@ -9,6 +9,7 @@ const LANGUAGES: { value: SupportedLocale; label: string }[] = [
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Español' },
   { value: 'ru', label: 'Русский' },
+  { value: 'fr', label: 'Français' },
 ];
 
 interface Props {

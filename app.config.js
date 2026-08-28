@@ -36,6 +36,10 @@ module.exports = ({ config } = {}) => {
       ios: {
         ...base.ios,
         bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
+        // Ship the first Flags Quiz release as iPhone-only — there is no tablet
+        // layout yet. Overrides the erudite base (supportsTablet: true) for this
+        // variant only; flip back to true once an iPad layout is added.
+        supportsTablet: false,
       },
       android: {
         ...base.android,
