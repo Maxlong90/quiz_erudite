@@ -22,7 +22,7 @@ A mobile general-knowledge trivia app built with React Native and Expo. Players 
 | Bundle ID | com.quizzzes.erudite |
 | Backend | quiz-erudit-backend.turbosuslik.online |
 | App slug | erudite-quiz |
-| Languages | English, Russian, Spanish |
+| Languages | English, Russian, Spanish, French |
 
 ## See Also
 

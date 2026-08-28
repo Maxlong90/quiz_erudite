@@ -4,7 +4,7 @@ The app keeps players returning through a small economy and a progression system
 
 ## Lives
 
-Lives (`lib/lives.ts`, surfaced by `hooks/use-lives.ts`) are the spend currency of a session. A wrong answer in most modes costs one life; survival is the exception, where a wrong answer ends the run instead of spending. When the count hits zero mid-quiz, the out-of-lives modal opens and routes the player to the shop.
+Lives (`lib/lives.ts`, surfaced by `hooks/use-lives.ts`) are the spend currency of a session. A wrong answer in most modes costs one life; survival is the exception, where a wrong answer ends the run instead of spending. Two moments raise the out-of-lives modal: hitting zero mid-quiz, and the pre-quiz gate in `loadQuestions` when a non-premium player opens a quiz with no lives left. Both present the same `OutOfLivesModal` — buy, watch an ad, or "Later" — over a neutral loading background rather than an error screen. "Later" routes the player to the shop (`/shop`), so a player who declines still lands where they can top up.
 
 Lives are replenished three ways: a daily claim of ten, the shop, or a rewarded ad. There is no cap — an earlier version capped lives at 30 and silently lost overflow on claim, so lives are now pure uncapped currency and every grant lands in full.
 

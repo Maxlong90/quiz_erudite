@@ -46,7 +46,7 @@ Expo Router provides file-based routing with a single `Stack` navigator defined 
 | Route | Screen | Role |
 |-------|--------|------|
 | `splash` | Splash | Animated intro; always hands off to `language` (themed per app) |
-| `language` | Language | Locale picker (en, ru, es) |
+| `language` | Language | Locale picker (en, ru, es, fr) |
 | `onboarding` | Onboarding | One-time intro carousel |
 | `index` | Home | Hub with Categories and Modes tabs plus the bottom bar |
 | `category/[slug]` | Category | Lists a subject's subcategories |
@@ -65,7 +65,7 @@ The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, a
 
 Four React context providers wrap the whole tree, in this order: `LocaleProvider`, `ThemePrefProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
 
-- **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`). It seeds from the device locale and falls back to English.
+- **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`, `fr`). It seeds from the device locale and falls back to English.
 - **`ThemePrefProvider`** (`hooks/use-theme-pref.ts`) holds the app-selected appearance (`dark` or `light`), hydrated from storage and flipped by the Settings appearance switcher. Because the choice lives in React state above every screen, changing it repaints the whole app instantly. See [Theming and Appearance](#theming-and-appearance).
 - **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Wherever store billing is enabled (any native platform with a RevenueCat key — Android today, iOS once its key is supplied) it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
@@ -162,7 +162,7 @@ lib/                    Device-local business logic and persistence
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
   theme.ts              EruditePalette tokens (dark/light), legacy colors, fonts
-i18n/                   String tables for en, ru, es
+i18n/                   String tables for en, ru, es, fr
 
 app/logo-quiz/          Second app: self-contained Logo Quiz flow
 components/logo-quiz/   Logo Quiz UI (cards, HUD, wheel, confetti)

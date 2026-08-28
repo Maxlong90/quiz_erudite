@@ -156,7 +156,7 @@ components/    UI components (home, quiz, achievements, lives, shop)
 hooks/         Context providers and stateful hooks
 lib/           Device-local business logic and persistence
 constants/     Category visuals and theme
-i18n/          String tables for en, ru, es
+i18n/          String tables for en, ru, es, fr
 assets/        Icons, splash, images
 .maestro/      E2E flows
 scripts/       Build and utility scripts
