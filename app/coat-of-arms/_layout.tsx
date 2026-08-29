@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 
 import { CoatContentProvider } from '@/hooks/coat-of-arms/use-coat-content';
+import { preloadCategoryIcons } from '@/constants/coat-of-arms/category-icons';
 
 /**
  * Coat of Arms feature layout. Wraps the flow in the content provider so the
@@ -10,6 +12,13 @@ import { CoatContentProvider } from '@/hooks/coat-of-arms/use-coat-content';
  * base doesn't show through — the coats artwork is the only background.
  */
 export default function CoatOfArmsLayout() {
+  // Warm the Play-screen category icons as soon as the Coat of Arms flow mounts
+  // (splash/home) — long before the user taps Play — so the Play screen opens
+  // fully formed instead of flashing a plain base while its icons decode.
+  useEffect(() => {
+    preloadCategoryIcons();
+  }, []);
+
   return (
     <CoatContentProvider>
       <Stack

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
+import { CATEGORY_ICON, useCategoryIconsReady } from '@/constants/coat-of-arms/category-icons';
 
 /**
  * Coat of Arms Play screen. Opens from the home Play button and mirrors the
@@ -15,20 +16,28 @@ import { useCoaLabels } from '@/constants/coat-of-arms/labels';
  * screen, a Back (left) + Settings (right) header, and a stack of glossy-blue
  * mode buttons in the exact home-screen style/colours.
  *
- * Categories: All countries, By continent, Challenge (locked), International
- * symbols (locked — "available soon"), Cities, and Bonus level at the bottom.
- * Content-backed destinations aren't wired yet, so the active handlers are
- * no-ops for now (like the home Play button).
+ * Categories: All countries, By continents, Challenge (locked), Cities (locked),
+ * and Bonus level (locked). Each button carries its own crest icon. Content-
+ * backed destinations aren't wired yet, so the locked handlers are no-ops.
  */
 export default function CoatOfArmsPlay() {
   const t = useFQLabels();
   const c = useCoaLabels();
   const bgReady = useCoatBgReady();
+  const iconsReady = useCategoryIconsReady();
 
-  // Hold on a plain blue base until the coats artwork is cached, then reveal
-  // background + buttons together (matches the home screen).
-  if (!bgReady) {
-    return <View style={[styles.fill, { backgroundColor: BG_BASE }]} />;
+  // While the (already home-warmed) coats artwork + category icons finish
+  // caching, render the SAME coats background (over the blue base) rather than a
+  // plain blue fill, so the background never flips blue→coats when opening Play —
+  // only the buttons appear once the icons are ready. The icons are also
+  // preloaded by the feature layout, so on a normal open this frame is skipped.
+  if (!bgReady || !iconsReady) {
+    return (
+      <View style={[styles.fill, { backgroundColor: BG_BASE }]}>
+        <AppBackground />
+        <StatusBar style="light" />
+      </View>
+    );
   }
 
   return (
@@ -63,12 +72,14 @@ export default function CoatOfArmsPlay() {
             label={t.allCountries}
             fontSize={24}
             paddingVertical={22}
+            icon={<Image source={CATEGORY_ICON.allCountries} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => router.push('/coat-of-arms/quiz')}
           />
           <GlossyButton
             label={t.byContinents}
             fontSize={24}
             paddingVertical={22}
+            icon={<Image source={CATEGORY_ICON.byContinents} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => {}}
           />
           <GlossyButton
@@ -77,14 +88,7 @@ export default function CoatOfArmsPlay() {
             fontSize={24}
             paddingVertical={22}
             locked
-            onPress={() => {}}
-          />
-          <GlossyButton
-            label={c.internationalSymbols}
-            sublabel={t.comingSoon}
-            fontSize={24}
-            paddingVertical={22}
-            locked
+            icon={<Image source={CATEGORY_ICON.challenge} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => {}}
           />
           <GlossyButton
@@ -93,6 +97,7 @@ export default function CoatOfArmsPlay() {
             fontSize={24}
             paddingVertical={22}
             locked
+            icon={<Image source={CATEGORY_ICON.cities} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => {}}
           />
           <GlossyButton
@@ -101,6 +106,7 @@ export default function CoatOfArmsPlay() {
             fontSize={24}
             paddingVertical={22}
             locked
+            icon={<Image source={CATEGORY_ICON.bonus} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => {}}
           />
         </ScrollView>
@@ -119,5 +125,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   actions: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 20, gap: 16 },
+  icon: { width: 46, height: 46 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });
