@@ -894,9 +894,9 @@ export default function QuizScreen() {
         <OutOfLivesModal
           visible={outOfLivesOpen}
           adAvailable={adsEnabled}
-          // "Later" here means the player can't start the run — send them to
-          // the shop rather than home, so buying lives is one tap away.
-          onClose={() => { setOutOfLivesOpen(false); router.replace('/shop'); }}
+          // "Later" here means the player skips the gate — send them back to
+          // the main categories home screen.
+          onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
           onWatchAd={async () => {
             // Real rewarded ad: +1 life ONLY when the user earns the reward.
             // Dismiss / failure / no-fill grant nothing.
@@ -1058,9 +1058,9 @@ export default function QuizScreen() {
           visible={outOfLivesOpen}
           adAvailable={adsEnabled}
           // Closing the gate mid-quiz means giving up the run — there's no
-          // way to keep playing without a life, so we send the player to the
-          // shop (consistent with the pre-quiz gate) rather than home.
-          onClose={() => { setOutOfLivesOpen(false); router.replace('/shop'); }}
+          // way to keep playing without a life, so we send the player back to
+          // the main categories home screen (consistent with the pre-quiz gate).
+          onClose={() => { setOutOfLivesOpen(false); router.replace('/'); }}
           onWatchAd={async () => {
             // Real rewarded ad: +1 life ONLY when the user earns the reward.
             const result = await watchAdForLife();

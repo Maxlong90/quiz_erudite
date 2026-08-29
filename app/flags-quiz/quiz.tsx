@@ -261,7 +261,7 @@ export default function FlagsQuizGame() {
                 <Image
                   source={{ uri: question.imageUri }}
                   style={styles.flagImg}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={0}
                 />
               ) : (
@@ -447,6 +447,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    // White backing so flags with off-3:2 ratios (e.g. Nepal's pennant)
+    // letterbox cleanly on white instead of showing the screen through.
+    backgroundColor: '#FFFFFF',
   },
   flagImg: { width: 216, height: 144 },
   flagFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },

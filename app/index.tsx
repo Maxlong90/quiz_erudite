@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Image,
@@ -83,30 +82,16 @@ export default function HomeRoute() {
   if (APP_SLUG === 'coat-of-arms') {
     return <Redirect href="/coat-of-arms/splash" />;
   }
-  // On a cold start we go STRAIGHT to the first-run intro (language +
-  // onboarding) or Home — no QUIZZES splash animation in between. The branch
-  // is decided by the persisted onboarding.seen.v1 flag inside ColdStartGate.
-  const [isColdStart] = useState(() => consumeColdStart());
-  if (isColdStart) {
-    return <ColdStartGate />;
+  // Every cold start plays the branded QUIZZES splash (app/splash.tsx), exactly
+  // like the Flags Quiz / Coat of Arms builds: the purple animated wordmark
+  // covers the native splash hand-off, then the splash itself branches on the
+  // persisted onboarding.seen.v1 flag — first launch continues into
+  // language -> onboarding, every later launch skips straight to Home.
+  const [redirectToIntro] = useState(() => consumeColdStart());
+  if (redirectToIntro) {
+    return <Redirect href="/splash" />;
   }
   return <HomeScreen />;
-}
-
-// Cold-start gate: reads the onboarding flag and immediately routes to the
-// language/onboarding intro (first launch) or Home (every later launch).
-// While the (instant) AsyncStorage read resolves it paints only the plain
-// backdrop — no wordmark/tagline — so no splash flashes before onboarding.
-function ColdStartGate() {
-  const [target, setTarget] = useState<'intro' | 'home' | null>(null);
-  useEffect(() => {
-    AsyncStorage.getItem('onboarding.seen.v1')
-      .then((v) => setTarget(v === '1' ? 'home' : 'intro'))
-      .catch(() => setTarget('intro'));
-  }, []);
-  if (target === 'intro') return <Redirect href="/language" />;
-  if (target === 'home') return <HomeScreen />;
-  return <ScreenBackground />;
 }
 
 function HomeScreen() {
