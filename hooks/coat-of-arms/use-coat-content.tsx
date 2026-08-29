@@ -8,37 +8,77 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadCachedSnapshot, syncContent, type ContentSnapshot } from '@/lib/content-cache';
-import { buildCountryQuestions, type FlagCountryQuestion } from '@/lib/flags-quiz/content';
+import { apiClient } from '@/api/client';
+import {
+  cacheImages,
+  loadCachedSnapshot,
+  syncContent,
+  type ContentSnapshot,
+} from '@/lib/content-cache';
+import {
+  buildCountryQuestions,
+  continentCounts,
+  groupByContinent,
+  optionImageUrls,
+  type FlagCountryQuestion,
+  type FlagPictureQuestion,
+  type ImageAnswerApiQuestion,
+} from '@/lib/flags-quiz/content';
+import { COAT_QUIZ_SLUG, buildCoatPictureQuestions } from '@/lib/coat-of-arms/content';
+import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
 
-/** App slug the Coat of Arms quiz always syncs (its own namespaced cache). */
-const COAT_SLUG = 'coat-of-arms';
-
 type Status = 'idle' | 'syncing' | 'ready' | 'error';
+
+/** Offline cache of the image-answer payload (kept out of the snapshot). */
+interface ImageAnswerCache {
+  locale: string;
+  raw: ImageAnswerApiQuestion[];
+  imageMap: Record<string, string>;
+}
+
+const IMAGE_ANSWER_KEY = 'coat.imageAnswer.v1';
 
 interface CoatContentValue {
   /** Full snapshot (backs the "All countries" mode + app config). */
   snapshot: ContentSnapshot | null;
   /** "All countries": coat-of-arms image + text options (all image_questions). */
   countryQuestions: FlagCountryQuestion[];
+  /** "By continent": country name + coat-image options, grouped by continent. */
+  pictureByContinent: Partial<Record<ContinentKey, FlagPictureQuestion[]>>;
+  /** Per-continent question counts (drives the continents list badges). */
+  countsByContinent: Partial<Record<ContinentKey, number>>;
   status: Status;
   error: string | null;
 }
 
 const CoatContentContext = createContext<CoatContentValue | null>(null);
 
+/** Unwrap a Laravel resource collection ({data:[...]}) or a bare array. */
+function unwrapCollection(data: unknown): ImageAnswerApiQuestion[] {
+  if (Array.isArray(data)) return data as ImageAnswerApiQuestion[];
+  if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
+    return (data as { data: ImageAnswerApiQuestion[] }).data;
+  }
+  return [];
+}
+
 /**
- * Offline-first content provider for the Coat of Arms quiz. Identical mechanics
- * to the Flags Quiz provider — the backend content snapshot for the
- * `coat-of-arms` slug — only the artwork differs: each `image_questions` row is a
- * national COAT OF ARMS + four country text options (one correct). Re-syncs on
- * locale change so names, options and explanations follow the active language.
+ * Offline-first content provider for the Coat of Arms quiz. Same mechanics as the
+ * Flags Quiz provider — the `coat-of-arms` slug — for BOTH modes:
+ *   1. The content snapshot — image_questions (coat → text) for "All countries".
+ *   2. The image-answer endpoint — image_answer_questions (country name → 4 coat
+ *      images) for "By continent"; its option images are downloaded into the same
+ *      namespaced cache and the payload is persisted for offline play.
+ * Both re-sync on locale change so names, options and explanations follow the
+ * active language.
  */
 export function CoatContentProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const [snapshot, setSnapshot] = useState<ContentSnapshot | null>(null);
+  const [imageAnswer, setImageAnswer] = useState<ImageAnswerCache | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   // Tracks the locale the running sync is for, so a fast locale flip supersedes
@@ -51,9 +91,10 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
     setError(null);
     const isCurrent = () => inflightLocale.current === forLocale;
     try {
+      // 1. Snapshot (coat → text). Surface JSON early, then refresh with images.
       const fresh = await syncContent({
         locale: forLocale,
-        appSlug: COAT_SLUG,
+        appSlug: COAT_QUIZ_SLUG,
         force,
         onSnapshot: (snap) => {
           if (isCurrent()) {
@@ -62,8 +103,20 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
           }
         },
       });
+      if (isCurrent()) setSnapshot(fresh);
+
+      // 2. Image-answer questions (country name → 4 coat images). Own endpoint +
+      //    own image download into the shared namespaced cache.
+      const res = await apiClient.get(`/apps/${COAT_QUIZ_SLUG}/image-answer-questions`, {
+        params: { locale: forLocale },
+      });
+      const raw = unwrapCollection(res.data);
+      const imageMap = await cacheImages(optionImageUrls(raw), COAT_QUIZ_SLUG);
+      const cache: ImageAnswerCache = { locale: forLocale, raw, imageMap };
+      await AsyncStorage.setItem(IMAGE_ANSWER_KEY, JSON.stringify(cache));
+
       if (isCurrent()) {
-        setSnapshot(fresh);
+        setImageAnswer(cache);
         setStatus('ready');
       }
     } catch (err) {
@@ -80,11 +133,22 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const cached = await loadCachedSnapshot(COAT_SLUG);
+      const [cachedSnap, cachedIaRaw] = await Promise.all([
+        loadCachedSnapshot(COAT_QUIZ_SLUG),
+        AsyncStorage.getItem(IMAGE_ANSWER_KEY),
+      ]);
       if (cancelled) return;
-      if (cached && cached.locale === locale) {
-        setSnapshot(cached);
+      if (cachedSnap && cachedSnap.locale === locale) {
+        setSnapshot(cachedSnap);
         setStatus('ready');
+      }
+      if (cachedIaRaw) {
+        try {
+          const parsed = JSON.parse(cachedIaRaw) as ImageAnswerCache;
+          if (parsed.locale === locale) setImageAnswer(parsed);
+        } catch {
+          // ignore malformed cache
+        }
       }
       // Always attempt a sync — syncContent decides whether the cache is fresh.
       await runSync(locale, false);
@@ -95,8 +159,21 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   }, [locale, runSync]);
 
   const countryQuestions = useMemo(() => buildCountryQuestions(snapshot), [snapshot]);
+  const pictureQuestions = useMemo(
+    () => (imageAnswer ? buildCoatPictureQuestions(imageAnswer.raw, imageAnswer.imageMap) : []),
+    [imageAnswer],
+  );
+  const pictureByContinent = useMemo(() => groupByContinent(pictureQuestions), [pictureQuestions]);
+  const countsByContinent = useMemo(() => continentCounts(pictureQuestions), [pictureQuestions]);
 
-  const value: CoatContentValue = { snapshot, countryQuestions, status, error };
+  const value: CoatContentValue = {
+    snapshot,
+    countryQuestions,
+    pictureByContinent,
+    countsByContinent,
+    status,
+    error,
+  };
 
   return (
     <CoatContentContext.Provider value={value}>{children}</CoatContentContext.Provider>

@@ -26,19 +26,25 @@ function fitFont(lines: string[]): number {
   return Math.max(9, Math.min(18, Math.floor(OPT_TEXT_W / (longest * 0.66))));
 }
 
+const IMG_OPT_W = Math.floor(CARD_INNER * 0.48) - 8;
+
 interface Props {
+  /** 'country' = coat + text options; 'continent' = country name + coat images. */
+  variant?: 'country' | 'continent';
   /** App name shown as the branded header. */
   title: string;
-  /** The localized prompt. */
+  /** country: the localized prompt; continent: the country name. */
   prompt: string;
-  /** The coat-of-arms image. */
+  /** country variant: the coat-of-arms image. */
   coatUri?: string | null;
-  /** The four text answer choices. */
+  /** country variant: the four text answer choices. */
   textOptions?: string[];
+  /** continent variant: the four coat-image options. */
+  imageOptions?: (string | null)[];
 }
 
 export const CoatShareCard = forwardRef<View, Props>(function CoatShareCard(
-  { title, prompt, coatUri, textOptions },
+  { variant = 'country', title, prompt, coatUri, textOptions, imageOptions },
   ref,
 ) {
   return (
@@ -51,38 +57,64 @@ export const CoatShareCard = forwardRef<View, Props>(function CoatShareCard(
       >
         <Text style={styles.brand}>{title}</Text>
 
-        <View style={styles.coatFrame}>
-          {coatUri ? (
-            <Image source={{ uri: coatUri }} style={styles.coatImg} contentFit="contain" transition={0} />
-          ) : (
-            <View style={[styles.coatImg, styles.fallback]} />
-          )}
-        </View>
-        <Text style={styles.prompt}>{prompt}</Text>
+        {variant === 'country' ? (
+          <>
+            <View style={styles.coatFrame}>
+              {coatUri ? (
+                <Image source={{ uri: coatUri }} style={styles.coatImg} contentFit="contain" transition={0} />
+              ) : (
+                <View style={[styles.coatImg, styles.fallback]} />
+              )}
+            </View>
+            <Text style={styles.prompt}>{prompt}</Text>
 
-        <View style={styles.grid}>
-          {(textOptions ?? []).map((option, i) => {
-            const display = wrapLabel(option);
-            const lines = display.split('\n');
-            return (
-              <View key={`${option}-${i}`} style={styles.optWrap}>
-                <LinearGradient
-                  colors={[FQColors.tileLight, FQColors.tileDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.textOpt, FQShadow.card]}
-                >
-                  <Text
-                    style={[styles.optText, { fontSize: fitFont(lines) }]}
-                    numberOfLines={lines.length}
-                  >
-                    {display}
-                  </Text>
-                </LinearGradient>
-              </View>
-            );
-          })}
-        </View>
+            <View style={styles.grid}>
+              {(textOptions ?? []).map((option, i) => {
+                const display = wrapLabel(option);
+                const lines = display.split('\n');
+                return (
+                  <View key={`${option}-${i}`} style={styles.optWrap}>
+                    <LinearGradient
+                      colors={[FQColors.tileLight, FQColors.tileDark]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[styles.textOpt, FQShadow.card]}
+                    >
+                      <Text
+                        style={[styles.optText, { fontSize: fitFont(lines) }]}
+                        numberOfLines={lines.length}
+                      >
+                        {display}
+                      </Text>
+                    </LinearGradient>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.country}>{prompt}</Text>
+            <View style={styles.grid}>
+              {(imageOptions ?? []).map((uri, i) => (
+                <View key={i} style={styles.imgOptWrap}>
+                  <View style={styles.imgFrame}>
+                    {uri ? (
+                      <Image
+                        source={{ uri }}
+                        style={{ width: IMG_OPT_W, height: IMG_OPT_W }}
+                        contentFit="contain"
+                        transition={0}
+                      />
+                    ) : (
+                      <View style={[{ width: IMG_OPT_W, height: IMG_OPT_W }, styles.fallback]} />
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </LinearGradient>
     </View>
   );
@@ -137,4 +169,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   optText: { color: FQColors.tileGlyph, fontWeight: '900', textAlign: 'center' },
+  country: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 18,
+  },
+  imgOptWrap: { width: '48%', alignItems: 'center' },
+  imgFrame: {
+    borderWidth: 3,
+    borderColor: FQColors.tileRim,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    padding: 6,
+  },
 });

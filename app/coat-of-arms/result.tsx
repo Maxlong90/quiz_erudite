@@ -19,10 +19,12 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
 export default function CoatOfArmsResult() {
   const t = useFQLabels();
   const bgReady = useCoatBgReady();
-  const { correct, total, wrong } = useLocalSearchParams<{
+  const { correct, total, wrong, mode, continent } = useLocalSearchParams<{
     correct?: string;
     total?: string;
     wrong?: string;
+    mode?: string;
+    continent?: string;
   }>();
 
   const score = Number.parseInt(correct ?? '0', 10) || 0;
@@ -46,14 +48,25 @@ export default function CoatOfArmsResult() {
   const message =
     tier === 'excellent' ? t.resultExcellent : tier === 'good' ? t.resultGood : t.resultKeepGoing;
 
+  // Where "play again" / "retry mistakes" route depends on which game mode
+  // produced this result: the "All countries" quiz or a per-continent game.
+  const isContinent = mode === 'continent';
+  const gamePath = isContinent ? '/coat-of-arms/continent-quiz' : '/coat-of-arms/quiz';
+
   function playAgain() {
-    router.replace({ pathname: '/coat-of-arms/quiz', params: {} });
+    router.replace({
+      pathname: gamePath,
+      params: isContinent ? { continent: continent ?? 'africa' } : {},
+    });
   }
 
   function retryMistakes() {
     router.replace({
-      pathname: '/coat-of-arms/quiz',
-      params: { retry: wrongList.join(',') },
+      pathname: gamePath,
+      params: {
+        retry: wrongList.join(','),
+        ...(isContinent ? { continent: continent ?? 'africa' } : {}),
+      },
     });
   }
 

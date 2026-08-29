@@ -32,6 +32,8 @@ export default function CoatOfArmsLayout() {
             screen navigated TO is what plays, so `index` carries the fade. */}
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="play" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="continents" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="continent-quiz" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="quiz" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="result" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />

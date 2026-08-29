@@ -80,7 +80,7 @@ export default function CoatOfArmsPlay() {
             fontSize={24}
             paddingVertical={22}
             icon={<Image source={CATEGORY_ICON.byContinents} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => {}}
+            onPress={() => router.push('/coat-of-arms/continents')}
           />
           <GlossyButton
             label={t.challenge}
