@@ -92,6 +92,12 @@ export default function FlagsQuizContinentGame() {
   const [reportOpen, setReportOpen] = useState(false);
   // Off-screen composition (country name + flag options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
+  // The game page only scrolls when its content actually exceeds the viewport
+  // (small phones); on tall phones it fits, so scrolling stays off and the page
+  // never rubber-bands. Measured via onLayout / onContentSizeChange below.
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const pageScrolls = contentH > viewportH + 1;
 
   // On a retry we replay only the missed indices (in order); otherwise the run is
   // resumed-or-freshly-shuffled and persisted per continent by useRunProgress.
@@ -241,8 +247,15 @@ export default function FlagsQuizContinentGame() {
         </View>
 
         <ScrollView
+          style={styles.scroll}
           contentContainerStyle={styles.body}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={pageScrolls}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setContentH(h)}
         >
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
@@ -362,6 +375,7 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
+  scroll: { flex: 1 },
   body: { paddingBottom: 32 },
 
   // Progress (1/6) + country name, sitting right below the top bar.

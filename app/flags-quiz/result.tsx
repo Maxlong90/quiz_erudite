@@ -106,7 +106,12 @@ export default function FlagsQuizResult() {
               style={styles.squareGloss}
               pointerEvents="none"
             />
-            <Text style={[styles.score, { color: tierColor }]}>{`${score}/${outOf}`}</Text>
+            <Text
+              style={[styles.score, { color: tierColor }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+            >{`${score}/${outOf}`}</Text>
             <Text style={[styles.percent, { color: tierColor }]}>{`${percentage}%`}</Text>
             <Text style={styles.caption}>{t.resultCaption}</Text>
           </LinearGradient>
@@ -165,7 +170,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
-  score: { fontSize: 56, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  // alignSelf 'stretch' + horizontal padding gives adjustsFontSizeToFit a bounded
+  // width so long scores (e.g. "126/195") shrink to one line instead of wrapping.
+  score: {
+    fontSize: 56,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+    alignSelf: 'stretch',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
   percent: { fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
   caption: { color: FQColors.tileGlyph, fontSize: 14, fontWeight: '700', marginTop: 2 },
   message: {

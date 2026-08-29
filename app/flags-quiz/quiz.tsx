@@ -100,6 +100,12 @@ export default function FlagsQuizGame() {
   const [reportOpen, setReportOpen] = useState(false);
   // Off-screen composition (flag + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
+  // The game page only scrolls when its content actually exceeds the viewport
+  // (small phones); on tall phones it fits, so scrolling stays off and the page
+  // never rubber-bands. Measured via onLayout / onContentSizeChange below.
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const pageScrolls = contentH > viewportH + 1;
 
   // On a retry we replay only the missed indices (in order); otherwise the run is
   // resumed-or-freshly-shuffled and persisted by useRunProgress.
@@ -252,7 +258,17 @@ export default function FlagsQuizGame() {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={pageScrolls}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setContentH(h)}
+        >
           {/* Flag block: progress right above the flag, then the flag, then the question. */}
           <View style={styles.imageArea}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
@@ -423,6 +439,7 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
+  scroll: { flex: 1 },
   body: { paddingBottom: 32 },
 
   // Sits right above the flag inside the flag block.
