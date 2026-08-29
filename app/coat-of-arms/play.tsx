@@ -63,7 +63,7 @@ export default function CoatOfArmsPlay() {
             label={t.allCountries}
             fontSize={24}
             paddingVertical={22}
-            onPress={() => {}}
+            onPress={() => router.push('/coat-of-arms/quiz')}
           />
           <GlossyButton
             label={t.byContinents}
