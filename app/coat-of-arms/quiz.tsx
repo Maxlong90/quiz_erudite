@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,11 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
+import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { wrapLabel } from '@/lib/flags-quiz/label';
+import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
+import { getStoreLinks } from '@/lib/store-links';
+import { CoatShareCard } from '@/components/coat-of-arms/share-card';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
@@ -77,10 +82,13 @@ function fitFontSize(lines: string[]): number {
  */
 export default function CoatOfArmsGame() {
   const t = useFQLabels();
+  const c = useCoaLabels();
   const { locale } = useLocale();
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useCoatContent();
   const [reportOpen, setReportOpen] = useState(false);
+  // Off-screen composition (coat + prompt + options) captured to a PNG for Share.
+  const shareCardRef = useRef<View>(null);
 
   // On a retry we replay only the missed indices (in order); otherwise the run is
   // resumed-or-freshly-shuffled and persisted by useRunProgress.
@@ -161,6 +169,14 @@ export default function CoatOfArmsGame() {
     advance(wrong);
   };
 
+  // Share the question: capture the off-screen CoatShareCard to a PNG and share
+  // it with the invite (mirrors Flags Quiz's "Share a flag").
+  const onShare = () => {
+    const { storeUrl } = getStoreLinks(undefined, Platform.OS);
+    const message = t.shareInvite.replace('{url}', storeUrl);
+    shareQuestionImage(shareCardRef, message);
+  };
+
   const stateFor = (option: number): OptionState => {
     if (!answered || !question) return 'idle';
     // Only the tapped option lights up: green if correct, red if wrong. A wrong
@@ -189,6 +205,9 @@ export default function CoatOfArmsGame() {
 
   const historyText = question.explanation;
   const revealing = isCorrectPick;
+  // RU splits the prompt onto two lines (its single-line wrap looked wrong);
+  // every other locale keeps the backend question, which already wraps nicely.
+  const promptText = c.quizPrompt || question.prompt;
 
   return (
     <View style={styles.fill}>
@@ -196,7 +215,7 @@ export default function CoatOfArmsGame() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        {/* Top bar: back (left) · report (right). */}
+        {/* Top bar: back (left) · report + share (right). */}
         <View style={styles.hud}>
           <Pressable
             onPress={() => router.back()}
@@ -205,14 +224,24 @@ export default function CoatOfArmsGame() {
           >
             <GlossyIconButton glyph="chevron-back" size={44} />
           </Pressable>
-          <Pressable
-            onPress={() => setReportOpen(true)}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-            testID="quiz-report-button"
-          >
-            <GlossyIconButton glyph="flag" size={44} />
-          </Pressable>
+          <View style={styles.hudRight}>
+            <Pressable
+              onPress={() => setReportOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-report-button"
+            >
+              <GlossyIconButton glyph="flag" size={44} />
+            </Pressable>
+            <Pressable
+              onPress={onShare}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-share-button"
+            >
+              <GlossyIconButton glyph="share-social" size={44} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -231,7 +260,7 @@ export default function CoatOfArmsGame() {
                 <View style={[styles.coatImg, styles.coatFallback]} />
               )}
             </View>
-            <Text style={styles.prompt}>{question.prompt}</Text>
+            <Text style={styles.prompt}>{promptText}</Text>
           </View>
 
           {/* 2×2 answer grid. On a correct reveal the wrong options unmount (FadeOut)
@@ -290,6 +319,18 @@ export default function CoatOfArmsGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Off-screen composition captured for the Share image. Laid out (so it can
+          be snapshotted) but parked outside the viewport, never affecting layout. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <CoatShareCard
+          ref={shareCardRef}
+          title={c.appName}
+          prompt={promptText}
+          coatUri={question.imageUri}
+          textOptions={question.options}
+        />
+      </View>
     </View>
   );
 }
@@ -350,6 +391,9 @@ function OptionButton({
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  // Parks the share composition off-screen — laid out (so it can be snapshotted)
+  // but never visible or interactive.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
   center: { alignItems: 'center', justifyContent: 'center' },
   loaderText: {
     color: '#FFFFFF',
@@ -365,6 +409,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   body: { paddingBottom: 32 },
 

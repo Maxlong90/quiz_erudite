@@ -56,7 +56,7 @@ export function GlossyButton({
         <View style={styles.textCol}>
           <Text
             style={[styles.text, { fontSize }]}
-            numberOfLines={1}
+            numberOfLines={label.split('\n').length}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
           >

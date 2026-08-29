@@ -89,14 +89,18 @@ export default function CoatOfArmsPlay() {
           />
           <GlossyButton
             label={c.cities}
+            sublabel={t.comingSoon}
             fontSize={24}
             paddingVertical={22}
+            locked
             onPress={() => {}}
           />
           <GlossyButton
             label={c.bonusLevel}
+            sublabel={t.comingSoon}
             fontSize={24}
             paddingVertical={22}
+            locked
             onPress={() => {}}
           />
         </ScrollView>
