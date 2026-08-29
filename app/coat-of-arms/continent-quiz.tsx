@@ -104,13 +104,6 @@ export default function CoatOfArmsContinentGame() {
 
   const [picked, setPicked] = useState<number | null>(null);
 
-  // Lock the page so it only scrolls when the content genuinely overflows the
-  // viewport (small phones). On roomy screens everything fits and the page must
-  // NOT drag/bounce. We compare the measured content height to the viewport.
-  const [viewportH, setViewportH] = useState(0);
-  const [contentH, setContentH] = useState(0);
-  const pageScrolls = contentH > viewportH + 1;
-
   const questionIdx = order[pos];
   const q = questions[questionIdx];
   const answered = picked !== null;
@@ -233,16 +226,12 @@ export default function CoatOfArmsContinentGame() {
           </View>
         </View>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.body}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={pageScrolls}
-          bounces={pageScrolls}
-          alwaysBounceVertical={false}
-          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
-          onContentSizeChange={(_w, h) => setContentH(h)}
-        >
+        {/* Non-scrolling page: everything fixed EXCEPT the history note, which is
+            the one flexible region and scrolls INTERNALLY. Keeps the page still
+            on roomy screens while guaranteeing the full note is reachable on
+            every screen — and avoids the broken ScrollView-inside-ScrollView
+            nesting that stopped the note scrolling. */}
+        <View style={styles.page}>
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
@@ -290,12 +279,12 @@ export default function CoatOfArmsContinentGame() {
 
           {/* Reveal panel — the note (when present) then a "Next" button. */}
           {revealing ? (
-            <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
                   <ScrollView
                     style={styles.historyScroll}
-                    showsVerticalScrollIndicator={false}
+                    showsVerticalScrollIndicator
                     nestedScrollEnabled
                   >
                     <Text style={styles.historyText}>{historyText}</Text>
@@ -307,7 +296,7 @@ export default function CoatOfArmsContinentGame() {
               </View>
             </Animated.View>
           ) : null}
-        </ScrollView>
+        </View>
       </SafeAreaView>
 
       {/* Report — real backend question id. */}
@@ -356,8 +345,10 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
-  scroll: { flex: 1 },
-  body: { paddingBottom: 32 },
+  page: { flex: 1, paddingBottom: 16 },
+  // Reveal panel takes the space left under the options; its note shrinks to fit
+  // and scrolls internally, so the "Next" button stays on screen everywhere.
+  reveal: { flex: 1, minHeight: 0, width: '100%' },
 
   head: { alignItems: 'center', marginTop: 16 },
   progress: {
@@ -415,8 +406,9 @@ const styles = StyleSheet.create({
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
+    flexShrink: 1,
   },
-  historyScroll: { maxHeight: NOTE_MAX_H },
+  historyScroll: { maxHeight: NOTE_MAX_H, flexShrink: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
