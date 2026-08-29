@@ -277,13 +277,7 @@ export default function CoatOfArmsContinentGame() {
             <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
-                  <ScrollView
-                    style={styles.historyScroll}
-                    showsVerticalScrollIndicator={false}
-                    nestedScrollEnabled
-                  >
-                    <Text style={styles.historyText}>{historyText}</Text>
-                  </ScrollView>
+                  <Text style={styles.historyText}>{historyText}</Text>
                 </View>
               ) : null}
               <View style={styles.nextWrap}>

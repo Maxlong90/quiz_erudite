@@ -29,6 +29,11 @@ function isValid(p: unknown, count: number): p is RunProgress {
   if (!p || typeof p !== 'object') return false;
   const r = p as RunProgress;
   if (!Array.isArray(r.order) || r.order.length === 0) return false;
+  // A persisted FULL run shuffles every question, so its order length must equal
+  // the current question count. When the catalogue GROWS (e.g. 50 → 195 coats), a
+  // saved 50-order is still "in range" but stale — discard it so a fresh run
+  // covers all questions instead of resuming the old smaller set.
+  if (r.order.length !== count) return false;
   if (!r.order.every((n) => Number.isInteger(n) && n >= 0 && n < count)) return false;
   if (typeof r.pos !== 'number' || r.pos < 0 || r.pos >= r.order.length) return false;
   if (!Array.isArray(r.wrong) || !r.wrong.every((n) => Number.isInteger(n))) return false;

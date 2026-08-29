@@ -111,6 +111,15 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
         params: { locale: forLocale },
       });
       const raw = unwrapCollection(res.data);
+      // Make the questions playable IMMEDIATELY — the option images resolve from
+      // their remote URLs until the local cache warms, so the user never waits
+      // for ~780 downloads before "By continent" opens.
+      if (isCurrent()) {
+        setImageAnswer({ locale: forLocale, raw, imageMap: {} });
+        setStatus('ready');
+      }
+      // Download the option images into the offline cache in the background, then
+      // swap in the local map so subsequent plays are offline-ready.
       const imageMap = await cacheImages(optionImageUrls(raw), COAT_QUIZ_SLUG);
       const cache: ImageAnswerCache = { locale: forLocale, raw, imageMap };
       await AsyncStorage.setItem(IMAGE_ANSWER_KEY, JSON.stringify(cache));
@@ -150,8 +159,10 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
           // ignore malformed cache
         }
       }
-      // Always attempt a sync — syncContent decides whether the cache is fresh.
-      await runSync(locale, false);
+      // Stale-while-revalidate: the cache above shows instantly; force a fresh
+      // fetch so a grown catalogue (e.g. 50 → 195 coats) is picked up right away
+      // instead of waiting out the 24h snapshot TTL.
+      await runSync(locale, true);
     })();
     return () => {
       cancelled = true;
