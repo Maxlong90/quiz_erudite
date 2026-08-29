@@ -42,7 +42,12 @@ const NOTE_MAX_H = 160;
 // flag), each on a white plate with the coat CONTAINED (never cropped).
 const SCREEN_W = Dimensions.get('window').width;
 const GRID_PAD = 20;
-const WRAP_EXTRA = 20; // frame border (3×2) + padding (3×2) + ring (4×2)
+// Per-option chrome that eats horizontal space: the wrapper's 4px reveal ring
+// (8) + 3px padding (6), plus the frame's 3px navy border (6) + 6px white-plate
+// padding (12) = 32 per option. Subtract both + an inter-column gap so two
+// squares fit one row (a smaller value made each option >50% and wrapped them
+// into a single column).
+const WRAP_EXTRA = 32;
 const OPT_W = Math.floor((SCREEN_W - GRID_PAD * 2 - WRAP_EXTRA * 2 - 8) / 2);
 const OPT_H = OPT_W;
 
