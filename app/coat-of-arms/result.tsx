@@ -104,7 +104,12 @@ export default function CoatOfArmsResult() {
               style={styles.squareGloss}
               pointerEvents="none"
             />
-            <Text style={[styles.score, { color: tierColor }]}>{`${score}/${outOf}`}</Text>
+            <Text
+              style={[styles.score, { color: tierColor }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.4}
+            >{`${score}/${outOf}`}</Text>
             <Text style={[styles.percent, { color: tierColor }]}>{`${percentage}%`}</Text>
             <Text style={styles.caption}>{t.resultCaption}</Text>
           </LinearGradient>
@@ -151,6 +156,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     marginVertical: 4,
+    paddingHorizontal: 14,
     overflow: 'hidden',
   },
   squareGloss: {
@@ -162,7 +168,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
-  score: { fontSize: 56, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  score: { fontSize: 56, fontWeight: '900', fontVariant: ['tabular-nums'], textAlign: 'center', alignSelf: 'stretch' },
   percent: { fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
   caption: { color: FQColors.tileGlyph, fontSize: 14, fontWeight: '700', marginTop: 2 },
   message: {

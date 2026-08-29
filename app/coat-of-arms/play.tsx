@@ -1,4 +1,5 @@
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,9 @@ export default function CoatOfArmsPlay() {
   const c = useCoaLabels();
   const bgReady = useCoatBgReady();
   const iconsReady = useCategoryIconsReady();
+  // Measured height of a single mode button — the whole stack is nudged down by
+  // half of it, widening ONLY the gap under the header (mirrors Flags Quiz).
+  const [btnH, setBtnH] = useState(0);
 
   // While the (already home-warmed) coats artwork + category icons finish
   // caching, render the SAME coats background (over the blue base) rather than a
@@ -68,17 +72,17 @@ export default function CoatOfArmsPlay() {
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.actions}
-          showsVerticalScrollIndicator={false}
-        >
-          <GlossyButton
-            label={t.allCountries}
-            fontSize={24}
-            paddingVertical={22}
-            icon={<Image source={CATEGORY_ICON.allCountries} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => router.push('/coat-of-arms/quiz')}
-          />
+        {/* Mode buttons — the stack sits half a button lower than the header. */}
+        <View style={[styles.actions, btnH ? { marginTop: btnH / 2 } : null]}>
+          <View onLayout={(e) => setBtnH(e.nativeEvent.layout.height)}>
+            <GlossyButton
+              label={t.allCountries}
+              fontSize={24}
+              paddingVertical={22}
+              icon={<Image source={CATEGORY_ICON.allCountries} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
+              onPress={() => router.push('/coat-of-arms/quiz')}
+            />
+          </View>
           <GlossyButton
             label={t.byContinents}
             fontSize={24}
@@ -113,7 +117,26 @@ export default function CoatOfArmsPlay() {
             icon={<Image source={CATEGORY_ICON.bonus} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
             onPress={() => {}}
           />
-        </ScrollView>
+        </View>
+
+        <View style={styles.spacer} />
+
+        {/* Bottom: "Other apps" phone tile, centred — same tile, label and link
+            as the Flags Quiz Play screen. */}
+        <View style={styles.bottom}>
+          <Pressable
+            hitSlop={8}
+            style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}
+            onPress={() => {
+              Linking.openURL(
+                'https://apps.apple.com/us/app/erudite-quiz-trivia-crac-daily/id6787385686',
+              ).catch(() => {});
+            }}
+          >
+            <GlossyIconButton glyph="phone-portrait" size={70} />
+            <Text style={styles.bottomLabel}>{t.otherApps}</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -128,7 +151,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  actions: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 20, gap: 16 },
+  actions: { paddingHorizontal: 24, paddingTop: 8, gap: 16 },
   icon: { width: 46, height: 46 },
+  spacer: { flex: 1 },
+  bottom: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingBottom: 12,
+  },
+  bottomItem: { alignItems: 'center', gap: 6 },
+  bottomLabel: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+    textShadowColor: 'rgba(4, 40, 96, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 
 import { apiClient } from '@/api/client';
 import {
@@ -176,6 +177,19 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   );
   const pictureByContinent = useMemo(() => groupByContinent(pictureQuestions), [pictureQuestions]);
   const countsByContinent = useMemo(() => continentCounts(pictureQuestions), [pictureQuestions]);
+
+  // Preload EVERY gameplay image up-front (both modes) into the memory+disk
+  // cache, so nothing streams in mid-game and a fast run of answer taps never
+  // flashes empty white tiles. Fire-and-forget and fail-open; re-runs as the
+  // question sets — or their warmed local URIs — change.
+  useEffect(() => {
+    const urls = [
+      ...countryQuestions.map((q) => q.imageUri),
+      ...pictureQuestions.flatMap((q) => q.optionImageUris),
+    ].filter((u): u is string => !!u);
+    if (urls.length === 0) return;
+    Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});
+  }, [countryQuestions, pictureQuestions]);
 
   const value: CoatContentValue = {
     snapshot,
