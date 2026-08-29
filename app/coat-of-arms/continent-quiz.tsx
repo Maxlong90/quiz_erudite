@@ -104,6 +104,13 @@ export default function CoatOfArmsContinentGame() {
 
   const [picked, setPicked] = useState<number | null>(null);
 
+  // Lock the page so it only scrolls when the content genuinely overflows the
+  // viewport (small phones). On roomy screens everything fits and the page must
+  // NOT drag/bounce. We compare the measured content height to the viewport.
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const pageScrolls = contentH > viewportH + 1;
+
   const questionIdx = order[pos];
   const q = questions[questionIdx];
   const answered = picked !== null;
@@ -226,7 +233,16 @@ export default function CoatOfArmsContinentGame() {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={pageScrolls}
+          bounces={pageScrolls}
+          alwaysBounceVertical={false}
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setContentH(h)}
+        >
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
@@ -277,7 +293,13 @@ export default function CoatOfArmsContinentGame() {
             <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
-                  <Text style={styles.historyText}>{historyText}</Text>
+                  <ScrollView
+                    style={styles.historyScroll}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                  >
+                    <Text style={styles.historyText}>{historyText}</Text>
+                  </ScrollView>
                 </View>
               ) : null}
               <View style={styles.nextWrap}>
@@ -334,6 +356,7 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
+  scroll: { flex: 1 },
   body: { paddingBottom: 32 },
 
   head: { alignItems: 'center', marginTop: 16 },

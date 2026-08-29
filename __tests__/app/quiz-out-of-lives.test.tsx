@@ -5,8 +5,9 @@
  *  - PRE-QUIZ gate with 0 lives: the run is blocked WITHOUT dispatching an
  *    error, so the generic "Something went wrong" error screen must NOT render.
  *    The OutOfLivesModal floats over the neutral loading background instead.
- *  - "Later" (OutOfLivesModal onClose) in the lives gate routes to '/shop'
- *    (not home '/'), for both the pre-quiz and the mid-quiz gate.
+ *  - "Later" (OutOfLivesModal onClose) in the lives gate routes to the main
+ *    categories home '/' (not the shop '/shop'), for both the pre-quiz and the
+ *    mid-quiz gate.
  *  - onWatchAd granted reloads lives and retries loadQuestions (getLives is
  *    consulted a second time).
  *  - A GENUINE load error (daily mode, cache not ready) still renders the
@@ -217,14 +218,14 @@ describe('pre-quiz lives gate (0 lives)', () => {
     expect(screen.queryByText('No lives')).toBeNull();
   });
 
-  it('"Later" routes to the shop, not home', async () => {
+  it('"Later" routes to home, not the shop', async () => {
     const screen = render(<QuizScreen />);
     await waitFor(() => expect(screen.getByTestId('out-of-lives-open')).toBeTruthy());
 
     fireEvent.press(screen.getByTestId('oolm-later'));
 
-    expect(mockReplace).toHaveBeenCalledWith('/shop');
-    expect(mockReplace).not.toHaveBeenCalledWith('/');
+    expect(mockReplace).toHaveBeenCalledWith('/');
+    expect(mockReplace).not.toHaveBeenCalledWith('/shop');
   });
 
   it('"Buy" opens the BuyLivesModal (does not leave for an error screen)', async () => {
@@ -275,7 +276,7 @@ describe('genuine load error', () => {
 // --- MID-QUIZ lives gate -----------------------------------------------------
 
 describe('mid-quiz lives gate', () => {
-  it('"Later" routes to the shop, not home', async () => {
+  it('"Later" routes to home, not the shop', async () => {
     // Two-question run so the first wrong answer is NOT the last question;
     // 5 lives clears the pre-quiz gate, then a wrong answer drains to 0.
     mockGetLives.mockReset().mockResolvedValue(5);
@@ -295,7 +296,7 @@ describe('mid-quiz lives gate', () => {
 
     fireEvent.press(screen.getByTestId('oolm-later'));
 
-    expect(mockReplace).toHaveBeenCalledWith('/shop');
-    expect(mockReplace).not.toHaveBeenCalledWith('/');
+    expect(mockReplace).toHaveBeenCalledWith('/');
+    expect(mockReplace).not.toHaveBeenCalledWith('/shop');
   });
 });

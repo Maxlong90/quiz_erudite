@@ -10,6 +10,10 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { CATEGORY_ICON, useCategoryIconsReady } from '@/constants/coat-of-arms/category-icons';
 
+// Soften the busy coats artwork behind the mode buttons so the glossy buttons
+// read clearly. A light blur (~15%) — tune this single number up/down to taste.
+const PLAY_BG_BLUR = 15;
+
 /**
  * Coat of Arms Play screen. Opens from the home Play button and mirrors the
  * Flags Quiz Play screen — same Coat of Arms coats background as the home
@@ -34,7 +38,7 @@ export default function CoatOfArmsPlay() {
   if (!bgReady || !iconsReady) {
     return (
       <View style={[styles.fill, { backgroundColor: BG_BASE }]}>
-        <AppBackground />
+        <AppBackground blurRadius={PLAY_BG_BLUR} />
         <StatusBar style="light" />
       </View>
     );
@@ -42,7 +46,7 @@ export default function CoatOfArmsPlay() {
 
   return (
     <View style={styles.fill}>
-      <AppBackground />
+      <AppBackground blurRadius={PLAY_BG_BLUR} />
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>

@@ -34,7 +34,7 @@ const RU: CoaLabels = {
   bonusLevel: 'Бонус-уровень',
   version: 'Версия',
   appName: 'Гербы',
-  quizPrompt: 'В какой стране?\nпринадлежит этот герб',
+  quizPrompt: 'Какой стране\nпринадлежит этот герб?',
 };
 
 const ES: CoaLabels = {

@@ -110,6 +110,13 @@ export default function CoatOfArmsGame() {
 
   const [picked, setPicked] = useState<number | null>(null);
 
+  // Lock the page so it only scrolls when the content genuinely overflows the
+  // viewport (small phones). On roomy screens everything fits and the page must
+  // NOT drag/bounce. We compare the measured content height to the viewport.
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const pageScrolls = contentH > viewportH + 1;
+
   const questionIdx = order[pos];
   const question = countryQuestions[questionIdx];
   const answered = picked !== null;
@@ -244,7 +251,16 @@ export default function CoatOfArmsGame() {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={pageScrolls}
+          bounces={pageScrolls}
+          alwaysBounceVertical={false}
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setContentH(h)}
+        >
           {/* Coat block: progress right above the coat, then the coat, then the question. */}
           <View style={styles.imageArea}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
@@ -411,6 +427,7 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
+  scroll: { flex: 1 },
   body: { paddingBottom: 32 },
 
   // Sits right above the coat inside the coat block.
