@@ -17,7 +17,7 @@ import { APP_SLUG } from '@/api/client';
 import { useThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
 
-const SPLASH_DURATION_MS = 3000;
+const SPLASH_DURATION_MS = 2500;
 const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 

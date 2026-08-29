@@ -42,7 +42,7 @@ export function QuestionCard({
           <Image
             source={{ uri: question.image_url }}
             style={styles.image}
-            contentFit="cover"
+            contentFit="contain"
             transition={200}
             testID="question-image"
           />
