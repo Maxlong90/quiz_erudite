@@ -64,9 +64,7 @@ export default function CoatOfArmsWelcome() {
               ],
               opacity: pressed ? 0.9 : 1,
             })}
-            // Quiz flow is not wired for Coat of Arms yet — the CTA is present and
-            // styled identically to Flags Quiz; the gameplay route lands here later.
-            onPress={() => {}}
+            onPress={() => router.push('/coat-of-arms/play')}
           >
             <LinearGradient
               colors={[FQColors.tileLight, FQColors.tileDark]}

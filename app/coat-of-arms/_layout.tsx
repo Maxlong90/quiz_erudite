@@ -19,6 +19,7 @@ export default function CoatOfArmsLayout() {
       {/* Onboarding splash crossfades into the home screen — the animation of the
           screen navigated TO is what plays, so `index` carries the fade. */}
       <Stack.Screen name="index" options={{ animation: 'fade' }} />
+      <Stack.Screen name="play" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
