@@ -13,6 +13,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { Flag } from '@/components/flags-quiz/flag';
 import { FQColors } from '@/constants/flags-quiz/theme';
 import { useFQLabels, FQ_LANGUAGE_NAMES } from '@/constants/flags-quiz/labels';
+import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 
@@ -35,6 +36,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '';
  */
 export default function CoatOfArmsSettings() {
   const t = useFQLabels();
+  const c = useCoaLabels();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
   const bgReady = useCoatBgReady();
@@ -105,7 +107,7 @@ export default function CoatOfArmsSettings() {
             {/* The shared Flags Quiz EN labels are missing `version` (it shows
                 "undefined" in English there); fall back to "Version" so Coat of
                 Arms never leaks that gap. ru/es/fr resolve normally. */}
-            <Text style={styles.version}>{`${t.version ?? 'Version'} ${APP_VERSION}`}</Text>
+            <Text style={styles.version}>{`${c.version} ${APP_VERSION}`}</Text>
           </View>
         ) : null}
       </SafeAreaView>
