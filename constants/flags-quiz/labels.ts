@@ -59,6 +59,12 @@ export interface FQLabels {
   // Gameplay
   tapToContinue: string;
   next: string;
+  // Help modal (explains the retry-mistakes / "work on mistakes" flow)
+  helpTitle: string;
+  helpBody: string;
+  gotIt: string;
+  // Settings — app version line
+  version: string;
 }
 
 const EN: FQLabels = {
@@ -107,6 +113,11 @@ const EN: FQLabels = {
   backHome: 'Home',
   tapToContinue: 'Tap to continue',
   next: 'Next',
+  helpTitle: 'Work on your mistakes',
+  helpBody:
+    'There are a lot of flags to learn — you don’t have to get them all right at once! Every flag you answer incorrectly is remembered, and at the end of the round you can retry just those flags: a "work on your mistakes" round. So don’t worry about slip-ups — you’ll be able to go over the ones you missed and learn them for good.',
+  gotIt: 'Got it',
+  version: 'Version',
 };
 
 const RU: FQLabels = {
@@ -155,6 +166,11 @@ const RU: FQLabels = {
   backHome: 'На главную',
   tapToContinue: 'Нажми, чтобы продолжить',
   next: 'Далее',
+  helpTitle: 'Работа над ошибками',
+  helpBody:
+    'Флагов очень много, и не обязательно угадывать все сразу! Каждый флаг, в котором ты ошибся, запоминается, и в конце раунда ты сможешь пройти работу над ошибками — заново ответить только на те вопросы, где ошибся. Так что не переживай из-за промахов: ты сможешь перепройти пропущенные флаги и запомнить их окончательно.',
+  gotIt: 'Понятно',
+  version: 'Версия',
 };
 
 const ES: FQLabels = {
@@ -203,6 +219,11 @@ const ES: FQLabels = {
   backHome: 'Inicio',
   tapToContinue: 'Toca para continuar',
   next: 'Siguiente',
+  helpTitle: 'Repaso de errores',
+  helpBody:
+    '¡Hay muchísimas banderas por aprender y no tienes que acertarlas todas de una vez! Cada bandera que falles se guarda y, al terminar la ronda, podrás repetir solo esas banderas: un repaso de tus errores. Así que no te preocupes por los fallos: podrás volver a ver las que fallaste y memorizarlas de una vez.',
+  gotIt: 'Entendido',
+  version: 'Versión',
 };
 
 const FR: FQLabels = {
@@ -251,6 +272,11 @@ const FR: FQLabels = {
   backHome: 'Accueil',
   tapToContinue: 'Touche pour continuer',
   next: 'Suivant',
+  helpTitle: 'Travail sur les erreurs',
+  helpBody:
+    'Il y a énormément de drapeaux à apprendre — pas besoin de tous les réussir d’un coup ! Chaque drapeau raté est mémorisé et, à la fin de la manche, tu pourras revoir uniquement ces drapeaux : un travail sur tes erreurs. Ne t’inquiète donc pas des ratés : tu pourras repasser ceux que tu as manqués et les mémoriser définitivement.',
+  gotIt: 'Compris',
+  version: 'Version',
 };
 
 const TABLE: Record<SupportedLocale, FQLabels> = { en: EN, ru: RU, es: ES, fr: FR };

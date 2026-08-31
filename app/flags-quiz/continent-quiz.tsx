@@ -29,6 +29,7 @@ import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { getStoreLinks } from '@/lib/store-links';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
+import { HelpModal } from '@/components/flags-quiz/help-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
@@ -90,6 +91,7 @@ export default function FlagsQuizContinentGame() {
   const key = (CONTINENT_KEYS.includes(continent as ContinentKey) ? continent : 'africa') as ContinentKey;
   const questions = useMemo(() => pictureByContinent[key] ?? [], [pictureByContinent, key]);
   const [reportOpen, setReportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (country name + flag options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
   // The game page only scrolls when its content actually exceeds the viewport
@@ -230,6 +232,14 @@ export default function FlagsQuizContinentGame() {
           </Pressable>
           <View style={styles.hudRight}>
             <Pressable
+              onPress={() => setHelpOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-help-button"
+            >
+              <GlossyIconButton glyph="help" size={44} />
+            </Pressable>
+            <Pressable
               onPress={() => setReportOpen(true)}
               hitSlop={8}
               style={({ pressed }) => pressed && styles.pressed}
@@ -337,6 +347,9 @@ export default function FlagsQuizContinentGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Help sheet — explains the "work on your mistakes" flow (retry missed flags). */}
+      <HelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Off-screen composition captured for the Share image. Laid out (so it can be
           snapshotted) but parked outside the viewport, never affecting layout. */}

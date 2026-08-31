@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +21,10 @@ import { getStoreLinks } from '@/lib/store-links';
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
+
+// Shown at the bottom of Settings. Reads the build's version from the embedded
+// Expo config (app.json `version`).
+const APP_VERSION = Constants.expoConfig?.version ?? '';
 
 /**
  * Flags Quiz settings (App Template: Geography). Layout is taken from the Logo
@@ -91,6 +96,14 @@ export default function FlagsQuizSettings() {
           <GlossyButton label={t.privacyPolicy} onPress={() => openUrl(PRIVACY_URL)} />
           <GlossyButton label={t.termsOfUse} onPress={() => openUrl(TERMS_URL)} />
         </View>
+
+        {/* App version pinned to the bottom of the screen, on a translucent navy
+            plate so the white label stays readable over the flags artwork. */}
+        {APP_VERSION ? (
+          <View style={styles.versionWrap}>
+            <Text style={styles.version}>{`${t.version} ${APP_VERSION}`}</Text>
+          </View>
+        ) : null}
       </SafeAreaView>
 
       {/* Language picker — each row shows the language's flag; a tap switches the
@@ -144,6 +157,27 @@ const styles = StyleSheet.create({
   },
 
   actions: { paddingHorizontal: 24, paddingTop: 12, gap: 14 },
+
+  // Version line pushed to the bottom of the screen and centered so its plate
+  // hugs the text.
+  versionWrap: {
+    marginTop: 'auto',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  // Translucent navy pill so the white label reads over the flags artwork.
+  version: {
+    textAlign: 'center',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    backgroundColor: 'rgba(4, 32, 79, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
 
   modalBackdrop: {
     flex: 1,

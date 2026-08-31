@@ -30,6 +30,7 @@ import { getStoreLinks } from '@/lib/store-links';
 import { wrapLabel } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
+import { HelpModal } from '@/components/flags-quiz/help-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
@@ -98,6 +99,7 @@ export default function FlagsQuizGame() {
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useFlagsQuizContent();
   const [reportOpen, setReportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (flag + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
   // The game page only scrolls when its content actually exceeds the viewport
@@ -240,6 +242,14 @@ export default function FlagsQuizGame() {
           </Pressable>
           <View style={styles.hudRight}>
             <Pressable
+              onPress={() => setHelpOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-help-button"
+            >
+              <GlossyIconButton glyph="help" size={44} />
+            </Pressable>
+            <Pressable
               onPress={() => setReportOpen(true)}
               hitSlop={8}
               style={({ pressed }) => pressed && styles.pressed}
@@ -277,7 +287,7 @@ export default function FlagsQuizGame() {
                 <Image
                   source={{ uri: question.imageUri }}
                   style={styles.flagImg}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={0}
                 />
               ) : (
@@ -343,6 +353,9 @@ export default function FlagsQuizGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Help sheet — explains the "work on your mistakes" flow (retry missed flags). */}
+      <HelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Off-screen composition captured for the Share image. Laid out (so it can be
           snapshotted) but parked outside the viewport, never affecting layout. */}
@@ -456,7 +469,10 @@ const styles = StyleSheet.create({
 
   // Progress + flag + question, sitting right below the top bar.
   imageArea: { alignItems: 'center', marginTop: 16 },
-  // Rim frame like the buttons — navy border hugging the flag with no gap.
+  // Rim frame like the buttons — navy border around the flag. The flag is shown
+  // with `contain` so it is NEVER cropped (some flags, e.g. Uzbekistan's 2:1
+  // ratio, would lose their crescent/stars under `cover`); the white backing
+  // fills any letterbox band left by a flag whose ratio differs from the frame.
   imageFrame: {
     borderWidth: 3,
     borderColor: FQColors.tileRim,
@@ -464,6 +480,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
   flagImg: { width: 216, height: 144 },
   flagFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },

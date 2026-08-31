@@ -21,7 +21,8 @@ export type GlossyGlyph =
   | 'phone-portrait'
   | 'ellipsis-horizontal'
   | 'flag'
-  | 'share-social';
+  | 'share-social'
+  | 'help';
 
 interface Props {
   glyph: GlossyGlyph;
