@@ -27,6 +27,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { useFlagsQuizContent } from '@/hooks/flags-quiz/use-flags-quiz-content';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { getStoreLinks } from '@/lib/store-links';
+import { wrapLabel, fitTitleFontSize } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import { HelpModal } from '@/components/flags-quiz/help-modal';
@@ -214,6 +215,10 @@ export default function FlagsQuizContinentGame() {
 
   const historyText = q.explanation;
   const revealing = isCorrectPick;
+  // Wrap the country name at word boundaries and shrink the font until the longest
+  // whole word fits — a long single word never splits across letters.
+  const titleDisplay = wrapLabel(q.title);
+  const titleLines = titleDisplay.split('\n');
 
   return (
     <View style={styles.fill}>
@@ -270,7 +275,14 @@ export default function FlagsQuizContinentGame() {
           {/* Progress + the country name (the question). */}
           <View style={styles.head}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
-            <Text style={styles.country}>{q.title}</Text>
+            <Text
+              style={[styles.country, { fontSize: fitTitleFontSize(titleLines) }]}
+              numberOfLines={titleLines.length}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {titleDisplay}
+            </Text>
           </View>
 
           {/* 2×2 flag-picture options. On a correct reveal the wrong flags unmount

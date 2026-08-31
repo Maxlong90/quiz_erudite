@@ -29,6 +29,7 @@ import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { getStoreLinks } from '@/lib/store-links';
+import { wrapLabel, fitTitleFontSize } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
@@ -194,6 +195,10 @@ export default function CoatOfArmsContinentGame() {
 
   const historyText = q.explanation;
   const revealing = isCorrectPick;
+  // Wrap the country name at word boundaries and shrink the font until the longest
+  // whole word fits — a long single word never splits across letters.
+  const titleDisplay = wrapLabel(q.title);
+  const titleLines = titleDisplay.split('\n');
 
   return (
     <View style={styles.fill}>
@@ -246,7 +251,16 @@ export default function CoatOfArmsContinentGame() {
               answered — on reveal we show only the correct coat + explanation. */}
           <View style={styles.head}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
-            {!revealing ? <Text style={styles.country}>{q.title}</Text> : null}
+            {!revealing ? (
+              <Text
+                style={[styles.country, { fontSize: fitTitleFontSize(titleLines) }]}
+                numberOfLines={titleLines.length}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
+                {titleDisplay}
+              </Text>
+            ) : null}
           </View>
 
           {/* 2×2 coat-picture options — STATIC (no float/glide). On a correct

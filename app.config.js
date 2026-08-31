@@ -70,6 +70,28 @@ module.exports = ({ config } = {}) => {
     };
   }
 
+  // Sport Quiz variant (App Template: Sports): its own Expo project identity
+  // (name + slug) so it is a separate app in Expo Go and never shows another
+  // variant's cached bundle. Store identity falls back to the erudite identity
+  // until an operator supplies sport-quiz values. Mirrors the branches above.
+  if (appSlug === 'sport-quiz') {
+    return {
+      ...base,
+      name: 'Sport Quiz',
+      slug: 'sport-quiz',
+      ios: {
+        ...base.ios,
+        bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
+        // iPhone-only — no iPad layout yet (same as flags-quiz / coat-of-arms).
+        supportsTablet: false,
+      },
+      android: {
+        ...base.android,
+        package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+      },
+    };
+  }
+
   if (appSlug !== 'logo-quiz') {
     return base;
   }

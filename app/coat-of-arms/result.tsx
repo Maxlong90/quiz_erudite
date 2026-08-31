@@ -8,6 +8,7 @@ import { AppBackground, BG_BASE, useCoatBgReady } from '@/components/coat-of-arm
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
+import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 
 /**
  * Coat of Arms result screen. Shown once every question of a run has been
@@ -18,6 +19,7 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
  */
 export default function CoatOfArmsResult() {
   const t = useFQLabels();
+  const c = useCoaLabels();
   const bgReady = useCoatBgReady();
   const { correct, total, wrong, mode, continent } = useLocalSearchParams<{
     correct?: string;
@@ -46,7 +48,7 @@ export default function CoatOfArmsResult() {
           ? '👍'
           : '💪';
   const message =
-    tier === 'excellent' ? t.resultExcellent : tier === 'good' ? t.resultGood : t.resultKeepGoing;
+    tier === 'excellent' ? c.resultExcellent : tier === 'good' ? c.resultGood : c.resultKeepGoing;
 
   // Where "play again" / "retry mistakes" route depends on which game mode
   // produced this result: the "All countries" quiz or a per-continent game.

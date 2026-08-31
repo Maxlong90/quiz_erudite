@@ -82,6 +82,12 @@ export default function HomeRoute() {
   if (APP_SLUG === 'coat-of-arms') {
     return <Redirect href="/coat-of-arms/splash" />;
   }
+  // Sport Quiz (App Template: Sports) is likewise a self-contained experience
+  // with its own neon-on-navy home; APP_SLUG is a build-time constant, so this
+  // branch is stable across renders and never changes the hook order.
+  if (APP_SLUG === 'sport-quiz') {
+    return <Redirect href="/sport-quiz" />;
+  }
   // Every cold start plays the branded QUIZZES splash (app/splash.tsx), exactly
   // like the Flags Quiz / Coat of Arms builds: the purple animated wordmark
   // covers the native splash hand-off, then the splash itself branches on the

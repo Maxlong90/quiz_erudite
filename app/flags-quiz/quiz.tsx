@@ -463,10 +463,10 @@ const styles = StyleSheet.create({
 
   // Progress + flag + question, sitting right below the top bar.
   imageArea: { alignItems: 'center', marginTop: 16 },
-  // Rim frame like the buttons — navy border around the flag. The flag is shown
-  // with `contain` so it is NEVER cropped (some flags, e.g. Uzbekistan's 2:1
-  // ratio, would lose their crescent/stars under `cover`); the white backing
-  // fills any letterbox band left by a flag whose ratio differs from the frame.
+  // Rim frame like the buttons — navy border around the flag. The frame hugs the
+  // flag's native 4:3 ratio (every source PNG is 320×240), so a flag drawn with
+  // `contain` fills it edge-to-edge with NO letterbox and NO cropping. The white
+  // backing only ever shows as a fallback for a missing image.
   imageFrame: {
     borderWidth: 3,
     borderColor: FQColors.tileRim,
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
-  flagImg: { width: 216, height: 144 },
+  flagImg: { width: 192, height: 144 },
   flagFallback: { backgroundColor: 'rgba(255,255,255,0.12)' },
   prompt: {
     color: '#FFFFFF',

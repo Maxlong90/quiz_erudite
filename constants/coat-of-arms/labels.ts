@@ -21,6 +21,11 @@ export interface CoaLabels {
   helpTitle: string;
   helpBody: string;
   helpCta: string;
+  /** Result-screen tiered messages — coat-of-arms wording (the shared Flags Quiz
+   *  strings say "flags", which is wrong for this app). */
+  resultExcellent: string;
+  resultGood: string;
+  resultKeepGoing: string;
 }
 
 const EN: CoaLabels = {
@@ -34,6 +39,9 @@ const EN: CoaLabels = {
   helpBody:
     'There are a lot of questions in this game. Every question you answer incorrectly is remembered — at the end of the run you can tap “Retry mistakes” to play just those again and review your mistakes. So nothing is lost: you can always go back and master the ones you missed.',
   helpCta: 'Got it',
+  resultExcellent: 'Excellent! You really know your coats of arms.',
+  resultGood: 'Great job! Your heraldry is getting sharp.',
+  resultKeepGoing: 'Keep practising, you’ll get there!',
 };
 
 const RU: CoaLabels = {
@@ -47,6 +55,9 @@ const RU: CoaLabels = {
   helpBody:
     'В игре много вопросов. Все вопросы, на которые вы ответили неправильно, запоминаются — в конце игры нажмите «Повторить ошибки», чтобы пройти именно их заново и сделать работу над ошибками. Ничего не теряется: вы всегда сможете вернуться и закрепить то, в чём ошиблись.',
   helpCta: 'Понятно',
+  resultExcellent: 'Отлично! Ты прекрасно знаешь гербы.',
+  resultGood: 'Хорошо! Твои знания геральдики растут.',
+  resultKeepGoing: 'Продолжай тренироваться — всё получится!',
 };
 
 const ES: CoaLabels = {
@@ -60,6 +71,9 @@ const ES: CoaLabels = {
   helpBody:
     'Hay muchas preguntas en este juego. Cada pregunta que respondas mal se guarda: al terminar la partida puedes pulsar «Repetir errores» para volver a jugar solo esas y repasar tus fallos. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
   helpCta: 'Entendido',
+  resultExcellent: '¡Excelente! Conoces muy bien los escudos.',
+  resultGood: '¡Bien hecho! Tu heráldica va mejorando.',
+  resultKeepGoing: 'Sigue practicando, ¡lo conseguirás!',
 };
 
 const FR: CoaLabels = {
@@ -73,6 +87,9 @@ const FR: CoaLabels = {
   helpBody:
     'Ce jeu comporte beaucoup de questions. Chaque question à laquelle vous répondez mal est mémorisée : à la fin de la partie, appuyez sur « Revoir les erreurs » pour rejouer uniquement celles-ci et corriger vos erreurs. Rien n’est perdu : vous pourrez toujours revenir et maîtriser celles que vous avez ratées.',
   helpCta: 'Compris',
+  resultExcellent: 'Excellent ! Tu connais vraiment bien les blasons.',
+  resultGood: 'Beau travail ! Tes connaissances héraldiques progressent.',
+  resultKeepGoing: 'Continue à t’entraîner, tu vas y arriver !',
 };
 
 const TABLE: Record<SupportedLocale, CoaLabels> = { en: EN, ru: RU, es: ES, fr: FR };
