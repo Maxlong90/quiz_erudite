@@ -503,16 +503,19 @@ const styles = StyleSheet.create({
 
   historyBox: {
     marginTop: 20,
-    marginHorizontal: 14,
+    marginHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    flex: 1,
+    // Hug the text: the box is only as tall as its content, so short notes have
+    // no empty white space. It never GROWS; it only SHRINKS (and its inner
+    // ScrollView scrolls) when a long note would exceed the space available.
+    flexShrink: 1,
   },
-  historyScroll: { flex: 1 },
+  historyScroll: { flexShrink: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
