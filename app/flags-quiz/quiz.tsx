@@ -31,6 +31,7 @@ import { wrapLabel } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import { HelpModal } from '@/components/flags-quiz/help-modal';
+import { useFirstRunHelp } from '@/hooks/flags-quiz/use-first-run-help';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
@@ -45,9 +46,6 @@ const PROGRESS_KEY = 'flags.progress.all.v1';
 // flag note + "Next" button fade in.
 const MOVE_MS = 900;
 const UI_FADE_MS = 300;
-// The flag note is height-capped (it scrolls internally when long) so the answer +
-// "Next" button always fit one screen — identical layout on tall and short phones.
-const NOTE_MAX_H = 160;
 
 // Font-fitting for the answer labels. The option button is 48% of the row width
 // (options padding 20 each side) with 12px inner padding, so this is the text
@@ -99,7 +97,9 @@ export default function FlagsQuizGame() {
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useFlagsQuizContent();
   const [reportOpen, setReportOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  // Auto-opens once on the first-ever entry into the questions; the "?" button
+  // re-opens it on demand thereafter.
+  const [helpOpen, setHelpOpen] = useFirstRunHelp();
   // Off-screen composition (flag + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
   // The game page only scrolls when its content actually exceeds the viewport
@@ -325,13 +325,7 @@ export default function FlagsQuizGame() {
             <Animated.View entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
-                  <ScrollView
-                    style={styles.historyScroll}
-                    showsVerticalScrollIndicator={false}
-                    nestedScrollEnabled
-                  >
-                    <Text style={styles.historyText}>{historyText}</Text>
-                  </ScrollView>
+                  <Text style={styles.historyText}>{historyText}</Text>
                 </View>
               ) : null}
               <View style={styles.nextWrap}>
@@ -532,7 +526,8 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 23, fontWeight: '900', textAlign: 'center' },
 
   // White card, blue rim, navy text — the flag-note reveal (display only now; the
-  // "Next" button below advances). Height-capped so the button stays on screen.
+  // "Next" button below advances). Shows the full note; the page scrolls when the
+  // text is long so nothing is clipped.
   historyBox: {
     marginTop: 20,
     marginHorizontal: 20,
@@ -543,7 +538,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
   },
-  historyScroll: { maxHeight: NOTE_MAX_H },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,

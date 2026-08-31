@@ -1,37 +1,36 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
-import { FQColors } from '@/constants/flags-quiz/theme';
+import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 
 /**
- * Flags Quiz help sheet, opened from the "?" icon on the gameplay screens. It
- * explains the app's "work on your mistakes" flow — every wrong flag is saved
- * and can be retried at the end of the round — so the player understands up front
- * that missed flags are never lost. Styled in the Flags Quiz language: a white
- * card with a navy title and a glossy-blue close button, matching the settings
- * language picker.
+ * Flags Quiz in-game help sheet. Opened from the "?" button in the quiz HUD
+ * (same glossy tile as Report / Share) and shown ONCE automatically on the very
+ * first entry into the questions (see useFirstRunHelp). Explains the app's
+ * review-your-mistakes flow so players know up-front that every wrong flag can
+ * be replayed at the end of a run. Visually identical to the Coat of Arms help
+ * sheet — a dimmed backdrop with a centred white card; tapping the backdrop or
+ * the CTA closes it.
  */
 export function HelpModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useFQLabels();
-
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="help" size={30} color="#FFFFFF" />
-          </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.overlay} onPress={onClose}>
+        {/* Stop propagation so a tap on the card itself doesn't dismiss. */}
+        <Pressable style={[styles.card, FQShadow.card]} onPress={() => {}}>
           <Text style={styles.title}>{t.helpTitle}</Text>
-          <ScrollView
-            style={styles.bodyScroll}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.bodyContent}
-          >
-            <Text style={styles.body}>{t.helpBody}</Text>
-          </ScrollView>
-          <GlossyButton label={t.gotIt} onPress={onClose} fontSize={20} paddingVertical={16} />
+          <Text style={styles.body}>{t.helpBody}</Text>
+          <View style={styles.cta}>
+            <GlossyButton label={t.gotIt} fontSize={20} paddingVertical={14} onPress={onClose} />
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -39,43 +38,36 @@ export function HelpModal({ visible, onClose }: { visible: boolean; onClose: () 
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(4, 24, 60, 0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
   },
   card: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 420,
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
-    padding: 22,
-    alignItems: 'center',
-    gap: 14,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: FQColors.tileDark,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: FQColors.tileRim,
+    paddingVertical: 22,
+    paddingHorizontal: 22,
   },
   title: {
-    fontSize: 20,
+    color: FQColors.tileGlyph,
+    fontSize: 22,
     fontWeight: '900',
-    color: FQColors.tileGlyph,
     textAlign: 'center',
+    marginBottom: 12,
   },
-  bodyScroll: { maxHeight: 260, alignSelf: 'stretch' },
-  bodyContent: { paddingHorizontal: 2 },
   body: {
-    fontSize: 16,
-    lineHeight: 23,
-    fontWeight: '600',
     color: FQColors.tileGlyph,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 23,
+    marginBottom: 20,
   },
+  cta: { width: '70%', alignSelf: 'center' },
 });

@@ -115,7 +115,7 @@ const EN: FQLabels = {
   next: 'Next',
   helpTitle: 'Work on your mistakes',
   helpBody:
-    'There are a lot of flags to learn — you don’t have to get them all right at once! Every flag you answer incorrectly is remembered, and at the end of the round you can retry just those flags: a "work on your mistakes" round. So don’t worry about slip-ups — you’ll be able to go over the ones you missed and learn them for good.',
+    'There are a lot of flags in this game. Every flag you get wrong is remembered — at the end of the run you can tap “Retry mistakes” to play just those again and review your mistakes. So nothing is lost: you can always go back and master the ones you missed.',
   gotIt: 'Got it',
   version: 'Version',
 };
@@ -168,7 +168,7 @@ const RU: FQLabels = {
   next: 'Далее',
   helpTitle: 'Работа над ошибками',
   helpBody:
-    'Флагов очень много, и не обязательно угадывать все сразу! Каждый флаг, в котором ты ошибся, запоминается, и в конце раунда ты сможешь пройти работу над ошибками — заново ответить только на те вопросы, где ошибся. Так что не переживай из-за промахов: ты сможешь перепройти пропущенные флаги и запомнить их окончательно.',
+    'В игре много флагов. Все флаги, в которых вы ошиблись, запоминаются — в конце игры нажмите «Повторить ошибки», чтобы пройти именно их заново и сделать работу над ошибками. Ничего не теряется: вы всегда сможете вернуться и закрепить те, что не угадали.',
   gotIt: 'Понятно',
   version: 'Версия',
 };
@@ -221,7 +221,7 @@ const ES: FQLabels = {
   next: 'Siguiente',
   helpTitle: 'Repaso de errores',
   helpBody:
-    '¡Hay muchísimas banderas por aprender y no tienes que acertarlas todas de una vez! Cada bandera que falles se guarda y, al terminar la ronda, podrás repetir solo esas banderas: un repaso de tus errores. Así que no te preocupes por los fallos: podrás volver a ver las que fallaste y memorizarlas de una vez.',
+    'Hay muchas banderas en este juego. Cada bandera que falles se guarda: al terminar la partida puedes pulsar «Repetir errores» para volver a jugar solo esas y repasar tus fallos. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
   gotIt: 'Entendido',
   version: 'Versión',
 };
@@ -274,7 +274,7 @@ const FR: FQLabels = {
   next: 'Suivant',
   helpTitle: 'Travail sur les erreurs',
   helpBody:
-    'Il y a énormément de drapeaux à apprendre — pas besoin de tous les réussir d’un coup ! Chaque drapeau raté est mémorisé et, à la fin de la manche, tu pourras revoir uniquement ces drapeaux : un travail sur tes erreurs. Ne t’inquiète donc pas des ratés : tu pourras repasser ceux que tu as manqués et les mémoriser définitivement.',
+    'Ce jeu comporte beaucoup de drapeaux. Chaque drapeau raté est mémorisé : à la fin de la partie, appuyez sur « Revoir les erreurs » pour rejouer uniquement ceux-ci et corriger vos erreurs. Rien n’est perdu : vous pourrez toujours revenir et maîtriser ceux que vous avez ratés.',
   gotIt: 'Compris',
   version: 'Version',
 };
