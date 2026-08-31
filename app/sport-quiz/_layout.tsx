@@ -17,6 +17,7 @@ export default function SportQuizLayout() {
           contentStyle: { backgroundColor: 'transparent' },
         }}
       >
+        <Stack.Screen name="splash" options={{ animation: 'none' }} />
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="shop" />
