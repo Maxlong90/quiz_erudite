@@ -51,7 +51,11 @@ const SCREEN_W = Dimensions.get('window').width;
 const GRID_PAD = 20; // options paddingHorizontal
 const WRAP_EXTRA = 20; // frame border (3×2) + padding (3×2) + ring (4×2)
 const OPT_W = Math.floor((SCREEN_W - GRID_PAD * 2 - WRAP_EXTRA * 2 - 8) / 2);
-const OPT_H = Math.round(OPT_W * 0.62);
+// Every backend flag PNG is 320×240 (a 4:3 canvas), so the option box uses the
+// SAME 4:3 ratio (height = 3/4 width). With `contain` the flag then fills the
+// box edge-to-edge — no white letterbox band on the sides — while still being
+// shown whole (never cropped). A shallower box (e.g. 0.62) left white bars.
+const OPT_H = Math.round(OPT_W * 0.75);
 
 const CONTINENT_KEYS: ContinentKey[] = [
   'africa',

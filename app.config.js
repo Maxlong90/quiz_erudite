@@ -33,6 +33,11 @@ module.exports = ({ config } = {}) => {
       ...base,
       name: 'Flags Quiz',
       slug: 'flags-quiz',
+      // Flags Quiz's OWN launcher / Expo Go icon (the four-flags "?" mark from the
+      // backend), so it never shows the erudite base's logo-quiz icon. Overrides
+      // both the top-level icon (iOS + Expo Go project screen) and the Android
+      // adaptive foreground for this variant only.
+      icon: './assets/images/flags-quiz-icon.png',
       ios: {
         ...base.ios,
         bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
@@ -44,6 +49,10 @@ module.exports = ({ config } = {}) => {
       android: {
         ...base.android,
         package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          foregroundImage: './assets/images/flags-quiz-icon.png',
+        },
       },
     };
   }
@@ -57,6 +66,11 @@ module.exports = ({ config } = {}) => {
       ...base,
       name: 'Coat of Arms',
       slug: 'coat-of-arms',
+      // Coat of Arms' OWN launcher / Expo Go icon (the crest from the backend),
+      // so it never shows the erudite base's logo-quiz icon. Overrides both the
+      // top-level icon (iOS + Expo Go project screen) and the Android adaptive
+      // foreground for this variant only.
+      icon: './assets/images/coat-of-arms-icon.png',
       ios: {
         ...base.ios,
         bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
@@ -66,6 +80,10 @@ module.exports = ({ config } = {}) => {
       android: {
         ...base.android,
         package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          foregroundImage: './assets/images/coat-of-arms-icon.png',
+        },
       },
     };
   }

@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
-import { CoinIcon, CoinPill, GlassCard, GlassIconButton, NeonCta, SectionTitle, neonGlow } from '@/components/sport-quiz/ui';
+import { CoinIcon, CoinPill, GlassCard, GlassIconButton, NeonCta, SectionTitle } from '@/components/sport-quiz/ui';
 import {
   COIN_PACKS,
   formatCountdownHMS,
@@ -46,7 +46,7 @@ export default function SportQuizShop() {
 
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-      <AppBackground variant="color" />
+      <AppBackground variant="navy" />
       <StatusBar style="light" />
 
       <View style={styles.header}>
@@ -60,15 +60,14 @@ export default function SportQuizShop() {
         <SectionTitle>{t.wheelTitle}</SectionTitle>
         <Pressable onPress={() => router.push('/sport-quiz/wheel')} style={({ pressed }) => pressed && { opacity: 0.92 }}>
           <GlassCard glow={wheelAvailable ? SQColors.neon : undefined} style={styles.wheelTile}>
-            <View style={styles.wheelTileLeft}>
-              <Ionicons name="disc" size={44} color={SQColors.neon} style={neonGlow(SQColors.neon, 10)} />
-              <Text style={styles.wheelTileTitle}>{t.wheelSpinNow}</Text>
-            </View>
             {wheelAvailable ? (
-              <PulsingDot />
+              <>
+                <PulsingSpinText text={t.wheelSpinNow} />
+                <PulsingBang />
+              </>
             ) : (
               <View style={styles.wheelTileTimer}>
-                <Ionicons name="time-outline" size={16} color={SQColors.textMuted} />
+                <Ionicons name="time-outline" size={34} color={SQColors.neonBlue} />
                 <Text style={styles.wheelTileTimerText}>{formatCountdownHMS(wheelRemaining)}</Text>
               </View>
             )}
@@ -78,7 +77,7 @@ export default function SportQuizShop() {
         {/* Coin packs */}
         <SectionTitle>{t.coinPacks}</SectionTitle>
         {COIN_PACKS.map((pack) => (
-          <GlassCard key={pack.id} style={styles.packCard} glow={pack.popular ? SQColors.neonPink : undefined}>
+          <GlassCard key={pack.id} style={styles.packCard} glow={undefined}>
             <View style={styles.packLeft}>
               <CoinIcon size={30} />
               <View>
@@ -97,11 +96,7 @@ export default function SportQuizShop() {
                 <Ionicons name="checkmark" size={22} color={SQColors.textOnNeon} />
               </View>
             ) : (
-              <NeonCta
-                label={pack.price}
-                onPress={() => onBuyPack(pack)}
-                color={pack.popular ? SQColors.neonPink : SQColors.neon}
-              />
+              <NeonCta label={pack.price} onPress={() => onBuyPack(pack)} color={SQColors.neon} />
             )}
           </GlassCard>
         ))}
@@ -110,14 +105,24 @@ export default function SportQuizShop() {
   );
 }
 
-/** A pulsing aqua "spin ready" dot for the wheel tile. */
-function PulsingDot() {
+/** Big green "Spin now" that gently pulses to fill the wheel tile. */
+function PulsingSpinText({ text }: { text: string }) {
   const scale = useSharedValue(1);
   useEffect(() => {
-    scale.value = withRepeat(withTiming(1.3, { duration: 650, easing: Easing.inOut(Easing.quad) }), -1, true);
+    scale.value = withRepeat(withTiming(1.06, { duration: 800, easing: Easing.inOut(Easing.quad) }), -1, true);
   }, [scale]);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return <Animated.View style={[styles.dot, neonGlow(SQColors.neon, 10), animStyle]} />;
+  const st = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.Text style={[styles.spinNowText, st]}>{text}</Animated.Text>;
+}
+
+/** Pink pulsing "!" on the right of the wheel tile. */
+function PulsingBang() {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withRepeat(withTiming(1.28, { duration: 650, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [scale]);
+  const st = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.Text style={[styles.bangText, st]}>!</Animated.Text>;
 }
 
 const styles = StyleSheet.create({
@@ -135,22 +140,33 @@ const styles = StyleSheet.create({
   wheelTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    minHeight: 72,
     marginBottom: 18,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
-  wheelTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  wheelTileTitle: { fontSize: 24, fontWeight: '900', color: SQColors.text },
-  wheelTileTimer: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  wheelTileTimerText: { fontSize: 22, fontWeight: '900', color: SQColors.text },
-  dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: SQColors.neon,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+  spinNowText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 34,
+    fontWeight: '900',
+    color: SQColors.neon,
+    textShadowColor: SQColors.neon,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
+  bangText: {
+    fontSize: 44,
+    fontWeight: '900',
+    color: SQColors.neonPink,
+    marginLeft: 6,
+    textShadowColor: SQColors.neonPink,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  wheelTileTimer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  wheelTileTimerText: { fontSize: 34, fontWeight: '900', color: SQColors.text, letterSpacing: 1 },
 
   packCard: {
     flexDirection: 'row',

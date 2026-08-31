@@ -19,6 +19,7 @@ export default function SportQuizLayout() {
       >
         <Stack.Screen name="splash" options={{ animation: 'none' }} />
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
+        <Stack.Screen name="play" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="shop" />
         <Stack.Screen name="wheel" />

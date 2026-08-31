@@ -24,6 +24,9 @@ import { RATE_APP_REWARD_COINS, STARTING_COINS, type WheelPrize } from '@/lib/sp
 const COINS_KEY = 'sportquiz.coins.v1';
 const WHEEL_KEY = 'sportquiz.wheelLastSpinAt.v1';
 const RATE_KEY = 'sportquiz.rateRewarded.v1';
+// Future quiz-level progress store (the quiz flow doesn't exist yet). The DEV
+// "reset levels" button clears it so it is wired for when levels land.
+const LEVELS_KEY = 'sportquiz.levels.v1';
 
 interface SportQuizValue {
   ready: boolean;
@@ -40,6 +43,10 @@ interface SportQuizValue {
   rateRewarded: boolean;
   /** Grant the one-time rate-the-app coin reward (no-op once already claimed). */
   markRateRewarded: () => void;
+  /** DEV: reset the wheel cooldown so the free spin is available immediately. */
+  resetWheelCooldown: () => void;
+  /** DEV: reset all quiz level progress back to the first question. */
+  resetLevels: () => void;
 }
 
 interface PersistedState {
@@ -153,6 +160,16 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     persist({ ...s, coins: s.coins + RATE_APP_REWARD_COINS, rateRewarded: true });
   }, [persist]);
 
+  // DEV tools.
+  const resetWheelCooldown = useCallback(() => {
+    const s = stateRef.current;
+    persist({ ...s, wheelLastSpinAt: 0 });
+  }, [persist]);
+
+  const resetLevels = useCallback(() => {
+    AsyncStorage.removeItem(LEVELS_KEY).catch(() => {});
+  }, []);
+
   const value = useMemo<SportQuizValue>(
     () => ({
       ready,
@@ -163,8 +180,10 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
       spinWheel,
       rateRewarded: state.rateRewarded,
       markRateRewarded,
+      resetWheelCooldown,
+      resetLevels,
     }),
-    [ready, state, addCoins, spendCoins, spinWheel, markRateRewarded],
+    [ready, state, addCoins, spendCoins, spinWheel, markRateRewarded, resetWheelCooldown, resetLevels],
   );
 
   return <SportQuizContext.Provider value={value}>{children}</SportQuizContext.Provider>;

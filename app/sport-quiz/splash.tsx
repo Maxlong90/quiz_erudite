@@ -11,16 +11,16 @@ import { SQColors } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 
 /**
- * Sport Quiz splash. Mirrors the QUIZZES / Flags-Quiz splash structure (animated
- * wordmark + tagline over a soft radial bloom) but in the Sport Quiz blue style.
+ * Sport Quiz splash. Same QUIZZZES wordmark treatment as the Flags Quiz splash —
+ * the three middle Z's are the accent — but recoloured GREEN (our neon) and set
+ * over the Sport Quiz blue radial backdrop.
  *
- * It stays up for a MINIMUM of 3s and, in the same window, preloads everything the
- * app needs so the home/shop/settings/wheel paint fully (background AND buttons
- * together) with no pop-in: the background images are warmed here, and this is the
- * single place to await backend content (questions/images) once the quiz flow
- * exists. Only when BOTH the 3s timer and the preload have finished do we navigate.
+ * Stays up a MINIMUM of 3s and preloads everything in the same window so the
+ * home/shop/settings/wheel paint fully (background AND buttons together) with no
+ * pop-in; only when BOTH the timer and the preload finish do we navigate.
  */
 const SPLASH_MS = 3000;
+const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -36,10 +36,18 @@ export default function SportQuizSplash() {
     tagOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
 
     let alive = true;
-    // Preload EVERYTHING in parallel with the 3s timer. Background images are the
-    // main source of pop-in today; warming them here means Home renders bg+buttons
-    // in the same frame. (When the quiz flow lands, await its content sync here too.)
-    const preload = Asset.loadAsync([SPORT_BG_COLOR, SPORT_BG_NAVY]).catch(() => {});
+    // Warm every bitmap the app draws right after launch — the two backdrops, the
+    // wheel icon, and all four mode icons — so Home AND the Choose-a-mode screen
+    // paint with no icon pop-in.
+    const preload = Asset.loadAsync([
+      SPORT_BG_COLOR,
+      SPORT_BG_NAVY,
+      require('../../assets/sport-quiz/wheel-icon.png'),
+      require('../../assets/sport-quiz/modes/classic.png'),
+      require('../../assets/sport-quiz/modes/legends.png'),
+      require('../../assets/sport-quiz/modes/challenge.png'),
+      require('../../assets/sport-quiz/modes/sprint.png'),
+    ]).catch(() => {});
     Promise.all([preload, wait(SPLASH_MS)]).then(() => {
       if (alive) router.replace('/sport-quiz');
     });
@@ -72,10 +80,16 @@ export default function SportQuizSplash() {
       <StatusBar style="light" />
 
       <View style={styles.center}>
-        <Animated.View style={wordStyle}>
-          <Text style={styles.wordmark}>
-            SPORT <Text style={styles.wordAccent}>QUIZ</Text>
-          </Text>
+        <Animated.View style={[styles.wordmark, wordStyle]}>
+          {LETTERS.map((ch, i) => {
+            // Highlight the three middle Z's (indices 3–5) in neon green.
+            const isAccent = i >= 3 && i <= 5;
+            return (
+              <Text key={i} style={[styles.letter, isAccent && styles.letterAccent]}>
+                {ch}
+              </Text>
+            );
+          })}
         </Animated.View>
         <Animated.Text style={[styles.tagline, tagStyle]}>{t.splashTagline}</Animated.Text>
       </View>
@@ -86,24 +100,28 @@ export default function SportQuizSplash() {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#071627' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  wordmark: {
-    fontSize: 46,
+  wordmark: { flexDirection: 'row', alignItems: 'flex-end' },
+  letter: {
+    fontSize: 56,
     fontWeight: '900',
-    letterSpacing: 1,
-    color: '#EAF6FF',
-    textAlign: 'center',
-  },
-  wordAccent: {
-    color: SQColors.neon,
-    textShadowColor: SQColors.neon,
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(150, 210, 255, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 16,
   },
+  // Neon-green glowing ZZZ.
+  letterAccent: {
+    color: SQColors.neon,
+    textShadowColor: SQColors.neon,
+    textShadowRadius: 24,
+  },
   tagline: {
-    marginTop: 14,
-    fontSize: 18,
+    marginTop: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: 'rgba(234,246,255,0.72)',
+    color: 'rgba(234,246,255,0.8)',
+    letterSpacing: 0.4,
     textAlign: 'center',
   },
 });

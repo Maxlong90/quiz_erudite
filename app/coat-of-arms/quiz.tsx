@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -41,8 +41,10 @@ const OPTION_H = 68;
 // Persisted-progress key for the "All countries" coats run (resume on return).
 const PROGRESS_KEY = 'coat.progress.all.v1';
 
-// On a correct answer the wrong options are removed and the correct one stays
-// put (no glide) — only the note + "Next" button fade in.
+// On a correct answer the wrong options unmount while the correct one glides up
+// and centers over this long; the note + "Next" button then fade in over
+// UI_FADE_MS once the glide lands. Matches Flags Quiz exactly.
+const MOVE_MS = 900;
 const UI_FADE_MS = 300;
 
 // Font-fitting for the answer labels (identical to Flags Quiz).
@@ -279,28 +281,32 @@ export default function CoatOfArmsGame() {
             {!revealing ? <Text style={styles.prompt}>{promptText}</Text> : null}
           </View>
 
-          {/* 2×2 answer grid — options are STATIC (no float/glide). On a correct
-              reveal the wrong options are removed and the correct one is centered. */}
+          {/* 2×2 answer grid. On a correct reveal the wrong options unmount while
+              the correct answer — kept mounted — glides up and centers. */}
           <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {question.options.map((option, i) => {
               if (revealing && i !== question.correctIndex) return null;
               return (
-                <View key={`${question.id}-${i}`} style={styles.optionWrap}>
+                <Animated.View
+                  key={`${question.id}-${i}`}
+                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                  style={styles.optionWrap}
+                >
                   <OptionButton
                     label={option}
                     state={stateFor(i)}
                     disabled={answered}
                     onPress={() => onPick(i)}
                   />
-                </View>
+                </Animated.View>
               );
             })}
           </View>
 
           {/* Reveal panel — the expanded note then a "Next" button. Fades in
-              right after the correct answer. */}
+              once the answer glide lands. */}
           {revealing ? (
-            <Animated.View style={styles.reveal} entering={FadeIn.duration(UI_FADE_MS)}>
+            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
                   <ScrollView

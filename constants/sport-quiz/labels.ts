@@ -51,6 +51,15 @@ export interface SQLabels {
 
   // splash
   splashTagline: string;
+
+  // modes / play
+  chooseMode: string;
+  modeClassic: string;
+  modeLegends: string;
+  modeChallenge: string;
+  modeSprint: string;
+  comingSoon: string;
+  otherApps: string;
 }
 
 const EN: SQLabels = {
@@ -87,7 +96,14 @@ const EN: SQLabels = {
   wheelPrizeCoins500: '500 coins',
   wheelPrizeCoins1000: '1000 coins',
   wheelTitle: 'Wheel of Fortune',
-  splashTagline: 'Test your sports IQ!',
+  splashTagline: 'Train your brain!',
+  chooseMode: 'Choose a mode',
+  modeClassic: 'Classic Mod',
+  modeLegends: 'Sports Legends',
+  modeChallenge: 'Challenge',
+  modeSprint: 'Sprint',
+  comingSoon: 'Available soon',
+  otherApps: 'Other apps',
 };
 
 const RU: SQLabels = {
@@ -124,7 +140,14 @@ const RU: SQLabels = {
   wheelPrizeCoins500: '500 монет',
   wheelPrizeCoins1000: '1000 монет',
   wheelTitle: 'Колесо фортуны',
-  splashTagline: 'Проверь свой спортивный IQ!',
+  splashTagline: 'Тренируй свой мозг!',
+  chooseMode: 'Выбери режим',
+  modeClassic: 'Классический',
+  modeLegends: 'Легенды спорта',
+  modeChallenge: 'Челлендж',
+  modeSprint: 'Спринт',
+  comingSoon: 'Скоро',
+  otherApps: 'Другие приложения',
 };
 
 const ES: SQLabels = {
@@ -161,7 +184,14 @@ const ES: SQLabels = {
   wheelPrizeCoins500: '500 monedas',
   wheelPrizeCoins1000: '1000 monedas',
   wheelTitle: 'Rueda de la fortuna',
-  splashTagline: '¡Pon a prueba tu IQ deportivo!',
+  splashTagline: '¡Entrena tu cerebro!',
+  chooseMode: 'Elige un modo',
+  modeClassic: 'Clásico',
+  modeLegends: 'Leyendas del deporte',
+  modeChallenge: 'Desafío',
+  modeSprint: 'Sprint',
+  comingSoon: 'Muy pronto',
+  otherApps: 'Otras apps',
 };
 
 const FR: SQLabels = {
@@ -198,7 +228,14 @@ const FR: SQLabels = {
   wheelPrizeCoins500: '500 pièces',
   wheelPrizeCoins1000: '1000 pièces',
   wheelTitle: 'Roue de la fortune',
-  splashTagline: 'Teste ton QI sportif !',
+  splashTagline: 'Entraîne ton cerveau !',
+  chooseMode: 'Choisis un mode',
+  modeClassic: 'Classique',
+  modeLegends: 'Légendes du sport',
+  modeChallenge: 'Défi',
+  modeSprint: 'Sprint',
+  comingSoon: 'Bientôt',
+  otherApps: 'Autres apps',
 };
 
 const TABLE: Record<string, SQLabels> = { en: EN, ru: RU, es: ES, fr: FR };

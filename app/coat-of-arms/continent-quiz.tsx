@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -36,6 +36,10 @@ import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
 const REVEAL_MS = 900;
+// On a correct answer the wrong coats unmount while the correct one glides up
+// and centers over this long; the note + "Next" button then fade in over
+// UI_FADE_MS once the glide lands. Matches Flags Quiz exactly.
+const MOVE_MS = 900;
 const UI_FADE_MS = 300;
 
 // Coat option box: two per row, SQUARE (coats are portrait/square, unlike a wide
@@ -263,15 +267,18 @@ export default function CoatOfArmsContinentGame() {
             ) : null}
           </View>
 
-          {/* 2×2 coat-picture options — STATIC (no float/glide). On a correct
-              reveal the wrong coats are removed and the correct one is centered. */}
+          {/* 2×2 coat-picture options. On a correct reveal the wrong coats unmount
+              while the correct one — kept mounted — glides up and centers. */}
           <View key={q.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {q.optionImageUris.map((uri, optIdx) => {
               if (revealing && optIdx !== q.correctIndex) return null;
               const s = stateFor(optIdx);
               const ring = s === 'correct' ? '#37B24D' : s === 'wrong' ? '#E03131' : 'transparent';
               return (
-                <View key={optIdx}>
+                <Animated.View
+                  key={optIdx}
+                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                >
                   <Pressable
                     onPress={() => onPick(optIdx)}
                     disabled={answered}
@@ -294,14 +301,15 @@ export default function CoatOfArmsContinentGame() {
                       )}
                     </View>
                   </Pressable>
-                </View>
+                </Animated.View>
               );
             })}
           </View>
 
-          {/* Reveal panel — the expanded note then a "Next" button. */}
+          {/* Reveal panel — the expanded note then a "Next" button. Fades in
+              once the answer glide lands. */}
           {revealing ? (
-            <Animated.View style={styles.reveal} entering={FadeIn.duration(UI_FADE_MS)}>
+            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
                   <ScrollView

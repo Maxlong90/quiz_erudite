@@ -15,7 +15,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
-import { CoinIcon, CoinPill, GlassIconButton, NeonCta, neonGlow } from '@/components/sport-quiz/ui';
+import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
+import { SpinButton } from '@/components/sport-quiz/shine';
 import { WheelPrizeIcons, WheelSvg } from '@/components/sport-quiz/wheel-svg';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels, type SQLabels } from '@/constants/sport-quiz/labels';
@@ -52,7 +53,7 @@ function prizeLabel(id: string, t: SQLabels): string {
 
 export default function SportQuizWheel() {
   const t = useSQLabels();
-  const { coins, wheelLastSpinAt, spinWheel } = useSportQuiz();
+  const { coins, wheelLastSpinAt, spinWheel, resetWheelCooldown } = useSportQuiz();
   const now = useNow(1000);
   const remaining = wheelCooldownRemaining(wheelLastSpinAt, now);
   const available = remaining <= 0;
@@ -108,7 +109,7 @@ export default function SportQuizWheel() {
 
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-      <AppBackground variant="color" />
+      <AppBackground variant="navy" />
       <StatusBar style="light" />
 
       <View style={styles.header}>
@@ -135,9 +136,11 @@ export default function SportQuizWheel() {
         {wonPrize && !spinning ? <PrizePanel prize={wonPrize} t={t} /> : <View style={styles.prizePanelSpacer} />}
 
         {available ? (
-          <View style={styles.ctaWrap}>
-            <NeonCta label={t.wheelSpin} onPress={onSpin} disabled={spinning} />
-          </View>
+          <SpinButton
+            label={<Text style={styles.spinText}>{t.wheelSpin}</Text>}
+            onPress={onSpin}
+            disabled={spinning}
+          />
         ) : (
           <View style={[styles.cooldown, neonGlow(SQColors.neonBlue, 10)]}>
             <LinearGradient
@@ -150,6 +153,17 @@ export default function SportQuizWheel() {
           </View>
         )}
       </View>
+
+      {/* DEV: reset the cooldown so the free spin is available immediately. */}
+      {__DEV__ && (
+        <Pressable
+          onPress={resetWheelCooldown}
+          style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Ionicons name="build" size={18} color="#FFB65C" />
+          <Text style={styles.devBtnText}>DEV: reset timer</Text>
+        </Pressable>
+      )}
 
       <OddsModal visible={showOdds} onClose={() => setShowOdds(false)} t={t} />
     </SafeAreaView>
@@ -249,6 +263,7 @@ const styles = StyleSheet.create({
   prizeAmount: { fontSize: 32, fontWeight: '900', color: SQColors.text },
 
   ctaWrap: { marginTop: 24 },
+  spinText: { color: SQColors.textOnNeon, fontWeight: '900', fontSize: 26, letterSpacing: 1 },
   cooldown: {
     marginTop: 24,
     flexDirection: 'row',
@@ -263,6 +278,24 @@ const styles = StyleSheet.create({
   },
   cooldownLabel: { fontSize: 14, fontWeight: '700', color: SQColors.text },
   cooldownTime: { fontSize: 16, fontWeight: '900', color: SQColors.text },
+
+  // DEV button — off-brand dashed amber pill so it reads as a tool.
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    marginBottom: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: SQRadius.pill,
+    borderWidth: 1.5,
+    borderColor: '#FFB65C',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(6,16,26,0.6)',
+  },
+  devBtnText: { color: '#FFB65C', fontWeight: '800', fontSize: 14 },
 
   modalBackdrop: {
     flex: 1,

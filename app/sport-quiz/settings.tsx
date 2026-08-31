@@ -47,7 +47,7 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function SportQuizSettings() {
   const t = useSQLabels();
-  const { rateRewarded, markRateRewarded } = useSportQuiz();
+  const { rateRewarded, markRateRewarded, resetLevels } = useSportQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
 
@@ -87,9 +87,16 @@ export default function SportQuizSettings() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {});
   };
 
+  // DEV-only: reset every quiz level back to its first question.
+  const onResetLevels = () => {
+    Haptics.selectionAsync().catch(() => {});
+    resetLevels();
+    Alert.alert('DEV', 'All levels reset to the first question.', [{ text: t.ok }]);
+  };
+
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-      <AppBackground variant="color" />
+      <AppBackground variant="navy" />
       <StatusBar style="light" />
 
       {/* Header: back · title */}
@@ -122,6 +129,18 @@ export default function SportQuizSettings() {
         <SettingsRow label={t.privacyPolicy} onPress={onPrivacy} />
         <SettingsRow label={t.termsOfUse} onPress={onTerms} />
       </View>
+
+      {/* DEV tools pinned to the bottom — only in development builds. */}
+      <View style={{ flex: 1 }} />
+      {__DEV__ && (
+        <Pressable
+          onPress={onResetLevels}
+          style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Ionicons name="build" size={18} color="#FFB65C" />
+          <Text style={styles.devBtnText}>DEV: reset levels</Text>
+        </Pressable>
+      )}
 
       {/* Language picker — tapping a language changes the app locale instantly. */}
       <Modal visible={langOpen} transparent animationType="fade" onRequestClose={() => setLangOpen(false)}>
@@ -289,4 +308,22 @@ const styles = StyleSheet.create({
   langRowActive: { backgroundColor: 'rgba(43,255,179,0.16)' },
   langText: { fontSize: 17, fontWeight: '800', color: SQColors.text },
   langTextActive: { color: SQColors.neon },
+
+  // DEV button — deliberately off-brand (dashed amber) so it reads as a tool.
+  devBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    marginBottom: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: SQRadius.pill,
+    borderWidth: 1.5,
+    borderColor: '#FFB65C',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(6,16,26,0.6)',
+  },
+  devBtnText: { color: '#FFB65C', fontWeight: '800', fontSize: 14 },
 });

@@ -23,7 +23,9 @@ const CARD_INNER = SHARE_CARD_WIDTH - 40; // paddingHorizontal 20 each side
 const OPT_TEXT_W = CARD_INNER * 0.48 - 20; // text width inside a 48% option
 // Flag-picture option box sized to fit two columns (mirrors the game's frame).
 const IMG_OPT_W = Math.floor(CARD_INNER * 0.48) - 14;
-const IMG_OPT_H = Math.round(IMG_OPT_W * 0.62);
+// 4:3 box to match the 320×240 backend flags, so `contain` fills it with no
+// white letterbox (mirrors the game's continent-mode frame).
+const IMG_OPT_H = Math.round(IMG_OPT_W * 0.75);
 
 /** Deterministic font size so the longest whole word fits one line (no mid-word breaks). */
 function fitFont(lines: string[]): number {

@@ -51,8 +51,13 @@ export function GlassPillButton({
     >
       <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
       <View style={styles.pillRow}>
-        <Ionicons name={icon} size={fontSize * 1.15} color={NEON} />
+        {/* Icon pinned to a fixed-width left column so all three buttons' icons
+            line up vertically; a matching right spacer keeps the label centred. */}
+        <View style={styles.pillIconCol}>
+          <Ionicons name={icon} size={fontSize * 1.15} color={NEON} />
+        </View>
         <Text style={[styles.pillText, { fontSize }]}>{label}</Text>
+        <View style={styles.pillIconCol} />
       </View>
     </Pressable>
   );
@@ -147,13 +152,12 @@ export function GlassCard({ children, style, glow }: { children: ReactNode; styl
   );
 }
 
-/** Prominent section heading — bright bold text on a dark glass chip with a neon
- * accent bar, so it pops on the busy colourful background. */
-export function SectionTitle({ children, accent = NEON }: { children: ReactNode; accent?: string }) {
+/** Prominent section heading — bold accent-coloured text on a dark glass chip so
+ * it pops on the busy background. Defaults to the hot-magenta accent. */
+export function SectionTitle({ children, accent = SQColors.neonPink }: { children: ReactNode; accent?: string }) {
   return (
-    <View style={[styles.sectionWrap, { borderColor: accent + '66' }]}>
-      <View style={[styles.sectionAccent, { backgroundColor: accent }]} />
-      <Text style={[styles.section, { textShadowColor: accent + '99' }]}>{children}</Text>
+    <View style={[styles.sectionWrap, { borderColor: accent + '77' }]}>
+      <Text style={[styles.section, { color: accent, textShadowColor: accent }]}>{children}</Text>
     </View>
   );
 }
@@ -174,15 +178,16 @@ const styles = StyleSheet.create({
   pill: {
     width: '100%',
     borderRadius: SQRadius.pill,
-    paddingVertical: 18,
+    paddingVertical: 21,
     borderWidth: 1.5,
     borderColor: NEON,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pillRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  pillText: { color: TEXT, fontWeight: '900', letterSpacing: 0.5 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', width: '100%', paddingHorizontal: 22 },
+  pillIconCol: { width: 46, alignItems: 'flex-start' },
+  pillText: { flex: 1, textAlign: 'center', color: TEXT, fontWeight: '900', letterSpacing: 0.5 },
 
   iconBtn: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: NEON, overflow: 'hidden' },
   badge: { position: 'absolute', top: -6, right: -6 },
