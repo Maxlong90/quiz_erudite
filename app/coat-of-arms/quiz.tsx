@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -30,6 +30,7 @@ import { wrapLabel } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { getStoreLinks } from '@/lib/store-links';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
+import { CoatHelpModal } from '@/components/coat-of-arms/help-modal';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
@@ -40,12 +41,9 @@ const OPTION_H = 68;
 // Persisted-progress key for the "All countries" coats run (resume on return).
 const PROGRESS_KEY = 'coat.progress.all.v1';
 
-// Answer-reveal timings (mirror Flags Quiz): the wrong options clear while the
-// correct answer glides up and centers under the question; once it lands, the
-// note + "Next" button fade in.
-const MOVE_MS = 900;
+// On a correct answer the wrong options are removed and the correct one stays
+// put (no glide) — only the note + "Next" button fade in.
 const UI_FADE_MS = 300;
-const NOTE_MAX_H = 160;
 
 // Font-fitting for the answer labels (identical to Flags Quiz).
 const SCREEN_W = Dimensions.get('window').width;
@@ -87,6 +85,7 @@ export default function CoatOfArmsGame() {
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useCoatContent();
   const [reportOpen, setReportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (coat + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
 
@@ -226,6 +225,14 @@ export default function CoatOfArmsGame() {
           </Pressable>
           <View style={styles.hudRight}>
             <Pressable
+              onPress={() => setHelpOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-help-button"
+            >
+              <GlossyIconButton glyph="help" size={44} />
+            </Pressable>
+            <Pressable
               onPress={() => setReportOpen(true)}
               hitSlop={8}
               style={({ pressed }) => pressed && styles.pressed}
@@ -265,35 +272,33 @@ export default function CoatOfArmsGame() {
                 <View style={[styles.coatImg, styles.coatFallback]} />
               )}
             </View>
-            <Text style={styles.prompt}>{promptText}</Text>
+            {/* The prompt is hidden once answered — on reveal we show only the
+                coat, the correct answer and the (expanded) explanation. */}
+            {!revealing ? <Text style={styles.prompt}>{promptText}</Text> : null}
           </View>
 
-          {/* 2×2 answer grid. On a correct reveal the wrong options unmount (FadeOut)
-              while the correct answer — kept mounted — glides up and centers. */}
+          {/* 2×2 answer grid — options are STATIC (no float/glide). On a correct
+              reveal the wrong options are removed and the correct one is centered. */}
           <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {question.options.map((option, i) => {
               if (revealing && i !== question.correctIndex) return null;
               return (
-                <Animated.View
-                  key={`${question.id}-${i}`}
-                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
-                  style={styles.optionWrap}
-                >
+                <View key={`${question.id}-${i}`} style={styles.optionWrap}>
                   <OptionButton
                     label={option}
                     state={stateFor(i)}
                     disabled={answered}
                     onPress={() => onPick(i)}
                   />
-                </Animated.View>
+                </View>
               );
             })}
           </View>
 
-          {/* Reveal panel — the note (when present) then a "Next" button, in the
-              Flags Quiz button style. Fades in once the answer glide lands. */}
+          {/* Reveal panel — the expanded note then a "Next" button. Fades in
+              right after the correct answer. */}
           {revealing ? (
-            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+            <Animated.View style={styles.reveal} entering={FadeIn.duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
                   <ScrollView
@@ -324,6 +329,9 @@ export default function CoatOfArmsGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Help: explains the review-your-mistakes flow (opened from the "?" tile). */}
+      <CoatHelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Off-screen composition captured for the Share image. Laid out (so it can
           be snapshotted) but parked outside the viewport, never affecting layout. */}
@@ -495,16 +503,16 @@ const styles = StyleSheet.create({
 
   historyBox: {
     marginTop: 20,
-    marginHorizontal: 20,
+    marginHorizontal: 14,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    flexShrink: 1,
+    flex: 1,
   },
-  historyScroll: { maxHeight: NOTE_MAX_H, flexShrink: 1 },
+  historyScroll: { flex: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,7 @@ import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
+import { CoatHelpModal } from '@/components/coat-of-arms/help-modal';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
@@ -34,9 +35,7 @@ import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
 const REVEAL_MS = 900;
-const MOVE_MS = 900;
 const UI_FADE_MS = 300;
-const NOTE_MAX_H = 160;
 
 // Coat option box: two per row, SQUARE (coats are portrait/square, unlike a wide
 // flag), each on a white plate with the coat CONTAINED (never cropped).
@@ -83,6 +82,7 @@ export default function CoatOfArmsContinentGame() {
   const key = (CONTINENT_KEYS.includes(continent as ContinentKey) ? continent : 'africa') as ContinentKey;
   const questions = useMemo(() => pictureByContinent[key] ?? [], [pictureByContinent, key]);
   const [reportOpen, setReportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (country name + coat options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
 
@@ -210,6 +210,14 @@ export default function CoatOfArmsContinentGame() {
           </Pressable>
           <View style={styles.hudRight}>
             <Pressable
+              onPress={() => setHelpOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="quiz-help-button"
+            >
+              <GlossyIconButton glyph="help" size={44} />
+            </Pressable>
+            <Pressable
               onPress={() => setReportOpen(true)}
               hitSlop={8}
               style={({ pressed }) => pressed && styles.pressed}
@@ -232,24 +240,22 @@ export default function CoatOfArmsContinentGame() {
             every screen — and avoids the broken ScrollView-inside-ScrollView
             nesting that stopped the note scrolling. */}
         <View style={styles.page}>
-          {/* Progress + the country name (the question). */}
+          {/* Progress + the country name (the question). The name is hidden once
+              answered — on reveal we show only the correct coat + explanation. */}
           <View style={styles.head}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
-            <Text style={styles.country}>{q.title}</Text>
+            {!revealing ? <Text style={styles.country}>{q.title}</Text> : null}
           </View>
 
-          {/* 2×2 coat-picture options. On a correct reveal the wrong coats unmount
-              (FadeOut) while the correct coat — kept mounted — glides up and centers. */}
+          {/* 2×2 coat-picture options — STATIC (no float/glide). On a correct
+              reveal the wrong coats are removed and the correct one is centered. */}
           <View key={q.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {q.optionImageUris.map((uri, optIdx) => {
               if (revealing && optIdx !== q.correctIndex) return null;
               const s = stateFor(optIdx);
               const ring = s === 'correct' ? '#37B24D' : s === 'wrong' ? '#E03131' : 'transparent';
               return (
-                <Animated.View
-                  key={optIdx}
-                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
-                >
+                <View key={optIdx}>
                   <Pressable
                     onPress={() => onPick(optIdx)}
                     disabled={answered}
@@ -272,14 +278,14 @@ export default function CoatOfArmsContinentGame() {
                       )}
                     </View>
                   </Pressable>
-                </Animated.View>
+                </View>
               );
             })}
           </View>
 
-          {/* Reveal panel — the note (when present) then a "Next" button. */}
+          {/* Reveal panel — the expanded note then a "Next" button. */}
           {revealing ? (
-            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+            <Animated.View style={styles.reveal} entering={FadeIn.duration(UI_FADE_MS)}>
               {historyText ? (
                 <View style={[styles.historyBox, FQShadow.card]}>
                   <ScrollView
@@ -310,6 +316,9 @@ export default function CoatOfArmsContinentGame() {
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
       />
+
+      {/* Help: explains the review-your-mistakes flow (opened from the "?" tile). */}
+      <CoatHelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Off-screen composition captured for the Share image. */}
       <View style={styles.shareCardHost} pointerEvents="none">
@@ -399,16 +408,16 @@ const styles = StyleSheet.create({
 
   historyBox: {
     marginTop: 20,
-    marginHorizontal: 20,
+    marginHorizontal: 14,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    flexShrink: 1,
+    flex: 1,
   },
-  historyScroll: { maxHeight: NOTE_MAX_H, flexShrink: 1 },
+  historyScroll: { flex: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
