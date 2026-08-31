@@ -20,7 +20,7 @@ import { GradientBackground } from '@/components/flags-quiz/app-background';
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
-import { CoatHelpModal } from '@/components/coat-of-arms/help-modal';
+import { CoatHelpModal, useCoatHelp } from '@/components/coat-of-arms/help-modal';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
@@ -82,7 +82,6 @@ export default function CoatOfArmsContinentGame() {
   const key = (CONTINENT_KEYS.includes(continent as ContinentKey) ? continent : 'africa') as ContinentKey;
   const questions = useMemo(() => pictureByContinent[key] ?? [], [pictureByContinent, key]);
   const [reportOpen, setReportOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (country name + coat options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
 
@@ -106,6 +105,9 @@ export default function CoatOfArmsContinentGame() {
 
   const questionIdx = order[pos];
   const q = questions[questionIdx];
+  // Help sheet: auto-opens once on the first reached question (any category),
+  // and the "?" tile opens it manually anytime.
+  const { helpOpen, setHelpOpen } = useCoatHelp(!!q);
   const answered = picked !== null;
   const isCorrectPick = answered && q != null && picked === q.correctIndex;
 

@@ -1,8 +1,39 @@
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
+
+// Set once the help sheet has been shown automatically, so the first-run nudge
+// fires only ONCE across the whole app (either game mode / any category).
+const HELP_SEEN_KEY = 'coat.help.seen.v1';
+
+/**
+ * Owns the help-sheet open state AND the first-run auto-open. Pass `ready = true`
+ * once the quiz screen actually has a question to show; the very first time a
+ * player reaches gameplay (any category) the sheet pops up on its own and the
+ * "seen" flag is persisted so it never auto-opens again. The returned setter
+ * still lets the "?" button open it manually anytime.
+ */
+export function useCoatHelp(ready: boolean) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const checked = useRef(false);
+  useEffect(() => {
+    if (checked.current || !ready) return;
+    checked.current = true;
+    AsyncStorage.getItem(HELP_SEEN_KEY)
+      .then((seen) => {
+        if (!seen) {
+          setHelpOpen(true);
+          AsyncStorage.setItem(HELP_SEEN_KEY, '1').catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [ready]);
+  return { helpOpen, setHelpOpen };
+}
 
 /**
  * Coat of Arms in-game help sheet. Opened from the "?" button in the quiz HUD

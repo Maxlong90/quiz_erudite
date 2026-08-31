@@ -30,7 +30,7 @@ import { wrapLabel } from '@/lib/flags-quiz/label';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { getStoreLinks } from '@/lib/store-links';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
-import { CoatHelpModal } from '@/components/coat-of-arms/help-modal';
+import { CoatHelpModal, useCoatHelp } from '@/components/coat-of-arms/help-modal';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
@@ -85,7 +85,6 @@ export default function CoatOfArmsGame() {
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useCoatContent();
   const [reportOpen, setReportOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   // Off-screen composition (coat + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
 
@@ -111,6 +110,9 @@ export default function CoatOfArmsGame() {
 
   const questionIdx = order[pos];
   const question = countryQuestions[questionIdx];
+  // Help sheet: auto-opens once on the first reached question (any category),
+  // and the "?" tile opens it manually anytime.
+  const { helpOpen, setHelpOpen } = useCoatHelp(!!question);
   const answered = picked !== null;
   const isCorrectPick = answered && question != null && picked === question.correctIndex;
 
