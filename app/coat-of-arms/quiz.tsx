@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -281,24 +281,33 @@ export default function CoatOfArmsGame() {
             {!revealing ? <Text style={styles.prompt}>{promptText}</Text> : null}
           </View>
 
-          {/* 2×2 answer grid. On a correct reveal the wrong options unmount while
-              the correct answer — kept mounted — glides up and centers. */}
+          {/* 2×2 answer grid. STATIC on question open — plain Views, no layout
+              animator, so nothing slides/reflows in. On a correct reveal the wrong
+              options unmount and ONLY the surviving correct answer floats up into
+              the centre (its key changes, so it remounts with an entering anim). */}
           <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {question.options.map((option, i) => {
               if (revealing && i !== question.correctIndex) return null;
-              return (
+              const btn = (
+                <OptionButton
+                  label={option}
+                  state={stateFor(i)}
+                  disabled={answered}
+                  onPress={() => onPick(i)}
+                />
+              );
+              return revealing ? (
                 <Animated.View
-                  key={`${question.id}-${i}`}
-                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                  key={`reveal-${question.id}-${i}`}
+                  entering={FadeInUp.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
                   style={styles.optionWrap}
                 >
-                  <OptionButton
-                    label={option}
-                    state={stateFor(i)}
-                    disabled={answered}
-                    onPress={() => onPick(i)}
-                  />
+                  {btn}
                 </Animated.View>
+              ) : (
+                <View key={`${question.id}-${i}`} style={styles.optionWrap}>
+                  {btn}
+                </View>
               );
             })}
           </View>

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -267,41 +267,48 @@ export default function CoatOfArmsContinentGame() {
             ) : null}
           </View>
 
-          {/* 2×2 coat-picture options. On a correct reveal the wrong coats unmount
-              while the correct one — kept mounted — glides up and centers. */}
+          {/* 2×2 coat-picture options. STATIC on question open — plain Views, no
+              layout animator, so nothing slides/reflows in. On a correct reveal the
+              wrong coats unmount and ONLY the correct one floats up into the centre
+              (its key changes, so it remounts with an entering animation). */}
           <View key={q.id} style={[styles.options, revealing && styles.optionsRevealing]}>
             {q.optionImageUris.map((uri, optIdx) => {
               if (revealing && optIdx !== q.correctIndex) return null;
               const s = stateFor(optIdx);
               const ring = s === 'correct' ? '#37B24D' : s === 'wrong' ? '#E03131' : 'transparent';
-              return (
-                <Animated.View
-                  key={optIdx}
-                  layout={LinearTransition.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+              const cell = (
+                <Pressable
+                  onPress={() => onPick(optIdx)}
+                  disabled={answered}
+                  style={({ pressed }) => [
+                    styles.optionWrap,
+                    { borderColor: ring },
+                    pressed && !answered && styles.pressed,
+                  ]}
                 >
-                  <Pressable
-                    onPress={() => onPick(optIdx)}
-                    disabled={answered}
-                    style={({ pressed }) => [
-                      styles.optionWrap,
-                      { borderColor: ring },
-                      pressed && !answered && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.optionFrame}>
-                      {uri ? (
-                        <Image
-                          source={{ uri }}
-                          style={{ width: OPT_W, height: OPT_H }}
-                          contentFit="contain"
-                          transition={0}
-                        />
-                      ) : (
-                        <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
-                      )}
-                    </View>
-                  </Pressable>
+                  <View style={styles.optionFrame}>
+                    {uri ? (
+                      <Image
+                        source={{ uri }}
+                        style={{ width: OPT_W, height: OPT_H }}
+                        contentFit="contain"
+                        transition={0}
+                      />
+                    ) : (
+                      <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
+                    )}
+                  </View>
+                </Pressable>
+              );
+              return revealing ? (
+                <Animated.View
+                  key={`reveal-${optIdx}`}
+                  entering={FadeInUp.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                >
+                  {cell}
                 </Animated.View>
+              ) : (
+                <View key={optIdx}>{cell}</View>
               );
             })}
           </View>
