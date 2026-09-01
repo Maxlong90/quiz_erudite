@@ -12,6 +12,8 @@ import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 import { ThemePrefProvider, useThemePref } from '@/hooks/use-theme-pref';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { APP_SLUG } from '@/api/client';
+import { BG_BASE } from '@/components/logo-quiz/app-background';
 // Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
 import { Sentry, sentryEnabled } from '@/lib/sentry';
 // Side-effect import: configures RevenueCat on supported Android builds; a
@@ -27,6 +29,15 @@ function ThemedRoot() {
   const colors = useThemeColors();
   const { theme, ready } = useThemePref();
 
+  // The Logo Quiz build is a light, self-contained experience. Force the entire
+  // root scaffold (system bg, navigator card/background, per-screen content bg)
+  // to the Logo Quiz light base so the erudite default-DARK navy never flashes
+  // behind its light splash during the cold-start hand-off (native splash →
+  // index redirect → /logo-quiz/splash). Without this the navy scaffold showed
+  // through the transition and read as a separate dark "first" splash. Every
+  // other build keeps the theme-driven colors.bgSolid.
+  const scaffoldBg = APP_SLUG === 'logo-quiz' ? BG_BASE : colors.bgSolid;
+
   // Android: keep the system nav bar hidden everywhere; a bottom-edge swipe
   // reveals it transiently and it auto-hides again after 3s.
   useImmersiveNavBar();
@@ -36,8 +47,8 @@ function ThemedRoot() {
   // root bg through translucent system buttons) stays on-theme even when a
   // Modal pops its own window on top.
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(colors.bgSolid).catch(() => {});
-  }, [colors.bgSolid]);
+    SystemUI.setBackgroundColorAsync(scaffoldBg).catch(() => {});
+  }, [scaffoldBg]);
 
   // Every screen sits on the app gradient, so we force a navigator theme whose
   // card background also matches the base color. Without this, sliding screens
@@ -46,20 +57,20 @@ function ThemedRoot() {
     const base = theme === 'dark' ? DarkTheme : DefaultTheme;
     return {
       ...base,
-      colors: { ...base.colors, background: colors.bgSolid, card: colors.bgSolid },
+      colors: { ...base.colors, background: scaffoldBg, card: scaffoldBg },
     };
-  }, [theme, colors.bgSolid]);
+  }, [theme, scaffoldBg]);
 
   // On cold start the persisted preference loads asynchronously; a light-pref
   // user would otherwise get one frame of the default-dark bg. Hold a neutral
   // fill until the stored value is known.
   if (!ready) {
-    return <View style={{ flex: 1, backgroundColor: colors.bgSolid }} />;
+    return <View style={{ flex: 1, backgroundColor: scaffoldBg }} />;
   }
 
   return (
     <ThemeProvider value={navTheme}>
-      <View style={{ flex: 1, backgroundColor: colors.bgSolid }}>
+      <View style={{ flex: 1, backgroundColor: scaffoldBg }}>
         <Stack
           initialRouteName="splash"
           screenOptions={{
@@ -69,7 +80,7 @@ function ThemedRoot() {
             // outgoing/incoming screens. Tint it to the base color so it
             // blends with the app gradient and the navigation animation reads
             // as a smooth same-color slide.
-            contentStyle: { backgroundColor: colors.bgSolid },
+            contentStyle: { backgroundColor: scaffoldBg },
           }}
         >
         <Stack.Screen
@@ -81,7 +92,10 @@ function ThemedRoot() {
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
         />
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="logo-quiz" options={{ headerShown: false }} />
+        {/* Logo Quiz: no slide into the group — the native splash and the JS
+            splash share the same light background, so an instant swap reads as a
+            single continuous splash (a slide would reveal the scaffold behind). */}
+        <Stack.Screen name="logo-quiz" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="flags-quiz" options={{ headerShown: false }} />
         <Stack.Screen name="coat-of-arms" options={{ headerShown: false }} />
         <Stack.Screen name="sport-quiz" options={{ headerShown: false }} />
