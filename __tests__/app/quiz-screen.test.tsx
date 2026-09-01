@@ -21,6 +21,7 @@
  */
 import React from 'react';
 import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- controllable mock state -------------------------------------------------
 
@@ -164,7 +165,11 @@ function enabledOptionCount(screen: ReturnType<typeof render>, n: number): numbe
   return count;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Cross-session `seen` now persists in tests (babel rewrites the lazy
+  // AsyncStorage import), so wipe it between tests or a leaked bucket would
+  // filter out questions the pick/replace assertions expect.
+  await AsyncStorage.clear();
   mockPremium = false;
   mockLivesCount = 5;
   mockHints = { fiftyFifty: 3, statistics: 2, replaceQuestion: 1 };

@@ -790,7 +790,49 @@ export default function QuizScreen() {
         wanted,
         requestedSlugs.length === 1 ? requestedSlugs[0] : undefined,
       );
-      dispatch({ type: 'SET_QUESTIONS', payload: data.map(shuffleOptions) });
+
+      // Harden the API fallback with the same no-repeat guarantees as the
+      // cache path (pickQuestionsFromCache): dedupe by id, honour the
+      // cross-session `seen` set, and record what we hand out. The cache
+      // path reads `seen` inside its own if-block, so read it again here.
+      const poolMap = new Map<number, typeof data[number]>();
+      for (const q of data) {
+        if (!poolMap.has(q.id)) poolMap.set(q.id, q);
+      }
+      const pool = Array.from(poolMap.values());
+
+      const seen = await readSeen(seenKey);
+      let unseen = pool.filter((q) => !seen.has(q.id));
+      let resetSeen = false;
+      if (unseen.length < wanted) {
+        // Not enough fresh questions left — fall back to the full deduped
+        // pool so the quiz never comes up empty, and reset the seen bucket.
+        resetSeen = true;
+        unseen = pool;
+      }
+
+      // Fisher-Yates, matching pickQuestionsFromCache (uniform, unbiased).
+      const shuffled = [...unseen];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      // Defensive dedupe at the pick boundary + cap to the requested count.
+      const pickedIds = new Set<number>();
+      const picks: number[] = [];
+      const payload = [];
+      for (const q of shuffled) {
+        if (pickedIds.has(q.id)) continue;
+        pickedIds.add(q.id);
+        picks.push(q.id);
+        payload.push(shuffleOptions(q));
+        if (payload.length >= wanted) break;
+      }
+
+      dispatch({ type: 'SET_QUESTIONS', payload });
+      const baseSeen = resetSeen ? [] : Array.from(seen);
+      await writeSeen(seenKey, [...baseSeen, ...picks]);
     } catch (err) {
       dispatch({
         type: 'SET_ERROR',
