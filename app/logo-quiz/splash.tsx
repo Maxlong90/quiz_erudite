@@ -32,11 +32,9 @@ import { useLocale } from '@/hooks/use-locale';
  * user on a slow first-launch sync.
  */
 const SPLASH_MS = 3000;
-// Never trap the user on the splash: navigate no later than this even if the
-// logo preload is still running (slow network / huge catalog on first launch).
-const SPLASH_HARD_CAP_MS = 10000;
-// Guarantee at least the first 3 levels (15 logos each) are decoded before we
-// leave the splash, so the first level opens with no visible image pop-in.
+// Warm the first 3 levels (15 logos each) first; the rest follow in the
+// background. This only orders the background prefetch — it never gates the
+// splash, which always lasts exactly SPLASH_MS.
 const PRELOAD_MIN_LOGOS = 45;
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
@@ -52,16 +50,15 @@ const WELCOME_ASSETS = [
   require('../../assets/logo-quiz/win-smiley.png'),
 ];
 
-const wait = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
-
 /**
- * Warm the Logo Quiz brand logos into expo-image's memory-disk cache during the
- * splash so the first level opens with no per-tile decode pop-in. The image
- * files are already on disk from content sync; this only warms the DECODE.
- * Loads the cached snapshot directly (syncing if it's missing or for the wrong
- * locale), builds the levels, and prefetches every question's imageUri. The
- * first PRELOAD_MIN_LOGOS (3 levels) are awaited so the caller can gate on them;
- * the rest warm in the background. Fully fail-open.
+ * Warm the Logo Quiz brand logos into expo-image's memory-disk cache. Runs as a
+ * background best-effort task — the splash NEVER waits on it, so a slow/cold
+ * first-launch sync can't stretch the splash. The image files are already on
+ * disk from content sync; this only warms the DECODE. Loads the cached snapshot
+ * directly (syncing if it's missing or for the wrong locale), builds the levels,
+ * and prefetches every question's imageUri (first 3 levels first, the rest
+ * after). expo-image's cache is global/persistent, so tiles warmed even after we
+ * leave the splash still land cached on the first level. Fully fail-open.
  */
 async function prefetchLogoQuizLogos(locale: string): Promise<void> {
   try {
@@ -100,20 +97,20 @@ export default function LogoQuizSplash() {
     tagOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
     let alive = true;
-    const preloadAssets = Asset.loadAsync(WELCOME_ASSETS).catch(() => {});
+    // Warm caches in the BACKGROUND — never block navigation on them, so the
+    // splash always lasts exactly SPLASH_MS. Bundled Welcome art is local/fast;
+    // the remote brand logos keep warming even after we navigate (expo-image's
+    // cache is global, so tiles decoded post-navigation still land warm).
+    Asset.loadAsync(WELCOME_ASSETS).catch(() => {});
+    prefetchLogoQuizLogos(locale);
 
-    // Leave the splash only after BOTH the 3s minimum AND the preload finish —
-    // but never later than the hard cap, so a slow first-launch sync can't trap
-    // the user.
-    Promise.race([
-      Promise.all([wait(SPLASH_MS), preloadAssets, prefetchLogoQuizLogos(locale)]),
-      wait(SPLASH_HARD_CAP_MS),
-    ]).then(() => {
+    const timer = setTimeout(() => {
       if (alive) router.replace('/logo-quiz');
-    });
+    }, SPLASH_MS);
 
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
