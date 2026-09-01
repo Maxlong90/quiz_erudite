@@ -47,7 +47,7 @@ The config modals live in `components/home/`: `category-picker` and `quiz-config
 
 ### Loading Questions
 
-On mount, the quiz screen (`app/quiz.tsx`) assembles the question pool. It prefers the cached snapshot, falling back to the live `questions/random` endpoint, and filters the result against the player's seen set for that mode/category bucket so questions rarely repeat across sessions. If too few unseen questions remain, it resets that bucket and reuses the pool. Today's Question resolves a single fixed ID via `getTodayQuestionId`; Mistakes pulls from the stored mistake IDs; Hard filters to questions whose answer fits the chosen variant. See [Content and Offline](content-and-offline.md).
+On mount, the quiz screen (`app/quiz.tsx`) assembles the question pool. It prefers the cached snapshot, falling back to the live `questions/random` endpoint. Either way it deduplicates by question ID and filters against the player's seen set for that mode/category bucket, so a session never repeats a question and repeats across sessions stay rare. If too few unseen questions remain, it resets that bucket and reuses the pool. Today's Question resolves a single fixed ID via `getTodayQuestionId`; Mistakes pulls from the stored mistake IDs; Hard filters to questions whose answer fits the chosen variant. See [Content and Offline](content-and-offline.md).
 
 A spinner covers loading. On failure the screen shows an error with retry and home actions.
 

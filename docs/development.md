@@ -134,7 +134,9 @@ Uses ESLint with the `eslint-config-expo` preset.
 npm test
 ```
 
-Runs the Jest suite (`jest-expo` preset). The tests live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing, the hint and lives economies, answer stats, store links, RevenueCat gating, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. They are fast unit tests with no device, emulator, or backend dependency, so the suite runs in seconds and is safe to run on every change.
+Runs the Jest suite (`jest-expo` preset). The tests live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing, the hint and lives economies, answer stats, store links, RevenueCat gating, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. `__tests__/app/` also holds screen-level integration tests that render the quiz screen with its dependencies mocked; one pins the API-fallback no-repeat guarantees (dedupe by ID, seen filter). They are fast tests with no device, emulator, or backend dependency, so the suite runs in seconds and is safe to run on every change.
+
+One test-only wrinkle affects any test that exercises persisted state: helpers like `readSeen`/`writeSeen` lazy-load AsyncStorage through a dynamic `import()`, which Node's CommonJS test runtime cannot execute (it would throw and the helper's best-effort catch would silently no-op). The `test` env in `babel.config.js` rewrites those imports to `require()` via `babel-plugin-dynamic-import-node`, so the seen-set persistence is actually observable in tests. Metro handles `import()` natively for dev, production, and OTA bundles, so the shipped app never uses this rewrite.
 
 ## E2E Flows (Maestro)
 

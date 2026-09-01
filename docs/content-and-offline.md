@@ -77,6 +77,8 @@ To stop the same questions recurring, the app records which question IDs a playe
 
 When the quiz screen builds a pool, it drops any ID already in the relevant bucket. If too few unseen questions remain to fill the request, it resets that bucket and reuses the full pool, so a player who exhausts a topic simply starts the cycle over rather than hitting an empty quiz. After picking, the served IDs are written back into the bucket.
 
+The quiz screen builds this pool two ways, and both enforce the same rules. It prefers the cached snapshot (`pickQuestionsFromCache`). When no usable snapshot exists — missing cache, a locale mismatch, or an empty pool — it falls back to the live `questions/random` endpoint. Each path first deduplicates the pool by question ID, so one session never serves the same question twice. Each then filters against the seen bucket, resets and reuses the full pool when too little remains, and writes the served IDs back. The live fallback needs this most. It fetches a fresh random batch every time, so without the filter it would ignore the seen set and could hand out within-batch duplicates — repeats a player would notice both inside one quiz and between sessions.
+
 These same seen sets do double duty for progression: `getAllSeenIds` unions every bucket into one set, which the stats screen and the Explorer achievement use to resolve how many distinct subjects a player has touched. Bucketing alone could not answer that — the `__all__` bucket has no subject — so the IDs are resolved back to subjects through the snapshot. See [Gamification](gamification.md#career-stats).
 
 ## Today's Question
