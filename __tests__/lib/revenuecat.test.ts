@@ -236,6 +236,59 @@ describe('purchasePremium package selection (pickPremiumPackage)', () => {
     );
     expect(purchases.purchasePackage).toHaveBeenCalledWith(first);
   });
+
+  // LogoQuiz is a weekly-only offering whose `default` offering ALSO carries coin
+  // consumables — the old availablePackages[0] fallback could sell the 1000-coins
+  // pack. The weekly subscription must be preferred and a consumable never picked.
+  it('picks the weekly subscription over a coin consumable, never the consumable', async () => {
+    const coins = {
+      identifier: '$rc_custom_coins',
+      packageType: 'CUSTOM',
+      product: { identifier: 'logoquiz_coins_1000', productCategory: 'NON_SUBSCRIPTION' },
+    };
+    const weekly = {
+      identifier: '$rc_weekly',
+      packageType: 'WEEKLY',
+      product: { identifier: 'logoquiz_premium_weekly', productCategory: 'SUBSCRIPTION' },
+    };
+    // Consumable listed first so the old fallback would have grabbed it; weekly is
+    // only reachable via the $rc_weekly lookup / accessor.
+    const { purchases } = await runWith(
+      offering({ annual: null, monthly: null, availablePackages: [coins, weekly] }),
+    );
+    expect(purchases.purchasePackage).toHaveBeenCalledWith(weekly);
+  });
+
+  it('resolves the weekly package via the offering.weekly accessor too', async () => {
+    const weekly = {
+      identifier: '$rc_weekly',
+      product: { identifier: 'logoquiz_premium_weekly', productCategory: 'SUBSCRIPTION' },
+    };
+    const { purchases } = await runWith(
+      offering({ annual: null, monthly: null, weekly, availablePackages: [weekly] }),
+    );
+    expect(purchases.purchasePackage).toHaveBeenCalledWith(weekly);
+  });
+
+  it('throws rather than selling a coin consumable when no subscription exists', async () => {
+    const coins = {
+      identifier: '$rc_custom_coins',
+      packageType: 'CUSTOM',
+      product: { identifier: 'logoquiz_coins_1000', productCategory: 'NON_SUBSCRIPTION' },
+    };
+    const onlyConsumables = offering({
+      annual: null,
+      monthly: null,
+      availablePackages: [coins],
+    });
+    const { rc, purchases } = loadEnabled();
+    purchases.getOfferings.mockResolvedValue({
+      all: { default: onlyConsumables },
+      current: onlyConsumables,
+    });
+    await expect(rc.purchasePremium()).rejects.toThrow(/No subscription package available/i);
+    expect(purchases.purchasePackage).not.toHaveBeenCalled();
+  });
 });
 
 describe('purchasePremium outcomes', () => {

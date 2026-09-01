@@ -125,6 +125,10 @@ module.exports = ({ config } = {}) => {
     ios: {
       ...base.ios,
       bundleIdentifier: iosBundleIdentifier,
+      // iPhone-only — no iPad layout yet (same as flags-quiz / coat-of-arms /
+      // sport-quiz). Overrides the erudite base (supportsTablet: true) so Apple
+      // reviews on iPhone; flip back to true once an iPad layout is added.
+      supportsTablet: false,
     },
     android: {
       ...base.android,

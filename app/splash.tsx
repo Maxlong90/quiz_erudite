@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
@@ -14,16 +15,69 @@ import Animated, {
 import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
 import { ScreenBackground } from '@/components/screen-background';
 import { APP_SLUG } from '@/api/client';
+import { loadCachedSnapshot, syncContent } from '@/lib/content-cache';
+import { buildLevels, LOGO_QUIZ_SLUG } from '@/lib/logo-quiz/content';
+import { useLQLabels } from '@/constants/logo-quiz/labels';
+import { useLocale } from '@/hooks/use-locale';
 import { useThemePref } from '@/hooks/use-theme-pref';
 import { useTranslation } from '@/hooks/use-translation';
 
-const SPLASH_DURATION_MS = 2500;
+// Logo Quiz sits on a 3s splash (vs 2500ms elsewhere) — it doubles as the minimum
+// window during which the first levels' brand logos are prefetched (see below).
+const SPLASH_DURATION_MS = APP_SLUG === 'logo-quiz' ? 3000 : 2500;
+// Never trap the user on the splash: navigate no later than this even if the
+// logo preload is still running (slow network / huge catalog).
+const SPLASH_HARD_CAP_MS = 10000;
+// Guarantee at least the first 3 levels (15 logos each) are decoded before we
+// leave the splash, so the first level opens with no visible image pop-in.
+const PRELOAD_MIN_LOGOS = 45;
 const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
+
+/**
+ * Warm the Logo Quiz brand logos into expo-image's memory-disk cache during the
+ * splash so the first level opens with no per-tile decode pop-in. The image
+ * files are already on disk from content sync; this only warms the DECODE.
+ *
+ * Loads the cached snapshot directly (syncing if it's missing or for the wrong
+ * locale), builds the levels, and prefetches every question's imageUri. The
+ * first PRELOAD_MIN_LOGOS (3 levels) are awaited so the caller can gate the
+ * splash on them; the rest are prefetched in the background so a large catalog
+ * never delays the first screen. Fully fail-open — any error resolves quietly,
+ * so the splash is never blocked by a preload/sync failure.
+ */
+async function prefetchLogoQuizLogos(locale: string): Promise<void> {
+  try {
+    let snapshot = await loadCachedSnapshot(LOGO_QUIZ_SLUG);
+    if (!snapshot || snapshot.locale !== locale) {
+      snapshot = await syncContent({ locale, appSlug: LOGO_QUIZ_SLUG });
+    }
+    if (!snapshot) return;
+    const uris = buildLevels(snapshot)
+      .flatMap((l) => l.questions)
+      .map((q) => q.imageUri)
+      .filter((uri): uri is string => !!uri);
+    if (uris.length === 0) return;
+    const first = uris.slice(0, PRELOAD_MIN_LOGOS);
+    const rest = uris.slice(PRELOAD_MIN_LOGOS);
+    // Await the first levels so navigation can gate on them; warm the rest in
+    // the background without blocking.
+    await ExpoImage.prefetch(first, { cachePolicy: 'memory-disk' }).catch(() => {});
+    if (rest.length > 0) {
+      ExpoImage.prefetch(rest, { cachePolicy: 'memory-disk' }).catch(() => {});
+    }
+  } catch {
+    // Fail-open: never block the splash on a preload/sync error.
+  }
+}
 
 export default function SplashScreen() {
   const { t } = useTranslation();
   const { theme } = useThemePref();
+  // Called unconditionally to keep hook order stable across builds; only read
+  // for the Logo Quiz tagline below.
+  const lq = useLQLabels();
+  const { locale } = useLocale();
 
   const wordmarkOpacity = useSharedValue(0);
   const wordmarkScale = useSharedValue(0.92);
@@ -34,22 +88,60 @@ export default function SplashScreen() {
     wordmarkScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 500 }));
 
+    let cancelled = false;
+
     // The QUIZZES splash plays on every cold start. After it, branch on the
     // persisted `onboarding.seen.v1` flag: the first launch ever runs the full
     // first-run intro (language -> onboarding -> paywall -> home); every later
     // launch skips straight to home. So the language picker and the onboarding
     // carousel are shown exactly once, while the splash itself shows each launch.
-    const timer = setTimeout(async () => {
+    const navigate = async () => {
+      if (cancelled) return;
       let seenOnboarding = false;
       try {
         seenOnboarding = (await AsyncStorage.getItem(ONBOARDING_SEEN_KEY)) === '1';
       } catch {
         seenOnboarding = false;
       }
-      router.replace(seenOnboarding ? '/' : '/language');
-    }, SPLASH_DURATION_MS);
+      if (!cancelled) router.replace(seenOnboarding ? '/' : '/language');
+    };
 
-    return () => clearTimeout(timer);
+    // Non-logo-quiz builds keep the simple fixed-duration timer.
+    if (APP_SLUG !== 'logo-quiz') {
+      const timer = setTimeout(navigate, SPLASH_DURATION_MS);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+
+    // Logo Quiz: leave the splash only after BOTH the 3s minimum AND the first
+    // levels' logos are prefetched — but never later than the hard cap, so a slow
+    // sync/prefetch can't trap the user.
+    let navigated = false;
+    let minId: ReturnType<typeof setTimeout>;
+    let capId: ReturnType<typeof setTimeout>;
+    const go = () => {
+      if (navigated) return;
+      navigated = true;
+      navigate();
+    };
+    const minTimer = new Promise<void>((resolve) => {
+      minId = setTimeout(resolve, SPLASH_DURATION_MS);
+    });
+    const hardCap = new Promise<void>((resolve) => {
+      capId = setTimeout(resolve, SPLASH_HARD_CAP_MS);
+    });
+    Promise.race([
+      Promise.all([minTimer, prefetchLogoQuizLogos(locale)]),
+      hardCap,
+    ]).then(go);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(minId);
+      clearTimeout(capId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,7 +184,7 @@ export default function SplashScreen() {
       </Animated.View>
 
       <Animated.Text style={[taglineBaseStyle, taglineStyle]}>
-        {t('splash.tagline')}
+        {isLogoQuiz ? lq.tagline : t('splash.tagline')}
       </Animated.Text>
     </View>
   );

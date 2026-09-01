@@ -6,7 +6,7 @@
  * changed from a per-category next-index counter to a set of solved question
  * ids. On first v2 hydrate (no v2 blob yet) the store performs a ONE-TIME
  * migration from the legacy v1 blob: it carries the economy forward
- * (coins / isPremium / lives / rateRewarded / wheelLastSpinAt) but drops the old
+ * (coins / isPremium / lives / wheelLastSpinAt) but drops the old
  * progress/completed maps (they never recorded WHICH questions were solved) and
  * starts solvedIds empty. These tests lock that data-integrity behaviour so a
  * future storage bump can't silently wipe a returning player's coins/premium,
@@ -59,7 +59,6 @@ describe('v1 → v2 migration on first hydrate', () => {
         lives: { lives: 2, updatedAt: T },
         progress: { cars: 5, flags: 3 },
         completed: { cars: true },
-        rateRewarded: true,
         wheelLastSpinAt: T - 1000,
       }),
     );
@@ -70,7 +69,6 @@ describe('v1 → v2 migration on first hydrate', () => {
     expect(result.current.coins).toBe(640);
     expect(result.current.isPremium).toBe(true);
     expect(result.current.livesState.lives).toBe(2);
-    expect(result.current.rateRewarded).toBe(true);
     expect(result.current.wheelLastSpinAt).toBe(T - 1000);
     // Fresh level progress — the old maps cannot map onto solved question ids.
     expect(result.current.solvedIds).toEqual({});
@@ -80,7 +78,6 @@ describe('v1 → v2 migration on first hydrate', () => {
     expect(saved.coins).toBe(640);
     expect(saved.isPremium).toBe(true);
     expect((saved.lives as { lives: number }).lives).toBe(2);
-    expect(saved.rateRewarded).toBe(true);
     expect(saved.solvedIds).toEqual({});
     expect(saved.progress).toBeUndefined();
     expect(saved.completed).toBeUndefined();
@@ -94,7 +91,6 @@ describe('v1 → v2 migration on first hydrate', () => {
     expect(result.current.coins).toBe(STARTING_COINS);
     expect(result.current.livesState.lives).toBe(MAX_LIVES);
     expect(result.current.isPremium).toBe(false);
-    expect(result.current.rateRewarded).toBe(false);
     expect(result.current.wheelLastSpinAt).toBe(0);
     expect(result.current.solvedIds).toEqual({});
   });
@@ -111,7 +107,6 @@ describe('v1 → v2 migration on first hydrate', () => {
         lives: { lives: 1, updatedAt: T },
         progress: {},
         completed: {},
-        rateRewarded: true,
         wheelLastSpinAt: 0,
       }),
     );
@@ -122,7 +117,6 @@ describe('v1 → v2 migration on first hydrate', () => {
         isPremium: false,
         lives: { lives: 3, updatedAt: T },
         solvedIds: { 7: true, 12: true },
-        rateRewarded: false,
         wheelLastSpinAt: 0,
       }),
     );

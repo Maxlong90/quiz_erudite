@@ -119,16 +119,52 @@ export async function purchaseConsumable(productId: string): Promise<PurchaseOut
   }
 }
 
-/** Pick the headline subscription package — annual first, then monthly, then any. */
+/**
+ * Whether a package is a genuine auto-renewing subscription (not a coin/consumable
+ * one-off). RevenueCat marks consumables `NON_SUBSCRIPTION`; a `CUSTOM` package
+ * type is likewise never a subscription. The check is tolerant of a missing
+ * category (older/mocked packages) — only an EXPLICIT non-subscription is
+ * excluded — so the primary paywall keeps working while a coin pack can never be
+ * mistaken for the Premium offer. Uses string literals to avoid importing the
+ * runtime enums (this module intentionally imports types only).
+ */
+function isSubscriptionPackage(pkg: PurchasesPackage): boolean {
+  if ((pkg.product as { productCategory?: string })?.productCategory === 'NON_SUBSCRIPTION') {
+    return false;
+  }
+  if ((pkg as { packageType?: string }).packageType === 'CUSTOM') return false;
+  return true;
+}
+
+/**
+ * Pick the headline subscription package. Preference order is annual → monthly →
+ * weekly → any remaining subscription, so the erudite multi-tier paywall keeps
+ * its annual-first behavior while the Logo Quiz weekly-only offering resolves to
+ * `$rc_weekly`. Every candidate — including the final fallback — is restricted to
+ * genuine subscriptions, so a coin consumable is NEVER returned (the old
+ * `availablePackages[0]` fallback could sell the 1000-coins pack). Returns null
+ * when the offering holds no subscription at all, so callers throw rather than
+ * charging for the wrong product.
+ */
 function pickPremiumPackage(offering: PurchasesOffering): PurchasesPackage | null {
-  if (offering.annual) return offering.annual;
-  const yearly = offering.availablePackages.find(
-    (p) =>
-      p.product.identifier.includes('yearly') || p.product.identifier.includes('annual'),
-  );
-  if (yearly) return yearly;
-  if (offering.monthly) return offering.monthly;
-  return offering.availablePackages[0] ?? null;
+  const subs = offering.availablePackages.filter(isSubscriptionPackage);
+
+  const annual =
+    (offering.annual && isSubscriptionPackage(offering.annual) ? offering.annual : null) ??
+    subs.find(
+      (p) =>
+        p.product.identifier.includes('yearly') || p.product.identifier.includes('annual'),
+    );
+  if (annual) return annual;
+
+  if (offering.monthly && isSubscriptionPackage(offering.monthly)) return offering.monthly;
+
+  const weekly =
+    (offering.weekly && isSubscriptionPackage(offering.weekly) ? offering.weekly : null) ??
+    subs.find((p) => p.identifier === '$rc_weekly');
+  if (weekly) return weekly;
+
+  return subs[0] ?? null;
 }
 
 /**

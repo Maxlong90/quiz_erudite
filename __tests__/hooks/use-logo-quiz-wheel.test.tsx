@@ -86,7 +86,6 @@ describe('spinWheel — reward crediting & persistence', () => {
         isPremium: false,
         lives: { lives: 1, updatedAt: anchor },
         solvedIds: {},
-        rateRewarded: false,
         wheelLastSpinAt: 0,
       }),
     );
@@ -144,7 +143,6 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
         solvedIds: {},
-        rateRewarded: false,
         wheelLastSpinAt: T,
       }),
     );
@@ -167,7 +165,6 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
         solvedIds: {},
-        rateRewarded: false,
         wheelLastSpinAt: futureAnchor,
       }),
     );
@@ -192,7 +189,6 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         isPremium: false,
         lives: { lives: 1, updatedAt: T + 60 * 60 * 1000 },
         solvedIds: {},
-        rateRewarded: false,
         wheelLastSpinAt: 0,
       }),
     );
@@ -212,7 +208,6 @@ describe('wheelLastSpinAt — hydration across restart', () => {
         isPremium: false,
         lives: { lives: MAX_LIVES, updatedAt: T },
         solvedIds: {},
-        rateRewarded: false,
         // no wheelLastSpinAt (older app version)
       }),
     );

@@ -65,6 +65,28 @@ jest.mock('@/hooks/use-theme-pref', () => ({
   useThemePref: () => ({ theme: mockTheme, ready: true, setTheme: jest.fn() }),
 }));
 
+// Locale drives the Logo Quiz tagline (useLQLabels). Fixed to English so the
+// logo-quiz splash renders the 'Train Your Brain!' tagline; the erudite splash
+// ignores it (keeps the t('splash.tagline') key).
+jest.mock('@/hooks/use-locale', () => ({
+  useLocale: () => ({ locale: 'en' }),
+}));
+
+// The logo-quiz splash prefetches brand logos on mount. Stub the content layer so
+// the render never touches the real cache/network — the theming assertions here
+// don't depend on the preload, which is verified separately.
+jest.mock('@/lib/content-cache', () => ({
+  loadCachedSnapshot: jest.fn(async () => null),
+  syncContent: jest.fn(async () => null),
+}));
+jest.mock('@/lib/logo-quiz/content', () => ({
+  buildLevels: jest.fn(() => []),
+  LOGO_QUIZ_SLUG: 'logo-quiz',
+}));
+jest.mock('expo-image', () => ({
+  Image: { prefetch: jest.fn(() => Promise.resolve()) },
+}));
+
 import SplashScreen from '@/app/splash';
 
 function colorOf(node: { props: { style: unknown } }): string | undefined {
@@ -114,7 +136,8 @@ describe('SplashScreen theming', () => {
     mockAppSlug = 'logo-quiz';
     const { getByText, getAllByText, getByTestId } = render(<SplashScreen />);
 
-    expect(getByText('splash.tagline')).toBeTruthy();
+    // Logo Quiz renders its own localized tagline, not the shared t('splash.tagline').
+    expect(getByText('Train Your Brain!')).toBeTruthy();
 
     // Light theme: dark-grey QUI/ES, purple ZZZ.
     expect(colorOf(getByText('Q'))).toBe('#4A4A5E');

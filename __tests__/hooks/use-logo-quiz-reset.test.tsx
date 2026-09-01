@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { LogoQuizProvider, useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
-import { RATE_APP_REWARD_COINS, STARTING_COINS, wheelPrizeById } from '@/lib/logo-quiz/economy';
+import { STARTING_COINS, wheelPrizeById } from '@/lib/logo-quiz/economy';
 
 const STORAGE_KEY = 'logoquiz.state.v2';
 const T = 1_700_000_000_000; // fixed "now" for deterministic time assertions
@@ -129,57 +129,36 @@ describe('resetWheelCooldown — clears ONLY the wheel timer', () => {
   });
 });
 
-describe('resetProgress — also re-arms the one-time rate-app reward', () => {
-  it('after claiming the rate reward, resetProgress clears rateRewarded and persists it as false', async () => {
+describe('resetProgress — leaves coins, lives and premium intact', () => {
+  it('wipes solved questions + wheel cooldown but keeps the economy', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(T);
     const { result } = await renderReady();
 
-    // Claim the one-time "+coins for rating the app" reward → flag is now set.
-    await act(async () => {
-      result.current.claimRateReward();
-    });
-    expect(result.current.rateRewarded).toBe(true);
-    expect((await readPersisted()).rateRewarded).toBe(true);
-
-    // DEV "Сброс прогресса" must make the reward (and its Home badge) available again.
-    await act(async () => {
-      result.current.resetProgress();
-    });
-
-    expect(result.current.rateRewarded).toBe(false);
-    expect((await readPersisted()).rateRewarded).toBe(false);
-  });
-
-  it('re-arms the reward WITHOUT wiping coins, lives or premium', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(T);
-    const { result } = await renderReady();
-
-    // Build up economy/account state, then claim the rate reward.
+    // Build up economy/account state and some progress.
     await act(async () => {
       result.current.buyPremium();
       result.current.buyCoins({ id: 'coins_500', storeProductId: 'logoquiz_coins_500', coins: 500, price: '$3.99' });
-      result.current.claimRateReward(); // +RATE_APP_REWARD_COINS, sets the flag
+      result.current.markSolved(401);
     });
 
-    const coinsBefore = result.current.coins; // STARTING + 500 + rate reward
+    const coinsBefore = result.current.coins; // STARTING + 500
     const livesBefore = result.current.livesState;
-    expect(coinsBefore).toBe(STARTING_COINS + 500 + RATE_APP_REWARD_COINS);
+    expect(coinsBefore).toBe(STARTING_COINS + 500);
     expect(result.current.isPremium).toBe(true);
-    expect(result.current.rateRewarded).toBe(true);
 
     await act(async () => {
       result.current.resetProgress();
     });
 
-    // Reward re-armed...
-    expect(result.current.rateRewarded).toBe(false);
+    // Progress cleared...
+    expect(result.current.solvedIds).toEqual({});
     // ...but coins / lives / premium are left intact.
     expect(result.current.coins).toBe(coinsBefore);
     expect(result.current.livesState).toEqual(livesBefore);
     expect(result.current.isPremium).toBe(true);
 
     const saved = await readPersisted();
-    expect(saved.rateRewarded).toBe(false);
+    expect(saved.solvedIds).toEqual({});
     expect(saved.coins).toBe(coinsBefore);
     expect(saved.isPremium).toBe(true);
   });

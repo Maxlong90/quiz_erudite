@@ -30,9 +30,6 @@ export function lifeRegenMs(isPremium: boolean): number {
   return isPremium ? LIFE_REGEN_MS / PREMIUM_REGEN_MULTIPLIER : LIFE_REGEN_MS;
 }
 
-/** One-time coin reward for rating the app (claimed on the Settings screen). */
-export const RATE_APP_REWARD_COINS = 100;
-
 // ---- Lives bought with in-game coins (a coin sink, not real money) ----
 /** Lives granted per coin purchase in the shop. */
 export const LIVES_FOR_COINS_AMOUNT = 3;

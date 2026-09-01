@@ -8,6 +8,8 @@ import { useLocale } from '@/hooks/use-locale';
 
 export interface LQLabels {
   appName: string;
+  /** Onboarding splash tagline under the QUIZZZES wordmark. */
+  tagline: string;
   play: string;
   settings: string;
   loadingContent: string;
@@ -118,6 +120,7 @@ export interface LQLabels {
 
 const EN: LQLabels = {
   appName: 'Logo Quiz',
+  tagline: 'Train Your Brain!',
   play: 'Play',
   settings: 'Settings',
   loadingContent: 'Loading…',
@@ -218,6 +221,7 @@ const EN: LQLabels = {
 
 const RU: LQLabels = {
   appName: 'Logo Quiz',
+  tagline: 'Прокачай мозг!',
   play: 'Играть',
   settings: 'Настройки',
   loadingContent: 'Загрузка…',
@@ -318,6 +322,7 @@ const RU: LQLabels = {
 
 const ES: LQLabels = {
   ...EN,
+  tagline: '¡Entrena tu mente!',
   play: 'Jugar',
   settings: 'Ajustes',
   loadingContent: 'Cargando…',
@@ -415,6 +420,7 @@ const ES: LQLabels = {
 
 const FR: LQLabels = {
   ...EN,
+  tagline: 'Entraîne ton cerveau !',
   play: 'Jouer',
   settings: 'Réglages',
   loadingContent: 'Chargement…',

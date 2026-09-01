@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
 import { CoinIcon } from '@/components/logo-quiz/coin-icon';
@@ -107,7 +108,12 @@ export function LivesPill({
   );
 }
 
-/** Account status chip — grey for Basic, animated gold for Premium. */
+/**
+ * Account status chip — grey for Basic, animated gold for Premium. LogoQuiz has
+ * no dedicated paywall route, so the Basic chip is tappable and routes to the
+ * Subscription block on the Shop (the premium purchase surface). The paid
+ * Premium chip is deliberately inert — there is nothing to upsell.
+ */
 export function StatusChip({ isPremium }: { isPremium: boolean }) {
   const t = useLQLabels();
   if (isPremium) {
@@ -118,9 +124,13 @@ export function StatusChip({ isPremium }: { isPremium: boolean }) {
     );
   }
   return (
-    <View style={[styles.chip, styles.chipBasic]}>
+    <Pressable
+      onPress={() => router.push('/logo-quiz/shop')}
+      hitSlop={8}
+      style={({ pressed }) => [styles.chip, styles.chipBasic, pressed && { opacity: 0.85 }]}
+    >
       <Text style={styles.chipBasicText}>{t.basic}</Text>
-    </View>
+    </Pressable>
   );
 }
 

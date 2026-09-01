@@ -1,24 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/logo-quiz/app-background';
-import { CoinIcon } from '@/components/logo-quiz/coin-icon';
 import { Flag } from '@/components/logo-quiz/flag';
-import { GoldSurface } from '@/components/logo-quiz/gold-gradient';
-import { RATE_APP_REWARD_COINS } from '@/lib/logo-quiz/economy';
-import { LQColors, LQRadius, LQShadow, GOLD_TEXT } from '@/constants/logo-quiz/theme';
+import { LQColors, LQRadius, LQShadow } from '@/constants/logo-quiz/theme';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
 import { useLogoQuiz } from '@/hooks/logo-quiz/use-logo-quiz';
 import { useLogoQuizContent } from '@/hooks/logo-quiz/use-logo-quiz-content';
@@ -44,7 +34,7 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function LogoQuizSettings() {
   const t = useLQLabels();
-  const { isPremium, buyPremium, rateRewarded, claimRateReward } = useLogoQuiz();
+  const { isPremium, buyPremium } = useLogoQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const { snapshot } = useLogoQuizContent();
   const [langOpen, setLangOpen] = useState(false);
@@ -95,11 +85,8 @@ export default function LogoQuizSettings() {
   const onTerms = () => openUrl(TERMS_URL);
 
   const onRate = () => {
-    // First tap grants the one-time coin reward (which also hides the badge).
-    if (!rateRewarded) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      claimRateReward();
-    }
+    // Open the store listing so the user can leave a rating. No reward is granted
+    // for rating (App Store Guideline 3.2.2 — incentivized reviews are not allowed).
     const { rateDeepLink, rateFallbackUrl } = getStoreLinks(snapshot?.app, Platform.OS);
     Linking.openURL(rateDeepLink).catch(() => openUrl(rateFallbackUrl));
   };
@@ -145,12 +132,8 @@ export default function LogoQuizSettings() {
           onPress={() => setLangOpen(true)}
           icon={<Flag locale={locale} />}
         />
-        {/* Rate the app — carries a shimmering, pulsing +100-coins reward badge that
-            disappears once the one-time reward has been claimed. */}
-        <View style={styles.rateWrap}>
-          <SettingsButton label={t.rateApp} onPress={onRate} />
-          {!rateRewarded && <CoinRewardBadge />}
-        </View>
+        {/* Rate the app — opens the store listing, no reward attached. */}
+        <SettingsButton label={t.rateApp} onPress={onRate} />
         <SettingsButton label={t.contactSupport} onPress={onSupport} />
         <SettingsButton label={t.privacyPolicy} onPress={onPrivacy} />
         {/* Terms of Use — mirrors Privacy Policy, opens the external page. */}
@@ -226,30 +209,6 @@ function SettingsButton({
   );
 }
 
-// A "+100 coins" reward badge pinned to the Rate button's corner. It reuses the
-// premium banner's gold shimmer (GoldSurface) and gently pulses in and out.
-// Decorative only (pointerEvents none) so taps fall through to the button.
-function CoinRewardBadge() {
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.quad) }),
-      -1,
-      true,
-    );
-  }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
-
-  return (
-    <Animated.View style={[styles.rewardBadge, LQShadow.gold, pulseStyle]} pointerEvents="none">
-      <GoldSurface radius={LQRadius.pill} style={styles.rewardBadgeInner}>
-        <CoinIcon size={13} />
-        <Text style={styles.rewardBadgeText}>+{RATE_APP_REWARD_COINS}</Text>
-      </GoldSurface>
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
 
@@ -288,18 +247,6 @@ const styles = StyleSheet.create({
   btnInactive: { opacity: 0.45 },
   btnText: { color: LQColors.surfaceAlt, fontWeight: '900', fontSize: 22 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-
-  // Relative box so the reward badge can pin to the Rate button's corner.
-  rateWrap: { position: 'relative' },
-  rewardBadge: { position: 'absolute', top: -12, right: -6, zIndex: 10 },
-  rewardBadgeInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  rewardBadgeText: { color: GOLD_TEXT, fontWeight: '900', fontSize: 12 },
 
   modalBackdrop: {
     flex: 1,
