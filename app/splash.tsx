@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   Easing,
@@ -72,6 +72,17 @@ async function prefetchLogoQuizLogos(locale: string): Promise<void> {
 }
 
 export default function SplashScreen() {
+  // The Logo Quiz build has its OWN splash (app/logo-quiz/splash.tsx). This
+  // shared erudite splash is the root Stack's initialRoute, so WITHOUT this guard
+  // it rendered FIRST for logo-quiz too — a brief "first" splash before the real
+  // one (the double-splash the user saw), and on first run it even routed into
+  // the erudite language picker. Redirect straight to the Logo Quiz splash so
+  // this screen never renders for that build. APP_SLUG is a build-time constant,
+  // so this early return is stable and never changes the hook order below.
+  if (APP_SLUG === 'logo-quiz') {
+    return <Redirect href="/logo-quiz/splash" />;
+  }
+
   const { t } = useTranslation();
   const { theme } = useThemePref();
   // Called unconditionally to keep hook order stable across builds; only read
