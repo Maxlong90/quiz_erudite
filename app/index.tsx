@@ -68,7 +68,7 @@ export default function HomeRoute() {
   // intro/hub entirely. APP_SLUG is a build-time constant, so this branch is
   // stable across renders and never changes the hook order below.
   if (APP_SLUG === 'logo-quiz') {
-    return <Redirect href="/logo-quiz" />;
+    return <Redirect href="/logo-quiz/splash" />;
   }
   // Flags Quiz (App Template: Geography) is likewise a self-contained
   // experience with its own blue home; APP_SLUG is a build-time constant, so

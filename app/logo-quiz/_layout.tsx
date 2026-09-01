@@ -21,7 +21,8 @@ export default function LogoQuizLayout() {
           contentStyle: { backgroundColor: BG_BASE },
         }}
       >
-        <Stack.Screen name="index" />
+        <Stack.Screen name="splash" options={{ animation: 'none' }} />
+        <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="categories" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="level" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="shop" options={{ animation: 'slide_from_bottom' }} />
