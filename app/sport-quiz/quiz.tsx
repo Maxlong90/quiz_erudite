@@ -45,10 +45,10 @@ const UI_FADE_MS = 300;
 const OPTION_MIN_HEIGHT = 60;
 const TEXT_TOP_GAP = Math.round(OPTION_MIN_HEIGHT * 0.75); // 45
 
-// FIXED answer-button height so all four options are ALWAYS the same size no matter
-// the text length. A long answer first wraps onto more lines; if it still doesn't
-// fit, the font shrinks (adjustsFontSizeToFit) — the button itself never resizes.
-const OPTION_HEIGHT = 82;
+// FIXED answer-button height (compact, ~the original size) so all four options are
+// ALWAYS the same size no matter the text length. A long answer first wraps onto
+// more lines; if it still doesn't fit, the font shrinks — the button never resizes.
+const OPTION_HEIGHT = 64;
 
 export default function SportQuizQuiz() {
   const t = useSQLabels();
@@ -307,11 +307,15 @@ export default function SportQuizQuiz() {
           {index > 0 && (
             <Pressable
               onPress={goPrev}
-              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [
+                styles.nextBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                pressed && { opacity: 0.9 },
+              ]}
             >
-              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
-              <Ionicons name="arrow-back" size={22} color={SQColors.text} />
-              <Text style={styles.backText}>{t.back}</Text>
+              <Ionicons name="arrow-back" size={22} color={SQColors.textOnNeon} />
+              <Text style={styles.nextText}>{t.back}</Text>
             </Pressable>
           )}
           {solved ? (
@@ -472,18 +476,6 @@ const styles = StyleSheet.create({
   // Back + primary action share one row; both stretch to the same height.
   navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
   navPrimary: { flex: 1, marginHorizontal: 0 },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    borderRadius: SQRadius.pill,
-    borderWidth: 1.5,
-    borderColor: SQColors.glassBorder,
-    overflow: 'hidden',
-  },
-  backText: { color: SQColors.text, fontWeight: '900', fontSize: 16 },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',

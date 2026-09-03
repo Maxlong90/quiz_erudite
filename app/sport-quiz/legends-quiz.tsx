@@ -43,9 +43,9 @@ const UI_FADE_MS = 300;
 const PLATE_COLS = 4;
 const PLATE_ROWS = 5;
 
-// FIXED answer-button height so all options are ALWAYS the same size (long answers
-// wrap, then shrink the font if still needed — the button never resizes).
-const OPTION_HEIGHT = 82;
+// FIXED answer-button height (compact, ~the original size) so all options are ALWAYS
+// the same size (long answers wrap, then shrink the font if still needed).
+const OPTION_HEIGHT = 64;
 
 /**
  * Sports Legends question — opened by tapping a face on the level board. Same
@@ -281,11 +281,15 @@ export default function SportLegendsQuiz() {
           {position > 1 && (
             <Pressable
               onPress={goToPrev}
-              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [
+                styles.nextBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                pressed && { opacity: 0.9 },
+              ]}
             >
-              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
-              <Ionicons name="arrow-back" size={22} color={SQColors.text} />
-              <Text style={styles.backText}>{t.back}</Text>
+              <Ionicons name="arrow-back" size={22} color={SQColors.textOnNeon} />
+              <Text style={styles.nextText}>{t.back}</Text>
             </Pressable>
           )}
           {solved ? (
@@ -434,18 +438,6 @@ const styles = StyleSheet.create({
   bottom: { marginTop: 'auto', paddingTop: 12, paddingBottom: 10 },
   navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
   navPrimary: { flex: 1, marginHorizontal: 0 },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    borderRadius: SQRadius.pill,
-    borderWidth: 1.5,
-    borderColor: SQColors.glassBorder,
-    overflow: 'hidden',
-  },
-  backText: { color: SQColors.text, fontWeight: '900', fontSize: 16 },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',

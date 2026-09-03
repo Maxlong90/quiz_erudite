@@ -138,30 +138,30 @@ export function WheelSvg({ size }: { size: number }) {
  */
 export function WheelPrizeIcons({ size }: { size: number }) {
   const iconSize = size * 0.1;
-  const radius = size * 0.29; // distance of the label group from the wheel centre
+  const radius = size * 0.32; // distance of each label from the wheel centre
+  const box = size * 0.26; // centring box that holds the coin + amount
+  const cx = size / 2;
+  const cy = size / 2;
 
   return (
     <View style={[styles.iconsLayer, { width: size, height: size }]} pointerEvents="none">
       {WHEEL_SEGMENTS.map((id, i) => {
         const prize = wheelPrizeById(id);
+        // Absolute polar placement of each label's CENTRE on its wedge midpoint —
+        // upright (no rotation), evenly spaced around the ring, so nothing tilts or
+        // bunches near the hub. The whole layer still spins inside the rotating wheel.
         const center = (i + 0.5) * SEG_DEG;
+        const p = polarPoint(cx, cy, radius, center);
         const textColor = SQ_WHEEL_TIER[prize.tier].text;
         return (
-          <View key={`i${i}`} style={styles.segLayer}>
-            {/* Position the label on its wedge centreline (rotate + push out), then
-                counter-rotate so the coin + amount stay UPRIGHT (not tilted) and read
-                evenly around the wheel. */}
-            <View
-              style={[
-                styles.segLabel,
-                { transform: [{ rotate: `${center}deg` }, { translateY: -radius }, { rotate: `${-center}deg` }] },
-              ]}
-            >
-              <CoinIcon size={iconSize} />
-              <Text style={[styles.segAmount, { color: textColor, fontSize: size * 0.07 }]} allowFontScaling={false}>
-                {prize.reward.coins}
-              </Text>
-            </View>
+          <View
+            key={`i${i}`}
+            style={[styles.segLabel, { left: p.x - box / 2, top: p.y - box / 2, width: box, height: box }]}
+          >
+            <CoinIcon size={iconSize} />
+            <Text style={[styles.segAmount, { color: textColor, fontSize: size * 0.07 }]} allowFontScaling={false}>
+              {prize.reward.coins}
+            </Text>
           </View>
         );
       })}
@@ -171,7 +171,6 @@ export function WheelPrizeIcons({ size }: { size: number }) {
 
 const styles = StyleSheet.create({
   iconsLayer: { position: 'absolute', top: 0, left: 0 },
-  segLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  segLabel: { alignItems: 'center', gap: 2 },
+  segLabel: { position: 'absolute', alignItems: 'center', justifyContent: 'center', gap: 2 },
   segAmount: { fontWeight: '900' },
 });
