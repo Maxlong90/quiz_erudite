@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,17 +6,9 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
-import { CoinIcon, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
-import { RATE_APP_REWARD_COINS } from '@/lib/sport-quiz/economy';
+import { GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -47,7 +39,7 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function SportQuizSettings() {
   const t = useSQLabels();
-  const { rateRewarded, markRateRewarded, resetLevels } = useSportQuiz();
+  const { resetLevels } = useSportQuiz();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
 
@@ -71,11 +63,6 @@ export default function SportQuizSettings() {
   const onTerms = () => openUrl(TERMS_URL);
 
   const onRate = () => {
-    // First tap grants the one-time coin reward (which also hides the badge).
-    if (!rateRewarded) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      markRateRewarded();
-    }
     // No content snapshot wired for Sport Quiz yet — pass undefined so we use the
     // default store deep link / fallback.
     const { rateDeepLink, rateFallbackUrl } = getStoreLinks(undefined, Platform.OS);
@@ -120,11 +107,8 @@ export default function SportQuizSettings() {
           onPress={() => setLangOpen(true)}
           icon={<Text style={styles.flag}>{LANGUAGE_FLAGS[locale]}</Text>}
         />
-        {/* Rate the app — carries a pulsing +100-coins reward badge until claimed. */}
-        <View style={styles.rateWrap}>
-          <SettingsRow label={t.rateApp} onPress={onRate} />
-          {!rateRewarded && <CoinRewardBadge />}
-        </View>
+        {/* Rate the app — opens the store listing (no reward attached). */}
+        <SettingsRow label={t.rateApp} onPress={onRate} />
         <SettingsRow label={t.contactSupport} onPress={onSupport} />
         <SettingsRow label={t.privacyPolicy} onPress={onPrivacy} />
         <SettingsRow label={t.termsOfUse} onPress={onTerms} />
@@ -211,24 +195,6 @@ function SettingsRow({
   );
 }
 
-// A "+100 coins" reward badge pinned to the Rate row's corner. Gently pulses.
-// Decorative only (pointerEvents none) so taps fall through to the row.
-function CoinRewardBadge() {
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
-
-  return (
-    <Animated.View style={[styles.rewardBadge, neonGlow(SQColors.coin, 12), pulseStyle]} pointerEvents="none">
-      <LinearGradient colors={['#FFE27A', '#E39A00']} style={[StyleSheet.absoluteFill, { borderRadius: SQRadius.pill }]} />
-      <CoinIcon size={13} />
-      <Text style={styles.rewardBadgeText}>+{RATE_APP_REWARD_COINS}</Text>
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
 
@@ -260,23 +226,6 @@ const styles = StyleSheet.create({
   rowText: { color: SQColors.text, fontWeight: '900', fontSize: 20 },
   pressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   flag: { fontSize: 22 },
-
-  // Relative box so the reward badge can pin to the Rate row's corner.
-  rateWrap: { position: 'relative' },
-  rewardBadge: {
-    position: 'absolute',
-    top: -12,
-    right: -6,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: SQRadius.pill,
-    overflow: 'hidden',
-  },
-  rewardBadgeText: { color: SQColors.textOnNeon, fontWeight: '900', fontSize: 12 },
 
   modalBackdrop: {
     flex: 1,

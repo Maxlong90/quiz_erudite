@@ -88,6 +88,13 @@ export default function HomeRoute() {
   if (APP_SLUG === 'sport-quiz') {
     return <Redirect href="/sport-quiz/splash" />;
   }
+  // Italy Quiz (App Template: World, backend slug
+  // `italy-history-and-geography-quiz`) is likewise a self-contained experience
+  // with its own cartoon-landmarks home; APP_SLUG is a build-time constant, so
+  // this branch is stable across renders and never changes the hook order.
+  if (APP_SLUG === 'italy-history-and-geography-quiz') {
+    return <Redirect href="/italy-quiz/splash" />;
+  }
   // Every cold start plays the branded QUIZZES splash (app/splash.tsx), exactly
   // like the Flags Quiz / Coat of Arms builds: the purple animated wordmark
   // covers the native splash hand-off, then the splash itself branches on the

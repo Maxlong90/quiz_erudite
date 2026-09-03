@@ -45,22 +45,34 @@ export function useImmersiveNavBar() {
       }
     };
 
+    // Newer expo-navigation-bar (edge-to-edge / SDK 54+) and Expo Go drop the
+    // imperative API: the module loads but setBehaviorAsync/setVisibilityAsync/
+    // addVisibilityListener are undefined. Calling them would throw
+    // "undefined is not a function" and crash the root layout, so guard every
+    // call and degrade to a no-op when the method is absent.
     const hide = () => {
-      nav.setVisibilityAsync('hidden').catch(() => {});
+      if (typeof nav.setVisibilityAsync === 'function') {
+        nav.setVisibilityAsync('hidden').catch(() => {});
+      }
     };
 
     // Transient overlay bars that appear on a bottom-edge swipe, hidden base state.
-    nav.setBehaviorAsync('overlay-swipe').catch(() => {});
+    if (typeof nav.setBehaviorAsync === 'function') {
+      nav.setBehaviorAsync('overlay-swipe').catch(() => {});
+    }
     hide();
 
     // When the bar becomes visible (user swiped up) start the countdown to
     // hide it again; when it goes back to hidden, cancel any pending timer.
-    const visibilitySub = nav.addVisibilityListener(({ visibility }) => {
-      clearTimer();
-      if (visibility === 'visible') {
-        hideTimer = setTimeout(hide, AUTO_HIDE_DELAY);
-      }
-    });
+    const visibilitySub =
+      typeof nav.addVisibilityListener === 'function'
+        ? nav.addVisibilityListener(({ visibility }) => {
+            clearTimer();
+            if (visibility === 'visible') {
+              hideTimer = setTimeout(hide, AUTO_HIDE_DELAY);
+            }
+          })
+        : { remove: () => {} };
 
     // Returning to the app (e.g. after multitasking) can restore the bar;
     // re-hide so the immersive state stays consistent across the whole app.

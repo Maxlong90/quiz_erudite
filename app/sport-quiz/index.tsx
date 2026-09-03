@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', paddingHorizontal: 26 },
   topSpacer: { flex: 1 },
-  bottomSpacer: { flex: 1.5 },
+  bottomSpacer: { flex: 1 },
   actions: { width: '100%', alignItems: 'stretch', gap: 16 },
   shopWrap: { width: '100%' },
   // Full-height overlay pinned to the right so the wheel icon sits vertically

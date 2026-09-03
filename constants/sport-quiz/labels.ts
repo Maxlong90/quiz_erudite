@@ -60,6 +60,42 @@ export interface SQLabels {
   modeSprint: string;
   comingSoon: string;
   otherApps: string;
+
+  // levels / quiz
+  selectLevel: string;
+  levelLabel: string; // "Level {n}"
+  finishPrevious: string;
+  loadingContent: string;
+  noLevels: string;
+
+  // quiz screen
+  explanationHeading: string;
+  legendPrompt: string; // Sports Legends question prompt ("Who is this?")
+  legendRevealHint: string; // tap-to-reveal hint, uses {n} coins
+  skip: string;
+  next: string;
+  levelComplete: string;
+  backToLevels: string;
+
+  // header actions + report sheet
+  shareQuestion: string;
+  reportQuestion: string;
+  shareInvite: string; // uses {url}
+  reportTitle: string;
+  reportSubtitle: string;
+  reportCommentPlaceholder: string;
+  reportSubmit: string;
+  reportCancel: string;
+  reportSentTitle: string;
+  reportSentBody: string;
+  reportDone: string;
+  reportError: string;
+  reasonIncorrectAnswer: string;
+  reasonUnclearWording: string;
+  reasonInappropriate: string;
+  reasonBrokenMedia: string;
+  reasonTranslationIssue: string;
+  reasonOther: string;
 }
 
 const EN: SQLabels = {
@@ -98,12 +134,42 @@ const EN: SQLabels = {
   wheelTitle: 'Wheel of Fortune',
   splashTagline: 'Train your brain!',
   chooseMode: 'Choose a mode',
-  modeClassic: 'Classic Mod',
+  modeClassic: 'Classic Mode',
   modeLegends: 'Sports Legends',
   modeChallenge: 'Challenge',
   modeSprint: 'Sprint',
   comingSoon: 'Available soon',
   otherApps: 'Other apps',
+  selectLevel: 'Select Level',
+  levelLabel: 'Level {n}',
+  finishPrevious: 'Finish the previous level',
+  loadingContent: 'Loading…',
+  noLevels: 'No levels yet',
+  explanationHeading: 'History',
+  legendPrompt: 'Who is this?',
+  legendRevealHint: 'Tap a tile to reveal a piece ({n} coins)',
+  skip: 'Skip',
+  next: 'Next',
+  levelComplete: 'Level Complete',
+  backToLevels: 'Back to Levels',
+  shareQuestion: 'Share',
+  reportQuestion: 'Report',
+  shareInvite: 'Play Sport Quiz! {url}',
+  reportTitle: 'Report a problem',
+  reportSubtitle: 'What is wrong with this question?',
+  reportCommentPlaceholder: 'Add a comment (optional)',
+  reportSubmit: 'Submit',
+  reportCancel: 'Cancel',
+  reportSentTitle: 'Report sent',
+  reportSentBody: 'Thanks — we’ll take a look.',
+  reportDone: 'Done',
+  reportError: 'Could not send. Please try again later.',
+  reasonIncorrectAnswer: 'Incorrect answer',
+  reasonUnclearWording: 'Unclear wording',
+  reasonInappropriate: 'Inappropriate content',
+  reasonBrokenMedia: 'Broken image',
+  reasonTranslationIssue: 'Translation issue',
+  reasonOther: 'Other',
 };
 
 const RU: SQLabels = {
@@ -148,6 +214,36 @@ const RU: SQLabels = {
   modeSprint: 'Спринт',
   comingSoon: 'Скоро',
   otherApps: 'Другие приложения',
+  selectLevel: 'Выбери уровень',
+  levelLabel: 'Уровень {n}',
+  finishPrevious: 'Пройди предыдущий уровень',
+  loadingContent: 'Загрузка…',
+  noLevels: 'Уровней пока нет',
+  explanationHeading: 'История',
+  legendPrompt: 'Кто это?',
+  legendRevealHint: 'Тап по пазлу открывает кусок ({n} монет)',
+  skip: 'Пропустить',
+  next: 'Далее',
+  levelComplete: 'Уровень пройден',
+  backToLevels: 'К уровням',
+  shareQuestion: 'Поделиться',
+  reportQuestion: 'Пожаловаться',
+  shareInvite: 'Играй в Sport Quiz! {url}',
+  reportTitle: 'Сообщить о проблеме',
+  reportSubtitle: 'Что не так с этим вопросом?',
+  reportCommentPlaceholder: 'Добавить комментарий (необязательно)',
+  reportSubmit: 'Отправить',
+  reportCancel: 'Отмена',
+  reportSentTitle: 'Жалоба отправлена',
+  reportSentBody: 'Спасибо — мы проверим.',
+  reportDone: 'Готово',
+  reportError: 'Не удалось отправить. Попробуйте позже.',
+  reasonIncorrectAnswer: 'Неверный ответ',
+  reasonUnclearWording: 'Непонятная формулировка',
+  reasonInappropriate: 'Неприемлемый контент',
+  reasonBrokenMedia: 'Битая картинка',
+  reasonTranslationIssue: 'Ошибка перевода',
+  reasonOther: 'Другое',
 };
 
 const ES: SQLabels = {
@@ -192,6 +288,36 @@ const ES: SQLabels = {
   modeSprint: 'Sprint',
   comingSoon: 'Muy pronto',
   otherApps: 'Otras apps',
+  selectLevel: 'Elige un nivel',
+  levelLabel: 'Nivel {n}',
+  finishPrevious: 'Completa el nivel anterior',
+  loadingContent: 'Cargando…',
+  noLevels: 'Aún no hay niveles',
+  explanationHeading: 'Historia',
+  legendPrompt: '¿Quién es?',
+  legendRevealHint: 'Toca una ficha para revelar ({n} monedas)',
+  skip: 'Saltar',
+  next: 'Siguiente',
+  levelComplete: 'Nivel completado',
+  backToLevels: 'A los niveles',
+  shareQuestion: 'Compartir',
+  reportQuestion: 'Reportar',
+  shareInvite: '¡Juega a Sport Quiz! {url}',
+  reportTitle: 'Reportar un problema',
+  reportSubtitle: '¿Qué está mal en esta pregunta?',
+  reportCommentPlaceholder: 'Añade un comentario (opcional)',
+  reportSubmit: 'Enviar',
+  reportCancel: 'Cancelar',
+  reportSentTitle: 'Reporte enviado',
+  reportSentBody: 'Gracias, lo revisaremos.',
+  reportDone: 'Listo',
+  reportError: 'No se pudo enviar. Inténtalo más tarde.',
+  reasonIncorrectAnswer: 'Respuesta incorrecta',
+  reasonUnclearWording: 'Redacción confusa',
+  reasonInappropriate: 'Contenido inapropiado',
+  reasonBrokenMedia: 'Imagen rota',
+  reasonTranslationIssue: 'Error de traducción',
+  reasonOther: 'Otro',
 };
 
 const FR: SQLabels = {
@@ -236,6 +362,36 @@ const FR: SQLabels = {
   modeSprint: 'Sprint',
   comingSoon: 'Bientôt',
   otherApps: 'Autres apps',
+  selectLevel: 'Choisis un niveau',
+  levelLabel: 'Niveau {n}',
+  finishPrevious: 'Termine le niveau précédent',
+  loadingContent: 'Chargement…',
+  noLevels: 'Pas encore de niveaux',
+  explanationHeading: 'Histoire',
+  legendPrompt: 'Qui est-ce ?',
+  legendRevealHint: 'Touche une tuile pour révéler ({n} pièces)',
+  skip: 'Passer',
+  next: 'Suivant',
+  levelComplete: 'Niveau terminé',
+  backToLevels: 'Aux niveaux',
+  shareQuestion: 'Partager',
+  reportQuestion: 'Signaler',
+  shareInvite: 'Joue à Sport Quiz ! {url}',
+  reportTitle: 'Signaler un problème',
+  reportSubtitle: 'Quel est le problème avec cette question ?',
+  reportCommentPlaceholder: 'Ajoute un commentaire (facultatif)',
+  reportSubmit: 'Envoyer',
+  reportCancel: 'Annuler',
+  reportSentTitle: 'Signalement envoyé',
+  reportSentBody: 'Merci — nous allons vérifier.',
+  reportDone: 'OK',
+  reportError: 'Envoi impossible. Réessaie plus tard.',
+  reasonIncorrectAnswer: 'Réponse incorrecte',
+  reasonUnclearWording: 'Formulation confuse',
+  reasonInappropriate: 'Contenu inapproprié',
+  reasonBrokenMedia: 'Image cassée',
+  reasonTranslationIssue: 'Erreur de traduction',
+  reasonOther: 'Autre',
 };
 
 const TABLE: Record<string, SQLabels> = { en: EN, ru: RU, es: ES, fr: FR };

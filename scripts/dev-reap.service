@@ -1,0 +1,12 @@
+[Unit]
+# Reaps stale/idle Expo dev servers (see scripts/dev-reap.sh). Triggered by
+# dev-reap.timer every ~15 min. Install once:
+#   sudo cp scripts/dev-reap.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now dev-reap.timer
+Description=Reap stale/idle Expo dev servers
+
+[Service]
+Type=oneshot
+User=eugen
+WorkingDirectory=/var/www/quiz-erudit
+ExecStart=/usr/bin/env bash /var/www/quiz-erudit/scripts/dev-reap.sh

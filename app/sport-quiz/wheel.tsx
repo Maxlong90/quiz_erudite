@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
+import { FootballBurst } from '@/components/sport-quiz/football-burst';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { SpinButton } from '@/components/sport-quiz/shine';
 import { WheelPrizeIcons, WheelSvg } from '@/components/sport-quiz/wheel-svg';
@@ -31,11 +32,19 @@ import {
   type WheelPrize,
 } from '@/lib/sport-quiz/economy';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const WHEEL_SIZE = Math.min(SCREEN_W - 72, 320) * 1.05;
 const SEG_DEG = 360 / WHEEL_SEGMENTS.length;
 const SPIN_DURATION_MS = 5000;
 const SPIN_FULL_TURNS = 6;
+
+// Football burst on a win — mirrors the Logo Quiz wheel's confetti: a screen-wide
+// spray of soccer balls that plays once, then clears.
+const BALLS_DURATION_MS = 3000;
+const BALLS_COUNT = 28;
+const BALLS_SPREAD = Math.max(SCREEN_W, SCREEN_H);
+const BALLS_DISTANCE: readonly [number, number] = [BALLS_SPREAD * 0.22, BALLS_SPREAD * 0.62];
+const BALLS_GRAVITY: readonly [number, number] = [SCREEN_H * 0.4, SCREEN_H * 0.95];
 
 /** Localized coin label for a prize id (also used by the odds list). */
 function prizeLabel(id: string, t: SQLabels): string {
@@ -61,6 +70,7 @@ export default function SportQuizWheel() {
   const rotation = useSharedValue(0);
   const [spinning, setSpinning] = useState(false);
   const [wonPrize, setWonPrize] = useState<WheelPrize | null>(null);
+  const [showBalls, setShowBalls] = useState(false);
   const [showOdds, setShowOdds] = useState(false);
   const selectedRef = useRef<WheelPrize | null>(null);
 
@@ -76,11 +86,15 @@ export default function SportQuizWheel() {
     spinWheel(prize); // credit coins + start the 24h cooldown (persisted)
     setWonPrize(prize);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // Fire the football burst for a few seconds, then clear it.
+    setShowBalls(true);
+    setTimeout(() => setShowBalls(false), BALLS_DURATION_MS);
   }, [spinWheel]);
 
   const onSpin = useCallback(() => {
     if (spinning || !available) return;
     setWonPrize(null);
+    setShowBalls(false);
     setSpinning(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
@@ -115,7 +129,7 @@ export default function SportQuizWheel() {
       <View style={styles.header}>
         <GlassIconButton glyph="chevron-back" size={44} onPress={() => router.back()} />
         <View style={styles.headerRight}>
-          <CoinPill coins={coins} />
+          <CoinPill coins={coins} size="lg" />
           <GlassIconButton glyph="information-circle" size={44} onPress={() => setShowOdds(true)} />
         </View>
       </View>
@@ -163,6 +177,13 @@ export default function SportQuizWheel() {
           <Ionicons name="build" size={18} color="#FFB65C" />
           <Text style={styles.devBtnText}>DEV: reset timer</Text>
         </Pressable>
+      )}
+
+      {/* Full-screen football burst from the centre for a few seconds after a win. */}
+      {showBalls && (
+        <View style={styles.ballsLayer} pointerEvents="none">
+          <FootballBurst count={BALLS_COUNT} distanceRange={BALLS_DISTANCE} gravityRange={BALLS_GRAVITY} />
+        </View>
       )}
 
       <OddsModal visible={showOdds} onClose={() => setShowOdds(false)} t={t} />
@@ -230,6 +251,9 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+
+  // Full-screen overlay the football burst plays on (centred origin).
+  ballsLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 
   wheelWrap: { width: WHEEL_SIZE, height: WHEEL_SIZE, alignItems: 'center', justifyContent: 'center' },
   // A downward-pointing triangle at the top centre of the wheel.

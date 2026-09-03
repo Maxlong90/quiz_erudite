@@ -8,8 +8,15 @@
 // ---- Coins ----
 export const STARTING_COINS = 150;
 
-/** One-time coin reward for rating the app (claimed on the Settings screen). */
-export const RATE_APP_REWARD_COINS = 100;
+// ---- Classic quiz ----
+/** Coins awarded for each correct answer in the Classic quiz. */
+export const CORRECT_REWARD_COINS = 10;
+/** Coins a Skip hint costs — it reveals the answer (marked passed), no reward. */
+export const HINT_SKIP_COST = 30;
+
+// ---- Sports Legends mode ----
+/** Coins charged for tapping one puzzle plate to uncover a piece of the photo. */
+export const LEGEND_REVEAL_COST = 5;
 
 // ---- Coin packs sold for real money (real IAP via RevenueCat) ----
 // `id` is the stable local token (React key, "bought" flash, persisted nowhere).

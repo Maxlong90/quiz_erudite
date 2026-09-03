@@ -1,9 +1,8 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { ContentCacheProvider } from '@/hooks/use-content-cache';
@@ -50,16 +49,10 @@ function ThemedRoot() {
     SystemUI.setBackgroundColorAsync(scaffoldBg).catch(() => {});
   }, [scaffoldBg]);
 
-  // Every screen sits on the app gradient, so we force a navigator theme whose
-  // card background also matches the base color. Without this, sliding screens
-  // flash the navigator's default card behind them.
-  const navTheme = useMemo(() => {
-    const base = theme === 'dark' ? DarkTheme : DefaultTheme;
-    return {
-      ...base,
-      colors: { ...base.colors, background: scaffoldBg, card: scaffoldBg },
-    };
-  }, [theme, scaffoldBg]);
+  // Every screen sits on the app gradient; each Stack.Screen's card background
+  // is tinted to the base color via `contentStyle` below (and the wrapping View
+  // fills the same base), so sliding screens never flash a default white card.
+  // (Previously this used react-navigation's ThemeProvider, dropped in SDK 56.)
 
   // On cold start the persisted preference loads asynchronously; a light-pref
   // user would otherwise get one frame of the default-dark bg. Hold a neutral
@@ -69,7 +62,6 @@ function ThemedRoot() {
   }
 
   return (
-    <ThemeProvider value={navTheme}>
       <View style={{ flex: 1, backgroundColor: scaffoldBg }}>
         <Stack
           initialRouteName="splash"
@@ -99,6 +91,7 @@ function ThemedRoot() {
         <Stack.Screen name="flags-quiz" options={{ headerShown: false }} />
         <Stack.Screen name="coat-of-arms" options={{ headerShown: false }} />
         <Stack.Screen name="sport-quiz" options={{ headerShown: false }} />
+        <Stack.Screen name="italy-quiz" options={{ headerShown: false }} />
         <Stack.Screen
           name="onboarding"
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
@@ -142,7 +135,6 @@ function ThemedRoot() {
         </Stack>
         <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
       </View>
-    </ThemeProvider>
   );
 }
 

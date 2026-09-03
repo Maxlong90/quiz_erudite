@@ -91,7 +91,7 @@ export function GlassIconButton({
 export function CoinPill({ coins, size = 'md' }: { coins: number; size?: 'md' | 'lg' }) {
   const big = size === 'lg';
   return (
-    <View style={[styles.coinPill, big && { paddingVertical: 8, paddingHorizontal: 16 }, neonGlow(SQColors.coin, 10)]}>
+    <View style={[styles.coinPill, big && { paddingVertical: 8, paddingHorizontal: 16 }, neonGlow(NEON, 10)]}>
       <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={[StyleSheet.absoluteFill, { borderRadius: SQRadius.pill }]} />
       <CoinIcon size={big ? 24 : 20} />
       <Text style={[styles.coinText, big && { fontSize: 20 }]}>{coins.toLocaleString()}</Text>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderWidth: 1.5,
-    borderColor: SQColors.coin,
+    borderColor: NEON,
     overflow: 'hidden',
   },
   coinText: { color: TEXT, fontWeight: '900', fontSize: 16 },

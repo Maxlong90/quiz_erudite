@@ -70,16 +70,18 @@ export default function SportQuizPlay() {
         </View>
         <View style={styles.headerRight}>
           <GlassIconButton glyph="help" size={44} onPress={() => {}} />
-          <CoinPill coins={coins} size="lg" />
+          <Pressable onPress={() => router.push('/sport-quiz/shop')} hitSlop={8}>
+            <CoinPill coins={coins} size="lg" />
+          </Pressable>
         </View>
       </View>
 
       <View style={styles.body}>
         <Text style={styles.title}>{t.chooseMode}</Text>
         <View style={styles.modes}>
-          {/* TODO: wire Classic / Legends to the quiz flow once it exists. */}
-          <ModeButton image={require('../../assets/sport-quiz/modes/classic.png')} label={t.modeClassic} onPress={() => {}} />
-          <ModeButton image={require('../../assets/sport-quiz/modes/legends.png')} label={t.modeLegends} onPress={() => {}} />
+          {/* Classic + Legends → Select Level → sequential quiz. */}
+          <ModeButton image={require('../../assets/sport-quiz/modes/classic.png')} label={t.modeClassic} onPress={() => router.push('/sport-quiz/levels')} />
+          <ModeButton image={require('../../assets/sport-quiz/modes/legends.png')} label={t.modeLegends} onPress={() => router.push('/sport-quiz/legends-levels')} />
           <ModeButton image={require('../../assets/sport-quiz/modes/challenge.png')} label={t.modeChallenge} sublabel={t.comingSoon} locked onPress={() => {}} />
           <ModeButton image={require('../../assets/sport-quiz/modes/sprint.png')} label={t.modeSprint} sublabel={t.comingSoon} locked onPress={() => {}} />
         </View>

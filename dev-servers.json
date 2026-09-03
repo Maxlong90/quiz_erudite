@@ -1,0 +1,55 @@
+{
+  "_comment": "Registry of per-app Expo Go dev servers (Variant B). Single source of truth for slug -> fixed Metro port. The shared dev-router (scripts/dev-router.js) reads this live to route <host_template> traffic to 127.0.0.1:<port>. Adding an app = run scripts/expo-qr.sh <slug> (auto-allocates the next free port here). host_template / dns_mode are set once, when the operator applies the one-time tunnel setup.",
+  "band": {
+    "from": 8090,
+    "to": 8289
+  },
+  "router_port": 8088,
+  "host_template": "{slug}-dev.turbosuslik.online",
+  "dns_mode": "per_app",
+  "max_concurrent": 5,
+  "ttl_hours": 24,
+  "idle_minutes": 720,
+  "seen_dir": "/tmp/dev-router",
+  "apps": {
+    "logo-quiz": {
+      "port": 8090
+    },
+    "coat-of-arms": {
+      "port": 8091
+    },
+    "sport-quiz": {
+      "port": 8092
+    },
+    "flags-quiz": {
+      "port": 8093
+    },
+    "erudite-quiz": {
+      "port": 8094
+    },
+    "football-quiz": {
+      "port": 8095
+    },
+    "basketball-quiz": {
+      "port": 8096
+    },
+    "hockey-quiz": {
+      "port": 8097
+    },
+    "olympic-games-quiz": {
+      "port": 8098
+    },
+    "tennis-quiz": {
+      "port": 8099
+    },
+    "baseball-quiz": {
+      "port": 8100
+    },
+    "egypt-history-and-geography-quiz": {
+      "port": 8101
+    },
+    "italy-history-and-geography-quiz": {
+      "port": 8102
+    }
+  }
+}

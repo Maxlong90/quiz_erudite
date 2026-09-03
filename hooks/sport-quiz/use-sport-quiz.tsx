@@ -10,23 +10,23 @@ import {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { RATE_APP_REWARD_COINS, STARTING_COINS, type WheelPrize } from '@/lib/sport-quiz/economy';
+import { STARTING_COINS, type WheelPrize } from '@/lib/sport-quiz/economy';
 
 /**
  * Local-state store for the Sport Quiz economy: coins only (NO lives, NO premium).
- * Persisted to AsyncStorage so a returning player keeps their balance, the wheel's
- * 24h cooldown, and the one-time rate reward. The whole economy (earn/spend coins,
- * spin the wheel, claim the rate reward) mutates through here and every screen
- * reads from it. Modelled on hooks/logo-quiz/use-logo-quiz.tsx.
+ * Persisted to AsyncStorage so a returning player keeps their balance and the
+ * wheel's 24h cooldown. The whole economy (earn/spend coins, spin the wheel)
+ * mutates through here and every screen reads from it. Modelled on
+ * hooks/logo-quiz/use-logo-quiz.tsx.
  */
 
 // Separate keys per field (per spec) so each concern persists independently.
 const COINS_KEY = 'sportquiz.coins.v1';
 const WHEEL_KEY = 'sportquiz.wheelLastSpinAt.v1';
-const RATE_KEY = 'sportquiz.rateRewarded.v1';
-// Future quiz-level progress store (the quiz flow doesn't exist yet). The DEV
-// "reset levels" button clears it so it is wired for when levels land.
-const LEVELS_KEY = 'sportquiz.levels.v1';
+// Quiz-level progress: the set of solved question ids (persisted as a JSON array
+// of ids) and the last level opened. The DEV "reset levels" button clears both.
+const SOLVED_KEY = 'sportquiz.solvedIds.v1';
+const LASTLEVEL_KEY = 'sportquiz.lastLevel.v1';
 
 interface SportQuizValue {
   ready: boolean;
@@ -39,10 +39,16 @@ interface SportQuizValue {
   wheelLastSpinAt: number;
   /** Credit a wheel prize (coins) and stamp the 24h cooldown (persisted). */
   spinWheel: (prize: WheelPrize) => void;
-  /** Whether the one-time rate-the-app coin reward is still available. */
-  rateRewarded: boolean;
-  /** Grant the one-time rate-the-app coin reward (no-op once already claimed). */
-  markRateRewarded: () => void;
+  /** Solved question ids (reactive) — drives level counts + unlocking. */
+  solvedIds: Record<number, true>;
+  /** Whether a question id has been solved. */
+  isSolved: (id: number) => boolean;
+  /** Mark a question solved (persisted). Idempotent. */
+  markSolved: (id: number) => void;
+  /** Last level opened — the level-select list scrolls back to it. */
+  lastLevel: number;
+  /** Remember the level being played. */
+  setLastLevel: (level: number) => void;
   /** DEV: reset the wheel cooldown so the free spin is available immediately. */
   resetWheelCooldown: () => void;
   /** DEV: reset all quiz level progress back to the first question. */
@@ -52,13 +58,15 @@ interface SportQuizValue {
 interface PersistedState {
   coins: number;
   wheelLastSpinAt: number;
-  rateRewarded: boolean;
+  solvedIds: Record<number, true>;
+  lastLevel: number;
 }
 
 const DEFAULT_STATE: PersistedState = {
   coins: STARTING_COINS,
   wheelLastSpinAt: 0,
-  rateRewarded: false,
+  solvedIds: {},
+  lastLevel: 0,
 };
 
 const SportQuizContext = createContext<SportQuizValue | null>(null);
@@ -80,30 +88,46 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     if (next.wheelLastSpinAt !== prev.wheelLastSpinAt || !ready) {
       AsyncStorage.setItem(WHEEL_KEY, String(next.wheelLastSpinAt)).catch(() => {});
     }
-    if (next.rateRewarded !== prev.rateRewarded || !ready) {
-      AsyncStorage.setItem(RATE_KEY, next.rateRewarded ? '1' : '0').catch(() => {});
+    if (next.solvedIds !== prev.solvedIds || !ready) {
+      AsyncStorage.setItem(SOLVED_KEY, JSON.stringify(Object.keys(next.solvedIds).map(Number))).catch(() => {});
+    }
+    if (next.lastLevel !== prev.lastLevel || !ready) {
+      AsyncStorage.setItem(LASTLEVEL_KEY, String(next.lastLevel)).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hydrate once from the three keys, sanitizing a clock-back wheel anchor.
+  // Hydrate once from the persisted keys, sanitizing a clock-back wheel anchor.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       let loaded = DEFAULT_STATE;
       try {
-        const [rawCoins, rawWheel, rawRate] = await AsyncStorage.multiGet([
+        const [rawCoins, rawWheel, rawSolved, rawLastLevel] = await AsyncStorage.multiGet([
           COINS_KEY,
           WHEEL_KEY,
-          RATE_KEY,
+          SOLVED_KEY,
+          LASTLEVEL_KEY,
         ]).then((pairs) => pairs.map(([, v]) => v));
         const coins = rawCoins != null && !Number.isNaN(Number(rawCoins)) ? Number(rawCoins) : STARTING_COINS;
         const wheelLastSpinAt =
           rawWheel != null && !Number.isNaN(Number(rawWheel)) ? Number(rawWheel) : 0;
+        const solvedIds: Record<number, true> = {};
+        if (rawSolved) {
+          try {
+            const ids = JSON.parse(rawSolved) as unknown;
+            if (Array.isArray(ids)) for (const id of ids) if (typeof id === 'number') solvedIds[id] = true;
+          } catch {
+            // corrupt store — start from an empty solved set
+          }
+        }
+        const lastLevel =
+          rawLastLevel != null && !Number.isNaN(Number(rawLastLevel)) ? Number(rawLastLevel) : 0;
         loaded = {
           coins: Math.max(0, coins),
           wheelLastSpinAt,
-          rateRewarded: rawRate === '1',
+          solvedIds,
+          lastLevel,
         };
       } catch {
         loaded = DEFAULT_STATE;
@@ -154,11 +178,28 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const markRateRewarded = useCallback(() => {
-    const s = stateRef.current;
-    if (s.rateRewarded) return; // one-time only
-    persist({ ...s, coins: s.coins + RATE_APP_REWARD_COINS, rateRewarded: true });
-  }, [persist]);
+  // Mark a question solved (idempotent) and persist the grown set.
+  const markSolved = useCallback(
+    (id: number) => {
+      const s = stateRef.current;
+      if (s.solvedIds[id]) return;
+      persist({ ...s, solvedIds: { ...s.solvedIds, [id]: true } });
+    },
+    [persist],
+  );
+
+  // Non-reactive read for quiz logic frozen at mount; screens that must re-render
+  // on a solve read the reactive `solvedIds` map instead.
+  const isSolved = useCallback((id: number) => !!stateRef.current.solvedIds[id], []);
+
+  const setLastLevel = useCallback(
+    (level: number) => {
+      const s = stateRef.current;
+      if (s.lastLevel === level) return;
+      persist({ ...s, lastLevel: level });
+    },
+    [persist],
+  );
 
   // DEV tools.
   const resetWheelCooldown = useCallback(() => {
@@ -167,8 +208,9 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const resetLevels = useCallback(() => {
-    AsyncStorage.removeItem(LEVELS_KEY).catch(() => {});
-  }, []);
+    AsyncStorage.multiRemove([SOLVED_KEY, LASTLEVEL_KEY]).catch(() => {});
+    persist({ ...stateRef.current, solvedIds: {}, lastLevel: 0 });
+  }, [persist]);
 
   const value = useMemo<SportQuizValue>(
     () => ({
@@ -178,12 +220,15 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
       spendCoins,
       wheelLastSpinAt: state.wheelLastSpinAt,
       spinWheel,
-      rateRewarded: state.rateRewarded,
-      markRateRewarded,
+      solvedIds: state.solvedIds,
+      isSolved,
+      markSolved,
+      lastLevel: state.lastLevel,
+      setLastLevel,
       resetWheelCooldown,
       resetLevels,
     }),
-    [ready, state, addCoins, spendCoins, spinWheel, markRateRewarded, resetWheelCooldown, resetLevels],
+    [ready, state, addCoins, spendCoins, spinWheel, isSolved, markSolved, setLastLevel, resetWheelCooldown, resetLevels],
   );
 
   return <SportQuizContext.Provider value={value}>{children}</SportQuizContext.Provider>;
