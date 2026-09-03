@@ -148,6 +148,14 @@ export default function SportQuizWheel() {
           </Animated.View>
           {/* Fixed pointer at the top, overlaying the rotating wheel. */}
           <View style={styles.pointer} pointerEvents="none" />
+          {/* Football burst — anchored to the WHEEL CENTRE (the hub) so the balls
+              spray out of the middle of the wheel, not from the (lower) screen
+              centre. Overflows the wheel box freely to cover the screen. */}
+          {showBalls && (
+            <View style={styles.wheelBurst} pointerEvents="none">
+              <FootballBurst count={BALLS_COUNT} distanceRange={BALLS_DISTANCE} gravityRange={BALLS_GRAVITY} />
+            </View>
+          )}
         </View>
 
         {wonPrize && !spinning ? <PrizePanel prize={wonPrize} t={t} /> : <View style={styles.prizePanelSpacer} />}
@@ -180,13 +188,6 @@ export default function SportQuizWheel() {
           <Ionicons name="build" size={18} color="#FFB65C" />
           <Text style={styles.devBtnText}>DEV: reset timer</Text>
         </Pressable>
-      )}
-
-      {/* Full-screen football burst from the centre for a few seconds after a win. */}
-      {showBalls && (
-        <View style={styles.ballsLayer} pointerEvents="none">
-          <FootballBurst count={BALLS_COUNT} distanceRange={BALLS_DISTANCE} gravityRange={BALLS_GRAVITY} />
-        </View>
       )}
 
       <OddsModal visible={showOdds} onClose={() => setShowOdds(false)} t={t} />
@@ -255,8 +256,9 @@ const styles = StyleSheet.create({
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
 
-  // Full-screen overlay the football burst plays on (centred origin).
-  ballsLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  // Burst overlay filling the wheel box; its centred (zero-size) origin sits on the
+  // wheel hub, so the balls spray out from the wheel centre (not the screen centre).
+  wheelBurst: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 
   wheelWrap: { width: WHEEL_SIZE, height: WHEEL_SIZE, alignItems: 'center', justifyContent: 'center' },
   // A downward-pointing triangle at the top centre of the wheel.
