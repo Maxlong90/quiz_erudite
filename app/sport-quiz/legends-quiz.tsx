@@ -278,7 +278,7 @@ export default function SportLegendsQuiz() {
           backward and forward, including on completed levels. */}
       <View style={styles.bottom}>
         <View style={styles.navRow}>
-          {position > 1 && (
+          {solved && position > 1 && (
             <Pressable
               onPress={goToPrev}
               style={({ pressed }) => [

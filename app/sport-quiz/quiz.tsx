@@ -304,7 +304,7 @@ export default function SportQuizQuiz() {
           and forward through the level's questions, including on completed levels. */}
       <View style={styles.bottom}>
         <View style={styles.navRow}>
-          {index > 0 && (
+          {solved && index > 0 && (
             <Pressable
               onPress={goPrev}
               style={({ pressed }) => [
