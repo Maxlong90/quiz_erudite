@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { SoccerBall } from '@/components/sport-quiz/soccer-ball';
 import { SQColors } from '@/constants/sport-quiz/theme';
 
 /**
@@ -40,9 +40,9 @@ export function PuzzleOverlay({
               <Animated.View exiting={FadeOut.duration(220)} style={StyleSheet.absoluteFill}>
                 <Pressable style={styles.plate} onPress={() => onTapPlate(i)}>
                   <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
-                  {/* A football on every plate — the reveal grid reads as a set of
-                      soccer tiles until the photo is uncovered. */}
-                  <MaterialCommunityIcons name="soccer" size={26} color="rgba(43,255,179,0.5)" />
+                  {/* A football on every plate (design #10 "Изумруд-стекло") — the
+                      reveal grid reads as a set of soccer tiles until uncovered. */}
+                  <SoccerBall size={34} />
                 </Pressable>
               </Animated.View>
             )}
