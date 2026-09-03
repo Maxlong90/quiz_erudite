@@ -127,20 +127,16 @@ export default function SportLegendsQuiz() {
     setRevealing(true);
   };
 
-  // Move to another face of the level BY POSITION, resetting per-question state. An
-  // already-solved target opens fully revealed (review look); an unanswered one
-  // resets to gameplay. Going before the first face is a no-op; going past the last
-  // returns to the board. Lets the player page freely back and forward.
+  // Move to another face of the level BY POSITION, CYCLICALLY, resetting per-question
+  // state. Paging is a loop: past the last face wraps to the first, before the first
+  // wraps to the last. An already-solved target opens fully revealed (review look);
+  // landing on an unanswered face resets to gameplay (Next/Back hide, Skip shows).
   const goToOffset = useCallback(
     (delta: number) => {
       const list = snapshot ? legendsQuestionsForLevel(snapshot, levelNumber) : [];
+      if (list.length === 0) return;
       const currentIdx = list.findIndex((qq) => qq.id === activeId);
-      const nextIdx = currentIdx + delta;
-      if (nextIdx < 0) return;
-      if (nextIdx >= list.length) {
-        router.back();
-        return;
-      }
+      const nextIdx = (currentIdx + delta + list.length) % list.length;
       const cand = list[nextIdx];
       const answered = isSolved(cand.id);
       setWrongPicked([]);
@@ -278,7 +274,7 @@ export default function SportLegendsQuiz() {
           backward and forward, including on completed levels. */}
       <View style={styles.bottom}>
         <View style={styles.navRow}>
-          {solved && position > 1 && (
+          {solved && (
             <Pressable
               onPress={goToPrev}
               style={({ pressed }) => [

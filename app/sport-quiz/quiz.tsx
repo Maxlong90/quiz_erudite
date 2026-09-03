@@ -167,10 +167,16 @@ export default function SportQuizQuiz() {
     goToIndex(index + 1);
   }, [isLast, enteredComplete, index, goToIndex, levelNumber]);
 
-  // Step back to the previous question (in place); disabled on the first one.
+  // Step back one question. On an ALREADY-completed level paging is cyclic (the
+  // first question wraps back to the last); on an unfinished level Back only goes
+  // as far as the first question.
   const goPrev = useCallback(() => {
+    if (enteredComplete) {
+      goToIndex((index - 1 + runList.length) % runList.length);
+      return;
+    }
     if (index > 0) goToIndex(index - 1);
-  }, [index, goToIndex]);
+  }, [enteredComplete, index, goToIndex, runList.length]);
 
   const onShare = useCallback(async () => {
     const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
@@ -304,7 +310,7 @@ export default function SportQuizQuiz() {
           and forward through the level's questions, including on completed levels. */}
       <View style={styles.bottom}>
         <View style={styles.navRow}>
-          {solved && index > 0 && (
+          {solved && (enteredComplete || index > 0) && (
             <Pressable
               onPress={goPrev}
               style={({ pressed }) => [
