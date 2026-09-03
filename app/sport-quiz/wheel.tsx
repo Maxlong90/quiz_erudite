@@ -43,8 +43,11 @@ const SPIN_FULL_TURNS = 6;
 const BALLS_DURATION_MS = 3000;
 const BALLS_COUNT = 28;
 const BALLS_SPREAD = Math.max(SCREEN_W, SCREEN_H);
-const BALLS_DISTANCE: readonly [number, number] = [BALLS_SPREAD * 0.22, BALLS_SPREAD * 0.62];
-const BALLS_GRAVITY: readonly [number, number] = [SCREEN_H * 0.4, SCREEN_H * 0.95];
+const BALLS_DISTANCE: readonly [number, number] = [BALLS_SPREAD * 0.24, BALLS_SPREAD * 0.62];
+// Light gravity so the balls burst RADIALLY out of the centre (an even star-burst)
+// and only drift down a little — instead of the old heavy value that dumped them
+// straight out the bottom.
+const BALLS_GRAVITY: readonly [number, number] = [SCREEN_H * 0.1, SCREEN_H * 0.26];
 
 /** Localized coin label for a prize id (also used by the odds list). */
 function prizeLabel(id: string, t: SQLabels): string {
