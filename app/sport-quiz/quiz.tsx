@@ -45,6 +45,11 @@ const UI_FADE_MS = 300;
 const OPTION_MIN_HEIGHT = 60;
 const TEXT_TOP_GAP = Math.round(OPTION_MIN_HEIGHT * 0.75); // 45
 
+// FIXED answer-button height so all four options are ALWAYS the same size no matter
+// the text length. A long answer first wraps onto more lines; if it still doesn't
+// fit, the font shrinks (adjustsFontSizeToFit) — the button itself never resizes.
+const OPTION_HEIGHT = 82;
+
 export default function SportQuizQuiz() {
   const t = useSQLabels();
   const { locale } = useLocale();
@@ -162,6 +167,11 @@ export default function SportQuizQuiz() {
     goToIndex(index + 1);
   }, [isLast, enteredComplete, index, goToIndex, levelNumber]);
 
+  // Step back to the previous question (in place); disabled on the first one.
+  const goPrev = useCallback(() => {
+    if (index > 0) goToIndex(index - 1);
+  }, [index, goToIndex]);
+
   const onShare = useCallback(async () => {
     const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
     const message = t.shareInvite.replace('{url}', storeUrl);
@@ -254,10 +264,18 @@ export default function SportQuizQuiz() {
                     pressed && !solved && !isWrong && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  {/* Long answers WRAP onto more lines (whole words) rather than
-                      shrinking to an unreadable size: the button grows in height
-                      and the font only dips to 90% at most. */}
-                  <Text style={textTone} numberOfLines={4} adjustsFontSizeToFit minimumFontScale={0.9}>
+                  {/* Fixed-size button: a long answer first WRAPS onto more lines
+                      at WHOLE-WORD boundaries (textBreakStrategy "simple" + no
+                      hyphenation, so a word is never split); only if it still doesn't
+                      fit does the font shrink (down to 40%). The button never resizes. */}
+                  <Text
+                    style={textTone}
+                    numberOfLines={3}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.4}
+                    textBreakStrategy="simple"
+                    android_hyphenationFrequency="none"
+                  >
                     {option}
                   </Text>
                 </Pressable>
@@ -281,43 +299,57 @@ export default function SportQuizQuiz() {
         )}
       </ScrollView>
 
-      {/* Bottom: before solving, the Skip hint; after, the Next button (which on
-          the last question opens Level Complete). */}
+      {/* Bottom: a "Back" button (when not on the first question) beside the primary
+          action — Skip before solving, Next after. Lets the player move freely back
+          and forward through the level's questions, including on completed levels. */}
       <View style={styles.bottom}>
-        {solved ? (
-          <Animated.View
-            entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
-            style={styles.nextWrap}
-          >
+        <View style={styles.navRow}>
+          {index > 0 && (
+            <Pressable
+              onPress={goPrev}
+              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+            >
+              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
+              <Ionicons name="arrow-back" size={22} color={SQColors.text} />
+              <Text style={styles.backText}>{t.back}</Text>
+            </Pressable>
+          )}
+          {solved ? (
             <Pressable
               onPress={goNext}
-              style={({ pressed }) => [styles.nextBtn, neonGlow(SQColors.neon, 12), pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [
+                styles.nextBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                pressed && { opacity: 0.9 },
+              ]}
             >
               <Text style={styles.nextText}>{t.next}</Text>
               <Ionicons name="arrow-forward" size={22} color={SQColors.textOnNeon} />
             </Pressable>
-          </Animated.View>
-        ) : (
-          <Pressable
-            disabled={coins < HINT_SKIP_COST}
-            onPress={useSkip}
-            style={({ pressed }) => [
-              styles.skipBtn,
-              neonGlow(SQColors.neon, 12),
-              coins < HINT_SKIP_COST && styles.skipDisabled,
-              pressed && coins >= HINT_SKIP_COST && { opacity: 0.92, transform: [{ scale: 0.99 }] },
-            ]}
-          >
-            <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
-            <Text style={styles.skipLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {t.skip}
-            </Text>
-            <View style={styles.costTag}>
-              <CoinIcon size={24} />
-              <Text style={styles.costText}>{HINT_SKIP_COST}</Text>
-            </View>
-          </Pressable>
-        )}
+          ) : (
+            <Pressable
+              disabled={coins < HINT_SKIP_COST}
+              onPress={useSkip}
+              style={({ pressed }) => [
+                styles.skipBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                coins < HINT_SKIP_COST && styles.skipDisabled,
+                pressed && coins >= HINT_SKIP_COST && { opacity: 0.92, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
+              <Text style={styles.skipLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {t.skip}
+              </Text>
+              <View style={styles.costTag}>
+                <CoinIcon size={24} />
+                <Text style={styles.costText}>{HINT_SKIP_COST}</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <ReportSheet
@@ -397,7 +429,7 @@ const styles = StyleSheet.create({
   optionWrap: { width: '48%' },
   option: {
     width: '100%',
-    minHeight: OPTION_MIN_HEIGHT,
+    height: OPTION_HEIGHT,
     backgroundColor: 'rgba(9,24,40,0.72)',
     borderRadius: SQRadius.md,
     paddingHorizontal: 12,
@@ -437,7 +469,21 @@ const styles = StyleSheet.create({
   explText: { fontSize: 14, fontWeight: '600', color: SQColors.text, lineHeight: 20, textAlign: 'center' },
 
   bottom: { marginTop: 'auto', paddingTop: 12, paddingBottom: 10 },
-  nextWrap: { paddingHorizontal: 16 },
+  // Back + primary action share one row; both stretch to the same height.
+  navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
+  navPrimary: { flex: 1, marginHorizontal: 0 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    borderRadius: SQRadius.pill,
+    borderWidth: 1.5,
+    borderColor: SQColors.glassBorder,
+    overflow: 'hidden',
+  },
+  backText: { color: SQColors.text, fontWeight: '900', fontSize: 16 },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -74,6 +74,7 @@ export interface SQLabels {
   legendRevealHint: string; // tap-to-reveal hint, uses {n} coins
   skip: string;
   next: string;
+  back: string;
   levelComplete: string;
   backToLevels: string;
 
@@ -150,6 +151,7 @@ const EN: SQLabels = {
   legendRevealHint: 'Tap a tile to reveal a piece ({n} coins)',
   skip: 'Skip',
   next: 'Next',
+  back: 'Back',
   levelComplete: 'Level Complete',
   backToLevels: 'Back to Levels',
   shareQuestion: 'Share',
@@ -224,6 +226,7 @@ const RU: SQLabels = {
   legendRevealHint: 'Тап по пазлу открывает кусок ({n} монет)',
   skip: 'Пропустить',
   next: 'Далее',
+  back: 'Назад',
   levelComplete: 'Уровень пройден',
   backToLevels: 'К уровням',
   shareQuestion: 'Поделиться',
@@ -298,6 +301,7 @@ const ES: SQLabels = {
   legendRevealHint: 'Toca una ficha para revelar ({n} monedas)',
   skip: 'Saltar',
   next: 'Siguiente',
+  back: 'Atrás',
   levelComplete: 'Nivel completado',
   backToLevels: 'A los niveles',
   shareQuestion: 'Compartir',
@@ -372,6 +376,7 @@ const FR: SQLabels = {
   legendRevealHint: 'Touche une tuile pour révéler ({n} pièces)',
   skip: 'Passer',
   next: 'Suivant',
+  back: 'Retour',
   levelComplete: 'Niveau terminé',
   backToLevels: 'Aux niveaux',
   shareQuestion: 'Partager',

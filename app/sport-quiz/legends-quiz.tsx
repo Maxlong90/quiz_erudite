@@ -43,6 +43,10 @@ const UI_FADE_MS = 300;
 const PLATE_COLS = 4;
 const PLATE_ROWS = 5;
 
+// FIXED answer-button height so all options are ALWAYS the same size (long answers
+// wrap, then shrink the font if still needed — the button never resizes).
+const OPTION_HEIGHT = 82;
+
 /**
  * Sports Legends question — opened by tapping a face on the level board. Same
  * Classic layout (counter · framed photo · 4 options · Skip/Next), but the photo
@@ -123,26 +127,33 @@ export default function SportLegendsQuiz() {
     setRevealing(true);
   };
 
-  // "Next" advances to the next UNSOLVED face of the level (wrapping past the end),
-  // resetting the per-question state in place. When every face is solved the level
-  // is complete and we fall back to the board.
-  const goToNext = useCallback(() => {
-    const list = snapshot ? legendsQuestionsForLevel(snapshot, levelNumber) : [];
-    const currentIdx = list.findIndex((qq) => qq.id === activeId);
-    for (let step = 1; step <= list.length; step += 1) {
-      const cand = list[(currentIdx + step) % list.length];
-      if (cand && !isSolved(cand.id)) {
-        setWrongPicked([]);
-        setSolved(false);
-        setRevealing(false);
-        setRevealAnimated(false);
-        setRevealedPlates(new Set());
-        setActiveId(cand.id);
+  // Move to another face of the level BY POSITION, resetting per-question state. An
+  // already-solved target opens fully revealed (review look); an unanswered one
+  // resets to gameplay. Going before the first face is a no-op; going past the last
+  // returns to the board. Lets the player page freely back and forward.
+  const goToOffset = useCallback(
+    (delta: number) => {
+      const list = snapshot ? legendsQuestionsForLevel(snapshot, levelNumber) : [];
+      const currentIdx = list.findIndex((qq) => qq.id === activeId);
+      const nextIdx = currentIdx + delta;
+      if (nextIdx < 0) return;
+      if (nextIdx >= list.length) {
+        router.back();
         return;
       }
-    }
-    router.back();
-  }, [snapshot, levelNumber, activeId, isSolved]);
+      const cand = list[nextIdx];
+      const answered = isSolved(cand.id);
+      setWrongPicked([]);
+      setSolved(answered);
+      setRevealing(answered);
+      setRevealAnimated(false);
+      setRevealedPlates(new Set());
+      setActiveId(cand.id);
+    },
+    [snapshot, levelNumber, activeId, isSolved],
+  );
+  const goToNext = useCallback(() => goToOffset(1), [goToOffset]);
+  const goToPrev = useCallback(() => goToOffset(-1), [goToOffset]);
 
   const onShare = useCallback(async () => {
     const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
@@ -230,7 +241,16 @@ export default function SportLegendsQuiz() {
                     pressed && !solved && !isWrong && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  <Text style={textTone} numberOfLines={4} adjustsFontSizeToFit minimumFontScale={0.9}>
+                  {/* Whole-word wrap (no mid-word split), then shrink font to 40% if
+                      still too long — button size stays fixed. */}
+                  <Text
+                    style={textTone}
+                    numberOfLines={3}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.4}
+                    textBreakStrategy="simple"
+                    android_hyphenationFrequency="none"
+                  >
                     {option}
                   </Text>
                 </Pressable>
@@ -253,42 +273,57 @@ export default function SportLegendsQuiz() {
         )}
       </ScrollView>
 
-      {/* Bottom: Skip before solving; after, a Next that returns to the board. */}
+      {/* Bottom: a "Back" button (when not on the first face) beside the primary
+          action — Skip before solving, Next after — so faces page freely both
+          backward and forward, including on completed levels. */}
       <View style={styles.bottom}>
-        {solved ? (
-          <Animated.View
-            entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
-            style={styles.nextWrap}
-          >
+        <View style={styles.navRow}>
+          {position > 1 && (
+            <Pressable
+              onPress={goToPrev}
+              style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+            >
+              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
+              <Ionicons name="arrow-back" size={22} color={SQColors.text} />
+              <Text style={styles.backText}>{t.back}</Text>
+            </Pressable>
+          )}
+          {solved ? (
             <Pressable
               onPress={goToNext}
-              style={({ pressed }) => [styles.nextBtn, neonGlow(SQColors.neon, 12), pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [
+                styles.nextBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                pressed && { opacity: 0.9 },
+              ]}
             >
               <Text style={styles.nextText}>{t.next}</Text>
               <Ionicons name="arrow-forward" size={22} color={SQColors.textOnNeon} />
             </Pressable>
-          </Animated.View>
-        ) : (
-          <Pressable
-            disabled={coins < HINT_SKIP_COST}
-            onPress={useSkip}
-            style={({ pressed }) => [
-              styles.skipBtn,
-              neonGlow(SQColors.neon, 12),
-              coins < HINT_SKIP_COST && styles.skipDisabled,
-              pressed && coins >= HINT_SKIP_COST && { opacity: 0.92, transform: [{ scale: 0.99 }] },
-            ]}
-          >
-            <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
-            <Text style={styles.skipLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {t.skip}
-            </Text>
-            <View style={styles.costTag}>
-              <CoinIcon size={24} />
-              <Text style={styles.costText}>{HINT_SKIP_COST}</Text>
-            </View>
-          </Pressable>
-        )}
+          ) : (
+            <Pressable
+              disabled={coins < HINT_SKIP_COST}
+              onPress={useSkip}
+              style={({ pressed }) => [
+                styles.skipBtn,
+                styles.navPrimary,
+                neonGlow(SQColors.neon, 12),
+                coins < HINT_SKIP_COST && styles.skipDisabled,
+                pressed && coins >= HINT_SKIP_COST && { opacity: 0.92, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <LinearGradient colors={[SQColors.glassStrong, SQColors.glass]} style={StyleSheet.absoluteFill} />
+              <Text style={styles.skipLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {t.skip}
+              </Text>
+              <View style={styles.costTag}>
+                <CoinIcon size={24} />
+                <Text style={styles.costText}>{HINT_SKIP_COST}</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} questionId={question.id} locale={locale} />
@@ -357,7 +392,7 @@ const styles = StyleSheet.create({
   optionWrap: { width: '48%' },
   option: {
     width: '100%',
-    minHeight: 60,
+    height: OPTION_HEIGHT,
     backgroundColor: 'rgba(9,24,40,0.72)',
     borderRadius: SQRadius.md,
     paddingHorizontal: 12,
@@ -397,7 +432,20 @@ const styles = StyleSheet.create({
   explText: { fontSize: 14, fontWeight: '600', color: SQColors.text, lineHeight: 20, textAlign: 'center' },
 
   bottom: { marginTop: 'auto', paddingTop: 12, paddingBottom: 10 },
-  nextWrap: { paddingHorizontal: 16 },
+  navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
+  navPrimary: { flex: 1, marginHorizontal: 0 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    borderRadius: SQRadius.pill,
+    borderWidth: 1.5,
+    borderColor: SQColors.glassBorder,
+    overflow: 'hidden',
+  },
+  backText: { color: SQColors.text, fontWeight: '900', fontSize: 16 },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -148,7 +148,15 @@ export function WheelPrizeIcons({ size }: { size: number }) {
         const textColor = SQ_WHEEL_TIER[prize.tier].text;
         return (
           <View key={`i${i}`} style={styles.segLayer}>
-            <View style={[styles.segLabel, { transform: [{ rotate: `${center}deg` }, { translateY: -radius }] }]}>
+            {/* Position the label on its wedge centreline (rotate + push out), then
+                counter-rotate so the coin + amount stay UPRIGHT (not tilted) and read
+                evenly around the wheel. */}
+            <View
+              style={[
+                styles.segLabel,
+                { transform: [{ rotate: `${center}deg` }, { translateY: -radius }, { rotate: `${-center}deg` }] },
+              ]}
+            >
               <CoinIcon size={iconSize} />
               <Text style={[styles.segAmount, { color: textColor, fontSize: size * 0.07 }]} allowFontScaling={false}>
                 {prize.reward.coins}
