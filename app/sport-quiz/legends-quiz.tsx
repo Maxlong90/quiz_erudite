@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Dimensions,
   Platform,
   Pressable,
   ScrollView,
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
+import { FitAnswerText } from '@/components/sport-quiz/fit-answer-text';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { PuzzleOverlay } from '@/components/sport-quiz/puzzle-overlay';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
@@ -52,6 +54,12 @@ const PLATE_ROWS = 5;
 // FIXED answer-button height (compact, ~the original size) so all options are ALWAYS
 // the same size (long answers wrap, then shrink the font if still needed).
 const OPTION_HEIGHT = 64;
+
+// Usable label box inside an answer button (same geometry as the Classic quiz).
+const { width: SCREEN_W } = Dimensions.get('window');
+const OPTION_BASE_FONT = 15;
+const OPTION_TEXT_W = (SCREEN_W - 32) * 0.48 - 12 * 2 - 3;
+const OPTION_TEXT_H = OPTION_HEIGHT - 6 * 2 - 3;
 
 /**
  * Sports Legends question — opened by tapping a face on the level board. Same
@@ -256,18 +264,15 @@ export default function SportLegendsQuiz() {
                     pressed && !solved && !isWrong && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  {/* Whole-word wrap (no mid-word split), then shrink font to 40% if
-                      still too long — button size stays fixed. */}
-                  <Text
+                  {/* Fixed-size button; the LABEL adapts: 90% → 80% → 70% → 60% …
+                      until the text fits whole-word and centred. Never split. */}
+                  <FitAnswerText
+                    text={option}
                     style={textTone}
-                    numberOfLines={3}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.4}
-                    textBreakStrategy="simple"
-                    android_hyphenationFrequency="none"
-                  >
-                    {option}
-                  </Text>
+                    baseSize={OPTION_BASE_FONT}
+                    maxWidth={OPTION_TEXT_W}
+                    maxHeight={OPTION_TEXT_H}
+                  />
                 </Pressable>
               </Animated.View>
             );
@@ -415,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(9,24,40,0.72)',
     borderRadius: SQRadius.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,

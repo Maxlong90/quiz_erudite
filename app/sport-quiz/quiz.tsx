@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Dimensions,
   Platform,
   Pressable,
   ScrollView,
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
+import { FitAnswerText } from '@/components/sport-quiz/fit-answer-text';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
 import { questionsForLevel, type SportQuizQuestion } from '@/lib/sport-quiz/content';
@@ -54,6 +56,14 @@ const TEXT_TOP_GAP = Math.round(OPTION_MIN_HEIGHT * 0.75); // 45
 // ALWAYS the same size no matter the text length. A long answer first wraps onto
 // more lines; if it still doesn't fit, the font shrinks — the button never resizes.
 const OPTION_HEIGHT = 64;
+
+// The answer label's usable box, derived from the fixed button geometry below
+// (screen padding 16×2 · two columns at 48% · padding 12×2 / 10×2 · 1.5 borders).
+// FitAnswerText uses it to choose a font size that fits WITHOUT splitting a word.
+const { width: SCREEN_W } = Dimensions.get('window');
+const OPTION_BASE_FONT = 15;
+const OPTION_TEXT_W = (SCREEN_W - 32) * 0.48 - 12 * 2 - 3;
+const OPTION_TEXT_H = OPTION_HEIGHT - 6 * 2 - 3;
 
 export default function SportQuizQuiz() {
   const t = useSQLabels();
@@ -281,20 +291,15 @@ export default function SportQuizQuiz() {
                     pressed && !solved && !isWrong && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  {/* Fixed-size button: a long answer first WRAPS onto more lines
-                      at WHOLE-WORD boundaries (textBreakStrategy "simple" + no
-                      hyphenation, so a word is never split); only if it still doesn't
-                      fit does the font shrink (down to 40%). The button never resizes. */}
-                  <Text
+                  {/* Fixed-size button; the LABEL adapts: 90% → 80% → 70% → 60% …
+                      until the text fits whole-word and centred. Never split. */}
+                  <FitAnswerText
+                    text={option}
                     style={textTone}
-                    numberOfLines={3}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.4}
-                    textBreakStrategy="simple"
-                    android_hyphenationFrequency="none"
-                  >
-                    {option}
-                  </Text>
+                    baseSize={OPTION_BASE_FONT}
+                    maxWidth={OPTION_TEXT_W}
+                    maxHeight={OPTION_TEXT_H}
+                  />
                 </Pressable>
               </Animated.View>
             );
@@ -454,7 +459,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(9,24,40,0.72)',
     borderRadius: SQRadius.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
