@@ -165,7 +165,7 @@ export function WheelPrizeIcons({ size }: { size: number }) {
 
 const styles = StyleSheet.create({
   iconsLayer: { position: 'absolute', top: 0, left: 0 },
-  segLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  segLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   segLabel: { alignItems: 'center', gap: 2 },
   segAmount: { fontWeight: '900' },
 });

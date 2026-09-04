@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 16,
     textShadowOffset: { width: 0, height: 0 },
   },
-  ballsLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  ballsLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   footer: { paddingHorizontal: 20, paddingBottom: 16 },
   primaryBtn: {
     backgroundColor: SQColors.neon,

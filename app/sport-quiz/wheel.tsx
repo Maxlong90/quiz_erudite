@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
 
   // Burst overlay filling the wheel box; its centred (zero-size) origin sits on the
   // wheel hub, so the balls spray out from the wheel centre (not the screen centre).
-  wheelBurst: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  wheelBurst: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
 
   wheelWrap: { width: WHEEL_SIZE, height: WHEEL_SIZE, alignItems: 'center', justifyContent: 'center' },
   // A downward-pointing triangle at the top centre of the wheel.
