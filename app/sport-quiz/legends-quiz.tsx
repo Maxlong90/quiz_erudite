@@ -264,8 +264,8 @@ export default function SportLegendsQuiz() {
                     pressed && !solved && !isWrong && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  {/* Fixed-size button; the LABEL adapts: 90% → 80% → 70% → 60% …
-                      until the text fits whole-word and centred. Never split. */}
+                  {/* Fixed-size button; the LABEL adapts: 90% → 85% → 80% → 75% … until the
+                      text fits whole-word and centred. Never split. */}
                   <FitAnswerText
                     text={option}
                     style={textTone}

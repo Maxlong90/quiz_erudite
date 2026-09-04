@@ -10,15 +10,18 @@ import { Text, type StyleProp, type TextStyle } from 'react-native';
  * than the button (which is how "Дисквалификация" ended up as "Дисквалификаци/я"),
  * and it leaves the result visually off-centre. So we pick the size ourselves.
  *
- * The ladder is explicit: try 90% of the base size, then 80%, 70%, 60%, … and take
+ * The ladder is explicit: try 90% of the base size, then 85%, 80%, 75%, … down to 40%, and take
  * the FIRST size where both hold:
  *   1. the longest single WORD fits on one line (⇒ no mid-word break is possible), and
  *   2. the greedily wrapped text fits the available height.
  * The button itself never changes size — only the font does.
  */
 
-/** Font-size ladder, as a fraction of the base size (the user-facing 90→80→70→60 rule). */
-const SCALES = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4] as const;
+/**
+ * Font-size ladder, as a fraction of the base size: 90% → 85% → 80% → … → 40%.
+ * The 5% step keeps each drop small, so a label only shrinks as much as it must.
+ */
+const SCALES = [0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4] as const;
 
 /**
  * Average glyph advance as a fraction of the font size for the bold UI font. Chosen
