@@ -47,11 +47,11 @@ function makeBalls(
   }));
 }
 
-function Piece({ ball }: { ball: Ball }) {
+function Piece({ ball, durationMs }: { ball: Ball; durationMs: number }) {
   const p = useSharedValue(0);
   useEffect(() => {
-    p.value = withDelay(ball.delay, withTiming(1, { duration: 2400, easing: Easing.out(Easing.quad) }));
-  }, [p, ball.delay]);
+    p.value = withDelay(ball.delay, withTiming(1, { duration: durationMs, easing: Easing.out(Easing.quad) }));
+  }, [p, ball.delay, durationMs]);
 
   const style = useAnimatedStyle(() => {
     const t = p.value;
@@ -80,11 +80,14 @@ export function FootballBurst({
   style,
   distanceRange = DEFAULT_DISTANCE,
   gravityRange = DEFAULT_GRAVITY,
+  durationMs = 2400,
 }: {
   count?: number;
   style?: StyleProp<ViewStyle>;
   distanceRange?: readonly [number, number];
   gravityRange?: readonly [number, number];
+  /** How long a single ball's flight lasts (the Win screen stretches it to 4s). */
+  durationMs?: number;
 }) {
   const balls = useMemo(
     () => makeBalls(count, distanceRange, gravityRange),
@@ -93,7 +96,7 @@ export function FootballBurst({
   return (
     <View style={[styles.origin, style]} pointerEvents="none">
       {balls.map((ball, i) => (
-        <Piece key={i} ball={ball} />
+        <Piece key={i} ball={ball} durationMs={durationMs} />
       ))}
     </View>
   );
