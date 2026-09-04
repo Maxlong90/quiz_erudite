@@ -10,13 +10,19 @@ export const STARTING_COINS = 150;
 
 // ---- Classic quiz ----
 /** Coins awarded for each correct answer in the Classic quiz. */
-export const CORRECT_REWARD_COINS = 10;
+export const CORRECT_REWARD_COINS = 5;
+/** Coins deducted for each wrong answer in the Classic quiz. */
+export const WRONG_PENALTY_COINS = 15;
 /** Coins a Skip hint costs — it reveals the answer (marked passed), no reward. */
-export const HINT_SKIP_COST = 30;
+export const HINT_SKIP_COST = 35;
 
 // ---- Sports Legends mode ----
 /** Coins charged for tapping one puzzle plate to uncover a piece of the photo. */
 export const LEGEND_REVEAL_COST = 5;
+/** Coins awarded for each correct answer in Sports Legends. */
+export const LEGEND_CORRECT_REWARD_COINS = 15;
+/** Coins deducted for each wrong answer in Sports Legends. */
+export const LEGEND_WRONG_PENALTY_COINS = 15;
 
 // ---- Coin packs sold for real money (real IAP via RevenueCat) ----
 // `id` is the stable local token (React key, "bought" flash, persisted nowhere).

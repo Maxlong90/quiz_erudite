@@ -27,6 +27,9 @@ const WHEEL_KEY = 'sportquiz.wheelLastSpinAt.v1';
 // of ids) and the last level opened. The DEV "reset levels" button clears both.
 const SOLVED_KEY = 'sportquiz.solvedIds.v1';
 const LASTLEVEL_KEY = 'sportquiz.lastLevel.v1';
+// Sports Legends: plates the player PAID to uncover, per question id, so a face
+// keeps everything already revealed when the question is re-opened.
+const PLATES_KEY = 'sportquiz.revealedPlates.v1';
 
 interface SportQuizValue {
   ready: boolean;
@@ -49,6 +52,10 @@ interface SportQuizValue {
   lastLevel: number;
   /** Remember the level being played. */
   setLastLevel: (level: number) => void;
+  /** Plate indices already uncovered for a Legends question (persisted). */
+  revealedPlatesFor: (questionId: number) => number[];
+  /** Persist one more uncovered plate for a Legends question. Idempotent. */
+  revealPlate: (questionId: number, plateIndex: number) => void;
   /** DEV: reset the wheel cooldown so the free spin is available immediately. */
   resetWheelCooldown: () => void;
   /** DEV: reset all quiz level progress back to the first question. */
@@ -60,6 +67,7 @@ interface PersistedState {
   wheelLastSpinAt: number;
   solvedIds: Record<number, true>;
   lastLevel: number;
+  revealedPlates: Record<number, number[]>;
 }
 
 const DEFAULT_STATE: PersistedState = {
@@ -67,6 +75,7 @@ const DEFAULT_STATE: PersistedState = {
   wheelLastSpinAt: 0,
   solvedIds: {},
   lastLevel: 0,
+  revealedPlates: {},
 };
 
 const SportQuizContext = createContext<SportQuizValue | null>(null);
@@ -94,6 +103,9 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     if (next.lastLevel !== prev.lastLevel || !ready) {
       AsyncStorage.setItem(LASTLEVEL_KEY, String(next.lastLevel)).catch(() => {});
     }
+    if (next.revealedPlates !== prev.revealedPlates || !ready) {
+      AsyncStorage.setItem(PLATES_KEY, JSON.stringify(next.revealedPlates)).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,11 +115,12 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     (async () => {
       let loaded = DEFAULT_STATE;
       try {
-        const [rawCoins, rawWheel, rawSolved, rawLastLevel] = await AsyncStorage.multiGet([
+        const [rawCoins, rawWheel, rawSolved, rawLastLevel, rawPlates] = await AsyncStorage.multiGet([
           COINS_KEY,
           WHEEL_KEY,
           SOLVED_KEY,
           LASTLEVEL_KEY,
+          PLATES_KEY,
         ]).then((pairs) => pairs.map(([, v]) => v));
         const coins = rawCoins != null && !Number.isNaN(Number(rawCoins)) ? Number(rawCoins) : STARTING_COINS;
         const wheelLastSpinAt =
@@ -123,11 +136,27 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
         }
         const lastLevel =
           rawLastLevel != null && !Number.isNaN(Number(rawLastLevel)) ? Number(rawLastLevel) : 0;
+        const revealedPlates: Record<number, number[]> = {};
+        if (rawPlates) {
+          try {
+            const parsed = JSON.parse(rawPlates) as unknown;
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              for (const [qid, list] of Object.entries(parsed as Record<string, unknown>)) {
+                const id = Number(qid);
+                if (Number.isNaN(id) || !Array.isArray(list)) continue;
+                revealedPlates[id] = list.filter((n): n is number => typeof n === 'number');
+              }
+            }
+          } catch {
+            // corrupt store — start with no uncovered plates
+          }
+        }
         loaded = {
           coins: Math.max(0, coins),
           wheelLastSpinAt,
           solvedIds,
           lastLevel,
+          revealedPlates,
         };
       } catch {
         loaded = DEFAULT_STATE;
@@ -201,6 +230,23 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  // Legends plates: read the uncovered set for a face, and grow it on each paid tap
+  // so re-opening the question keeps everything already revealed.
+  const revealedPlatesFor = useCallback((questionId: number) => stateRef.current.revealedPlates[questionId] ?? [], []);
+
+  const revealPlate = useCallback(
+    (questionId: number, plateIndex: number) => {
+      const s = stateRef.current;
+      const current = s.revealedPlates[questionId] ?? [];
+      if (current.includes(plateIndex)) return;
+      persist({
+        ...s,
+        revealedPlates: { ...s.revealedPlates, [questionId]: [...current, plateIndex] },
+      });
+    },
+    [persist],
+  );
+
   // DEV tools.
   const resetWheelCooldown = useCallback(() => {
     const s = stateRef.current;
@@ -208,8 +254,8 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const resetLevels = useCallback(() => {
-    AsyncStorage.multiRemove([SOLVED_KEY, LASTLEVEL_KEY]).catch(() => {});
-    persist({ ...stateRef.current, solvedIds: {}, lastLevel: 0 });
+    AsyncStorage.multiRemove([SOLVED_KEY, LASTLEVEL_KEY, PLATES_KEY]).catch(() => {});
+    persist({ ...stateRef.current, solvedIds: {}, lastLevel: 0, revealedPlates: {} });
   }, [persist]);
 
   const value = useMemo<SportQuizValue>(
@@ -225,10 +271,25 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
       markSolved,
       lastLevel: state.lastLevel,
       setLastLevel,
+      revealedPlatesFor,
+      revealPlate,
       resetWheelCooldown,
       resetLevels,
     }),
-    [ready, state, addCoins, spendCoins, spinWheel, isSolved, markSolved, setLastLevel, resetWheelCooldown, resetLevels],
+    [
+      ready,
+      state,
+      addCoins,
+      spendCoins,
+      spinWheel,
+      isSolved,
+      markSolved,
+      setLastLevel,
+      revealedPlatesFor,
+      revealPlate,
+      resetWheelCooldown,
+      resetLevels,
+    ],
   );
 
   return <SportQuizContext.Provider value={value}>{children}</SportQuizContext.Provider>;

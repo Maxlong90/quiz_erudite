@@ -61,6 +61,16 @@ export interface SQLabels {
   comingSoon: string;
   otherApps: string;
 
+  // mode info sheet ("?" buttons) + settings version
+  infoTitle: string;
+  infoClassicText: string;
+  infoLegendsText: string;
+  infoCorrectAnswer: string;
+  infoWrongAnswer: string;
+  infoRevealPlate: string;
+  infoSkipCost: string;
+  appVersion: string; // "Version {v}"
+
   // levels / quiz
   selectLevel: string;
   levelLabel: string; // "Level {n}"
@@ -141,6 +151,15 @@ const EN: SQLabels = {
   modeSprint: 'Sprint',
   comingSoon: 'Available soon',
   otherApps: 'Other apps',
+
+  infoTitle: 'How it works',
+  infoClassicText: 'Multiple-choice sports questions — pictures, dates and facts. 20 questions per level.',
+  infoLegendsText: 'Guess the athlete hidden behind puzzle plates. Tap a plate to uncover a piece of the photo.',
+  infoCorrectAnswer: 'Correct answer',
+  infoWrongAnswer: 'Wrong answer',
+  infoRevealPlate: 'Uncover a plate',
+  infoSkipCost: 'Skip the question',
+  appVersion: 'Version {v}',
   selectLevel: 'Select Level',
   levelLabel: 'Level {n}',
   finishPrevious: 'Finish the previous level',
@@ -216,6 +235,15 @@ const RU: SQLabels = {
   modeSprint: 'Спринт',
   comingSoon: 'Скоро',
   otherApps: 'Другие приложения',
+
+  infoTitle: 'Как это работает',
+  infoClassicText: 'Спортивные вопросы с выбором ответа — фото, даты и факты. По 20 вопросов на уровень.',
+  infoLegendsText: 'Угадай спортсмена, скрытого за пазлами. Тап по пазлу открывает кусочек фото.',
+  infoCorrectAnswer: 'Правильный ответ',
+  infoWrongAnswer: 'Неправильный ответ',
+  infoRevealPlate: 'Открыть пазл',
+  infoSkipCost: 'Пропустить вопрос',
+  appVersion: 'Версия {v}',
   selectLevel: 'Выбери уровень',
   levelLabel: 'Уровень {n}',
   finishPrevious: 'Пройди предыдущий уровень',
@@ -291,6 +319,15 @@ const ES: SQLabels = {
   modeSprint: 'Sprint',
   comingSoon: 'Muy pronto',
   otherApps: 'Otras apps',
+
+  infoTitle: 'Cómo funciona',
+  infoClassicText: 'Preguntas de deporte con opciones — fotos, fechas y datos. 20 preguntas por nivel.',
+  infoLegendsText: 'Adivina al deportista oculto tras las piezas. Toca una pieza para descubrir parte de la foto.',
+  infoCorrectAnswer: 'Respuesta correcta',
+  infoWrongAnswer: 'Respuesta incorrecta',
+  infoRevealPlate: 'Descubrir una pieza',
+  infoSkipCost: 'Saltar la pregunta',
+  appVersion: 'Versión {v}',
   selectLevel: 'Elige un nivel',
   levelLabel: 'Nivel {n}',
   finishPrevious: 'Completa el nivel anterior',
@@ -366,6 +403,15 @@ const FR: SQLabels = {
   modeSprint: 'Sprint',
   comingSoon: 'Bientôt',
   otherApps: 'Autres apps',
+
+  infoTitle: 'Comment ça marche',
+  infoClassicText: 'Questions de sport à choix multiple — photos, dates et faits. 20 questions par niveau.',
+  infoLegendsText: 'Devine le sportif caché derrière les pièces. Touche une pièce pour révéler la photo.',
+  infoCorrectAnswer: 'Bonne réponse',
+  infoWrongAnswer: 'Mauvaise réponse',
+  infoRevealPlate: 'Révéler une pièce',
+  infoSkipCost: 'Passer la question',
+  appVersion: 'Version {v}',
   selectLevel: 'Choisis un niveau',
   levelLabel: 'Niveau {n}',
   finishPrevious: 'Termine le niveau précédent',

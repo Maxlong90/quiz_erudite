@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
 import { GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
@@ -23,6 +24,9 @@ const LANGUAGE_NAMES: Record<SupportedLocale, string> = {
   es: 'Español',
   fr: 'Français',
 };
+/** The running build's version (app.json `version`), shown at the bottom of Settings. */
+const APP_VERSION = Constants.expoConfig?.version ?? '—';
+
 const LANGUAGE_FLAGS: Record<SupportedLocale, string> = {
   en: '🇬🇧',
   ru: '🇷🇺',
@@ -125,6 +129,17 @@ export default function SportQuizSettings() {
           <Text style={styles.devBtnText}>DEV: reset levels</Text>
         </Pressable>
       )}
+
+      {/* App version — the live build's version, in the same framed glass style as
+          the settings rows. Read from the Expo config, so it tracks every release
+          automatically (no hardcoded string to forget). */}
+      <View style={[styles.versionBox, neonGlow(SQColors.neon, 8)]}>
+        <LinearGradient
+          colors={[SQColors.glassStrong, SQColors.glass]}
+          style={[StyleSheet.absoluteFill, { borderRadius: SQRadius.pill }]}
+        />
+        <Text style={styles.versionText}>{t.appVersion.replace('{v}', APP_VERSION)}</Text>
+      </View>
 
       {/* Language picker — tapping a language changes the app locale instantly. */}
       <Modal visible={langOpen} transparent animationType="fade" onRequestClose={() => setLangOpen(false)}>
@@ -275,4 +290,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(6,16,26,0.6)',
   },
   devBtnText: { color: '#FFB65C', fontWeight: '800', fontSize: 14 },
+
+  // Version pill — same glass + neon frame as the settings rows, just quieter.
+  versionBox: {
+    alignSelf: 'center',
+    marginTop: 6,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: SQRadius.pill,
+    borderWidth: 1.5,
+    borderColor: SQColors.neon,
+    overflow: 'hidden',
+  },
+  versionText: { color: SQColors.text, fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
 });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image, ImageSourcePropType, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/sport-quiz/app-background';
+import { ModeInfoModal, type InfoMode } from '@/components/sport-quiz/mode-info-modal';
 import { CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
@@ -27,12 +29,15 @@ function ModeButton({
   sublabel,
   locked,
   onPress,
+  onInfo,
 }: {
   image: ImageSourcePropType;
   label: string;
   sublabel?: string;
   locked?: boolean;
   onPress: () => void;
+  /** When set, a small "?" button on the card opens that mode's info sheet. */
+  onInfo?: () => void;
 }) {
   return (
     <Pressable
@@ -51,6 +56,7 @@ function ModeButton({
         {sublabel ? <Text style={styles.modeSub}>{sublabel}</Text> : null}
       </View>
       {locked ? <Ionicons name="lock-closed" size={26} color={SQColors.textMuted} style={styles.lock} /> : null}
+      {onInfo ? <GlassIconButton glyph="help" size={36} onPress={onInfo} /> : null}
     </Pressable>
   );
 }
@@ -58,6 +64,9 @@ function ModeButton({
 export default function SportQuizPlay() {
   const t = useSQLabels();
   const { coins } = useSportQuiz();
+  // Which info sheet is open: the overview ("?" in the header) or a single mode
+  // ("?" on that mode's card). null = closed.
+  const [info, setInfo] = useState<InfoMode | null>(null);
 
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
@@ -69,7 +78,7 @@ export default function SportQuizPlay() {
           <GlassIconButton glyph="chevron-back" size={44} onPress={() => router.back()} />
         </View>
         <View style={styles.headerRight}>
-          <GlassIconButton glyph="help" size={44} onPress={() => {}} />
+          <GlassIconButton glyph="help" size={44} onPress={() => setInfo('all')} />
           <Pressable onPress={() => router.push('/sport-quiz/shop')} hitSlop={8}>
             <CoinPill coins={coins} size="lg" />
           </Pressable>
@@ -80,8 +89,18 @@ export default function SportQuizPlay() {
         <Text style={styles.title}>{t.chooseMode}</Text>
         <View style={styles.modes}>
           {/* Classic + Legends → Select Level → sequential quiz. */}
-          <ModeButton image={require('../../assets/sport-quiz/modes/classic.png')} label={t.modeClassic} onPress={() => router.push('/sport-quiz/levels')} />
-          <ModeButton image={require('../../assets/sport-quiz/modes/legends.png')} label={t.modeLegends} onPress={() => router.push('/sport-quiz/legends-levels')} />
+          <ModeButton
+            image={require('../../assets/sport-quiz/modes/classic.png')}
+            label={t.modeClassic}
+            onPress={() => router.push('/sport-quiz/levels')}
+            onInfo={() => setInfo('classic')}
+          />
+          <ModeButton
+            image={require('../../assets/sport-quiz/modes/legends.png')}
+            label={t.modeLegends}
+            onPress={() => router.push('/sport-quiz/legends-levels')}
+            onInfo={() => setInfo('legends')}
+          />
           <ModeButton image={require('../../assets/sport-quiz/modes/challenge.png')} label={t.modeChallenge} sublabel={t.comingSoon} locked onPress={() => {}} />
           <ModeButton image={require('../../assets/sport-quiz/modes/sprint.png')} label={t.modeSprint} sublabel={t.comingSoon} locked onPress={() => {}} />
         </View>
@@ -98,6 +117,8 @@ export default function SportQuizPlay() {
           <Text style={styles.otherLabel}>{t.otherApps}</Text>
         </Pressable>
       </View>
+
+      <ModeInfoModal visible={info != null} mode={info ?? 'all'} onClose={() => setInfo(null)} />
     </SafeAreaView>
   );
 }

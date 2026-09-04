@@ -26,7 +26,12 @@ import { PuzzleOverlay } from '@/components/sport-quiz/puzzle-overlay';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
 import { legendsQuestionsForLevel } from '@/lib/sport-quiz/legends';
 import type { SportQuizQuestion } from '@/lib/sport-quiz/content';
-import { CORRECT_REWARD_COINS, HINT_SKIP_COST, LEGEND_REVEAL_COST } from '@/lib/sport-quiz/economy';
+import {
+  HINT_SKIP_COST,
+  LEGEND_CORRECT_REWARD_COINS,
+  LEGEND_REVEAL_COST,
+  LEGEND_WRONG_PENALTY_COINS,
+} from '@/lib/sport-quiz/economy';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -61,7 +66,7 @@ export default function SportLegendsQuiz() {
   const levelNumber = Number(level ?? 0);
   const questionId = Number(q ?? 0);
   const { snapshot } = useSportQuizContent();
-  const { coins, addCoins, spendCoins, isSolved, markSolved } = useSportQuiz();
+  const { coins, addCoins, spendCoins, isSolved, markSolved, revealedPlatesFor, revealPlate } = useSportQuiz();
   const [reportOpen, setReportOpen] = useState(false);
 
   // Which face is open. Starts at the tapped face; solving + "Next" advances it to
@@ -84,21 +89,25 @@ export default function SportLegendsQuiz() {
   const [solved, setSolved] = useState(alreadySolved);
   const [revealing, setRevealing] = useState(alreadySolved);
   const [revealAnimated, setRevealAnimated] = useState(false);
-  // Plates the player has paid to uncover (a re-opened solved face shows fully).
-  const [revealedPlates, setRevealedPlates] = useState<Set<number>>(new Set());
+  // Plates the player has paid to uncover — seeded from the PERSISTED set, so a
+  // face keeps everything already opened when the question is re-entered.
+  const [revealedPlates, setRevealedPlates] = useState<Set<number>>(
+    () => new Set(question ? revealedPlatesFor(question.id) : []),
+  );
 
   const onTapPlate = useCallback(
     (i: number) => {
-      if (solved || revealedPlates.has(i)) return;
+      if (!question || solved || revealedPlates.has(i)) return;
       if (!spendCoins(LEGEND_REVEAL_COST)) {
         // Not enough coins to uncover another piece → the shop.
         router.push('/sport-quiz/shop');
         return;
       }
       setRevealedPlates((prev) => new Set(prev).add(i));
+      revealPlate(question.id, i); // persist so it stays open after leaving
       Haptics.selectionAsync().catch(() => {});
     },
-    [solved, revealedPlates, spendCoins],
+    [question, solved, revealedPlates, spendCoins, revealPlate],
   );
 
   const onPick = (option: string) => {
@@ -108,11 +117,13 @@ export default function SportLegendsQuiz() {
       setSolved(true);
       setRevealAnimated(true);
       markSolved(question.id);
-      if (!already) addCoins(CORRECT_REWARD_COINS);
+      if (!already) addCoins(LEGEND_CORRECT_REWARD_COINS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setRevealing(true);
     } else {
+      // A wrong pick costs coins (charged once per distinct wrong option).
       setWrongPicked((w) => [...w, option]);
+      addCoins(-LEGEND_WRONG_PENALTY_COINS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }
   };
@@ -143,10 +154,11 @@ export default function SportLegendsQuiz() {
       setSolved(answered);
       setRevealing(answered);
       setRevealAnimated(false);
-      setRevealedPlates(new Set());
+      // Seed from the persisted set so previously bought plates stay open.
+      setRevealedPlates(new Set(revealedPlatesFor(cand.id)));
       setActiveId(cand.id);
     },
-    [snapshot, levelNumber, activeId, isSolved],
+    [snapshot, levelNumber, activeId, isSolved, revealedPlatesFor],
   );
   const goToNext = useCallback(() => goToOffset(1), [goToOffset]);
   const goToPrev = useCallback(() => goToOffset(-1), [goToOffset]);
@@ -432,8 +444,10 @@ const styles = StyleSheet.create({
   explText: { fontSize: 14, fontWeight: '600', color: SQColors.text, lineHeight: 20, textAlign: 'center' },
 
   bottom: { marginTop: 'auto', paddingTop: 12, paddingBottom: 10 },
-  navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
-  navPrimary: { flex: 1, marginHorizontal: 0 },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
+  navPrimary: { flexGrow: 1, flexShrink: 1, flexBasis: 0, marginHorizontal: 0 },
+  // Fixed height + flexBasis 0 so Back and Next are ALWAYS exactly the same size,
+  // in every state (right after answering as well as when paging a solved level).
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,7 +455,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: SQColors.neon,
     borderRadius: SQRadius.pill,
-    paddingVertical: 16,
+    height: 56,
+    paddingVertical: 0,
   },
   nextText: { color: SQColors.textOnNeon, fontWeight: '900', fontSize: 18, letterSpacing: 0.5 },
 

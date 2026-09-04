@@ -16,22 +16,44 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REG="$ROOT/dev-servers.json"
 
-# Auto-load the stored dev-tunnel token (gitignored .expo-dev-auth) so a bare
-# `scripts/expo-qr.sh <slug>` serves a SIGNED-IN iPhone without re-entering the
-# token. An EXPO_TOKEN already in the environment always wins over the file.
-if [ -z "${EXPO_TOKEN:-}" ] && [ -f "$ROOT/.expo-dev-auth" ]; then
+# Stored per-tester tokens (gitignored .expo-dev-auth): EXPO_DEV_DEFAULT_OWNER +
+# one TOKEN_<ACCOUNT> per tester. Loaded so a bare `scripts/expo-qr.sh <slug>`
+# serves a SIGNED-IN phone without anyone typing a token.
+if [ -f "$ROOT/.expo-dev-auth" ]; then
   set -a; . "$ROOT/.expo-dev-auth"; set +a
 fi
 
 SLUG="${1:-}"
-if [ -z "$SLUG" ]; then echo "usage: scripts/expo-qr.sh <app-slug>"; exit 2; fi
+if [ -z "$SLUG" ]; then echo "usage: scripts/expo-qr.sh <app-slug> [tester-account]"; exit 2; fi
 
-PORT="$(node "$ROOT/scripts/dev-port.js" "$SLUG")"
-HOST="$(node -e "const c=require('$REG');process.stdout.write((c.host_template||'{slug}.dev.turbosuslik.online').replace('{slug}','$SLUG'))")"
+# WHICH TESTER. A Metro server can be signed into exactly ONE Expo account, and a
+# signed-in Expo Go refuses a mismatch ("signed in to Expo CLI as X and to Expo Go
+# as Y"). So each tester gets their OWN server: own registry key -> own port, own
+# host, own token. Default tester keeps the plain <slug> key/host (unchanged).
+TESTER="${2:-${EXPO_DEV_OWNER:-${EXPO_DEV_DEFAULT_OWNER:-}}}"
+TESTER="$(printf '%s' "$TESTER" | tr '[:upper:]' '[:lower:]')"
+DEFAULT_OWNER="$(printf '%s' "${EXPO_DEV_DEFAULT_OWNER:-}" | tr '[:upper:]' '[:lower:]')"
+
+# Resolve this tester's token: explicit EXPO_TOKEN in env wins, else TOKEN_<ACCT>.
+if [ -z "${EXPO_TOKEN:-}" ] && [ -n "$TESTER" ]; then
+  VARNAME="TOKEN_$(printf '%s' "$TESTER" | tr '[:lower:]-' '[:upper:]_')"
+  EXPO_TOKEN="${!VARNAME:-}"
+fi
+EXPO_DEV_OWNER="$TESTER"
+
+# Registry key = slug for the default tester, "<slug>-<tester>" for anyone else.
+# The dev-router extracts the key straight from the Host header ([a-z0-9-]+), so a
+# suffixed key needs no router change — it just maps to its own port.
+KEY="$SLUG"
+if [ -n "$TESTER" ] && [ "$TESTER" != "$DEFAULT_OWNER" ]; then KEY="$SLUG-$TESTER"; fi
+
+PORT="$(node "$ROOT/scripts/dev-port.js" "$KEY")"
+HOST="$(node -e "const c=require('$REG');process.stdout.write((c.host_template||'{slug}.dev.turbosuslik.online').replace('{slug}','$KEY'))")"
 ROUTER_PORT="$(node -e "const c=require('$REG');process.stdout.write(String(c.router_port||8088))")"
 DNS_MODE="$(node -e "const c=require('$REG');process.stdout.write(c.dns_mode||'wildcard')")"
 
 echo "app:    $SLUG"
+echo "tester: ${TESTER:-<anonymous>}   (own server per Expo account)"
 echo "port:   $PORT   (Metro, fixed)"
 echo "host:   https://$HOST   (via dev-router :$ROUTER_PORT)"
 
@@ -60,7 +82,9 @@ if lsof -iTCP:"$PORT" -sTCP:LISTEN -P -n >/dev/null 2>&1; then
   MISMATCH=0
   if [ -n "${EXPO_TOKEN:-}" ]; then
     OW="$(curl -s -H 'expo-platform: ios' "http://127.0.0.1:$PORT" 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const o=JSON.parse(s);process.stdout.write(String((o.extra&&o.extra.expoClient&&o.extra.expoClient.owner)||''))}catch{process.stdout.write('')}})" 2>/dev/null)"
-    [ -z "$OW" ] && MISMATCH=1
+    # Restart when the live server is anonymous (no owner) or signed into a
+    # DIFFERENT account than this tester — either way a signed-in Expo Go rejects it.
+    [ "$(printf '%s' "$OW" | tr '[:upper:]' '[:lower:]')" != "$TESTER" ] && MISMATCH=1
   fi
   if [ "$MISMATCH" = "0" ]; then
     echo "status: REUSING already-running server on :$PORT"
@@ -68,7 +92,7 @@ if lsof -iTCP:"$PORT" -sTCP:LISTEN -P -n >/dev/null 2>&1; then
     echo "Open in Expo Go:  exp://$HOST"
     exit 0
   fi
-  echo "status: running server on :$PORT is ANONYMOUS but EXPO_TOKEN was given — restarting it online."
+  echo "status: server on :$PORT has owner='${OW:-<anonymous>}' but tester is '$TESTER' — restarting it."
   kill $(lsof -t -iTCP:"$PORT" -sTCP:LISTEN -P -n 2>/dev/null) 2>/dev/null || true
   sleep 3
 fi
@@ -101,19 +125,24 @@ echo "status: starting a new Expo server… ($((RUNNING+1))/$MAXC)"
 # Both PROXY_URLs point manifest/bundle URLs at the tunnel. --clear is REQUIRED:
 # EXPO_PUBLIC_APP_SLUG is inlined at build time and Metro's transform cache is
 # shared project-wide, so start fresh per app (else another app's bundle leaks).
+# NB: EXPO_PUBLIC_APP_SLUG is the REAL app slug ($SLUG) even when the registry key
+# is suffixed with a tester — the suffix only picks the port/host, never the app.
 COMMON="EXPO_PUBLIC_APP_SLUG=$SLUG EXPO_PACKAGER_PROXY_URL=https://$HOST EXPO_MANIFEST_PROXY_URL=https://$HOST"
 if [ -n "${EXPO_TOKEN:-}" ]; then
-  OWNER="${EXPO_DEV_OWNER:-dl3228}"
-  echo "auth:   ONLINE with EXPO_TOKEN, owner=$OWNER (for a signed-in Expo Go)"
-  CMD="cd $ROOT && EXPO_TOKEN=$EXPO_TOKEN EXPO_DEV_OWNER=$OWNER $COMMON npx expo start --port $PORT --clear"
+  echo "auth:   ONLINE with $TESTER's token, owner=$TESTER (for a signed-in Expo Go)"
+  CMD="cd $ROOT && EXPO_TOKEN=$EXPO_TOKEN EXPO_DEV_OWNER=$TESTER $COMMON npx expo start --port $PORT --clear"
 else
+  if [ -n "$TESTER" ]; then
+    echo "WARN:   no token for '$TESTER' — add TOKEN_$(printf '%s' "$TESTER" | tr '[:lower:]-' '[:upper:]_')=<token> to $ROOT/.expo-dev-auth"
+    echo "        (falling back to anonymous; a SIGNED-IN Expo Go will reject it)"
+  fi
   echo "auth:   anonymous (EXPO_OFFLINE=1) — opens ONLY on a LOGGED-OUT Expo Go / Android"
   CMD="cd $ROOT && EXPO_OFFLINE=1 $COMMON npx expo start --port $PORT --clear"
 fi
 if command -v suslik-bg >/dev/null 2>&1; then
   suslik-bg "$CMD"
 else
-  nohup bash -lc "$CMD" >"/tmp/expo-$SLUG.log" 2>&1 &
+  nohup bash -lc "$CMD" >"/tmp/expo-$KEY.log" 2>&1 &
 fi
 echo "Started (give it ~10-15s to boot), then scan:"
 qr

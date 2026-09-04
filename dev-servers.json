@@ -50,6 +50,12 @@
     },
     "italy-history-and-geography-quiz": {
       "port": 8102
+    },
+    "sport-quiz-uladushka": {
+      "port": 8103
+    },
+    "italy-history-and-geography-quiz-uladushka": {
+      "port": 8104
     }
   }
 }

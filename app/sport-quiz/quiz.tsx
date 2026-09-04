@@ -24,7 +24,7 @@ import { AppBackground } from '@/components/sport-quiz/app-background';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
 import { questionsForLevel, type SportQuizQuestion } from '@/lib/sport-quiz/content';
-import { CORRECT_REWARD_COINS, HINT_SKIP_COST } from '@/lib/sport-quiz/economy';
+import { CORRECT_REWARD_COINS, HINT_SKIP_COST, WRONG_PENALTY_COINS } from '@/lib/sport-quiz/economy';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -117,9 +117,10 @@ export default function SportQuizQuiz() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setRevealing(true);
     } else {
-      // Wrong: keep it red and stay on the question (no lives, no penalty) so the
-      // player keeps trying until they pick the correct answer.
+      // Wrong: keep it red and stay on the question (no lives) so the player keeps
+      // trying — but each distinct wrong pick costs coins.
       setWrongPicked((w) => [...w, option]);
+      addCoins(-WRONG_PENALTY_COINS);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }
   };
@@ -480,8 +481,10 @@ const styles = StyleSheet.create({
 
   bottom: { marginTop: 'auto', paddingTop: 12, paddingBottom: 10 },
   // Back + primary action share one row; both stretch to the same height.
-  navRow: { flexDirection: 'row', alignItems: 'stretch', gap: 12, paddingHorizontal: 16 },
-  navPrimary: { flex: 1, marginHorizontal: 0 },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
+  navPrimary: { flexGrow: 1, flexShrink: 1, flexBasis: 0, marginHorizontal: 0 },
+  // Fixed height + flexBasis 0 so Back and Next are ALWAYS exactly the same size,
+  // in every state (right after answering as well as when paging a solved level).
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -489,7 +492,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: SQColors.neon,
     borderRadius: SQRadius.pill,
-    paddingVertical: 16,
+    height: 56,
+    paddingVertical: 0,
   },
   nextText: { color: SQColors.textOnNeon, fontWeight: '900', fontSize: 18, letterSpacing: 0.5 },
 

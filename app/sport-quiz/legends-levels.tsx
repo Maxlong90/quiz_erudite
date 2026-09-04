@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground, useSportsBgReady } from '@/components/sport-quiz/app-background';
+import { ModeInfoModal } from '@/components/sport-quiz/mode-info-modal';
 import { CoinPill, GlassIconButton } from '@/components/sport-quiz/ui';
 import { SportLevelCard } from '@/components/sport-quiz/level-card';
 import {
@@ -37,6 +38,7 @@ interface LevelRow {
 export default function SportLegendsLevels() {
   const t = useSQLabels();
   const { coins, solvedIds } = useSportQuiz();
+  const [infoOpen, setInfoOpen] = useState(false);
   const { snapshot, status, error, resync } = useSportQuizContent();
   // Warm the in-level quiz backdrop while the player browses levels.
   useSportsBgReady('deep');
@@ -64,12 +66,15 @@ export default function SportLegendsLevels() {
       <AppBackground variant="navy" />
       <StatusBar style="light" />
 
-      {/* Header: back · coins (no lives) */}
+      {/* Header: back · coins + "?" (this mode's rules and coin maths) */}
       <View style={styles.header}>
         <GlassIconButton glyph="chevron-back" size={44} onPress={() => router.back()} />
-        <Pressable onPress={() => router.push('/sport-quiz/shop')} hitSlop={8}>
-          <CoinPill coins={coins} size="lg" />
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable onPress={() => router.push('/sport-quiz/shop')} hitSlop={8}>
+            <CoinPill coins={coins} size="lg" />
+          </Pressable>
+          <GlassIconButton glyph="help" size={44} onPress={() => setInfoOpen(true)} />
+        </View>
       </View>
 
       <Text style={styles.title}>{t.selectLevel}</Text>
@@ -109,6 +114,8 @@ export default function SportLegendsLevels() {
           </View>
         }
       />
+
+      <ModeInfoModal visible={infoOpen} mode="legends" onClose={() => setInfoOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -123,6 +130,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   title: {
     color: SQColors.neonPink,
