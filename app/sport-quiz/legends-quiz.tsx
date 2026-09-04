@@ -31,6 +31,7 @@ import {
   LEGEND_CORRECT_REWARD_COINS,
   LEGEND_REVEAL_COST,
   LEGEND_WRONG_PENALTY_COINS,
+  MIN_COINS_TO_ANSWER,
 } from '@/lib/sport-quiz/economy';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
@@ -112,6 +113,12 @@ export default function SportLegendsQuiz() {
 
   const onPick = (option: string) => {
     if (!question || solved || wrongPicked.includes(option)) return;
+    // Too poor to risk a wrong answer → straight to the shop, no pick accepted.
+    // (Uncovering plates stays allowed — that only costs LEGEND_REVEAL_COST.)
+    if (coins < MIN_COINS_TO_ANSWER) {
+      router.push('/sport-quiz/shop');
+      return;
+    }
     if (option === question.correctAnswer) {
       const already = isSolved(question.id);
       setSolved(true);

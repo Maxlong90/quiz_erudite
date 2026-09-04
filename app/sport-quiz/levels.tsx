@@ -84,10 +84,10 @@ export default function SportQuizLevels() {
       <View style={styles.header}>
         <GlassIconButton glyph="chevron-back" size={44} onPress={() => router.back()} />
         <View style={styles.headerRight}>
+          <GlassIconButton glyph="help" size={44} onPress={() => setInfoOpen(true)} />
           <Pressable onPress={() => router.push('/sport-quiz/shop')} hitSlop={8}>
             <CoinPill coins={coins} size="lg" />
           </Pressable>
-          <GlassIconButton glyph="help" size={44} onPress={() => setInfoOpen(true)} />
         </View>
       </View>
 

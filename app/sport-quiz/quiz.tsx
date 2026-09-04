@@ -24,7 +24,12 @@ import { AppBackground } from '@/components/sport-quiz/app-background';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
 import { questionsForLevel, type SportQuizQuestion } from '@/lib/sport-quiz/content';
-import { CORRECT_REWARD_COINS, HINT_SKIP_COST, WRONG_PENALTY_COINS } from '@/lib/sport-quiz/economy';
+import {
+  CORRECT_REWARD_COINS,
+  HINT_SKIP_COST,
+  MIN_COINS_TO_ANSWER,
+  WRONG_PENALTY_COINS,
+} from '@/lib/sport-quiz/economy';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -106,6 +111,11 @@ export default function SportQuizQuiz() {
 
   const onPick = (option: string) => {
     if (solved || wrongPicked.includes(option)) return;
+    // Too poor to risk a wrong answer → straight to the shop, no pick accepted.
+    if (coins < MIN_COINS_TO_ANSWER) {
+      router.push('/sport-quiz/shop');
+      return;
+    }
     if (option === question.correctAnswer) {
       // Correct: light it green, award coins (first solve only), mark solved and
       // play the in-place reveal (wrong options fade out, answer glides up).

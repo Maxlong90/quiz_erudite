@@ -63,6 +63,8 @@ export interface SQLabels {
 
   // mode info sheet ("?" buttons) + settings version
   infoTitle: string;
+  infoWheelTitle: string;
+  infoWheelText: string;
   infoClassicText: string;
   infoLegendsText: string;
   infoCorrectAnswer: string;
@@ -153,6 +155,8 @@ const EN: SQLabels = {
   otherApps: 'Other apps',
 
   infoTitle: 'How it works',
+  infoWheelTitle: 'Daily wheel',
+  infoWheelText: 'Spin the Wheel of Fortune once every 24 hours and win free coins — up to 1000.',
   infoClassicText: 'Multiple-choice sports questions — pictures, dates and facts. 20 questions per level.',
   infoLegendsText: 'Guess the athlete hidden behind puzzle plates. Tap a plate to uncover a piece of the photo.',
   infoCorrectAnswer: 'Correct answer',
@@ -237,6 +241,8 @@ const RU: SQLabels = {
   otherApps: 'Другие приложения',
 
   infoTitle: 'Как это работает',
+  infoWheelTitle: 'Ежедневное колесо',
+  infoWheelText: 'Раз в сутки крути Колесо Фортуны и получай бесплатные монеты — до 1000 за прокрут.',
   infoClassicText: 'Спортивные вопросы с выбором ответа — фото, даты и факты. По 20 вопросов на уровень.',
   infoLegendsText: 'Угадай спортсмена, скрытого за пазлами. Тап по пазлу открывает кусочек фото.',
   infoCorrectAnswer: 'Правильный ответ',
@@ -321,6 +327,8 @@ const ES: SQLabels = {
   otherApps: 'Otras apps',
 
   infoTitle: 'Cómo funciona',
+  infoWheelTitle: 'Ruleta diaria',
+  infoWheelText: 'Gira la Ruleta de la Fortuna una vez cada 24 horas y gana monedas gratis: hasta 1000.',
   infoClassicText: 'Preguntas de deporte con opciones — fotos, fechas y datos. 20 preguntas por nivel.',
   infoLegendsText: 'Adivina al deportista oculto tras las piezas. Toca una pieza para descubrir parte de la foto.',
   infoCorrectAnswer: 'Respuesta correcta',
@@ -405,6 +413,8 @@ const FR: SQLabels = {
   otherApps: 'Autres apps',
 
   infoTitle: 'Comment ça marche',
+  infoWheelTitle: 'Roue quotidienne',
+  infoWheelText: 'Tourne la Roue de la Fortune une fois toutes les 24 h et gagne des pièces gratuites — jusqu’à 1000.',
   infoClassicText: 'Questions de sport à choix multiple — photos, dates et faits. 20 questions par niveau.',
   infoLegendsText: 'Devine le sportif caché derrière les pièces. Touche une pièce pour révéler la photo.',
   infoCorrectAnswer: 'Bonne réponse',

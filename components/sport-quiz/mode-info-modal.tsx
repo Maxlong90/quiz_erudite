@@ -79,6 +79,11 @@ export function ModeInfoModal({
             style={[StyleSheet.absoluteFill, { borderRadius: SQRadius.lg }]}
           />
           <Text style={styles.title}>{t.infoTitle}</Text>
+          {/* Daily wheel — a free coin source, so it sits ABOVE the modes. */}
+          <View style={styles.block}>
+            <Text style={styles.blockTitle}>{t.infoWheelTitle}</Text>
+            <Text style={styles.blockText}>{t.infoWheelText}</Text>
+          </View>
           {(mode === 'all' || mode === 'classic') && <ModeBlock mode="classic" />}
           {(mode === 'all' || mode === 'legends') && <ModeBlock mode="legends" />}
           <Pressable style={styles.close} onPress={onClose}>

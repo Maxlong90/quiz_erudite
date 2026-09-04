@@ -6,7 +6,15 @@
  */
 
 // ---- Coins ----
-export const STARTING_COINS = 150;
+export const STARTING_COINS = 500;
+
+/**
+ * Minimum balance required to answer a question in ANY mode. Below this the quiz
+ * screens send the player to the shop instead of accepting a pick, so nobody can
+ * play on with a balance too small to pay a wrong answer. (Uncovering Legends
+ * plates stays allowed below it — that only needs LEGEND_REVEAL_COST.)
+ */
+export const MIN_COINS_TO_ANSWER = 15;
 
 // ---- Classic quiz ----
 /** Coins awarded for each correct answer in the Classic quiz. */
