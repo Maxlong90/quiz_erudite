@@ -58,7 +58,9 @@ export default function SportQuizLevelComplete() {
       <Image source={WIN_BG} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
       <WinRays width={SCREEN_W} height={SCREEN_H} cx={cupCentre.x} cy={cupCentre.y} cupSize={CUP_SIZE} />
 
-      <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+      {/* Transparent — an opaque background here would paint OVER the backdrop
+          image and the rays sitting behind it. */}
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <StatusBar style="light" />
 
         <View style={styles.body}>
@@ -93,6 +95,7 @@ export default function SportQuizLevelComplete() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: SQColors.bgDeep },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   cupWrap: { width: CUP_SIZE, height: CUP_SIZE, alignItems: 'center', justifyContent: 'center' },
