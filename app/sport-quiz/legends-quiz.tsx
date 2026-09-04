@@ -92,6 +92,14 @@ export default function SportLegendsQuiz() {
 
   const alreadySolved = question ? isSolved(question.id) : false;
 
+  // Whether the level was ALREADY fully cleared when opened → review mode: paging
+  // just loops instead of re-showing the win screen (mirrors the Classic quiz).
+  const enteredComplete = useMemo(() => {
+    const list = snapshot ? legendsQuestionsForLevel(snapshot, levelNumber) : [];
+    return list.length > 0 && list.every((qq) => isSolved(qq.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Per-question state. Wrong picks stay red until the correct one is chosen; the
   // photo reveals (all plates gone) once solved.
   const [wrongPicked, setWrongPicked] = useState<string[]>([]);
@@ -175,7 +183,20 @@ export default function SportLegendsQuiz() {
     },
     [snapshot, levelNumber, activeId, isSolved, revealedPlatesFor],
   );
-  const goToNext = useCallback(() => goToOffset(1), [goToOffset]);
+  // Clearing the final face of the level opens the shared win screen; on a level
+  // that was already complete when entered, Next just keeps paging in a loop.
+  const goToNext = useCallback(() => {
+    const list = snapshot ? legendsQuestionsForLevel(snapshot, levelNumber) : [];
+    const allSolved = list.length > 0 && list.every((qq) => isSolved(qq.id));
+    if (allSolved && !enteredComplete) {
+      router.replace({
+        pathname: '/sport-quiz/level-complete',
+        params: { level: String(levelNumber), mode: 'legends' },
+      });
+      return;
+    }
+    goToOffset(1);
+  }, [snapshot, levelNumber, isSolved, enteredComplete, goToOffset]);
   const goToPrev = useCallback(() => goToOffset(-1), [goToOffset]);
 
   const onShare = useCallback(async () => {
