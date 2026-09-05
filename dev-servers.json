@@ -56,6 +56,9 @@
     },
     "italy-history-and-geography-quiz-uladushka": {
       "port": 8104
+    },
+    "coat-of-arms-uladushka": {
+      "port": 8105
     }
   }
 }
