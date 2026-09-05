@@ -20,19 +20,20 @@ The app reads these public env vars at build time:
 | Variable | Purpose | Default if unset |
 |----------|---------|------------------|
 | EXPO_PUBLIC_API_URL | Backend base URL (see `api/client.ts`) | `https://quiz-erudit-backend.turbosuslik.online/api/v1` |
-| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path; also selects which app the build is — `logo-quiz` builds the Logo Quiz, `flags-quiz` builds the Flags Quiz, anything else builds the main quiz (see `api/client.ts`, `app/index.tsx`) | `erudite-quiz` |
+| EXPO_PUBLIC_APP_SLUG | App slug used in every endpoint path; also selects which app the build is — see [Building a sibling app variant](#building-a-sibling-app-variant) for the recognized values (see `api/client.ts`, `app/index.tsx`) | `erudite-quiz` |
 | EXPO_PUBLIC_REVENUECAT_ANDROID_KEY | RevenueCat public Android billing key (see `lib/revenuecat.ts`) | `goog_hFgRbNrOlUHcMtKClkwWcYIBLvd` |
 | EXPO_PUBLIC_REVENUECAT_IOS_KEY | RevenueCat public iOS billing key — enables iOS billing when set (see `lib/revenuecat.ts`) | *(empty — iOS billing stays off)* |
 | EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID | AdMob rewarded ad-unit id for "watch ad → +1 life" on Android (see `lib/ads.ts`) | Google's test rewarded id `ca-app-pub-3940256099942544/5224354917` |
 | EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID_IOS | AdMob rewarded ad-unit id for iOS — enables iOS rewarded ads when set (see `lib/ads.ts`) | *(empty — iOS ads stay off)* |
-| EXPO_PUBLIC_IOS_BUNDLE_ID | iOS bundle identifier for a sibling variant (`logo-quiz` / `flags-quiz`) — gives that build its own store identity so its store products resolve (see `app.config.js`) | *(falls back to the Erudite bundle id)* |
+| EXPO_PUBLIC_IOS_BUNDLE_ID | iOS bundle identifier for a sibling variant — gives that build its own store identity so its store products resolve (see `app.config.js`) | *(falls back to the Erudite bundle id)* |
 | EXPO_PUBLIC_ANDROID_PACKAGE | Android package for a sibling variant — the Android counterpart of the bundle id (see `app.config.js`) | *(falls back to the Erudite package)* |
+| EXPO_DEV_OWNER | Pins the Expo Go dev manifest to one tester's Expo account, so a self-hosted dev tunnel opens on their device; also strips the EAS/updates link (see `app.config.js`) | *(unset — manifest carries no owner)* |
 
 Android keys carry a committed default, so the app builds and runs without an `.env` file. The RevenueCat Android key is a public SDK key and is safe to commit; it has a literal fallback that matches the in-code default. The iOS RevenueCat key and iOS rewarded unit id have **no** committed fallback, so iOS monetization stays safely off until the owner supplies them — see [iOS Monetization Parity](ios-monetization-parity.md).
 
 For EAS cloud builds the RevenueCat keys are also wired explicitly in `eas.json` under the `preview` and `production` profiles, so release builds carry them through EAS env rather than relying on the in-code fallback. Both the Android key and the iOS key (`appl_…`) are now set on those two Erudite profiles, so an Erudite App Store build ships with iOS billing on. The `development` profile leaves them unset and falls back to the committed Android default. Each key must point at the RevenueCat project the backend provisions, or the `default` offering comes back empty and the paywall has no packages to sell.
 
-Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set, or a sibling slug (`logo-quiz`, `flags-quiz`) to build that app from the same tree — see [Logo Quiz](logo-quiz.md) and [Flags Quiz](flags-quiz.md).
+Copy `.env.example` to `.env` and adjust as needed. Note that `.env.example` ships an older slug value; the current app's content lives under the `erudite-quiz` slug, which is also the in-code default. Set `EXPO_PUBLIC_APP_SLUG=erudite-quiz` for the live content set, or a sibling slug to build that app from the same tree — see [Building a sibling app variant](#building-a-sibling-app-variant).
 
 ## Run the App
 
@@ -58,11 +59,25 @@ Like RevenueCat, rewarded ads are gated by capability, not a hardcoded `Platform
 
 ## Building a sibling app variant
 
-Both sibling apps — the Logo Quiz and the Flags Quiz — are built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG` to `logo-quiz` or `flags-quiz` (see [Logo Quiz](logo-quiz.md) and [Flags Quiz](flags-quiz.md)). A store build also needs the sibling's own store identity so its RevenueCat products resolve, which `app.config.js` supplies.
+Every sibling app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG`. Five values select a sibling; anything else builds the main Erudite quiz:
 
-`app.config.js` is a dynamic Expo config layered over the static `app.json`. For any build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. When `EXPO_PUBLIC_APP_SLUG` is `logo-quiz` it overrides the app `name`, the iOS `bundleIdentifier`, and the Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`. The `flags-quiz` branch does the same for store identity but *also* overrides the Expo project `slug` to `flags-quiz`, so it is a separate app in Expo Go rather than colliding with the logo variant's cached bundle. For the logo variant the Expo project `slug` is deliberately left unchanged — it identifies the EAS project, not the store listing.
+| `EXPO_PUBLIC_APP_SLUG` | Builds | Expo `slug` override | Docs |
+|------------------------|--------|----------------------|------|
+| `logo-quiz` | Logo Quiz | *(none — keeps the base)* | [Logo Quiz](logo-quiz.md) |
+| `flags-quiz` | Flags Quiz | `flags-quiz` | [Flags Quiz](flags-quiz.md) |
+| `coat-of-arms` | Coat of Arms | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) |
+| `sport-quiz` | Sport Quiz | `sport-quiz` | [Sport Quiz](sport-quiz.md) |
+| `italy-history-and-geography-quiz` | Italy Quiz (scaffold) | `italy-quiz` | [Architecture](architecture.md#italy-quiz-an-unfinished-variant) |
 
-The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` set `EXPO_PUBLIC_APP_SLUG=logo-quiz` plus that app's bundle id, package, and RevenueCat keys. Those values ship as `REPLACE_WITH_APP2_…` placeholders; until an operator fills them, the identity vars fall back to the Erudite identity, so the sibling's store products do not resolve and the shop fails closed on a device (local-granting only in Expo Go). Filling the placeholders is a separate ops step, not a code change. The Flags Quiz has no dedicated `eas.json` profile yet; its bundle id and package likewise fall back to the Erudite identity until an operator supplies them, and it ships no shop or paywall so no store products need to resolve.
+`app.config.js` is a dynamic Expo config layered over the static `app.json`. For a build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. Every sibling branch overrides the app `name` and takes its iOS `bundleIdentifier` and Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`, and every one ships iPhone-only (`ios.supportsTablet: false`) because none has a tablet layout yet — which also matters for App Store review, since Apple otherwise reviews on iPad.
+
+Every branch except `logo-quiz` also overrides the Expo project `slug`. Sharing the base `quiz-erudit` slug makes variants collide in Expo Go, so opening one shows another's cached bundle. The logo variant deliberately keeps the base slug: it identifies the established EAS project, not the store listing. The Flags Quiz and Coat of Arms branches additionally override the launcher icon (`icon` plus the Android adaptive foreground) so the variant never shows another app's mark.
+
+The `logo-quiz-preview` and `logo-quiz-production` profiles in `eas.json` set `EXPO_PUBLIC_APP_SLUG=logo-quiz` plus that app's bundle id, package, and RevenueCat keys. Those values ship as `REPLACE_WITH_APP2_…` placeholders; until an operator fills them, the identity vars fall back to the Erudite identity, so the sibling's store products do not resolve and the shop fails closed on a device (local-granting only in Expo Go). Filling the placeholders is a separate ops step, not a code change. The other siblings have no dedicated `eas.json` profile yet, so their bundle id and package likewise fall back to the Erudite identity. That is harmless for Flags Quiz and Coat of Arms, which ship no shop or paywall; for [Sport Quiz](sport-quiz.md#coin-packs-are-not-yet-real-purchases) it is the reason its coin packs still grant locally instead of billing.
+
+### Running Italy Quiz in Expo Go
+
+The Italy Quiz branch behaves differently from the others: it strips `runtimeVersion`, `updates`, and `extra.eas` from the config. A manifest carrying those fields reads as an updates-enabled EAS app, and Expo Go then demands an Expo-account sign-in that an offline dev server cannot satisfy. It also pins `owner` from `EXPO_DEV_OWNER`, because iOS Expo Go opens a self-hosted (non-`exp.direct`) dev tunnel only when the manifest owner matches the account the device is signed into *and* the CLI is signed into that same account. The same stripping happens for any variant when `EXPO_OFFLINE` or `EXPO_DEV_OWNER` is set, so a dev tunnel is always Expo-Go-friendly while EAS and store builds get their config back byte-for-byte.
 
 Real sibling purchases run through the same RevenueCat wrapper (`lib/revenuecat.ts`) as the main app, using the shared `premium` entitlement and `default` offering. So the same capability gating applies: enabled on a native platform with a configured key, fail-closed on a real device with the store off, local-grant only in Expo Go / web.
 
@@ -118,7 +133,7 @@ A binary can accept OTA only if it was built *after* `expo-updates` (with the in
 
 ### Multi-app note
 
-Because `updates.url` and `extra.eas.projectId` are injected per app from each App record's `expo_project_id` (see [Config](#config) above), every sibling built from this tree — Logo Quiz, Flags Quiz — automatically publishes and pulls OTA against its own EAS project. No app-specific endpoint is committed, so nothing in the repo changes when a new sibling comes online; the backend needs only that app's `expo_project_id`.
+Because `updates.url` and `extra.eas.projectId` are injected per app from each App record's `expo_project_id` (see [Config](#config) above), every sibling built from this tree automatically publishes and pulls OTA against its own EAS project. No app-specific endpoint is committed, so nothing in the repo changes when a new sibling comes online; the backend needs only that app's `expo_project_id`. The one exception is Italy Quiz, whose config branch strips the updates fields outright — it has no EAS project yet and cannot receive OTA until they are restored.
 
 ## Lint
 
@@ -134,7 +149,9 @@ Uses ESLint with the `eslint-config-expo` preset.
 npm test
 ```
 
-Runs the Jest suite (`jest-expo` preset). The tests live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing, the hint and lives economies, answer stats, store links, RevenueCat gating, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. `__tests__/app/` also holds screen-level integration tests that render the quiz screen with its dependencies mocked; one pins the API-fallback no-repeat guarantees (dedupe by ID, seen filter). They are fast tests with no device, emulator, or backend dependency, so the suite runs in seconds and is safe to run on every change.
+Runs the Jest suite (`jest-expo` preset). The 35 test files live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing and the two-variant image collection, the hint and lives economies, answer stats, store links, RevenueCat gating, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. `__tests__/app/` also holds screen-level integration tests that render a screen with its dependencies mocked: one pins the API-fallback no-repeat guarantees (dedupe by ID, seen filter), another pins the Coat of Arms reveal (the original image appears only after a correct answer, and never when the question has none). There is no device, emulator, or backend dependency, so the whole suite finishes in **under 10 seconds** and is safe to run on every change. It is not a long-running operation.
+
+**Known failure — the suite does not currently pass.** On Node 20 every one of the 35 suites aborts while loading with `TypeError: Super expression must either be null or a function`, thrown from `expo/src/winter/fetch/FetchResponse.ts` as the `winter` runtime installs its `fetch` global. The polyfill subclasses a `Response` that is not a constructor under the Jest environment, so the failure happens at module load and is unrelated to any individual test's assertions. It is a toolchain mismatch between the installed `expo` and `jest-expo` versions, not a regression in app code; resolving it needs a dependency fix (aligning or upgrading those two, or shimming the `fetch` globals in the Jest setup), after which the assertions above become meaningful again. Until then `npm test` cannot be used as a gate, and changes have to be verified on the emulator instead.
 
 One test-only wrinkle affects any test that exercises persisted state: helpers like `readSeen`/`writeSeen` lazy-load AsyncStorage through a dynamic `import()`, which Node's CommonJS test runtime cannot execute (it would throw and the helper's best-effort catch would silently no-op). The `test` env in `babel.config.js` rewrites those imports to `require()` via `babel-plugin-dynamic-import-node`, so the seen-set persistence is actually observable in tests. Metro handles `import()` natively for dev, production, and OTA bundles, so the shipped app never uses this rewrite.
 
@@ -183,6 +200,9 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 
 - [Architecture](architecture.md) -- System structure and component organization
 - [Content and Offline](content-and-offline.md) -- Snapshot sync and caching
+- [Long-Running Operations](long-running-operations.md) -- Commands that go silent long enough to look hung
 - [Logo Quiz](logo-quiz.md) -- Building the second app via `APP_SLUG`
-- [Flags Quiz](flags-quiz.md) -- Building the third app via `APP_SLUG`
+- [Flags Quiz](flags-quiz.md) -- Building a sibling app via `APP_SLUG`
+- [Coat of Arms](coat-of-arms-quiz.md) -- The heraldry sibling
+- [Sport Quiz](sport-quiz.md) -- The sports sibling
 - [INDEX](INDEX.md) -- Documentation entry point

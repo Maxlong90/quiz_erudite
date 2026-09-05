@@ -202,3 +202,5 @@ The store no longer tracks a rate-the-app reward. Logo Quiz once granted +100 co
 - [Data Model](data-model.md) -- Snapshot entities and the derived `order` field
 - [Architecture](architecture.md) -- Build-time app selection and module layout
 - [Gamification](gamification.md) -- Premium gating and the shared monetization model
+- [Sport Quiz](sport-quiz.md) -- A later sibling that adapts this app's level and wheel model
+- [Development](development.md) -- Building a sibling app variant

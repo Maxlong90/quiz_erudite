@@ -2,9 +2,11 @@
 
 The build tree ships a third trivia experience alongside the general-knowledge quiz and [Logo Quiz](logo-quiz.md): Flags Quiz, internally labelled the "App Template: Geography". The player identifies countries by their flag. This document explains why Flags Quiz exists as a separate app, the two distinct question shapes that back its two game modes, and how it reuses the shared content pipeline while introducing a new out-of-snapshot content source.
 
+Flags Quiz has since become the **template for later siblings**, not just one more app. [Coat of Arms](coat-of-arms-quiz.md) is built on its question types, its transforms, its run-progress hook, and its UI kit, changing only artwork and category slugs. Changes to anything described here as "shared" therefore land in more than one shipping app.
+
 ## Why a Third App
 
-Flags Quiz is a different game with its own art direction and flow (Home → Play → mode → Quiz → Result). Rather than fork the repository, it lives side by side with the other two apps and is selected at build time, exactly like Logo Quiz. It reuses the shared content cache, localization, store links, and content-report pipeline instead of reinventing them.
+Flags Quiz is a different game with its own art direction and flow (Home → Play → mode → Quiz → Result). Rather than fork the repository, it lives side by side with the other apps and is selected at build time, exactly like Logo Quiz. It reuses the shared content cache, localization, store links, and content-report pipeline instead of reinventing them.
 
 The build-time constant `APP_SLUG` (from `EXPO_PUBLIC_APP_SLUG`) decides which experience a build is. When it is `flags-quiz`, the home route (`app/index.tsx`) immediately redirects to `/flags-quiz/splash`, and the erudite intro, hub, and modes never render. Everything Flags Quiz needs lives under the `flags-quiz` slug in each module directory: screens in `app/flags-quiz/`, UI in `components/flags-quiz/`, state in `hooks/flags-quiz/`, domain logic in `lib/flags-quiz/`, and strings and theme in `constants/flags-quiz/`. Because `APP_SLUG` is a build-time constant, the redirect branch is stable across renders and never disturbs hook order.
 
@@ -28,6 +30,8 @@ The heart of Flags Quiz is two game modes backed by two *different* question sha
 ### All countries — flag picture, text answers
 
 The "All countries" mode (`app/flags-quiz/quiz.tsx`) shows a flag image and four text options, one correct. These questions are the app's `image_questions`, served inside the shared content snapshot at `GET /apps/flags-quiz/snapshot`. `buildCountryQuestions` (`lib/flags-quiz/content.ts`) is a pure transform from snapshot rows to `FlagCountryQuestion`, resolving each flag image through the snapshot's downloaded image map.
+
+`FlagCountryQuestion` carries one field Flags Quiz itself never uses: `originalImageUri`, the reward picture revealed after a correct answer in [Coat of Arms](coat-of-arms-quiz.md#the-spoiler-problem-and-the-two-image-variants). A flag snapshot never ships an original, so the field is always `null` here and the reveal path is inert. It lives on the shared type rather than in a Coat-of-Arms-specific one so the two apps keep using a single transform.
 
 A fresh run is shuffled, so "All countries" no longer always leads with the same flag; an unfinished run is resumed where the player left off, and only a finished (or brand-new) run reshuffles. See [Resuming a run](#resuming-a-run).
 
@@ -94,4 +98,6 @@ Every Flags Quiz screen is blue with glossy buttons. The home, play, settings, a
 - [Data Model](data-model.md) -- The snapshot shape and the image-answer endpoint
 - [Architecture](architecture.md) -- Build-time app selection and module layout
 - [Logo Quiz](logo-quiz.md) -- The second app built from the same tree
+- [Coat of Arms](coat-of-arms-quiz.md) -- The sibling built on this app's types and UI kit
+- [Sport Quiz](sport-quiz.md) -- A later sibling with a coins-only economy
 - [Development](development.md) -- Building a sibling app variant

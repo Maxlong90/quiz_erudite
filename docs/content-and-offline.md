@@ -33,17 +33,29 @@ Each cached file's name is derived from a hash of the *whole* remote URL, not ju
 
 The web platform has no writable filesystem, so it skips the local image cache entirely: downloads are reported complete immediately and `resolveLocalImage` returns the remote URL for the browser to cache itself.
 
+## Two Image Variants per Question
+
+A question can carry a second picture. [Coat of Arms](coat-of-arms-quiz.md) shows a *cleaned* coat during play — the country's name painted out of the artwork — and reveals the untouched *original* as a reward after a correct answer. The backend models this as two variants of the same image and exposes the second one on the snapshot question as `image_url_original`.
+
+Two properties of that field shape how the cache treats it. It is **absent, not null**, on every question without an original and in every other app's snapshot, so the cache must tolerate `undefined` rather than assume the key exists. And its URL differs from the playable one (it carries a `?variant=original` parameter plus its own checksum-derived cache-buster), so it hashes to its own `imageMap` entry and its own file on disk instead of colliding with the clean variant.
+
+`syncContent` therefore collects *both* URLs from every question when it builds the download list, filtering out the absent ones. That single change is what makes the reward image work offline; it is a no-op for every app whose questions have no original. Because the URL carries a checksum, replacing a cleaned coat on the backend changes the URL and invalidates the cached file on its own — no version bump or forced resync is needed to push corrected artwork to devices.
+
 ## Per-App Cache Namespacing
 
-One build tree ships three apps — the main quiz, the Logo Quiz, and the Flags Quiz — selected by the build's `APP_SLUG`. All three draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
+One build tree ships several apps — the main quiz, Logo Quiz, Flags Quiz, Coat of Arms, and Sport Quiz — selected by the build's `APP_SLUG` (see [Architecture](architecture.md#key-design-decisions)). They all draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
 
 The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys and `snapshot-images/` directory, so namespacing is a no-op for the primary app. Any other slug synced into the same build — for example a Logo Quiz screen syncing `logo-quiz` from an erudite build — gets a `:{slug}`-suffixed key set and its own `snapshot-images-{slug}/` directory. See [Logo Quiz](logo-quiz.md#from-mock-data-to-backend-content).
 
 ## Caching Content Served Outside the Snapshot
 
-Not all content rides the snapshot. The Flags Quiz "By continent" mode is backed by `image_answer_questions`, served from their own endpoint rather than the snapshot bundle (see [Flags Quiz](flags-quiz.md#the-two-game-modes)). Their flag-option images therefore cannot ride the snapshot's own image download.
+Not all content rides the snapshot. The "By continent" modes in [Flags Quiz](flags-quiz.md#the-two-game-modes) and [Coat of Arms](coat-of-arms-quiz.md#the-two-game-modes) are backed by `image_answer_questions`, served from their own endpoint rather than the snapshot bundle. Their option images therefore cannot ride the snapshot's own image download.
 
-`cacheImages` exists for this case. It downloads an arbitrary set of image URLs into a given app's namespaced image cache and returns the same URL → local-file map, reusing the exact directory scheme and unique-filename hashing as the snapshot sync. So a URL cached this way resolves through `resolveFromMap` just like a snapshot image resolves through `resolveLocalImage`, and it lands in the same `snapshot-images-{slug}/` directory. It is best-effort — failed downloads are skipped — and on web returns an empty map so callers fall back to the remote URLs. The Flags Quiz provider persists the raw image-answer payload alongside this map so the mode plays fully offline once synced.
+`cacheImages` exists for this case. It downloads an arbitrary set of image URLs into a given app's namespaced image cache and returns the same URL → local-file map, reusing the exact directory scheme and unique-filename hashing as the snapshot sync. So a URL cached this way resolves through `resolveFromMap` just like a snapshot image resolves through `resolveLocalImage`, and it lands in the same `snapshot-images-{slug}/` directory. It is best-effort — failed downloads are skipped — and on web returns an empty map so callers fall back to the remote URLs. Each provider persists the raw image-answer payload alongside this map so the mode plays fully offline once synced.
+
+### Forcing a refresh past the freshness window
+
+The Coat of Arms provider deliberately syncs with `force`, bypassing the 24-hour reuse rule on every launch. Its catalogue grew from a partial set to the full 195 coats after the first release, and a player holding a fresh-enough cache of the small set would have been pinned to it for a day at a time. Forcing the fetch trades a little startup network for content that is never a release behind. Other apps keep the normal freshness window.
 
 ## Cache Freshness
 
@@ -65,7 +77,7 @@ Because these URLs ride the snapshot, they inherit its 24-hour freshness window:
 
 ## Answer-Statistics Sync
 
-The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; the Logo Quiz and Flags Quiz content providers sync the same way but skip it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
+The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; every sibling app's content provider syncs the same way but skips it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
 
 ## Cross-Session No-Repeats
 
@@ -92,4 +104,6 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Gamification](gamification.md) -- Stats and achievements built on seen sets
 - [Architecture](architecture.md) -- The content cache provider
 - [Logo Quiz](logo-quiz.md) -- The second app that shares this cache under its own namespace
-- [Flags Quiz](flags-quiz.md) -- The third app, which also caches a second content source outside the snapshot
+- [Flags Quiz](flags-quiz.md) -- A sibling that also caches a second content source outside the snapshot
+- [Coat of Arms](coat-of-arms-quiz.md) -- The app that consumes the second image variant
+- [Sport Quiz](sport-quiz.md) -- A sibling drawing its levels from the same snapshot

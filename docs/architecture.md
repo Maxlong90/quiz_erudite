@@ -41,7 +41,9 @@ The app exists to deliver a fast, replayable general-knowledge trivia experience
 
 ## Navigation
 
-Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. The initial route is `splash`. Every cold start runs the full intro — splash → language → onboarding → home — regardless of any persisted "seen"/"picked" flag; the flow is deliberately *not* gated on AsyncStorage, so a restored Android Auto Backup can never skip splash, language, or onboarding. Onboarding can divert once to a forced paywall before home, but only when store billing is enabled on the platform (`revenueCatEnabled`) and the per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a full-screen themed gradient — dark purple by default, or a light lavender tint when the light appearance is selected (see [Theming and Appearance](#theming-and-appearance)). Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
+Expo Router provides file-based routing with a single `Stack` navigator defined in `app/_layout.tsx`. Despite the `initialRouteName="splash"` prop, Expo Router opens the app at `/` on a cold launch, so Home is the real entry point and has to bounce the launch into the intro flow itself. `lib/intro-gate.ts` holds a single process-lifetime flag that `consumeColdStart` returns true for exactly once — on the first Home mount after a cold start — which redirects to `/splash`.
+
+The split that follows is deliberate: the branded QUIZZES splash plays on **every** cold start so it always covers the native splash hand-off, but the rest of the intro plays exactly **once**. The splash screen itself checks the persisted `onboarding.seen.v1` flag and continues into language → onboarding only on a genuine first launch; every later launch goes straight to Home. Onboarding can divert once to a forced paywall before home, but only when store billing is enabled on the platform (`revenueCatEnabled`) and the per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) is set — otherwise it goes straight to home. See [Gamification](gamification.md#the-forced-post-onboarding-paywall). Most screens hide their header and ride a full-screen themed gradient — dark purple by default, or a light lavender tint when the light appearance is selected (see [Theming and Appearance](#theming-and-appearance)). Back gestures are disabled on flow screens (splash, language, onboarding, paywall, quiz, results) so the player cannot swipe out mid-flow or back into a finished quiz.
 
 | Route | Screen | Role |
 |-------|--------|------|
@@ -109,7 +111,7 @@ The navigator itself must repaint too. `app/_layout.tsx` splits into an outer `R
 
 ### Scope: Erudite only
 
-The sibling apps [Logo Quiz](logo-quiz.md) and Flags Quiz keep their own bespoke palettes under `constants/logo-quiz/` and `constants/flags-quiz/` and are untouched by this system. The token layer is additive: the legacy `Colors`/`QuizColors` maps in `constants/theme.ts` (which back an Expo-starter OS-scheme path) remain in place, and the OS-driven `ThemedText`/`ThemedView` primitives are intentionally *not* reused here — they read the device colour scheme, which is the wrong signal for an app-selected appearance.
+Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts` — [Logo Quiz](logo-quiz.md)'s pastel periwinkle, the glossy blue that [Flags Quiz](flags-quiz.md) and [Coat of Arms](coat-of-arms-quiz.md) share, [Sport Quiz](sport-quiz.md)'s neon-on-navy, and Italy Quiz's deep navy — and none of them are touched by this system. The token layer is additive: the legacy `Colors`/`QuizColors` maps in `constants/theme.ts` (which back an Expo-starter OS-scheme path) remain in place, and the OS-driven `ThemedText`/`ThemedView` primitives are intentionally *not* reused here — they read the device colour scheme, which is the wrong signal for an app-selected appearance.
 
 ## Key Design Decisions
 
@@ -121,7 +123,24 @@ The sibling apps [Logo Quiz](logo-quiz.md) and Flags Quiz keep their own bespoke
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**One tree, many apps.** The repository templates three distinct experiences from one build, selected by the build-time `APP_SLUG`. The main general-knowledge quiz is the default; `logo-quiz` builds the Logo Quiz brand-guessing game, and `flags-quiz` builds the Flags Quiz geography game. For any non-default slug the home route redirects straight into that app's self-contained flow (`app/logo-quiz/`, `app/flags-quiz/`) and the erudite intro, hub, and modes never render. The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)). See [Logo Quiz](logo-quiz.md) and [Flags Quiz](flags-quiz.md).
+**One tree, many apps.** The repository templates six distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
+
+| `APP_SLUG` | App | Entry route | Economy |
+|------------|-----|-------------|---------|
+| `erudite-quiz` (default) | Erudite general-knowledge quiz | `/splash` (via the intro gate) | Lives, hints, premium |
+| `logo-quiz` | [Logo Quiz](logo-quiz.md) — brand guessing | `/logo-quiz/splash` | Coins, lives, premium |
+| `flags-quiz` | [Flags Quiz](flags-quiz.md) — flags | `/flags-quiz/splash` | None |
+| `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) — heraldry | `/coat-of-arms/splash` | None |
+| `sport-quiz` | [Sport Quiz](sport-quiz.md) — sports | `/sport-quiz/splash` | Coins only |
+| `italy-history-and-geography-quiz` | Italy Quiz — see [Italy Quiz: an unfinished variant](#italy-quiz-an-unfinished-variant) | `/italy-quiz/splash` | None yet |
+
+The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, and Sport Quiz adapts Logo Quiz's level and wheel model. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
+
+### Italy Quiz: an unfinished variant
+
+The `italy-history-and-geography-quiz` slug builds a sixth variant that is currently a **scaffold, not a playable game**. It has a splash, a home screen over cartoon-landmarks artwork, a settings screen, and a two-level category browser whose seven categories and 28 subcategories are hardcoded in `constants/italy-quiz/categories.ts` rather than fetched. Tapping a subcategory is a dead end: there is no quiz screen, no result screen, and no backend content sync. Treat the frontend category list as placeholder taxonomy — the app is not yet wired to its backend slug.
+
+One quirk of the variant is worth knowing before touching `app.config.js`. Its branch strips `runtimeVersion`, `updates`, and `extra.eas` from the base config, because a manifest that looks like an updates-enabled EAS app makes Expo Go demand an Expo-account sign-in that an offline dev server cannot satisfy. Italy Quiz has no EAS build yet, so dropping those fields yields a plain, Expo-Go-friendly dev manifest. They must be restored once the variant gets its own EAS project, or it will never receive an over-the-air update.
 
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
@@ -157,24 +176,29 @@ lib/                    Device-local business logic and persistence
   quiz-stats.ts         Career totals + per-bucket seen sets
   achievements.ts       Achievement catalog and unlock detection
   today-question.ts     Daily-question pick
-  iap.ts                Shop bundle catalog + purchase flow (RevenueCat / local fallback)
-  revenuecat.ts         RevenueCat wrapper; capability-gated per platform; off in Expo Go / web
+  iap.ts                Shop bundles + purchase flow (RevenueCat / local)
+  revenuecat.ts         RevenueCat wrapper, capability-gated per platform
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps
   theme.ts              EruditePalette tokens (dark/light), legacy colors, fonts
 i18n/                   String tables for en, ru, es, fr
 
-app/logo-quiz/          Second app: self-contained Logo Quiz flow
-components/logo-quiz/   Logo Quiz UI (cards, HUD, wheel, confetti)
-hooks/logo-quiz/        Logo Quiz economy + backend-content providers
-lib/logo-quiz/          Logo Quiz content mapping, economy rules, store-purchase seam
-constants/logo-quiz/    Logo Quiz labels and theme
-app/flags-quiz/         Third app: self-contained Flags Quiz flow
-components/flags-quiz/  Flags Quiz UI (glossy buttons, flag artwork, backgrounds)
-hooks/flags-quiz/       Flags Quiz dual-source content provider
-lib/flags-quiz/         Flags Quiz content transforms (snapshot + image-answer)
-constants/flags-quiz/   Flags Quiz labels, theme, and continent keys
-app.config.js           Dynamic Expo config: per-variant store identity
+Every sibling app repeats the same five-directory shape under its own slug —
+screens, UI, state, domain logic, strings:
+
+app/{slug}/             Self-contained screen flow for that app
+components/{slug}/      Its UI kit
+hooks/{slug}/           Its content and economy providers
+lib/{slug}/             Its content transforms and rules
+constants/{slug}/       Its labels and theme
+
+  logo-quiz/            Cards, HUD, wheel, confetti; coins + lives + premium
+  flags-quiz/           Glossy buttons and flag artwork; dual-source content
+  coat-of-arms/         Reuses the flags-quiz types and UI kit; crest artwork
+  sport-quiz/           Neon-on-navy kit, coins, puzzle plates, win screen
+  italy-quiz/           Scaffold only: no lib/ or hooks/ (see above)
+
+app.config.js           Dynamic Expo config: per-variant identity and store ids
 ```
 
 ## See Also
@@ -184,4 +208,7 @@ app.config.js           Dynamic Expo config: per-variant store identity
 - [Gamification](gamification.md) -- Lives, hints, achievements, and modes
 - [Content and Offline](content-and-offline.md) -- Snapshot cache and no-repeats
 - [Logo Quiz](logo-quiz.md) -- The second app built from the same tree
-- [Flags Quiz](flags-quiz.md) -- The third app: a geography flag game with two question shapes
+- [Flags Quiz](flags-quiz.md) -- A geography flag game with two question shapes
+- [Coat of Arms](coat-of-arms-quiz.md) -- A heraldry game derived from Flags Quiz
+- [Sport Quiz](sport-quiz.md) -- A sports game with a coins-only economy
+- [Development](development.md) -- Building a sibling app variant

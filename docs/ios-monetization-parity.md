@@ -74,3 +74,16 @@ Nothing about this ships iOS on by accident. To bring iOS to parity, provide:
 
 Until each item is done its feature stays disabled behind the capability flag,
 so partial setup never produces a broken iOS paywall.
+
+This gating applies to the sibling apps too, each of which needs its own store
+identity and its own RevenueCat catalog before its paywall or shop can transact.
+[Sport Quiz](sport-quiz.md#coin-packs-are-not-yet-real-purchases) is the clearest
+case: its coin packs already carry final product ids but still grant locally,
+because no store keys exist for that app yet.
+
+## See Also
+
+- [Gamification](gamification.md) -- Premium, the shop, and the rewarded ad
+- [Development](development.md) -- Where the keys and build profiles live
+- [Architecture](architecture.md) -- Capability gating and the provider tree
+- [INDEX](INDEX.md) -- Documentation entry point
