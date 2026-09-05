@@ -7,7 +7,11 @@
  */
 import { resolveFromMap } from '@/lib/content-cache';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
-import type { FlagPictureQuestion, ImageAnswerApiQuestion } from '@/lib/flags-quiz/content';
+import {
+  correctOptionOriginalUrl,
+  type FlagPictureQuestion,
+  type ImageAnswerApiQuestion,
+} from '@/lib/flags-quiz/content';
 
 /** App slug the Coat of Arms quiz always syncs. */
 export const COAT_QUIZ_SLUG = 'coat-of-arms';
@@ -24,8 +28,10 @@ export const COAT_CONTINENT_BY_SLUG: Record<string, ContinentKey> = {
 
 /**
  * Build the "By continent" questions from the image-answer payload, resolving
- * each of the four coat option images through the URL→local-file map. Questions
- * whose category doesn't map to a known continent are dropped.
+ * each of the four coat option images through the URL→local-file map, plus the
+ * CORRECT option's original artwork (the coat that still carries the country
+ * name) for the post-answer reveal. Questions whose category doesn't map to a
+ * known continent are dropped; a question with no original simply never reveals.
  */
 export function buildCoatPictureQuestions(
   raw: ImageAnswerApiQuestion[],
@@ -40,6 +46,7 @@ export function buildCoatPictureQuestions(
       title: q.title,
       optionImageUris: (q.options ?? []).map((o) => resolveFromMap(imageMap, o.image_url)),
       correctIndex: q.correct_index,
+      correctOriginalImageUri: resolveFromMap(imageMap, correctOptionOriginalUrl(q)),
       explanation: q.explanation,
       continent,
     });

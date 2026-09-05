@@ -31,6 +31,7 @@ import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 import { getStoreLinks } from '@/lib/store-links';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
 import { CoatHelpModal, useCoatHelp } from '@/components/coat-of-arms/help-modal';
+import { CoatOriginalReveal } from '@/components/coat-of-arms/original-reveal';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
@@ -48,12 +49,10 @@ const MOVE_MS = 900;
 const UI_FADE_MS = 300;
 
 // The reward: once the answer glide lands, the ORIGINAL coat — the one that still
-// shows the country name on its banner — dissolves in on top of the cleaned one.
-// It starts on the same beat as the note/Next but runs SLOWER, so it is still
-// developing after the UI has settled and pulls the eye back up to the picture.
-// Only fires where the backend ships an original (64 of 195 coats).
+// shows the country name on its banner — dissolves in on top of the cleaned one
+// (see CoatOriginalReveal). Only fires where the backend ships an original
+// (64 of 195 coats).
 const COAT_REVEAL_DELAY_MS = MOVE_MS;
-const COAT_REVEAL_MS = 600;
 // The coat plate is square and CONTAINED; the reveal overlay stacks on exactly
 // this box so both variants register pixel-for-pixel.
 const COAT_SIZE = 190;
@@ -293,23 +292,15 @@ export default function CoatOfArmsGame() {
                 {/* Reward: the ORIGINAL coat (country name still on the banner)
                     dissolves in ON TOP of the cleaned one after a correct answer.
                     The clean coat deliberately stays at full opacity underneath —
-                    see the note on styles.coatReveal. Keyed by question so the
+                    see the note in CoatOriginalReveal. Keyed by question so the
                     entering animation re-fires on every question. */}
                 {revealing && question.originalImageUri ? (
-                  <Animated.View
+                  <CoatOriginalReveal
                     key={`coat-reveal-${question.id}`}
-                    style={styles.coatReveal}
-                    pointerEvents="none"
-                    entering={FadeIn.delay(COAT_REVEAL_DELAY_MS).duration(COAT_REVEAL_MS)}
-                  >
-                    <Image
-                      source={{ uri: question.originalImageUri }}
-                      style={styles.coatImg}
-                      contentFit="contain"
-                      transition={0}
-                      testID="coat-image-original"
-                    />
-                  </Animated.View>
+                    uri={question.originalImageUri}
+                    size={COAT_SIZE}
+                    delayMs={COAT_REVEAL_DELAY_MS}
+                  />
                 ) : null}
               </View>
             </View>
@@ -512,13 +503,6 @@ const styles = StyleSheet.create({
   },
   coatStack: { width: COAT_SIZE, height: COAT_SIZE },
   coatImg: { width: COAT_SIZE, height: COAT_SIZE },
-  // Covers the picture box exactly. The base coat is NOT faded out: both layers
-  // are the same artwork at the same geometry, so holding the base opaque keeps
-  // the picture fully solid all the way through and only the banner text
-  // "develops" in. A true cross-fade would dip the composite to ~75% alpha at the
-  // midpoint over the white plate — a visible flicker — and, if the original ever
-  // failed to load, would fade the picture away to nothing.
-  coatReveal: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   coatFallback: { backgroundColor: 'rgba(11, 58, 135, 0.08)' },
   prompt: {
     color: '#FFFFFF',

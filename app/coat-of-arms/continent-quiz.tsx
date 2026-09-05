@@ -21,6 +21,7 @@ import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
 import { CoatHelpModal, useCoatHelp } from '@/components/coat-of-arms/help-modal';
+import { CoatOriginalReveal } from '@/components/coat-of-arms/original-reveal';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
@@ -41,6 +42,12 @@ const REVEAL_MS = 900;
 // UI_FADE_MS once the glide lands. Matches Flags Quiz exactly.
 const MOVE_MS = 900;
 const UI_FADE_MS = 300;
+
+// The reward: once the answer glide lands, the ORIGINAL coat — the one that still
+// shows the country name on its banner — dissolves in on top of the played one
+// (see CoatOriginalReveal). Only fires where the backend ships an original, which
+// is ~32% of the time.
+const COAT_REVEAL_DELAY_MS = MOVE_MS;
 
 // Coat option box: two per row, SQUARE (coats are portrait/square, unlike a wide
 // flag), each on a white plate with the coat CONTAINED (never cropped).
@@ -287,16 +294,37 @@ export default function CoatOfArmsContinentGame() {
                   ]}
                 >
                   <View style={styles.optionFrame}>
-                    {uri ? (
-                      <Image
-                        source={{ uri }}
-                        style={{ width: OPT_W, height: OPT_H }}
-                        contentFit="contain"
-                        transition={0}
-                      />
-                    ) : (
-                      <View style={[{ width: OPT_W, height: OPT_H }, styles.optionFallback]} />
-                    )}
+                    {/* Plate sized to the picture box itself (NOT the padded
+                        frame), so the reveal overlay lines up with the played
+                        coat exactly — an absolutely positioned child resolves
+                        against the padding box and would otherwise come out
+                        12pt larger than the image underneath it. */}
+                    <View style={styles.coatPlate}>
+                      {uri ? (
+                        <Image
+                          source={{ uri }}
+                          style={styles.coatImg}
+                          contentFit="contain"
+                          transition={0}
+                          testID={`coat-option-${optIdx}`}
+                        />
+                      ) : (
+                        <View style={[styles.coatImg, styles.optionFallback]} />
+                      )}
+                      {/* Reward: the ORIGINAL coat (country name still on the
+                          banner) dissolves in ON TOP of the played one once the
+                          glide lands. Only the correct option survives to here
+                          (see the early return above), and ~68% of coats ship no
+                          original — those simply never reveal. */}
+                      {revealing && q.correctOriginalImageUri ? (
+                        <CoatOriginalReveal
+                          key={`coat-reveal-${q.id}`}
+                          uri={q.correctOriginalImageUri}
+                          size={OPT_W}
+                          delayMs={COAT_REVEAL_DELAY_MS}
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 </Pressable>
               );
@@ -435,6 +463,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 6,
   },
+  // Sized to the PICTURE box, not the padded frame, so the reveal overlay
+  // registers pixel-for-pixel with the played coat.
+  coatPlate: { width: OPT_W, height: OPT_H },
+  coatImg: { width: OPT_W, height: OPT_H },
   optionFallback: { backgroundColor: 'rgba(11, 58, 135, 0.08)' },
 
   historyBox: {

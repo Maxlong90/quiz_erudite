@@ -68,6 +68,18 @@ export interface FlagPictureQuestion {
   optionImageUris: (string | null)[];
   /** Index of the correct option within `optionImageUris`. */
   correctIndex: number;
+  /**
+   * Local (or remote) URI of the ORIGINAL, pre-cleaning artwork of the CORRECT
+   * option — the Coat of Arms reward image that still shows the country name,
+   * faded in over the played one after a correct answer. null when the backend
+   * ships no original (~68% of coat options) and always null for the Flags
+   * Quiz, whose flags are never cleaned.
+   *
+   * Deliberately correct-option-ONLY: the other three are never revealed, so
+   * carrying them would be dead weight AND would make an answer-spoiling render
+   * representable.
+   */
+  correctOriginalImageUri: string | null;
   /** Localized flag note shown after a correct answer; may be null. */
   explanation: string | null;
   /** Continent this question belongs to. */
@@ -79,7 +91,14 @@ export interface ImageAnswerApiQuestion {
   id: number;
   category_slug: string | null;
   title: string;
-  options: { image_url: string }[];
+  /**
+   * `image_url_original` is OMITTED (never null) on an option with no archived
+   * master artwork — 250 of 780 coat options carry it, the Flags Quiz none.
+   * It points at a DIFFERENT question id than `image_url`: a picture-answer slot
+   * has no country of its own, so the original is served from the linked
+   * "All countries" question. Read it verbatim; never derive it from `image_url`.
+   */
+  options: { image_url: string; image_url_original?: string | null }[];
   correct_index: number;
   explanation: string | null;
 }
@@ -105,6 +124,17 @@ export function buildCountryQuestions(snapshot: ContentSnapshot | null): FlagCou
 }
 
 /**
+ * The CORRECT option's ORIGINAL artwork URL, or null when the backend ships
+ * none (the key is absent, not null). The single place that knows the original
+ * lives at `correct_index` — shared by both picture-question builders and by
+ * the pre-cache download set, so they can never disagree about which of the
+ * four options may be revealed.
+ */
+export function correctOptionOriginalUrl(q: ImageAnswerApiQuestion): string | null {
+  return q.options?.[q.correct_index]?.image_url_original ?? null;
+}
+
+/**
  * Build the "By continent" questions from the image-answer payload, resolving
  * each of the four option images through the provided URL→local-file map.
  * Questions whose category doesn't map to a known continent are dropped.
@@ -122,6 +152,7 @@ export function buildPictureQuestions(
       title: q.title,
       optionImageUris: (q.options ?? []).map((o) => resolveFromMap(imageMap, o.image_url)),
       correctIndex: q.correct_index,
+      correctOriginalImageUri: resolveFromMap(imageMap, correctOptionOriginalUrl(q)),
       explanation: q.explanation,
       continent,
     });
@@ -152,4 +183,13 @@ export function continentCounts(
 /** Every option image URL across the payload — the pre-cache download set. */
 export function optionImageUrls(raw: ImageAnswerApiQuestion[]): string[] {
   return raw.flatMap((q) => (q.options ?? []).map((o) => o.image_url)).filter(Boolean);
+}
+
+/**
+ * Originals of the CORRECT options — the only originals that are ever revealed,
+ * and therefore the only ones worth downloading. Pre-caching all four would
+ * quadruple the transfer for images the player can never see.
+ */
+export function correctOptionOriginalUrls(raw: ImageAnswerApiQuestion[]): string[] {
+  return raw.map(correctOptionOriginalUrl).filter((u): u is string => !!u);
 }

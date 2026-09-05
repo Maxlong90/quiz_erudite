@@ -21,6 +21,7 @@ import {
 import {
   buildCountryQuestions,
   continentCounts,
+  correctOptionOriginalUrls,
   groupByContinent,
   optionImageUrls,
   type FlagCountryQuestion,
@@ -120,8 +121,14 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
         setStatus('ready');
       }
       // Download the option images into the offline cache in the background, then
-      // swap in the local map so subsequent plays are offline-ready.
-      const imageMap = await cacheImages(optionImageUrls(raw), COAT_QUIZ_SLUG);
+      // swap in the local map so subsequent plays are offline-ready. The CORRECT
+      // options' originals ride along (~64 distinct files) so the post-answer
+      // reveal works offline too; cacheImages de-duplicates, and the other three
+      // options' originals are deliberately left out — they are never shown.
+      const imageMap = await cacheImages(
+        [...optionImageUrls(raw), ...correctOptionOriginalUrls(raw)],
+        COAT_QUIZ_SLUG,
+      );
       const cache: ImageAnswerCache = { locale: forLocale, raw, imageMap };
       await AsyncStorage.setItem(IMAGE_ANSWER_KEY, JSON.stringify(cache));
 
@@ -192,6 +199,9 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
       // into the browser cache (served immutable, so it sticks).
       ...countryQuestions.map((q) => q.originalImageUri),
       ...pictureQuestions.flatMap((q) => q.optionImageUris),
+      // "By continent" reveals its original on exactly the same beat, so its
+      // bytes need to be decoded up-front for the same reason.
+      ...pictureQuestions.map((q) => q.correctOriginalImageUri),
     ].filter((u): u is string => !!u);
     if (urls.length === 0) return;
     Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});

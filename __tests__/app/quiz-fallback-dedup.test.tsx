@@ -71,7 +71,7 @@ jest.mock('@/api/questions', () => ({ fetchRandomQuestions: jest.fn().mockResolv
 jest.mock('@/api/client', () => ({ APP_SLUG: 'erudite-quiz' }));
 
 // expo / native / visual-only siblings
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+// reanimated is mocked globally — see __mocks__/react-native-reanimated.js
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(),
   NotificationFeedbackType: { Success: 'success', Error: 'error' },

@@ -18,6 +18,7 @@ import {
   groupByContinent,
   continentCounts,
   optionImageUrls,
+  correctOptionOriginalUrls,
   type ImageAnswerApiQuestion,
 } from '@/lib/flags-quiz/content';
 import type { ContentSnapshot } from '@/lib/content-cache';
@@ -192,6 +193,43 @@ describe('buildPictureQuestions', () => {
     const out = buildPictureQuestions(raw);
     expect(out.map((q) => q.id)).toEqual([1]);
   });
+
+  it('yields a null correctOriginalImageUri when the key is ABSENT — the Flags Quiz case', () => {
+    const out = buildPictureQuestions([mkImageAnswer(10, 'flags-asia')]);
+    expect(out[0].correctOriginalImageUri).toBeNull();
+  });
+
+  it('resolves the CORRECT option original via imageMap, ignoring the other three', () => {
+    // correct_index 3, and a decoy original on a WRONG option that must not win.
+    const raw = [
+      mkImageAnswer(10, 'flags-asia', {
+        correct_index: 3,
+        options: [
+          { image_url: 'https://x/10-0.png', image_url_original: 'https://x/decoy.webp' },
+          { image_url: 'https://x/10-1.png' },
+          { image_url: 'https://x/10-2.png' },
+          { image_url: 'https://x/10-3.png', image_url_original: 'https://x/orig-3.webp' },
+        ],
+      }),
+    ];
+    const map = { 'https://x/orig-3.webp': 'file:///l/orig-3.webp' };
+    expect(buildPictureQuestions(raw, map)[0].correctOriginalImageUri).toBe(
+      'file:///l/orig-3.webp',
+    );
+  });
+
+  it('falls back to the remote original URL when it is not cached', () => {
+    const raw = [
+      mkImageAnswer(10, 'flags-asia', {
+        correct_index: 0,
+        options: [
+          { image_url: 'https://x/10-0.png', image_url_original: 'https://x/orig-0.webp' },
+          { image_url: 'https://x/10-1.png' },
+        ],
+      }),
+    ];
+    expect(buildPictureQuestions(raw)[0].correctOriginalImageUri).toBe('https://x/orig-0.webp');
+  });
 });
 
 describe('groupByContinent + continentCounts', () => {
@@ -230,5 +268,35 @@ describe('optionImageUrls', () => {
       'https://x/2-2.png',
       'https://x/2-3.png',
     ]);
+  });
+});
+
+describe('correctOptionOriginalUrls', () => {
+  const withOriginals = (id: number, correct_index: number, originals: (string | null)[]) =>
+    mkImageAnswer(id, 'flags-africa', {
+      correct_index,
+      options: originals.map((original, i) =>
+        original
+          ? { image_url: `https://x/${id}-${i}.png`, image_url_original: original }
+          : { image_url: `https://x/${id}-${i}.png` },
+      ),
+    });
+
+  it('collects ONLY the correct option original — the other three are never revealed', () => {
+    const raw = [withOriginals(1, 2, ['https://x/a.webp', null, 'https://x/correct.webp', null])];
+    expect(correctOptionOriginalUrls(raw)).toEqual(['https://x/correct.webp']);
+  });
+
+  it('skips questions whose correct option ships no original (~68% of coats)', () => {
+    const raw = [
+      withOriginals(1, 0, ['https://x/one.webp', null, null, null]),
+      withOriginals(2, 0, [null, 'https://x/decoy.webp', null, null]),
+      withOriginals(3, 3, [null, null, null, 'https://x/three.webp']),
+    ];
+    expect(correctOptionOriginalUrls(raw)).toEqual(['https://x/one.webp', 'https://x/three.webp']);
+  });
+
+  it('returns nothing for a payload with no originals at all (the Flags Quiz)', () => {
+    expect(correctOptionOriginalUrls([mkImageAnswer(1, 'flags-africa')])).toEqual([]);
   });
 });

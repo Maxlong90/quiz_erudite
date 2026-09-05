@@ -75,7 +75,7 @@ jest.mock('@/api/client', () => ({
 }));
 
 // expo / native / visual-only siblings
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+// reanimated is mocked globally — see __mocks__/react-native-reanimated.js
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(),
   NotificationFeedbackType: { Success: 'success', Error: 'error' },
