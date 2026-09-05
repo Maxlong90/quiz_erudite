@@ -47,6 +47,17 @@ const PROGRESS_KEY = 'coat.progress.all.v1';
 const MOVE_MS = 900;
 const UI_FADE_MS = 300;
 
+// The reward: once the answer glide lands, the ORIGINAL coat — the one that still
+// shows the country name on its banner — dissolves in on top of the cleaned one.
+// It starts on the same beat as the note/Next but runs SLOWER, so it is still
+// developing after the UI has settled and pulls the eye back up to the picture.
+// Only fires where the backend ships an original (64 of 195 coats).
+const COAT_REVEAL_DELAY_MS = MOVE_MS;
+const COAT_REVEAL_MS = 600;
+// The coat plate is square and CONTAINED; the reveal overlay stacks on exactly
+// this box so both variants register pixel-for-pixel.
+const COAT_SIZE = 190;
+
 // Font-fitting for the answer labels (identical to Flags Quiz).
 const SCREEN_W = Dimensions.get('window').width;
 const OPTION_TEXT_W = 0.48 * (SCREEN_W - 40) - 24;
@@ -265,16 +276,42 @@ export default function CoatOfArmsGame() {
           <View style={styles.imageArea}>
             <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
             <View style={styles.imageFrame}>
-              {question.imageUri ? (
-                <Image
-                  source={{ uri: question.imageUri }}
-                  style={styles.coatImg}
-                  contentFit="contain"
-                  transition={0}
-                />
-              ) : (
-                <View style={[styles.coatImg, styles.coatFallback]} />
-              )}
+              {/* Stack sized to the picture box itself (NOT the padded frame), so
+                  the reveal overlay lines up with the base coat exactly. */}
+              <View style={styles.coatStack}>
+                {question.imageUri ? (
+                  <Image
+                    source={{ uri: question.imageUri }}
+                    style={styles.coatImg}
+                    contentFit="contain"
+                    transition={0}
+                    testID="coat-image"
+                  />
+                ) : (
+                  <View style={[styles.coatImg, styles.coatFallback]} />
+                )}
+                {/* Reward: the ORIGINAL coat (country name still on the banner)
+                    dissolves in ON TOP of the cleaned one after a correct answer.
+                    The clean coat deliberately stays at full opacity underneath —
+                    see the note on styles.coatReveal. Keyed by question so the
+                    entering animation re-fires on every question. */}
+                {revealing && question.originalImageUri ? (
+                  <Animated.View
+                    key={`coat-reveal-${question.id}`}
+                    style={styles.coatReveal}
+                    pointerEvents="none"
+                    entering={FadeIn.delay(COAT_REVEAL_DELAY_MS).duration(COAT_REVEAL_MS)}
+                  >
+                    <Image
+                      source={{ uri: question.originalImageUri }}
+                      style={styles.coatImg}
+                      contentFit="contain"
+                      transition={0}
+                      testID="coat-image-original"
+                    />
+                  </Animated.View>
+                ) : null}
+              </View>
             </View>
             {/* The prompt is hidden once answered — on reveal we show only the
                 coat, the correct answer and the (expanded) explanation. */}
@@ -473,7 +510,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 10,
   },
-  coatImg: { width: 190, height: 190 },
+  coatStack: { width: COAT_SIZE, height: COAT_SIZE },
+  coatImg: { width: COAT_SIZE, height: COAT_SIZE },
+  // Covers the picture box exactly. The base coat is NOT faded out: both layers
+  // are the same artwork at the same geometry, so holding the base opaque keeps
+  // the picture fully solid all the way through and only the banner text
+  // "develops" in. A true cross-fade would dip the composite to ~75% alpha at the
+  // midpoint over the white plate — a visible flicker — and, if the original ever
+  // failed to load, would fade the picture away to nothing.
+  coatReveal: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   coatFallback: { backgroundColor: 'rgba(11, 58, 135, 0.08)' },
   prompt: {
     color: '#FFFFFF',

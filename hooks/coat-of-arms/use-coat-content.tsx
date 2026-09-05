@@ -185,6 +185,12 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const urls = [
       ...countryQuestions.map((q) => q.imageUri),
+      // The reward originals too: the reveal starts the instant a correct answer
+      // lands, so the bytes must already be DECODED in the memory cache — a warm
+      // disk file alone still costs a decode frame. On web (no local cache) this
+      // is what makes the reveal work at all, pre-pulling the remote original
+      // into the browser cache (served immutable, so it sticks).
+      ...countryQuestions.map((q) => q.originalImageUri),
       ...pictureQuestions.flatMap((q) => q.optionImageUris),
     ].filter((u): u is string => !!u);
     if (urls.length === 0) return;

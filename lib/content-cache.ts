@@ -67,6 +67,16 @@ export interface SnapshotQuestion {
   correct_option: number;
   explanation: string | null;
   image_url: string | null;
+  /**
+   * The PRE-CLEANING artwork for this question — for the Coat of Arms quiz the
+   * coat that still shows the country name on its banner, revealed as a reward
+   * after a correct answer. The backend emits the key ONLY when an original
+   * exists, so it is ABSENT (not null) on every question without one and on
+   * every other app: hence BOTH `?` and `| null`. Its `?variant=original&v=`
+   * URL differs from `image_url`, so it gets its own `imageMap` entry and its
+   * own file in the local cache.
+   */
+  image_url_original?: string | null;
 }
 
 export interface ContentSnapshot {
@@ -303,7 +313,11 @@ export async function syncContent({
   ]);
   const urls = Array.from(new Set(
     [
-      ...data.questions.map((q) => q.image_url),
+      // Both variants of every question image: the playable one and — when the
+      // backend ships one — the ORIGINAL revealed after a correct answer. The
+      // key is ABSENT on every app/question without an original, so `undefined`
+      // falls out in the filter below and this stays a no-op everywhere else.
+      ...data.questions.flatMap((q) => [q.image_url, q.image_url_original]),
       ...categoryIconUrls,
     ].filter((u): u is string => !!u),
   ));

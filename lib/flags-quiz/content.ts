@@ -42,6 +42,13 @@ export interface FlagCountryQuestion {
   prompt: string;
   /** Local (or remote) URI of the flag image; null if none. */
   imageUri: string | null;
+  /**
+   * Local (or remote) URI of the ORIGINAL, pre-cleaning picture — the Coat of
+   * Arms reward image that still shows the country name, faded in after a
+   * correct answer. Always null for the Flags Quiz, whose snapshots never carry
+   * `image_url_original`.
+   */
+  originalImageUri: string | null;
   /** Localized text answer choices, backend order. */
   options: string[];
   /** Index of the correct option within `options`. */
@@ -87,6 +94,9 @@ export function buildCountryQuestions(snapshot: ContentSnapshot | null): FlagCou
     id: q.id,
     prompt: q.question,
     imageUri: resolveLocalImage(snapshot, q.image_url),
+    // `?? null` because the key is ABSENT (not null) on a question without an
+    // original — resolveLocalImage takes `string | null`, never `undefined`.
+    originalImageUri: resolveLocalImage(snapshot, q.image_url_original ?? null),
     options: q.options,
     correctIndex: q.correct_option,
     explanation: q.explanation,

@@ -130,6 +130,43 @@ describe('buildCountryQuestions', () => {
     const snap = makeSnapshot(Array.from({ length: 195 }, (_, i) => mkSnapshotQ(i + 1)));
     expect(buildCountryQuestions(snap)).toHaveLength(195);
   });
+
+  // The Coat of Arms reward image: the pre-cleaning coat that still shows the
+  // country name, revealed after a correct answer. The backend emits
+  // `image_url_original` ONLY when an original exists (64 of 195 coats), so the
+  // absent-key case below is the majority case, not an edge case.
+  it('resolves the ORIGINAL image via imageMap when the key is present', () => {
+    const snap = makeSnapshot(
+      [mkSnapshotQ(1, { image_url_original: 'https://x/1.png?variant=original&v=abc' })],
+      {
+        'https://x/1.png': 'file:///local/1.png',
+        'https://x/1.png?variant=original&v=abc': 'file:///local/1-orig.png',
+      },
+    );
+    const [q] = buildCountryQuestions(snap);
+    // Both variants resolve independently to their own cached files.
+    expect(q.imageUri).toBe('file:///local/1.png');
+    expect(q.originalImageUri).toBe('file:///local/1-orig.png');
+  });
+
+  it('falls back to the remote original URL when it is not cached', () => {
+    const snap = makeSnapshot([mkSnapshotQ(1, { image_url_original: 'https://x/1-orig.png' })]);
+    expect(buildCountryQuestions(snap)[0].originalImageUri).toBe('https://x/1-orig.png');
+  });
+
+  it('yields a null originalImageUri when the key is ABSENT — the 131-coat and Flags Quiz case', () => {
+    const snap = makeSnapshot([mkSnapshotQ(1)]);
+    // Guard the FIXTURE too: the backend omits the key entirely rather than
+    // sending null, so this must stay `undefined`. If someone "tidies" the
+    // factory into `image_url_original: null` the real shape stops being tested.
+    expect(snap.questions[0].image_url_original).toBeUndefined();
+    expect(buildCountryQuestions(snap)[0].originalImageUri).toBeNull();
+  });
+
+  it('yields a null originalImageUri when the key is explicitly null', () => {
+    const snap = makeSnapshot([mkSnapshotQ(1, { image_url_original: null })]);
+    expect(buildCountryQuestions(snap)[0].originalImageUri).toBeNull();
+  });
 });
 
 describe('buildPictureQuestions', () => {
