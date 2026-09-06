@@ -97,6 +97,11 @@ const buildConfig = ({ config } = {}) => {
       ...base,
       name: 'Sport Quiz',
       slug: 'sport-quiz',
+      // Sport Quiz's OWN launcher / Expo Go icon (the 2x2 ball grid with the
+      // hexagon question mark), so it never shows the erudite base's logo-quiz
+      // icon. Overrides both the top-level icon (iOS + Expo Go project screen)
+      // and the Android adaptive foreground for this variant only.
+      icon: './assets/images/sport-quiz-icon.png',
       ios: {
         ...base.ios,
         bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
@@ -106,6 +111,14 @@ const buildConfig = ({ config } = {}) => {
       android: {
         ...base.android,
         package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          foregroundImage: './assets/images/sport-quiz-icon.png',
+          // Android insets the adaptive foreground, so the background shows at
+          // the edges. The erudite base is purple (#5E63F5), which would ring
+          // this navy icon — use Sport Quiz's own bgBase instead.
+          backgroundColor: '#0C1E30',
+        },
       },
     };
   }
