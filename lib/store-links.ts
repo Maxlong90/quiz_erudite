@@ -15,6 +15,13 @@ const DEFAULT_IOS_APP_ID = '0000000000';
 const DEFAULT_APP_STORE_URL = `https://apps.apple.com/app/id${DEFAULT_IOS_APP_ID}`;
 const DEFAULT_PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_BUNDLE_ID}`;
 
+// App Store "artist" id of the publisher every variant ships under (Maryia
+// Pyzhyk). NOT the Apple Team ID — it is assigned by the App Store and was read
+// off the live listing (itunes lookup -> artistId). The id-only URL is used on
+// purpose: Apple 301s it to the canonical /{locale}/developer/{name-slug}/ form,
+// so nothing breaks if the storefront locale differs or the publisher is renamed.
+const IOS_DEVELOPER_ID = '6787385688';
+
 export interface StoreLinks {
   /** Public listing URL — used for Share / Recommend. */
   storeUrl: string;
@@ -71,4 +78,34 @@ function androidLinks(app: AppConfig): StoreLinks {
  */
 export function getStoreLinks(app: AppConfig, platformOS: string): StoreLinks {
   return platformOS === 'ios' ? iosLinks(app) : androidLinks(app);
+}
+
+export interface DeveloperLinks {
+  /** Publisher page URL — safe to hand to a browser. */
+  url: string;
+  /** Deep link that opens the same page inside the native store app. */
+  deepLink: string;
+}
+
+/**
+ * Links to the PUBLISHER's page (all of our apps), for the "Other apps" button —
+ * as opposed to getStoreLinks(), which points at one specific listing.
+ *
+ * iOS gets the real developer page. Android does NOT: the Play publisher id is
+ * not known anywhere in the repo or the backend, and guessing it would produce a
+ * 404, so it falls back to our Play listing — still better than the App Store URL
+ * this button used to open on Android regardless of platform. Swap in
+ * `https://play.google.com/store/apps/dev?id=<publisherId>` once that id exists.
+ */
+export function getDeveloperLinks(platformOS: string): DeveloperLinks {
+  if (platformOS === 'ios') {
+    return {
+      url: `https://apps.apple.com/developer/id${IOS_DEVELOPER_ID}`,
+      deepLink: `itms-apps://apps.apple.com/developer/id${IOS_DEVELOPER_ID}`,
+    };
+  }
+  return {
+    url: DEFAULT_PLAY_STORE_URL,
+    deepLink: `market://details?id=${APP_BUNDLE_ID}`,
+  };
 }

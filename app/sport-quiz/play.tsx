@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, ImageSourcePropType, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -12,16 +12,26 @@ import { CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui'
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
+import { getDeveloperLinks } from '@/lib/store-links';
 
 /**
  * Sport Quiz mode select — mirrors the Flags Quiz play screen. Four game modes
  * (Classic + Sports Legends unlocked, Challenge + Sprint locked with a padlock),
- * a back/settings header, and an "Other apps" tile that opens our App Store page.
+ * a back/settings header, and an "Other apps" tile that opens our publisher page.
  */
 
-// Shared publisher App Store link (same as the other variants). Swap for the
-// Sport Quiz developer page once it is live.
-const OTHER_APPS_URL = 'https://apps.apple.com/us/app/erudite-quiz-trivia-crac-daily/id6787385686';
+/**
+ * "Other apps" opens the PUBLISHER's page, which lists every app we ship, rather
+ * than one hardcoded sibling listing. New releases therefore appear there on
+ * their own, with no app update needed. Tries the store-app deep link first and
+ * falls back to the web URL when no store app can handle it.
+ */
+function openOtherApps() {
+  const { url, deepLink } = getDeveloperLinks(Platform.OS);
+  Linking.openURL(deepLink).catch(() => {
+    Linking.openURL(url).catch(() => {});
+  });
+}
 
 function ModeButton({
   image,
@@ -96,9 +106,9 @@ export default function SportQuizPlay() {
         <Pressable
           hitSlop={8}
           style={({ pressed }) => [styles.otherItem, pressed && { opacity: 0.85 }]}
-          onPress={() => Linking.openURL(OTHER_APPS_URL).catch(() => {})}
+          onPress={openOtherApps}
         >
-          <GlassIconButton glyph="phone-portrait" size={64} onPress={() => Linking.openURL(OTHER_APPS_URL).catch(() => {})} />
+          <GlassIconButton glyph="phone-portrait" size={64} onPress={openOtherApps} />
           <Text style={styles.otherLabel}>{t.otherApps}</Text>
         </Pressable>
       </View>
