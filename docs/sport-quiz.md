@@ -4,7 +4,7 @@ Sport Quiz is the fifth app built from this tree. It is a sports trivia game wit
 
 ## Why a Fifth App
 
-Like the other siblings, Sport Quiz is selected at build time by `APP_SLUG` (`sport-quiz`). The home route (`app/index.tsx`) redirects straight to `/sport-quiz/splash`, and the erudite intro, hub, and modes never render. Its screens live in `app/sport-quiz/`, UI in `components/sport-quiz/`, state in `hooks/sport-quiz/`, domain logic in `lib/sport-quiz/`, and strings and palette in `constants/sport-quiz/`. `app.config.js` gives the build its own Expo `name` and `slug` so it does not collide with the other variants in Expo Go; store identity comes from the `sport-quiz-preview` / `sport-quiz-production` `eas.json` profiles and falls back to the Erudite identity until an operator fills their placeholders, and the variant ships iPhone-only.
+Like the other siblings, Sport Quiz is selected at build time by `APP_SLUG` (`sport-quiz`). The home route (`app/index.tsx`) redirects straight to `/sport-quiz/splash`, and the erudite intro, hub, and modes never render. Its screens live in `app/sport-quiz/`, UI in `components/sport-quiz/`, state in `hooks/sport-quiz/`, domain logic in `lib/sport-quiz/`, and strings and palette in `constants/sport-quiz/`. `app.config.js` gives the build its own Expo `name` and `slug` so it does not collide with the other variants in Expo Go; store identity comes from the `sport-quiz-preview` / `sport-quiz-production` `eas.json` profiles, which carry the app's real iOS bundle id `com.quizzzes.sport`, and the variant ships iPhone-only.
 
 What sets it apart from its siblings is its monetization model. Erudite and [Logo Quiz](logo-quiz.md) run a lives-plus-premium economy; [Flags Quiz](flags-quiz.md) and [Coat of Arms](coat-of-arms-quiz.md) have no economy at all. Sport Quiz has **coins only** — no lives, no premium tier, no paywalled content. Every question in the catalogue is reachable by anyone; the only thing that gates play is whether you can afford to be wrong.
 
@@ -51,7 +51,7 @@ Coins are credited **only** when RevenueCat resolves `'purchased'`. A user cance
 
 Which platform can actually charge differs, and this is the app's defining asymmetry:
 
-- **iOS transacts.** The App Store catalog exists, so once the `sport-quiz-*` `eas.json` profile carries the app's own `appl_…` RevenueCat key and its bundle id, billing lights up with no code change. The products go on sale with the binary and App Review — App Store Connect has no activation API.
+- **iOS transacts.** The App Store catalog exists and the `sport-quiz-*` `eas.json` profiles already build under `com.quizzzes.sport`, the bundle the consumables were provisioned against — StoreKit matches products by the binary's bundle id, so a wrong value there would return an empty catalog silently. Billing then lights up with no code change as soon as the profiles carry the app's own `appl_…` RevenueCat public key, which is the single outstanding operator step. The products go on sale with the binary and App Review — App Store Connect has no activation API.
 - **Android does not.** There is no Google Play catalog and no Google public key, and `lib/revenuecat.ts` hands the `sport-quiz` slug no committed Android key, so the SDK stays disabled and a purchase **fails closed** with the error alert. This is a deliberate behaviour change: an Android device build used to grant coins for free on tap. Android economy testing moves to Expo Go.
 - **Expo Go and web** keep the local-grant stub so the dev economy stays playable.
 
