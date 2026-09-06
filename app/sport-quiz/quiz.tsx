@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -25,6 +24,7 @@ import { AppBackground } from '@/components/sport-quiz/app-background';
 import { FitAnswerText } from '@/components/sport-quiz/fit-answer-text';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
+import { SportShareCard } from '@/components/sport-quiz/share-card';
 import { questionsForLevel, type SportQuizQuestion } from '@/lib/sport-quiz/content';
 import {
   CORRECT_REWARD_COINS,
@@ -38,6 +38,7 @@ import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
 import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
+import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 
 // Answer-reveal timings (mirrors the Logo Quiz quiz): the wrong options fade out
 // over ~1s while the correct answer simultaneously glides up under the question
@@ -73,6 +74,8 @@ export default function SportQuizQuiz() {
   const { snapshot } = useSportQuizContent();
   const { coins, addCoins, spendCoins, isSolved, markSolved, setLastLevel } = useSportQuiz();
   const [reportOpen, setReportOpen] = useState(false);
+  // The off-screen composition the Share button captures.
+  const shareCardRef = useRef<View>(null);
 
   // Every question of this level, frozen at mount (the level list guarantees the
   // snapshot is ready before we get here).
@@ -199,14 +202,12 @@ export default function SportQuizQuiz() {
     if (index > 0) goToIndex(index - 1);
   }, [enteredComplete, index, goToIndex, runList.length]);
 
-  const onShare = useCallback(async () => {
+  // Share the question as a PICTURE: the off-screen card below is captured to a
+  // PNG and sent with the invite. shareQuestionImage swallows a cancelled sheet
+  // and degrades to the plain text invite when the capture is unavailable.
+  const onShare = useCallback(() => {
     const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
-    const message = t.shareInvite.replace('{url}', storeUrl);
-    try {
-      await Share.share({ message });
-    } catch {
-      // user cancelled — nothing to do
-    }
+    shareQuestionImage(shareCardRef, t.shareInvite.replace('{url}', storeUrl));
   }, [snapshot?.app, t.shareInvite]);
 
   if (!question) {
@@ -384,6 +385,22 @@ export default function SportQuizQuiz() {
         questionId={question.id}
         locale={locale}
       />
+
+      {/* Off-screen composition captured for the shared picture. Parked outside
+          the viewport (never affects layout, never interactive) but kept mounted
+          so the picture is already warm when Share is tapped. It is handed ALL
+          FOUR options — the board above unmounts the wrong ones once the answer
+          is revealed, but the shared card must stay a neutral, unspoiled quiz. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <SportShareCard
+          ref={shareCardRef}
+          variant="classic"
+          title="Sport Quiz"
+          prompt={question.question}
+          imageUri={question.imageUri}
+          options={question.options}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -537,4 +554,8 @@ const styles = StyleSheet.create({
   },
   costTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   costText: { fontSize: 20, fontWeight: '900', color: SQColors.coin },
+
+  // Parks the share composition off-screen. NOT opacity: 0 — the capture would
+  // inherit the transparency.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
 });

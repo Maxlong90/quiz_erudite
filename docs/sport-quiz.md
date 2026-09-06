@@ -89,6 +89,17 @@ Answer buttons are a fixed 64 points tall and never resize; only the label's fon
 
 The replacement walks an explicit ladder of font scales — 90%, 85%, 80%, and on down to 40% in 5% steps — and takes the first size where **both** conditions hold: the longest single word fits on one line, and the greedily wrapped text fits the available height. The first condition is what makes a mid-word break structurally impossible. The 5% step keeps each drop small, so a label only shrinks as far as it must instead of falling off a cliff to the next legible size. Character widths are estimated on the generous side, because over-estimating steps down a size early (safe — the text still fits) while under-estimating would allow the break the component exists to prevent.
 
+## Sharing a Question
+
+The Share button in either quiz screen's header sends a **picture** of the question alongside the localized invite built from `getStoreLinks`. It reuses the capture helper the other siblings already share (`lib/flags-quiz/share-image.ts`), which probes `react-native-view-shot` through the TurboModule registry and degrades to a text-only invite when the native module is absent — an older standalone binary still shares, just without the picture.
+
+What gets captured is not the live board but an off-screen `SportShareCard` (`components/sport-quiz/share-card.tsx`) kept mounted beside it at a fixed 340-point width. Rendering a separate composition is what makes the picture presentable outside the app: it carries the app's navy and a neon rim but none of the screen chrome — no back arrow, report flag, coin pill, counter, or Skip button — and its opaque background keeps chat apps from compositing a transparent PNG onto black.
+
+The card is also what enforces the anti-spoiler rule, structurally rather than by styling:
+
+- **Classic** always shows all four options in their idle tone. The live board unmounts the wrong options once the answer is revealed, but the card is handed `question.options` regardless, so the picture a player shares after answering is byte-identical to the one they would have shared before.
+- **Legends** shows the athlete's photo *in its current state* — still under every plate the player has not paid to uncover. Only guessing or skipping opens it. The names stay neutral either way, so the answer never travels with the picture. The card draws its own static twin of the plate grid instead of reusing `PuzzleOverlay`, whose plates animate out; a capture fired mid-reveal would otherwise freeze a half-faded grid into the shared image.
+
 ## Content and Explaining the Rules
 
 Sport Quiz draws from the shared content snapshot at `GET /apps/sport-quiz/snapshot?locale=`, cached offline under its own namespace exactly like the other siblings. Its provider hydrates from cache on mount for instant play, then syncs; a locale change re-syncs so prompts, options, and explanations follow the active language. A failed sync leaves the cached snapshot in place rather than emptying the board.

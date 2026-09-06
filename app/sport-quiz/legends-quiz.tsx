@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -24,8 +23,9 @@ import * as Haptics from 'expo-haptics';
 import { AppBackground } from '@/components/sport-quiz/app-background';
 import { FitAnswerText } from '@/components/sport-quiz/fit-answer-text';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
-import { PuzzleOverlay } from '@/components/sport-quiz/puzzle-overlay';
+import { PLATE_COLS, PLATE_ROWS, PuzzleOverlay } from '@/components/sport-quiz/puzzle-overlay';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
+import { SportShareCard } from '@/components/sport-quiz/share-card';
 import { legendsQuestionsForLevel } from '@/lib/sport-quiz/legends';
 import type { SportQuizQuestion } from '@/lib/sport-quiz/content';
 import {
@@ -41,15 +41,12 @@ import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
 import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
+import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
 
 // Same answer-reveal timings as the Classic quiz.
 const FADE_MS = 1000;
 const MOVE_MS = 1700;
 const UI_FADE_MS = 300;
-
-// The puzzle grid over the face — 4 × 5 = 20 plates (like the reference).
-const PLATE_COLS = 4;
-const PLATE_ROWS = 5;
 
 // FIXED answer-button height (compact, ~the original size) so all options are ALWAYS
 // the same size (long answers wrap, then shrink the font if still needed).
@@ -77,6 +74,8 @@ export default function SportLegendsQuiz() {
   const { snapshot } = useSportQuizContent();
   const { coins, addCoins, spendCoins, isSolved, markSolved, revealedPlatesFor, revealPlate } = useSportQuiz();
   const [reportOpen, setReportOpen] = useState(false);
+  // The off-screen composition the Share button captures.
+  const shareCardRef = useRef<View>(null);
 
   // Which face is open. Starts at the tapped face; solving + "Next" advances it to
   // the next UNSOLVED face of the level in place (no re-navigation), so the player
@@ -199,14 +198,11 @@ export default function SportLegendsQuiz() {
   }, [snapshot, levelNumber, isSolved, enteredComplete, goToOffset]);
   const goToPrev = useCallback(() => goToOffset(-1), [goToOffset]);
 
-  const onShare = useCallback(async () => {
+  // Share the face as a PICTURE: the off-screen card below is captured to a PNG
+  // and sent with the invite (text-only invite when the capture is unavailable).
+  const onShare = useCallback(() => {
     const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
-    const message = t.shareInvite.replace('{url}', storeUrl);
-    try {
-      await Share.share({ message });
-    } catch {
-      // cancelled
-    }
+    shareQuestionImage(shareCardRef, t.shareInvite.replace('{url}', storeUrl));
   }, [snapshot?.app, t.shareInvite]);
 
   if (!question) {
@@ -372,6 +368,23 @@ export default function SportLegendsQuiz() {
       </View>
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} questionId={question.id} locale={locale} />
+
+      {/* Off-screen composition captured for the shared picture. The photo goes
+          out in its CURRENT state — still under every plate the player has not
+          paid to uncover — so sharing an unsolved face cannot spoil it; a solved
+          face shares the open photo. Either way the name options stay neutral. */}
+      <View style={styles.shareCardHost} pointerEvents="none">
+        <SportShareCard
+          ref={shareCardRef}
+          variant="legends"
+          title="Sport Quiz"
+          prompt={t.legendPrompt}
+          imageUri={question.imageUri}
+          options={question.options}
+          revealedPlates={revealedPlates}
+          revealAll={solved}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -510,4 +523,8 @@ const styles = StyleSheet.create({
   skipLabel: { color: '#EAFFF8', fontWeight: '900', fontSize: 28, letterSpacing: 0.5 },
   costTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   costText: { fontSize: 20, fontWeight: '900', color: SQColors.coin },
+
+  // Parks the share composition off-screen. NOT opacity: 0 — the capture would
+  // inherit the transparency.
+  shareCardHost: { position: 'absolute', left: -9999, top: 0 },
 });

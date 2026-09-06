@@ -5,6 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SoccerBall } from '@/components/sport-quiz/soccer-ball';
 import { SQColors } from '@/constants/sport-quiz/theme';
 
+/** The puzzle grid over a face — 4 × 5 = 20 plates. Shared with the share card,
+ *  which draws a static twin of this grid into the picture it captures. */
+export const PLATE_COLS = 4;
+export const PLATE_ROWS = 5;
+
 /**
  * The puzzle plates laid over a Sports Legends photo. A cols×rows grid of opaque
  * neon-glass plates hides the picture; tapping a plate uncovers that piece (the
