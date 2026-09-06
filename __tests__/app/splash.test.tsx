@@ -27,6 +27,12 @@ jest.mock('@/api/client', () => ({
 const mockReplace = jest.fn();
 jest.mock('expo-router', () => ({
   router: { replace: (...args: unknown[]) => mockReplace(...args) },
+  // App-template builds redirect away from this shared splash; render a
+  // queryable marker carrying the target so tests can assert the route.
+  Redirect: ({ href }: { href: string }) => {
+    const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+    return <Text testID="redirect">{String(href)}</Text>;
+  },
 }));
 
 // Return the key verbatim so the tagline is queryable by its string key.
@@ -132,19 +138,20 @@ describe('SplashScreen theming', () => {
     expect(statusBarStyle).toBe('dark');
   });
 
-  it('logo-quiz slug: light palette, mesh background, dark status bar', () => {
-    mockAppSlug = 'logo-quiz';
-    const { getByText, getAllByText, getByTestId } = render(<SplashScreen />);
+  // Every app-template build owns its splash, so the shared erudite splash must
+  // never render for them — it would show as a "first" splash before the real
+  // one and, on a fresh install, hand off into the erudite language picker.
+  it.each([
+    ['logo-quiz', '/logo-quiz/splash'],
+    ['flags-quiz', '/flags-quiz/splash'],
+    ['coat-of-arms', '/coat-of-arms/splash'],
+    ['sport-quiz', '/sport-quiz/splash'],
+  ])('%s slug: redirects to its own splash instead of rendering', (slug, route) => {
+    mockAppSlug = slug;
+    const { getByTestId, queryByText } = render(<SplashScreen />);
 
-    // Logo Quiz renders its own localized tagline, not the shared t('splash.tagline').
-    expect(getByText('Train Your Brain!')).toBeTruthy();
-
-    // Light theme: dark-grey QUI/ES, purple ZZZ.
-    expect(colorOf(getByText('Q'))).toBe('#4A4A5E');
-    getAllByText('Z').forEach((z) => expect(colorOf(z)).toBe('#7C5CFF'));
-
-    // Logo Quiz brand mesh is present; StatusBar flips to dark for the pale bg.
-    expect(getByTestId('app-background')).toBeTruthy();
-    expect(statusBarStyle).toBe('dark');
+    expect(getByTestId('redirect').props.children).toBe(route);
+    // The shared wordmark never paints for a template build.
+    expect(queryByText('Q')).toBeNull();
   });
 });

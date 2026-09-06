@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   Easing,
@@ -32,6 +32,16 @@ const SPLASH_HARD_CAP_MS = 10000;
 // leave the splash, so the first level opens with no visible image pop-in.
 const PRELOAD_MIN_LOGOS = 45;
 const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
+// App-template builds that own their splash and first-run flow. Keyed by
+// EXPO_PUBLIC_APP_SLUG; anything not listed here (i.e. the erudite build) keeps
+// the shared splash below. Add a new template's slug here the moment it gets its
+// own app/<slug>/splash.tsx, or it will show the erudite intro on a fresh install.
+const TEMPLATE_SPLASH_ROUTES: Record<string, Href> = {
+  'logo-quiz': '/logo-quiz/splash',
+  'flags-quiz': '/flags-quiz/splash',
+  'coat-of-arms': '/coat-of-arms/splash',
+  'sport-quiz': '/sport-quiz/splash',
+};
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 /**
@@ -72,15 +82,18 @@ async function prefetchLogoQuizLogos(locale: string): Promise<void> {
 }
 
 export default function SplashScreen() {
-  // The Logo Quiz build has its OWN splash (app/logo-quiz/splash.tsx). This
-  // shared erudite splash is the root Stack's initialRoute, so WITHOUT this guard
-  // it rendered FIRST for logo-quiz too — a brief "first" splash before the real
-  // one (the double-splash the user saw), and on first run it even routed into
-  // the erudite language picker. Redirect straight to the Logo Quiz splash so
-  // this screen never renders for that build. APP_SLUG is a build-time constant,
+  // Every app-template build owns its splash + first-run flow; this shared
+  // erudite splash belongs to the erudite build only. It is the root Stack's
+  // initialRoute, though, so WITHOUT this guard it renders FIRST for the
+  // templates too: a brief erudite "first" splash before the real one (the
+  // double-splash seen on Logo Quiz) and, on a FRESH install, a hand-off into
+  // the erudite language picker → onboarding → paywall before the app's own
+  // home. app/index.tsx already redirects each slug to its own splash, so this
+  // mirrors that intent one screen earlier. APP_SLUG is a build-time constant,
   // so this early return is stable and never changes the hook order below.
-  if (APP_SLUG === 'logo-quiz') {
-    return <Redirect href="/logo-quiz/splash" />;
+  const templateSplash = TEMPLATE_SPLASH_ROUTES[APP_SLUG];
+  if (templateSplash) {
+    return <Redirect href={templateSplash} />;
   }
 
   const { t } = useTranslation();
