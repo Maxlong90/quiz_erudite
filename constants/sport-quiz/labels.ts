@@ -14,20 +14,12 @@ export interface SQLabels {
   shop: string;
 
   // settings
-  cancelSubscription: string;
-  restorePurchases: string;
   selectLanguage: string;
   rateApp: string;
   contactSupport: string;
   privacyPolicy: string;
   termsOfUse: string;
   ok: string;
-  restoreDoneTitle: string;
-  restoreDoneMessage: string;
-  restoreNoneTitle: string;
-  restoreNoneMessage: string;
-  restoreErrorTitle: string;
-  restoreErrorMessage: string;
 
   // shop / paywall
   shopTitle: string;
@@ -115,20 +107,12 @@ const EN: SQLabels = {
   play: 'PLAY',
   settings: 'Settings',
   shop: 'Shop',
-  cancelSubscription: 'Cancel Subscription',
-  restorePurchases: 'Restore Purchases',
   selectLanguage: 'Language',
   rateApp: 'Rate App',
   contactSupport: 'Contact Support',
   privacyPolicy: 'Privacy Policy',
   termsOfUse: 'Terms of Use',
   ok: 'OK',
-  restoreDoneTitle: 'Purchases Restored',
-  restoreDoneMessage: 'Your purchases are active again.',
-  restoreNoneTitle: 'Nothing to Restore',
-  restoreNoneMessage: 'We found no previous purchases to restore.',
-  restoreErrorTitle: 'Restore Failed',
-  restoreErrorMessage: 'Something went wrong. Please try again later.',
   shopTitle: 'Shop',
   coinPacks: 'Coin Packs',
   coins: 'coins',
@@ -201,20 +185,12 @@ const RU: SQLabels = {
   play: 'ИГРАТЬ',
   settings: 'Настройки',
   shop: 'Магазин',
-  cancelSubscription: 'Отменить подписку',
-  restorePurchases: 'Восстановить покупки',
   selectLanguage: 'Язык',
   rateApp: 'Оценить приложение',
   contactSupport: 'Поддержка',
   privacyPolicy: 'Политика конфиденциальности',
   termsOfUse: 'Условия использования',
   ok: 'ОК',
-  restoreDoneTitle: 'Покупки восстановлены',
-  restoreDoneMessage: 'Ваши покупки снова активны.',
-  restoreNoneTitle: 'Нечего восстанавливать',
-  restoreNoneMessage: 'Предыдущих покупок не найдено.',
-  restoreErrorTitle: 'Не удалось восстановить',
-  restoreErrorMessage: 'Что-то пошло не так. Попробуйте позже.',
   shopTitle: 'Магазин',
   coinPacks: 'Наборы монет',
   coins: 'монет',
@@ -287,20 +263,12 @@ const ES: SQLabels = {
   play: 'JUGAR',
   settings: 'Ajustes',
   shop: 'Tienda',
-  cancelSubscription: 'Cancelar suscripción',
-  restorePurchases: 'Restaurar compras',
   selectLanguage: 'Idioma',
   rateApp: 'Valorar la app',
   contactSupport: 'Soporte',
   privacyPolicy: 'Política de privacidad',
   termsOfUse: 'Términos de uso',
   ok: 'OK',
-  restoreDoneTitle: 'Compras restauradas',
-  restoreDoneMessage: 'Tus compras están activas de nuevo.',
-  restoreNoneTitle: 'Nada que restaurar',
-  restoreNoneMessage: 'No encontramos compras anteriores.',
-  restoreErrorTitle: 'Error al restaurar',
-  restoreErrorMessage: 'Algo salió mal. Inténtalo más tarde.',
   shopTitle: 'Tienda',
   coinPacks: 'Paquetes de monedas',
   coins: 'monedas',
@@ -373,20 +341,12 @@ const FR: SQLabels = {
   play: 'JOUER',
   settings: 'Réglages',
   shop: 'Boutique',
-  cancelSubscription: 'Annuler l’abonnement',
-  restorePurchases: 'Restaurer les achats',
   selectLanguage: 'Langue',
   rateApp: 'Noter l’application',
   contactSupport: 'Contacter le support',
   privacyPolicy: 'Politique de confidentialité',
   termsOfUse: 'Conditions d’utilisation',
   ok: 'OK',
-  restoreDoneTitle: 'Achats restaurés',
-  restoreDoneMessage: 'Tes achats sont de nouveau actifs.',
-  restoreNoneTitle: 'Rien à restaurer',
-  restoreNoneMessage: 'Aucun achat précédent trouvé.',
-  restoreErrorTitle: 'Échec de la restauration',
-  restoreErrorMessage: 'Une erreur est survenue. Réessaie plus tard.',
   shopTitle: 'Boutique',
   coinPacks: 'Packs de pièces',
   coins: 'pièces',

@@ -65,7 +65,7 @@ function prizeLabel(id: string, t: SQLabels): string {
 
 export default function SportQuizWheel() {
   const t = useSQLabels();
-  const { coins, wheelLastSpinAt, spinWheel, resetWheelCooldown } = useSportQuiz();
+  const { coins, wheelLastSpinAt, spinWheel } = useSportQuiz();
   const now = useNow(1000);
   const remaining = wheelCooldownRemaining(wheelLastSpinAt, now);
   const available = remaining <= 0;
@@ -178,17 +178,6 @@ export default function SportQuizWheel() {
           </View>
         )}
       </View>
-
-      {/* DEV: reset the cooldown so the free spin is available immediately. */}
-      {__DEV__ && (
-        <Pressable
-          onPress={resetWheelCooldown}
-          style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.8 }]}
-        >
-          <Ionicons name="build" size={18} color="#FFB65C" />
-          <Text style={styles.devBtnText}>DEV: reset timer</Text>
-        </Pressable>
-      )}
 
       <OddsModal visible={showOdds} onClose={() => setShowOdds(false)} t={t} />
     </SafeAreaView>
@@ -307,24 +296,6 @@ const styles = StyleSheet.create({
   },
   cooldownLabel: { fontSize: 14, fontWeight: '700', color: SQColors.text },
   cooldownTime: { fontSize: 16, fontWeight: '900', color: SQColors.text },
-
-  // DEV button — off-brand dashed amber pill so it reads as a tool.
-  devBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    marginBottom: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: SQRadius.pill,
-    borderWidth: 1.5,
-    borderColor: '#FFB65C',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(6,16,26,0.6)',
-  },
-  devBtnText: { color: '#FFB65C', fontWeight: '800', fontSize: 14 },
 
   modalBackdrop: {
     flex: 1,

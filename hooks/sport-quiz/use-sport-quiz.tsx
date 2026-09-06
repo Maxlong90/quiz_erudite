@@ -24,7 +24,7 @@ import { STARTING_COINS, type WheelPrize } from '@/lib/sport-quiz/economy';
 const COINS_KEY = 'sportquiz.coins.v1';
 const WHEEL_KEY = 'sportquiz.wheelLastSpinAt.v1';
 // Quiz-level progress: the set of solved question ids (persisted as a JSON array
-// of ids) and the last level opened. The DEV "reset levels" button clears both.
+// of ids) and the last level opened.
 const SOLVED_KEY = 'sportquiz.solvedIds.v1';
 const LASTLEVEL_KEY = 'sportquiz.lastLevel.v1';
 // Sports Legends: plates the player PAID to uncover, per question id, so a face
@@ -56,10 +56,6 @@ interface SportQuizValue {
   revealedPlatesFor: (questionId: number) => number[];
   /** Persist one more uncovered plate for a Legends question. Idempotent. */
   revealPlate: (questionId: number, plateIndex: number) => void;
-  /** DEV: reset the wheel cooldown so the free spin is available immediately. */
-  resetWheelCooldown: () => void;
-  /** DEV: reset all quiz level progress back to the first question. */
-  resetLevels: () => void;
 }
 
 interface PersistedState {
@@ -247,17 +243,6 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  // DEV tools.
-  const resetWheelCooldown = useCallback(() => {
-    const s = stateRef.current;
-    persist({ ...s, wheelLastSpinAt: 0 });
-  }, [persist]);
-
-  const resetLevels = useCallback(() => {
-    AsyncStorage.multiRemove([SOLVED_KEY, LASTLEVEL_KEY, PLATES_KEY]).catch(() => {});
-    persist({ ...stateRef.current, solvedIds: {}, lastLevel: 0, revealedPlates: {} });
-  }, [persist]);
-
   const value = useMemo<SportQuizValue>(
     () => ({
       ready,
@@ -273,8 +258,6 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
       setLastLevel,
       revealedPlatesFor,
       revealPlate,
-      resetWheelCooldown,
-      resetLevels,
     }),
     [
       ready,
@@ -287,8 +270,6 @@ export function SportQuizProvider({ children }: { children: ReactNode }) {
       setLastLevel,
       revealedPlatesFor,
       revealPlate,
-      resetWheelCooldown,
-      resetLevels,
     ],
   );
 

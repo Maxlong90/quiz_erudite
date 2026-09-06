@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -12,7 +12,6 @@ import { AppBackground } from '@/components/sport-quiz/app-background';
 import { GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
-import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
 import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
@@ -45,7 +44,6 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 
 export default function SportQuizSettings() {
   const t = useSQLabels();
-  const { resetLevels } = useSportQuiz();
   // Carries app_url_ios / app_url_android from the backend, so Rate points at the
   // real Sport Quiz listing instead of the placeholder store id.
   const { snapshot } = useSportQuizContent();
@@ -60,12 +58,6 @@ export default function SportQuizSettings() {
     Haptics.selectionAsync().catch(() => {});
     changeLocale(l);
     setLangOpen(false);
-  };
-
-  // Sport Quiz has no subscription — nothing to restore. Keep the flow truthful
-  // (and functional) by always showing the "nothing to restore" alert.
-  const onRestorePurchases = () => {
-    Alert.alert(t.restoreNoneTitle, t.restoreNoneMessage, [{ text: t.ok }]);
   };
 
   const onPrivacy = () => openUrl(PRIVACY_URL);
@@ -83,13 +75,6 @@ export default function SportQuizSettings() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {});
   };
 
-  // DEV-only: reset every quiz level back to its first question.
-  const onResetLevels = () => {
-    Haptics.selectionAsync().catch(() => {});
-    resetLevels();
-    Alert.alert('DEV', 'All levels reset to the first question.', [{ text: t.ok }]);
-  };
-
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
       <AppBackground variant="navy" />
@@ -105,11 +90,6 @@ export default function SportQuizSettings() {
       </View>
 
       <View style={styles.actions}>
-        {/* Cancel subscription — Sport Quiz has NO subscription, so this row is
-            inactive (dimmed, non-pressable). It preserves Logo Quiz's layout. */}
-        <SettingsRow label={t.cancelSubscription} inactive />
-        {/* Restore Purchases — always "nothing to restore" here. */}
-        <SettingsRow label={t.restorePurchases} onPress={onRestorePurchases} />
         {/* Language picker — a pick switches the whole app instantly. */}
         <SettingsRow
           label={t.selectLanguage}
@@ -123,17 +103,8 @@ export default function SportQuizSettings() {
         <SettingsRow label={t.termsOfUse} onPress={onTerms} />
       </View>
 
-      {/* DEV tools pinned to the bottom — only in development builds. */}
+      {/* Pushes the version pill to the bottom of the screen. */}
       <View style={{ flex: 1 }} />
-      {__DEV__ && (
-        <Pressable
-          onPress={onResetLevels}
-          style={({ pressed }) => [styles.devBtn, pressed && { opacity: 0.8 }]}
-        >
-          <Ionicons name="build" size={18} color="#FFB65C" />
-          <Text style={styles.devBtnText}>DEV: reset levels</Text>
-        </Pressable>
-      )}
 
       {/* App version — the live build's version, in the same framed glass style as
           the settings rows. Read from the Expo config, so it tracks every release
@@ -177,31 +148,20 @@ export default function SportQuizSettings() {
   );
 }
 
-/**
- * A glass pill settings row. `inactive` dims it and makes it non-pressable — used
- * for the Cancel Subscription row that has nothing to do in Sport Quiz.
- */
+/** A glass pill settings row. */
 function SettingsRow({
   label,
   onPress,
-  inactive,
   icon,
 }: {
   label: string;
   onPress?: () => void;
-  inactive?: boolean;
   icon?: ReactNode;
 }) {
   return (
     <Pressable
-      onPress={inactive ? undefined : onPress}
-      disabled={inactive}
-      style={({ pressed }) => [
-        styles.row,
-        neonGlow(SQColors.neon, 10),
-        inactive && styles.rowInactive,
-        pressed && !inactive && styles.pressed,
-      ]}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, neonGlow(SQColors.neon, 10), pressed && styles.pressed]}
     >
       <LinearGradient
         colors={[SQColors.glassStrong, SQColors.glass]}
@@ -242,7 +202,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: 10,
   },
-  rowInactive: { opacity: 0.45 },
   rowText: { color: SQColors.text, fontWeight: '900', fontSize: 20 },
   pressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   flag: { fontSize: 22 },
@@ -277,24 +236,6 @@ const styles = StyleSheet.create({
   langRowActive: { backgroundColor: 'rgba(43,255,179,0.16)' },
   langText: { fontSize: 17, fontWeight: '800', color: SQColors.text },
   langTextActive: { color: SQColors.neon },
-
-  // DEV button — deliberately off-brand (dashed amber) so it reads as a tool.
-  devBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    marginBottom: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: SQRadius.pill,
-    borderWidth: 1.5,
-    borderColor: '#FFB65C',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(6,16,26,0.6)',
-  },
-  devBtnText: { color: '#FFB65C', fontWeight: '800', fontSize: 14 },
 
   // Version pill — same glass + neon frame as the settings rows, just quieter.
   versionBox: {
