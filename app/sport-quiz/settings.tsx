@@ -13,6 +13,7 @@ import { GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
+import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 
@@ -35,8 +36,9 @@ const LANGUAGE_FLAGS: Record<SupportedLocale, string> = {
 };
 
 // External URLs — mirrors the main app's settings so a real Privacy page is a
-// one-line change. Store links come from the snapshot via getStoreLinks(), but
-// Sport Quiz has no content hook wired here yet, so we fall back to defaults.
+// one-line change. Store links are deliberately NOT here: they come from the
+// backend snapshot (app_url_ios / app_url_android) via getStoreLinks(), so the
+// App Store id is owned by the backend and never hardcoded in the client.
 const PRIVACY_URL = 'https://quizzzes.com/privacy';
 const TERMS_URL = 'https://quizzzes.com/terms';
 const SUPPORT_EMAIL = 'support@quizzzes.com';
@@ -44,6 +46,9 @@ const SUPPORT_EMAIL = 'support@quizzzes.com';
 export default function SportQuizSettings() {
   const t = useSQLabels();
   const { resetLevels } = useSportQuiz();
+  // Carries app_url_ios / app_url_android from the backend, so Rate points at the
+  // real Sport Quiz listing instead of the placeholder store id.
+  const { snapshot } = useSportQuizContent();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
 
@@ -67,9 +72,9 @@ export default function SportQuizSettings() {
   const onTerms = () => openUrl(TERMS_URL);
 
   const onRate = () => {
-    // No content snapshot wired for Sport Quiz yet — pass undefined so we use the
-    // default store deep link / fallback.
-    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(undefined, Platform.OS);
+    // Store links come from the snapshot; getStoreLinks still falls back to the
+    // defaults while the snapshot is loading or offline with an empty cache.
+    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(snapshot?.app, Platform.OS);
     Linking.openURL(rateDeepLink).catch(() => openUrl(rateFallbackUrl));
   };
 
