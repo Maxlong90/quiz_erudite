@@ -77,6 +77,14 @@ The `logo-quiz-preview` / `logo-quiz-production` and `sport-quiz-preview` / `spo
 
 **Sport Quiz** carries its real iOS bundle id, `com.quizzzes.sport` — the App Store Connect app the `sportquiz_coins_*` consumables were provisioned against. That bundle id is load-bearing and must not be "tidied": StoreKit resolves products by the binary's bundle id, so any other value returns an empty catalog with no error. The one value still outstanding is `EXPO_PUBLIC_REVENUECAT_IOS_KEY` (the app's `appl_…` public SDK key, held in the backend's `apps.revenuecat_apple_public_api_key` and in the RevenueCat dashboard, deliberately not committed here). Pasting it into **both** profiles is the last step between [Sport Quiz](sport-quiz.md#coin-packs)'s wired-up coin packs and real iOS revenue — no code change follows. `__tests__/lib/eas-profiles.test.ts` pins these invariants: a malformed key, a key filled into only one of the two mirrored profiles, or a changed bundle id all fail the suite.
 
+**Operator procedure for that key.** The value lives in exactly two places, both outside this repo: the RevenueCat dashboard (project `c58fe308` → app `app5174f09d20` → the Apple **public SDK key**, an `appl_…` string — *not* the `sk_…` secret key, which must never be committed), and the backend column `apps.revenuecat_apple_public_api_key` for app id 27, which the backend syncs from RevenueCat automatically. Replace `REPLACE_WITH_SPORT_QUIZ_REVENUECAT_IOS_KEY` in **both** `sport-quiz-preview` and `sport-quiz-production`, then run:
+
+```
+npm run check:store-config
+```
+
+Green means the key is well-formed, identical across the two profiles, and the bundle id is untouched. Nothing else needs to change: Sport Quiz has no premium tier, no entitlement and no paywall route — verified by grep, the app never imports `usePremium` and never navigates to `/paywall` — so supplying the key lights up consumable purchasing **only**. The backend's `show_paywall_ios: true` flag for this app is inert on the client, because its sole reader (`app/onboarding.tsx`) belongs to the Erudite flow, which a sibling build redirects away from before mount.
+
 The Sport Quiz profiles deliberately carry **no** `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` (that app has no Google Play catalog, so Android must stay fail-closed) and no AdMob unit id (it shows no ads). Their `EXPO_PUBLIC_ANDROID_PACKAGE` is still a placeholder because no Play app exists; an Android build from these profiles therefore fails loudly at Gradle on an invalid package name, which is the intended outcome — the alternative, falling back to Erudite's package, would silently collide with a shipping app. Flags Quiz and Coat of Arms still have no dedicated profile, so their bundle id and package fall back to the Erudite identity; that is harmless, since they ship no shop or paywall.
 
 ### Running Italy Quiz in Expo Go

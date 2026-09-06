@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "check:store-config": "jest __tests__/lib/eas-profiles.test.ts"
   },
   "dependencies": {
     "@babel/plugin-transform-computed-properties": "^7.28.6",
