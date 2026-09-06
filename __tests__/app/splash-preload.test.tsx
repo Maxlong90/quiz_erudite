@@ -1,28 +1,21 @@
 /**
- * Logo Quiz splash preload + navigation gating (app/splash.tsx).
+ * Logo Quiz splash preload + navigation (app/logo-quiz/splash.tsx).
  *
- * On the logo-quiz build the splash warms the brand logos into expo-image's
- * memory-disk cache before leaving, so the first level opens with no per-tile
- * decode pop-in. These tests lock the gating contract of that preload:
- *   - it prefetches EVERY question's imageUri, awaiting the first 3 levels
- *     (45 logos) and backgrounding the rest, with cachePolicy 'memory-disk';
- *   - navigation is deferred until BOTH the 3s minimum AND the first-levels
- *     prefetch complete, but a hard cap (~10s) guarantees the user is never
- *     trapped when the sync/prefetch stalls;
+ * The Logo Quiz build owns this splash (the shared erudite app/splash.tsx
+ * redirects here — see splash.test.tsx). While it is up it warms the brand logos
+ * into expo-image's memory-disk cache so the first level opens with no per-tile
+ * decode pop-in. These tests lock that contract:
+ *   - it prefetches EVERY question's imageUri: the first 3 levels (45 logos)
+ *     first, the rest right after, both with cachePolicy 'memory-disk';
+ *   - the splash lasts EXACTLY 3s and navigation is NEVER gated on the preload —
+ *     on an empty cache the sync+prefetch used to overrun the minimum and only a
+ *     10s hard cap released it, which read as a splash hanging for ten seconds;
  *   - it is fully fail-open: a snapshot load / prefetch error never throws and
- *     never blocks the handoff.
- * The theming/tagline branch is covered separately in splash.test.tsx; here the
- * content layer is mocked so the preload logic can be driven deterministically.
+ *     never blocks the handoff to /logo-quiz.
+ * The content layer is mocked so the preload can be driven deterministically.
  */
 import React from 'react';
 import { act, render } from '@testing-library/react-native';
-
-// --- force the logo-quiz branch ---------------------------------------------
-// APP_SLUG is read at module-load time (it fixes SPLASH_DURATION_MS = 3000) and
-// again in the render (isLogoQuiz). Every test here is the logo-quiz build, so
-// mock it as a static constant — a getter over an outer `let` would still be in
-// its TDZ when the hoisted `import SplashScreen` loads the module.
-jest.mock('@/api/client', () => ({ APP_SLUG: 'logo-quiz' }));
 
 // --- module boundaries ------------------------------------------------------
 
@@ -49,17 +42,21 @@ jest.mock('expo-image', () => ({
   Image: { prefetch: (...args: unknown[]) => mockPrefetch(...args) },
 }));
 
+// Bundled Welcome art is warmed alongside the logos; it is local and irrelevant
+// to the timing contract, so it just resolves.
+const mockLoadAsync = jest.fn();
+jest.mock('expo-asset', () => ({
+  Asset: { loadAsync: (...args: unknown[]) => mockLoadAsync(...args) },
+}));
+
 // Fixed locale so the preload targets the 'en' snapshot deterministically.
 jest.mock('@/hooks/use-locale', () => ({
   useLocale: () => ({ locale: 'en' }),
 }));
 
 // Trim the visual-only bits so the render is light and hook order is preserved.
-jest.mock('@/hooks/use-translation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/hooks/use-theme-pref', () => ({
-  useThemePref: () => ({ theme: 'light', ready: true, setTheme: jest.fn() }),
+jest.mock('@/constants/logo-quiz/labels', () => ({
+  useLQLabels: () => ({ tagline: 'Train Your Brain!' }),
 }));
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 jest.mock('@/components/logo-quiz/app-background', () => {
@@ -67,15 +64,14 @@ jest.mock('@/components/logo-quiz/app-background', () => {
   return { BG_BASE: '#AEC1F5', AppBackground: () => <View testID="app-background" /> };
 });
 
-import SplashScreen from '@/app/splash';
+import LogoQuizSplash from '@/app/logo-quiz/splash';
 
 // --- fixtures ----------------------------------------------------------------
 
-const SPLASH_DURATION_MS = 3000; // logo-quiz minimum (asserted indirectly below)
-const SPLASH_HARD_CAP_MS = 10000;
+const SPLASH_MS = 3000;
 
-// 4 levels x 15 logos = 60 imageUris. The first 45 (levels 1-3) must be awaited
-// before navigating; the remaining 15 are backgrounded.
+// 4 levels x 15 logos = 60 imageUris. The first 45 (levels 1-3) are prefetched
+// first; the remaining 15 follow.
 const URIS = Array.from({ length: 60 }, (_, i) => `uri-${i}`);
 const FIRST_45 = URIS.slice(0, 45);
 const REST_15 = URIS.slice(45);
@@ -111,6 +107,7 @@ beforeEach(() => {
   mockSyncContent.mockResolvedValue(SNAPSHOT_EN);
   mockBuildLevels.mockReturnValue(LEVELS);
   mockPrefetch.mockResolvedValue(undefined);
+  mockLoadAsync.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -118,37 +115,36 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe('logo-quiz splash: logo preload + navigation gating', () => {
-  it('prefetches the first 45 logos (memory-disk) then backgrounds the rest, and defers nav to the 3s minimum', async () => {
-    const { unmount } = render(<SplashScreen />);
+describe('logo-quiz splash: logo preload + navigation', () => {
+  it('prefetches the first 45 logos (memory-disk) then the rest, and hands off at 3s', async () => {
+    const { unmount } = render(<LogoQuizSplash />);
 
     // Let the preload run (load snapshot -> buildLevels -> prefetch chain).
     await advance(0);
     await flush();
 
-    // First 3 levels awaited, remaining logos backgrounded — both memory-disk.
     expect(mockLoadCachedSnapshot).toHaveBeenCalledWith('logo-quiz');
     expect(mockSyncContent).not.toHaveBeenCalled(); // cache hit for the right locale
     expect(mockBuildLevels).toHaveBeenCalledWith(SNAPSHOT_EN);
     expect(mockPrefetch).toHaveBeenNthCalledWith(1, FIRST_45, CACHE);
     expect(mockPrefetch).toHaveBeenNthCalledWith(2, REST_15, CACHE);
 
-    // Preload finished quickly, but the 3s minimum still holds the splash.
-    await advance(SPLASH_DURATION_MS - 1);
+    // The 3s minimum holds the splash…
+    await advance(SPLASH_MS - 1);
     expect(mockReplace).not.toHaveBeenCalled();
 
-    // Crossing the 3s minimum releases the handoff. No onboarding flag -> /language.
+    // …and crossing it hands off to the Logo Quiz home.
     await advance(1);
     await flush();
     expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/language');
+    expect(mockReplace).toHaveBeenCalledWith('/logo-quiz');
 
     unmount();
   });
 
   it('syncs the snapshot when the cache is empty, then prefetches', async () => {
     mockLoadCachedSnapshot.mockResolvedValue(null); // nothing cached yet
-    const { unmount } = render(<SplashScreen />);
+    const { unmount } = render(<LogoQuizSplash />);
 
     await advance(0);
     await flush();
@@ -161,7 +157,7 @@ describe('logo-quiz splash: logo preload + navigation gating', () => {
 
   it('re-syncs when the cached snapshot is for the wrong locale', async () => {
     mockLoadCachedSnapshot.mockResolvedValue({ locale: 'ru' }); // stale locale
-    const { unmount } = render(<SplashScreen />);
+    const { unmount } = render(<LogoQuizSplash />);
 
     await advance(0);
     await flush();
@@ -172,9 +168,9 @@ describe('logo-quiz splash: logo preload + navigation gating', () => {
     unmount();
   });
 
-  it('is fail-open: a snapshot-load rejection never throws and still navigates after the minimum', async () => {
+  it('is fail-open: a snapshot-load rejection never throws and still hands off at 3s', async () => {
     mockLoadCachedSnapshot.mockRejectedValue(new Error('cache blew up'));
-    const { unmount } = render(<SplashScreen />);
+    const { unmount } = render(<LogoQuizSplash />);
 
     await advance(0);
     await flush();
@@ -183,47 +179,40 @@ describe('logo-quiz splash: logo preload + navigation gating', () => {
     expect(mockPrefetch).not.toHaveBeenCalled();
     expect(mockReplace).not.toHaveBeenCalled();
 
-    // The splash still hands off on the 3s minimum despite the failed preload.
-    await advance(SPLASH_DURATION_MS);
+    await advance(SPLASH_MS);
     await flush();
-    expect(mockReplace).toHaveBeenCalledWith('/language');
+    expect(mockReplace).toHaveBeenCalledWith('/logo-quiz');
 
     unmount();
   });
 
-  it('never traps the user: a stalled prefetch is released by the ~10s hard cap', async () => {
-    // Prefetch that never resolves -> the min+preload branch can never win.
+  it('never hangs: a stalled prefetch does NOT hold the splash past 3s', async () => {
+    // A prefetch that never resolves used to gate navigation, so only the 10s
+    // hard cap released it — the ten-second splash. Now it runs detached.
     mockPrefetch.mockReturnValue(new Promise<void>(() => {}));
-    const { unmount } = render(<SplashScreen />);
+    const { unmount } = render(<LogoQuizSplash />);
 
     await advance(0);
     await flush();
     expect(mockPrefetch).toHaveBeenCalledWith(FIRST_45, CACHE);
 
-    // Past the 3s minimum but before the cap: still waiting on the stalled preload.
-    await advance(SPLASH_DURATION_MS);
-    await flush();
-    expect(mockReplace).not.toHaveBeenCalled();
-
-    // The hard cap fires and forces the handoff regardless of the stalled prefetch.
-    await advance(SPLASH_HARD_CAP_MS - SPLASH_DURATION_MS);
+    await advance(SPLASH_MS);
     await flush();
     expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/language');
+    expect(mockReplace).toHaveBeenCalledWith('/logo-quiz');
 
     unmount();
   });
 
-  it('routes to home when onboarding has already been seen', async () => {
-    const AsyncStorage = require('@react-native-async-storage/async-storage');
-    await AsyncStorage.setItem('onboarding.seen.v1', '1');
-    const { unmount } = render(<SplashScreen />);
-
-    await advance(SPLASH_DURATION_MS);
+  it('does not navigate after unmount', async () => {
+    const { unmount } = render(<LogoQuizSplash />);
+    await advance(0);
     await flush();
 
-    expect(mockReplace).toHaveBeenCalledWith('/');
-
     unmount();
+    await advance(SPLASH_MS * 2);
+    await flush();
+
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });
