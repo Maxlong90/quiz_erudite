@@ -4,7 +4,7 @@ Sport Quiz is the fifth app built from this tree. It is a sports trivia game wit
 
 ## Why a Fifth App
 
-Like the other siblings, Sport Quiz is selected at build time by `APP_SLUG` (`sport-quiz`). The home route (`app/index.tsx`) redirects straight to `/sport-quiz/splash`, and the erudite intro, hub, and modes never render. Its screens live in `app/sport-quiz/`, UI in `components/sport-quiz/`, state in `hooks/sport-quiz/`, domain logic in `lib/sport-quiz/`, and strings and palette in `constants/sport-quiz/`. `app.config.js` gives the build its own Expo `name` and `slug` so it does not collide with the other variants in Expo Go; store identity falls back to the Erudite identity until an operator supplies Sport Quiz values, and the variant ships iPhone-only.
+Like the other siblings, Sport Quiz is selected at build time by `APP_SLUG` (`sport-quiz`). The home route (`app/index.tsx`) redirects straight to `/sport-quiz/splash`, and the erudite intro, hub, and modes never render. Its screens live in `app/sport-quiz/`, UI in `components/sport-quiz/`, state in `hooks/sport-quiz/`, domain logic in `lib/sport-quiz/`, and strings and palette in `constants/sport-quiz/`. `app.config.js` gives the build its own Expo `name` and `slug` so it does not collide with the other variants in Expo Go; store identity comes from the `sport-quiz-preview` / `sport-quiz-production` `eas.json` profiles and falls back to the Erudite identity until an operator fills their placeholders, and the variant ships iPhone-only.
 
 What sets it apart from its siblings is its monetization model. Erudite and [Logo Quiz](logo-quiz.md) run a lives-plus-premium economy; [Flags Quiz](flags-quiz.md) and [Coat of Arms](coat-of-arms-quiz.md) have no economy at all. Sport Quiz has **coins only** — no lives, no premium tier, no paywalled content. Every question in the catalogue is reachable by anyone; the only thing that gates play is whether you can afford to be wrong.
 
@@ -41,9 +41,19 @@ Prizes are **weighted, not per-wedge uniform**. The wheel draws a prize first (1
 
 The cooldown defends against clock tampering in both directions. An anchor timestamp in the future — the signature of a clock moved backwards — is clamped to now, so the wait can never exceed a real 24 hours; and a never-spun player (anchor of zero) is immediately eligible rather than being made to wait out a phantom cooldown.
 
-### Coin packs are not yet real purchases
+### Coin packs
 
-The shop lists three packs (100 / 500 / 1000 coins) with their App Store and Google Play product ids already fixed as `sportquiz_coins_*`, matching the backend's per-app catalog. The product ids are stable and must not change. The purchase itself is **not wired**: a tap currently grants the coins locally. Real RevenueCat billing waits on Sport Quiz's own store keys and catalog, at which point the pack definitions already carry everything the integration needs. Until then, treat every shop grant on a device as a development affordance, not revenue.
+The shop lists three packs (100 / 500 / 1000 coins) whose App Store product ids are fixed as `sportquiz_coins_*`, matching the backend's per-app catalog and the three consumables provisioned in App Store Connect and RevenueCat. The product ids are stable and must not change.
+
+The packs bill for real through `lib/sport-quiz/iap.ts`, which is a thin wrapper over the shared fail-closed purchase seam (`lib/store-purchase.ts`) that Erudite and Logo Quiz also buy through. Sport Quiz sells **no subscription**, so there is deliberately no entitlement, no offering, and no premium seam here — only the three consumables.
+
+Coins are credited **only** when RevenueCat resolves `'purchased'`. A user cancellation is a silent no-op: dismissing the native sheet must not read as a failure. Anything else — a store error, an unavailable store — alerts (`purchaseErrorTitle` / `purchaseErrorMessage`) and grants nothing. The grant itself stays in the screen, calling the provider's `addCoins` after the outcome, so no code path can credit coins without a resolved purchase. While a purchase is in flight that pack's button becomes a spinner and the others disable, so only one real-money purchase can ever run at a time. Prices come from the store when RevenueCat resolves them (`getSportQuizStorePrices`, keyed by pack id) and fall back to the hardcoded `$0.99 / $3.99 / $6.99` otherwise.
+
+Which platform can actually charge differs, and this is the app's defining asymmetry:
+
+- **iOS transacts.** The App Store catalog exists, so once the `sport-quiz-*` `eas.json` profile carries the app's own `appl_…` RevenueCat key and its bundle id, billing lights up with no code change. The products go on sale with the binary and App Review — App Store Connect has no activation API.
+- **Android does not.** There is no Google Play catalog and no Google public key, and `lib/revenuecat.ts` hands the `sport-quiz` slug no committed Android key, so the SDK stays disabled and a purchase **fails closed** with the error alert. This is a deliberate behaviour change: an Android device build used to grant coins for free on tap. Android economy testing moves to Expo Go.
+- **Expo Go and web** keep the local-grant stub so the dev economy stays playable.
 
 ## Levels and Ordering
 

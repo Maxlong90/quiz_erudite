@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +21,8 @@ import {
   wheelCooldownRemaining,
   type CoinPack,
 } from '@/lib/sport-quiz/economy';
+import { getSportQuizStorePrices, purchaseCoinPack } from '@/lib/sport-quiz/iap';
+import { revenueCatEnabled } from '@/lib/revenuecat';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useNow, useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -30,18 +31,59 @@ export default function SportQuizShop() {
   const t = useSQLabels();
   const { coins, wheelLastSpinAt, addCoins } = useSportQuiz();
   const [boughtPack, setBoughtPack] = useState<string | null>(null);
+  // Which pack is waiting on the native store sheet: its button becomes a
+  // spinner and every other button disables, so only one real-money purchase can
+  // ever be in flight.
+  const [pendingPack, setPendingPack] = useState<string | null>(null);
+  // Live localized prices keyed by pack id. Empty until RevenueCat resolves them
+  // (or forever when the store is off / the catalog isn't live), and each pack
+  // then falls back to its hardcoded `price`.
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+  const purchaseBusy = pendingPack !== null;
 
   const now = useNow(1000);
   const wheelRemaining = wheelCooldownRemaining(wheelLastSpinAt, now);
   const wheelAvailable = wheelRemaining <= 0;
 
-  // TODO: wire real IAP via RevenueCat once App 2/Sport keys exist. For now a tap
-  // grants coins locally so the shop is fully functional in dev/preview.
-  const onBuyPack = (pack: CoinPack) => {
-    Haptics.selectionAsync().catch(() => {});
-    addCoins(pack.coins);
-    setBoughtPack(pack.id);
-    setTimeout(() => setBoughtPack((p) => (p === pack.id ? null : p)), 1400);
+  // Fetch live prices once, mirroring the Logo Quiz shop. Only meaningful where
+  // billing is enabled (an iOS build carrying the Sport Quiz RevenueCat key);
+  // errors are swallowed because the hardcoded fallbacks already cover them.
+  useEffect(() => {
+    if (!revenueCatEnabled) return;
+    let active = true;
+    getSportQuizStorePrices()
+      .then((prices) => {
+        if (active) setStorePrices(prices);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Real RevenueCat purchase. Coins are credited ONLY when the store resolves
+  // 'purchased'. A user cancellation is a silent no-op. Anything else — a store
+  // error, or the fail-closed 'Store unavailable' on a platform with no billing
+  // (Android, until Sport Quiz has a Google Play catalog) — alerts and grants
+  // nothing, so a device that can charge the player never gives coins away.
+  const onBuyPack = async (pack: CoinPack) => {
+    if (purchaseBusy) return;
+    setPendingPack(pack.id);
+    try {
+      const outcome = await purchaseCoinPack(pack);
+      if (outcome === 'purchased') {
+        Haptics.selectionAsync().catch(() => {});
+        addCoins(pack.coins);
+        setBoughtPack(pack.id);
+        setTimeout(() => setBoughtPack((p) => (p === pack.id ? null : p)), 1400);
+      }
+      // 'cancelled' → no grant, no error.
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      Alert.alert(t.purchaseErrorTitle, t.purchaseErrorMessage, [{ text: t.ok }]);
+    } finally {
+      setPendingPack((p) => (p === pack.id ? null : p));
+    }
   };
 
   return (
@@ -91,12 +133,23 @@ export default function SportQuizShop() {
                 )}
               </View>
             </View>
-            {boughtPack === pack.id ? (
+            {/* Spinner / ✓ pills are geometrically identical to the CTA, so the
+                row never shifts as a purchase runs. */}
+            {pendingPack === pack.id ? (
+              <View style={styles.boughtPill}>
+                <ActivityIndicator size="small" color={SQColors.textOnNeon} />
+              </View>
+            ) : boughtPack === pack.id ? (
               <View style={styles.boughtPill}>
                 <Ionicons name="checkmark" size={22} color={SQColors.textOnNeon} />
               </View>
             ) : (
-              <NeonCta label={pack.price} onPress={() => onBuyPack(pack)} color={SQColors.neon} />
+              <NeonCta
+                label={storePrices[pack.id] ?? pack.price}
+                onPress={() => onBuyPack(pack)}
+                disabled={purchaseBusy}
+                color={SQColors.neon}
+              />
             )}
           </GlassCard>
         ))}

@@ -177,6 +177,7 @@ lib/                    Device-local business logic and persistence
   achievements.ts       Achievement catalog and unlock detection
   today-question.ts     Daily-question pick
   iap.ts                Shop bundles + purchase flow (RevenueCat / local)
+  store-purchase.ts     Shared fail-closed consumable purchase seam (all apps)
   revenuecat.ts         RevenueCat wrapper, capability-gated per platform
 constants/
   category-visuals.ts   Slug → emoji/gradient fallback maps

@@ -10,8 +10,10 @@ import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-na
  *
  * Gating is capability-driven, NOT platform-hardcoded: the SDK is enabled on
  * any native platform (android / ios) for which a public key is configured.
- * Android ships with a committed fallback key so it is always on; iOS has NO
- * fallback, so it stays DISABLED until EXPO_PUBLIC_REVENUECAT_IOS_KEY is
+ * Android ships with a committed fallback key for the erudite build, so that
+ * build is always on; every sibling app supplies its own key through its EAS
+ * profile, because a key belongs to exactly one RevenueCat project. iOS has NO
+ * fallback at all, so it stays DISABLED until EXPO_PUBLIC_REVENUECAT_IOS_KEY is
  * provided — at which point iOS lights up automatically with no code change.
  * On web, in Expo Go, or when the native module is missing it also stays
  * disabled and callers fall back to the existing local-grant behavior so dev
@@ -22,13 +24,46 @@ import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-na
  * this module is safe everywhere.
  */
 
-// Android public key — safe to commit. Overridable via env / EAS secret.
-const ANDROID_KEY =
-  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || 'goog_hFgRbNrOlUHcMtKClkwWcYIBLvd';
-// iOS public key — NO committed fallback. Until the owner supplies an
-// App Store RevenueCat key via EXPO_PUBLIC_REVENUECAT_IOS_KEY, iOS billing
+// Build-time app slug. Mirrors APP_SLUG in api/client.ts, read straight from
+// env rather than imported so this module keeps zero dependencies beyond the
+// store SDK (importing @/api/client would pull axios into every consumer).
+const APP_SLUG_FOR_KEYS = process.env.EXPO_PUBLIC_APP_SLUG ?? 'erudite-quiz';
+
+// Committed public Android keys, per app. These are public billing keys and are
+// safe to commit, but each one belongs to exactly ONE RevenueCat project: a key
+// from another app's project resolves an empty catalog AND points the SDK at a
+// foreign project, polluting its install events. So a build only inherits a
+// committed key when its own app has one; the app's own
+// EXPO_PUBLIC_REVENUECAT_ANDROID_KEY (from its eas.json profile) always wins.
+// Sport Quiz has no Google Play catalog yet, hence no entry — its Android builds
+// stay disabled and fail closed rather than talking to Erudite's project.
+const COMMITTED_ANDROID_KEYS: Record<string, string> = {
+  'erudite-quiz': 'goog_hFgRbNrOlUHcMtKClkwWcYIBLvd',
+};
+
+/**
+ * Accept a key only when it looks like a real RevenueCat public SDK key
+ * (`goog_` for Google Play, `appl_` for the App Store); anything else counts as
+ * unset. `eas.json` ships `REPLACE_WITH_…` placeholders for apps whose keys an
+ * operator has not filled in yet, and a placeholder is truthy: without this
+ * check the SDK would be configured with a garbage key, `revenueCatEnabled`
+ * would be true, and every purchase would fail deep inside the store with an
+ * opaque "product not found" instead of the clean fail-closed "Store
+ * unavailable". Unfilled placeholder === no billing, by construction.
+ */
+function publicStoreKey(key: string | undefined, prefix: 'goog_' | 'appl_'): string {
+  return key && key.startsWith(prefix) ? key : '';
+}
+
+// Android public key — env (EAS profile) first, then this app's committed key.
+const ANDROID_KEY = publicStoreKey(
+  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || COMMITTED_ANDROID_KEYS[APP_SLUG_FOR_KEYS],
+  'goog_',
+);
+// iOS public key — NO committed fallback for any app. Until the owner supplies
+// an App Store RevenueCat key via EXPO_PUBLIC_REVENUECAT_IOS_KEY, iOS billing
 // stays off (capability flag below is false), so no broken paywall ships.
-const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '';
+const IOS_KEY = publicStoreKey(process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY, 'appl_');
 
 // The public key for the current native platform (empty string when none).
 const keyForPlatform = Platform.OS === 'ios' ? IOS_KEY : ANDROID_KEY;

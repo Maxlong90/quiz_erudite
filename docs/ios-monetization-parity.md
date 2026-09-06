@@ -77,9 +77,14 @@ so partial setup never produces a broken iOS paywall.
 
 This gating applies to the sibling apps too, each of which needs its own store
 identity and its own RevenueCat catalog before its paywall or shop can transact.
-[Sport Quiz](sport-quiz.md#coin-packs-are-not-yet-real-purchases) is the clearest
-case: its coin packs already carry final product ids but still grant locally,
-because no store keys exist for that app yet.
+[Sport Quiz](sport-quiz.md#coin-packs) is the worked example of the split, and
+the first sibling to transact on **iOS only**: its three `sportquiz_coins_*`
+consumables exist in App Store Connect and RevenueCat, so its coin packs bill for
+real as soon as its `eas.json` profile carries the app's own `appl_…` key and
+bundle id — while Android, which has no Google Play catalog and is handed no
+committed key, keeps billing disabled and fails closed. Capability gating is what
+lets one app be live on one store and safely dead on the other with no
+platform-specific purchase code.
 
 ## See Also
 

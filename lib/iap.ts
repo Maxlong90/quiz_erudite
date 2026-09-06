@@ -1,25 +1,19 @@
-import { Platform } from 'react-native';
-
 import { addLives } from '@/lib/lives';
 import { addHintsBundle, type HintKind } from '@/lib/hints';
-import {
-  fetchProductPrices,
-  isExpoGo,
-  purchaseConsumable,
-  revenueCatEnabled,
-  type PurchaseOutcome,
-} from '@/lib/revenuecat';
+import { fetchProductPrices, type PurchaseOutcome } from '@/lib/revenuecat';
+import { purchaseConsumableProduct } from '@/lib/store-purchase';
 
 /**
  * In-app consumable purchases (lives / hints). On real store builds (Android /
  * iOS) these run through RevenueCat / Google Play (see lib/revenuecat.ts); the
  * bundle ids below are the store product ids and must not change.
  *
- * Grant policy (mirrors the paywall #568 free-unlock guard): a consumable is
- * credited ONLY after a resolved real store purchase. The local-grant stub is
- * permitted exclusively in genuinely non-store dev environments (Expo Go or
- * web) — never on a real iOS/Android device, where an unavailable store fails
- * closed with an error and grants nothing.
+ * Grant policy (shared with every sibling app in lib/store-purchase.ts, and
+ * mirroring the paywall #568 free-unlock guard): a consumable is credited ONLY
+ * after a resolved real store purchase. The local-grant stub is permitted
+ * exclusively in genuinely non-store dev environments (Expo Go or web) — never
+ * on a real iOS/Android device, where an unavailable store fails closed with an
+ * error and grants nothing.
  */
 
 export interface ShopBundle {
@@ -152,16 +146,11 @@ async function grantBundle(bundle: ShopBundle): Promise<void> {
 }
 
 /**
- * Buy a bundle. When RevenueCat is enabled, runs the real store purchase and
- * only credits the bundle locally on a successful (non-cancelled) purchase; a
- * user cancellation is a no-op and real store errors propagate so the shop UI
- * can show a failure.
- *
- * When RevenueCat is disabled, the local-grant stub runs ONLY in genuine dev
- * environments (Expo Go or web). On a real store platform (Android / iOS) with
- * the store unavailable we fail closed: throw so the UI surfaces an error and
- * NOTHING is granted — a consumable must never be handed out for free on a
- * device that can actually be charged.
+ * Buy a bundle. Runs the shared consumable purchase (real store when RevenueCat
+ * is enabled, the local stub only in Expo Go / web, fail-closed throw on a real
+ * device with the store off) and credits the bundle ONLY on a resolved
+ * `'purchased'`. A user cancellation is a no-op and real store errors propagate
+ * so the shop UI can show a failure.
  *
  * Returns the {@link PurchaseOutcome} so the caller can tell a real purchase
  * (`'purchased'`) apart from a user cancellation (`'cancelled'`) and only then
@@ -169,26 +158,13 @@ async function grantBundle(bundle: ShopBundle): Promise<void> {
  * "purchase added" message even though nothing was granted.
  */
 export async function purchaseBundle(bundle: ShopBundle): Promise<PurchaseOutcome> {
-  if (revenueCatEnabled) {
-    const outcome = await purchaseConsumable(bundle.id);
-    if (outcome === 'purchased') {
-      await grantBundle(bundle);
-    }
-    // 'cancelled' → no grant, no error.
-    return outcome;
-  }
-
-  // RevenueCat is off. Only Expo Go / web may local-grant (no real store).
-  if (isExpoGo || Platform.OS === 'web') {
-    // Stub path: pretend we hit the store, then grant locally.
-    await new Promise((r) => setTimeout(r, 900));
+  // The bundle id IS this catalog's store product id.
+  const outcome = await purchaseConsumableProduct(bundle.id, 900);
+  if (outcome === 'purchased') {
     await grantBundle(bundle);
-    return 'purchased';
   }
-
-  // Real store platform (android / ios) but the store is unavailable — fail
-  // closed. Grant nothing and let the caller show a purchase error.
-  throw new Error('Store unavailable');
+  // 'cancelled' → no grant, no error.
+  return outcome;
 }
 
 /**

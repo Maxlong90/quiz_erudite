@@ -37,6 +37,30 @@ interface LoadOptions {
   execEnv?: 'storeClient' | 'standalone' | 'bare';
   /** Provide a module factory; throw inside it to simulate a missing native module. */
   purchasesFactory?: () => unknown;
+  /** EXPO_PUBLIC_APP_SLUG for this load — picks the committed Android key. */
+  appSlug?: string;
+  /** EXPO_PUBLIC_REVENUECAT_ANDROID_KEY for this load (an EAS profile value). */
+  androidKey?: string;
+  /** EXPO_PUBLIC_REVENUECAT_IOS_KEY for this load (an EAS profile value). */
+  iosKey?: string;
+}
+
+/** Set an env var for one load, restoring whatever (if anything) was there. */
+function withEnv(vars: Record<string, string | undefined>, run: () => void) {
+  const previous = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  const apply = (values: Record<string, string | undefined>) => {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+  // Only the keys the caller actually specified are overridden.
+  apply(Object.fromEntries(Object.entries(vars).filter(([, v]) => v !== undefined)));
+  try {
+    run();
+  } finally {
+    apply(previous);
+  }
 }
 
 function loadRevenueCat(opts: LoadOptions = {}): typeof import('@/lib/revenuecat') {
@@ -51,7 +75,16 @@ function loadRevenueCat(opts: LoadOptions = {}): typeof import('@/lib/revenuecat
     if (opts.purchasesFactory) {
       jest.doMock('react-native-purchases', opts.purchasesFactory);
     }
-    mod = require('@/lib/revenuecat');
+    withEnv(
+      {
+        EXPO_PUBLIC_APP_SLUG: opts.appSlug,
+        EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: opts.androidKey,
+        EXPO_PUBLIC_REVENUECAT_IOS_KEY: opts.iosKey,
+      },
+      () => {
+        mod = require('@/lib/revenuecat');
+      },
+    );
   });
   return mod;
 }
@@ -125,6 +158,93 @@ describe('revenueCatEnabled gating', () => {
     expect(purchases.configure).toHaveBeenCalledWith({
       apiKey: 'goog_hFgRbNrOlUHcMtKClkwWcYIBLvd',
     });
+  });
+});
+
+/**
+ * A committed Android key belongs to exactly ONE RevenueCat project, so it is
+ * handed out per app slug. A sibling with no committed key must stay disabled
+ * rather than silently configure the SDK against Erudite's project (an empty
+ * catalog, plus foreign install events polluting it).
+ */
+describe('committed Android key is scoped to the app it belongs to', () => {
+  it('keeps the Erudite key for the erudite build (no slug set)', () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'android',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(true);
+    expect(purchases.configure).toHaveBeenCalledWith({
+      apiKey: 'goog_hFgRbNrOlUHcMtKClkwWcYIBLvd',
+    });
+  });
+
+  it('leaves Sport Quiz Android disabled — it has no Play catalog and no key', () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'android',
+      appSlug: 'sport-quiz',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(false);
+    expect(purchases.configure).not.toHaveBeenCalled();
+  });
+
+  it("uses a sibling's own key when its EAS profile supplies one", () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'android',
+      appSlug: 'sport-quiz',
+      androidKey: 'goog_sportquizownkey',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(true);
+    expect(purchases.configure).toHaveBeenCalledWith({ apiKey: 'goog_sportquizownkey' });
+  });
+});
+
+/**
+ * eas.json ships `REPLACE_WITH_…` placeholders for apps whose keys an operator
+ * has not filled in yet. A placeholder is truthy, so without a shape check the
+ * SDK would be configured with garbage: enabled, but every purchase failing deep
+ * inside the store instead of failing closed.
+ */
+describe('unfilled key placeholders count as no key', () => {
+  it('stays disabled on Android when the profile key is a placeholder', () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'android',
+      appSlug: 'logo-quiz',
+      androidKey: 'REPLACE_WITH_APP2_REVENUECAT_ANDROID_KEY',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(false);
+    expect(purchases.configure).not.toHaveBeenCalled();
+  });
+
+  it('stays disabled on iOS when the profile key is a placeholder', () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'ios',
+      appSlug: 'sport-quiz',
+      iosKey: 'REPLACE_WITH_SPORT_QUIZ_REVENUECAT_IOS_KEY',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(false);
+    expect(purchases.configure).not.toHaveBeenCalled();
+  });
+
+  it('lights iOS up once a real appl_ key is supplied', () => {
+    const purchases = makePurchasesMock();
+    const rc = loadRevenueCat({
+      platform: 'ios',
+      appSlug: 'sport-quiz',
+      iosKey: 'appl_sportquizapplekey',
+      purchasesFactory: () => ({ __esModule: true, default: purchases }),
+    });
+    expect(rc.revenueCatEnabled).toBe(true);
+    expect(purchases.configure).toHaveBeenCalledWith({ apiKey: 'appl_sportquizapplekey' });
   });
 });
 
