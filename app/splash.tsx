@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Redirect, router, type Href } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   Easing,
@@ -15,6 +15,7 @@ import Animated, {
 import { AppBackground, BG_BASE } from '@/components/logo-quiz/app-background';
 import { ScreenBackground } from '@/components/screen-background';
 import { APP_SLUG } from '@/api/client';
+import { currentTemplate } from '@/constants/app-templates';
 import { loadCachedSnapshot, syncContent } from '@/lib/content-cache';
 import { buildLevels, LOGO_QUIZ_SLUG } from '@/lib/logo-quiz/content';
 import { useLQLabels } from '@/constants/logo-quiz/labels';
@@ -32,16 +33,6 @@ const SPLASH_HARD_CAP_MS = 10000;
 // leave the splash, so the first level opens with no visible image pop-in.
 const PRELOAD_MIN_LOGOS = 45;
 const ONBOARDING_SEEN_KEY = 'onboarding.seen.v1';
-// App-template builds that own their splash and first-run flow. Keyed by
-// EXPO_PUBLIC_APP_SLUG; anything not listed here (i.e. the erudite build) keeps
-// the shared splash below. Add a new template's slug here the moment it gets its
-// own app/<slug>/splash.tsx, or it will show the erudite intro on a fresh install.
-const TEMPLATE_SPLASH_ROUTES: Record<string, Href> = {
-  'logo-quiz': '/logo-quiz/splash',
-  'flags-quiz': '/flags-quiz/splash',
-  'coat-of-arms': '/coat-of-arms/splash',
-  'sport-quiz': '/sport-quiz/splash',
-};
 const LETTERS = ['Q', 'U', 'I', 'Z', 'Z', 'Z', 'E', 'S'] as const;
 
 /**
@@ -91,9 +82,9 @@ export default function SplashScreen() {
   // home. app/index.tsx already redirects each slug to its own splash, so this
   // mirrors that intent one screen earlier. APP_SLUG is a build-time constant,
   // so this early return is stable and never changes the hook order below.
-  const templateSplash = TEMPLATE_SPLASH_ROUTES[APP_SLUG];
-  if (templateSplash) {
-    return <Redirect href={templateSplash} />;
+  const template = currentTemplate();
+  if (template) {
+    return <Redirect href={template.splash} />;
   }
 
   const { t } = useTranslation();

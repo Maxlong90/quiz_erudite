@@ -11,8 +11,7 @@ import { LocaleProvider } from '@/hooks/use-locale';
 import { PremiumProvider } from '@/hooks/use-premium';
 import { ThemePrefProvider, useThemePref } from '@/hooks/use-theme-pref';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { APP_SLUG } from '@/api/client';
-import { BG_BASE } from '@/components/logo-quiz/app-background';
+import { currentTemplate } from '@/constants/app-templates';
 // Side-effect import: initializes Sentry when EXPO_PUBLIC_SENTRY_DSN is set.
 import { Sentry, sentryEnabled } from '@/lib/sentry';
 // Side-effect import: configures RevenueCat on supported Android builds; a
@@ -28,14 +27,15 @@ function ThemedRoot() {
   const colors = useThemeColors();
   const { theme, ready } = useThemePref();
 
-  // The Logo Quiz build is a light, self-contained experience. Force the entire
-  // root scaffold (system bg, navigator card/background, per-screen content bg)
-  // to the Logo Quiz light base so the erudite default-DARK navy never flashes
-  // behind its light splash during the cold-start hand-off (native splash →
-  // index redirect → /logo-quiz/splash). Without this the navy scaffold showed
-  // through the transition and read as a separate dark "first" splash. Every
-  // other build keeps the theme-driven colors.bgSolid.
-  const scaffoldBg = APP_SLUG === 'logo-quiz' ? BG_BASE : colors.bgSolid;
+  // An app-template build paints the whole root scaffold (system bg, navigator
+  // card/background, per-screen content bg) in ITS OWN base colour, so the
+  // erudite default-DARK navy never shows behind its screens during the
+  // cold-start hand-off (native splash → index redirect → the app's splash).
+  // Without this the navy scaffold bled through the transition and read as a
+  // separate dark "first" splash — visible on any template whose palette isn't
+  // navy (it was reported on the light Logo Quiz). The erudite build keeps the
+  // theme-driven colors.bgSolid. See constants/app-templates.ts.
+  const scaffoldBg = currentTemplate()?.scaffoldBg ?? colors.bgSolid;
 
   // Android: keep the system nav bar hidden everywhere; a bottom-edge swipe
   // reveals it transiently and it auto-hides again after 3s.
@@ -84,14 +84,15 @@ function ThemedRoot() {
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
         />
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        {/* Logo Quiz: no slide into the group — the native splash and the JS
-            splash share the same light background, so an instant swap reads as a
-            single continuous splash (a slide would reveal the scaffold behind). */}
+        {/* App templates: no slide into the group. Entering it IS the cold-start
+            hand-off from the native splash to the app's own splash, and both sit
+            on the same background — an instant swap reads as one continuous
+            splash, while a slide briefly reveals the scaffold behind it. */}
         <Stack.Screen name="logo-quiz" options={{ headerShown: false, animation: 'none' }} />
-        <Stack.Screen name="flags-quiz" options={{ headerShown: false }} />
-        <Stack.Screen name="coat-of-arms" options={{ headerShown: false }} />
-        <Stack.Screen name="sport-quiz" options={{ headerShown: false }} />
-        <Stack.Screen name="italy-quiz" options={{ headerShown: false }} />
+        <Stack.Screen name="flags-quiz" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="coat-of-arms" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="sport-quiz" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="italy-quiz" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen
           name="onboarding"
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}

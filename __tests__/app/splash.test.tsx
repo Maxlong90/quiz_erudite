@@ -146,6 +146,8 @@ describe('SplashScreen theming', () => {
     ['flags-quiz', '/flags-quiz/splash'],
     ['coat-of-arms', '/coat-of-arms/splash'],
     ['sport-quiz', '/sport-quiz/splash'],
+    // Backend slug and route folder differ here — the registry maps them.
+    ['italy-history-and-geography-quiz', '/italy-quiz/splash'],
   ])('%s slug: redirects to its own splash instead of rendering', (slug, route) => {
     mockAppSlug = slug;
     const { getByTestId, queryByText } = render(<SplashScreen />);

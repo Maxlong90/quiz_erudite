@@ -23,6 +23,7 @@ import { fetchCategories, type Category } from '@/api/categories';
 import { useLives } from '@/hooks/use-lives';
 import { claimDaily } from '@/lib/lives';
 import { APP_SLUG } from '@/api/client';
+import { currentTemplate } from '@/constants/app-templates';
 import { CATEGORY_VISUALS, FALLBACK_VISUAL } from '@/constants/category-visuals';
 import { QuizConfigModal } from '@/components/home/quiz-config-modal';
 import { TimeLimitModal } from '@/components/home/time-limit-modal';
@@ -63,37 +64,17 @@ interface ModeDef {
 // (splash -> language -> onboarding -> paywall -> home) instead of rendering
 // Home. Every later return to Home renders it normally. See lib/intro-gate.ts.
 export default function HomeRoute() {
-  // The Logo Quiz app template is a self-contained experience with its own
-  // flow (Welcome → Shop → Quiz → Result) and economy — it skips the erudite
-  // intro/hub entirely. APP_SLUG is a build-time constant, so this branch is
-  // stable across renders and never changes the hook order below.
-  if (APP_SLUG === 'logo-quiz') {
-    return <Redirect href="/logo-quiz/splash" />;
-  }
-  // Flags Quiz (App Template: Geography) is likewise a self-contained
-  // experience with its own blue home; APP_SLUG is a build-time constant, so
-  // this branch is stable across renders and never changes the hook order.
-  if (APP_SLUG === 'flags-quiz') {
-    return <Redirect href="/flags-quiz/splash" />;
-  }
-  // Coat of Arms (App Template) is likewise a self-contained experience with its
-  // own blue home; APP_SLUG is a build-time constant, so this branch is stable
-  // across renders and never changes the hook order.
-  if (APP_SLUG === 'coat-of-arms') {
-    return <Redirect href="/coat-of-arms/splash" />;
-  }
-  // Sport Quiz (App Template: Sports) is likewise a self-contained experience
-  // with its own neon-on-navy home; APP_SLUG is a build-time constant, so this
-  // branch is stable across renders and never changes the hook order.
-  if (APP_SLUG === 'sport-quiz') {
-    return <Redirect href="/sport-quiz/splash" />;
-  }
-  // Italy Quiz (App Template: World, backend slug
-  // `italy-history-and-geography-quiz`) is likewise a self-contained experience
-  // with its own cartoon-landmarks home; APP_SLUG is a build-time constant, so
-  // this branch is stable across renders and never changes the hook order.
-  if (APP_SLUG === 'italy-history-and-geography-quiz') {
-    return <Redirect href="/italy-quiz/splash" />;
+  // Every app-template build (Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz,
+  // Italy Quiz, …) is a self-contained experience with its own splash, flow and
+  // economy — it skips the erudite intro/hub entirely and starts at its own
+  // splash. The registry in constants/app-templates.ts is the single source of
+  // truth; adding a build there wires this redirect, the shared splash guard and
+  // the root scaffold colour at once. CURRENT_TEMPLATE is derived from the
+  // build-time APP_SLUG, so this branch is stable across renders and never
+  // changes the hook order below.
+  const template = currentTemplate();
+  if (template) {
+    return <Redirect href={template.splash} />;
   }
   // Every cold start plays the branded QUIZZES splash (app/splash.tsx), exactly
   // like the Flags Quiz / Coat of Arms builds: the purple animated wordmark
