@@ -6,6 +6,28 @@
 - Expo CLI (`npx expo`)
 - iOS Simulator (macOS) or Android emulator for native testing
 - Maestro CLI for E2E flows (optional)
+- A current **EAS CLI**, only if you build through EAS — see the warning below
+
+### The EAS CLI must be current
+
+An old `eas-cli` cannot read this project at all. The dev host currently carries
+`eas-cli@3.15.1`, which predates the Expo SDK this tree targets, and every EAS
+command — `eas build`, even the read-only `eas config` — dies immediately with
+`Unexpected token 'typeof'` while evaluating the config plugins.
+
+Two things make this worth stating rather than debugging twice:
+
+- The failure is **not profile-specific**. It reproduces on the untouched
+  Erudite `production` profile as readily as on a `sport-quiz-*` one, so it
+  never indicates a bad profile, a bad key, or a bad bundle id.
+- The failure is **fast**, taking seconds rather than the usual queue wait. A
+  build that dies in seconds is this; a build that goes quiet for half an hour
+  is the normal remote queue (see
+  [Long-Running Operations](long-running-operations.md#eas-cloud-builds)).
+
+Upgrade before building: `npm install -g eas-cli`. Note also that this host is
+Linux with no Xcode toolchain and no simulators, so an iOS build must run on EAS
+cloud and be tested on real hardware — there is no local iOS path.
 
 ## Install Dependencies
 

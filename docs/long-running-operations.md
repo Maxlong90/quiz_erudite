@@ -51,6 +51,8 @@ Launch it detached and pick the result up in a later turn:
 suslik-bg "eas build --profile preview --platform android --non-interactive"
 ```
 
+One failure here looks like the opposite of a long-running operation, and is worth recognizing on sight. A stale `eas-cli` cannot parse this project's config plugins, so it exits within seconds on *any* profile without ever reaching the queue. When a build "finishes" almost immediately, upgrade the CLI instead of re-running it detached — [Development](development.md#the-eas-cli-must-be-current) has the symptom and the fix.
+
 Publishing an over-the-air update (`eas update --channel …`) is *not* in this category — it bundles JS only and finishes in a minute or two. See [Development](development.md#over-the-air-updates-eas-update).
 
 ## Not a Long-Running Operation: the Test Suite

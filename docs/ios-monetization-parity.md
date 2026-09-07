@@ -119,6 +119,15 @@ invisible until after a 20-40 minute build:
 then TestFlight. See [Long-Running Operations](long-running-operations.md#eas-cloud-builds)
 for running it detached rather than blocking on the queue.
 
+Before that command works, the local EAS CLI has to be current. The stale
+`eas-cli` on the dev host fails on every profile in seconds, so no build reaches
+EAS at all — see
+[The EAS CLI must be current](development.md#the-eas-cli-must-be-current). The
+build itself must run on EAS cloud regardless: this host has no Xcode toolchain,
+so there is no local iOS binary and no simulator to fall back on. The three
+checks below need real hardware anyway, because a simulator has no StoreKit
+sandbox account.
+
 **Sandbox setup.** Apple's docs are explicit: *"Apps downloaded from TestFlight
 will automatically operate in a sandbox environment"* — no build flag or StoreKit
 config file needed. Sign in with a Sandbox Apple Account under

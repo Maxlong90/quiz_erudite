@@ -50,6 +50,12 @@ This tree builds six apps that share infrastructure but not vocabulary. Several 
 
 **Fail closed** — The deliberate behaviour on a real store device where billing is unavailable: no purchase and no free grant either. Contrast with Expo Go and web, where a local grant keeps the dev flow working.
 
+**Consumable** — A one-off product credited straight to a balance and then spent: Erudite's life and hint bundles, Sport Quiz's coin packs. It grants no entitlement, which is why Sport Quiz needs no offering and has no paywall. Every app buys its consumables through one shared seam, so the fail-closed rule cannot be bypassed. See [Gamification](gamification.md#the-fail-closed-grant-policy).
+
+**Public SDK key** — The RevenueCat key a build ships with (`appl_…` on iOS, `goog_…` on Android). It is safe to commit and is scoped to one RevenueCat project, so an app using another app's key resolves an empty catalog. The `sk_…` *secret* key is a different thing and must never enter this repo.
+
+**Sandbox purchase** — A free test transaction against the App Store, automatic in any TestFlight build. It is the only way to confirm this tree actually charges, since no emulator has billing. See [Verifying an iOS purchase](ios-monetization-parity.md#verifying-an-ios-purchase-testflight-sandbox).
+
 ## Delivery
 
 **OTA / EAS Update** — Over-the-air delivery of a new JS bundle to installed apps, with no store build or review. Only reaches binaries whose runtime version matches and that were built after `expo-updates` was wired in. See [Development](development.md#over-the-air-updates-eas-update).
