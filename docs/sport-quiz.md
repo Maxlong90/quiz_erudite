@@ -110,6 +110,8 @@ The card is also what enforces the anti-spoiler rule, structurally rather than b
 - **Classic** always shows all four options in their idle tone. The live board unmounts the wrong options once the answer is revealed, but the card is handed `question.options` regardless, so the picture a player shares after answering is byte-identical to the one they would have shared before.
 - **Legends** shows the athlete's photo *in its current state* — still under every plate the player has not paid to uncover. Only guessing or skipping opens it. The names stay neutral either way, so the answer never travels with the picture. The card draws its own static twin of the plate grid instead of reusing `PuzzleOverlay`, whose plates animate out; a capture fired mid-reveal would otherwise freeze a half-faded grid into the shared image.
 
+The mode picker carries the app's other outbound store link, and it points somewhere different on purpose. Its "Other apps" tile opens the **publisher's** page — every app we ship — instead of the single hardcoded Erudite listing it used to open on both platforms. See [Content and Offline](content-and-offline.md#the-publisher-page-is-not-snapshot-driven) for why that link is compiled in rather than read from the snapshot, and what Android falls back to.
+
 ## Content and Explaining the Rules
 
 Sport Quiz draws from the shared content snapshot at `GET /apps/sport-quiz/snapshot?locale=`, cached offline under its own namespace exactly like the other siblings. Its provider hydrates from cache on mount for instant play, then syncs; a locale change re-syncs so prompts, options, and explanations follow the active language. A failed sync leaves the cached snapshot in place rather than emptying the board.

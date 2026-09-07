@@ -75,6 +75,14 @@ The helper is defensive so links never break. On iOS it keeps whatever URL the o
 
 Because these URLs ride the snapshot, they inherit its 24-hour freshness window: a change in Nova reaches the device on the next resync, not instantly.
 
+### The publisher page is not snapshot-driven
+
+One surface wants the opposite of a per-app link. The "Other apps" tile on the [Sport Quiz](sport-quiz.md) mode picker advertises the whole catalogue, so `getDeveloperLinks` (same module) returns the **publisher's** store page rather than any one listing. New releases then appear there by themselves, with no app update and no Nova edit — which is why this link is compiled in rather than read from the snapshot: it names a publisher that does not change, not a listing that does.
+
+The tile opens the store-app deep link first and falls back to the web URL when nothing can handle it, so a device without the store app still lands somewhere useful. It previously opened one hardcoded Erudite App Store URL on every platform, including Android.
+
+Only iOS gets a real publisher page. The Play publisher id is not known anywhere in this repo or the backend, and a guessed one would 404, so Android falls back to our own Play listing. That is a deliberate placeholder: swapping in the `dev?id=` publisher URL once the id is known is a one-line change, and the current fallback is still correct-by-platform, which the old behaviour was not.
+
 ## Answer-Statistics Sync
 
 The statistics hint's real-data path rides the same "we're online" moment. When `runSync` finishes a content sync (`hooks/use-content-cache.ts`), it also — fire-and-forget, never blocking content — flushes the locally queued anonymous answer picks to `POST /apps/{slug}/answers` and refreshes the cached per-question distributions from `GET /apps/{slug}/question-stats`. Both the outbound queue (`answers.queue.v1`) and the stats cache (`question.stats.v1`) live in `lib/answer-stats.ts` and are best-effort: the queue survives offline and retries on the next opportunity (flushing also on quiz end), while the hint reads the cached distributions synchronously so it works with no live connection. This side effect belongs to the main app's provider only; every sibling app's content provider syncs the same way but skips it, as the answer-stats hint is an erudite-only feature. See `docs/gamification.md` and the API contract in `docs/data-model.md`.
