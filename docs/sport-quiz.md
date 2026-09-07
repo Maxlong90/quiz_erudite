@@ -51,7 +51,7 @@ Coins are credited **only** when RevenueCat resolves `'purchased'`. A user cance
 
 Which platform can actually charge differs, and this is the app's defining asymmetry:
 
-- **iOS transacts.** The App Store catalog exists and the `sport-quiz-*` `eas.json` profiles already build under `com.quizzzes.sport`, the bundle the consumables were provisioned against — StoreKit matches products by the binary's bundle id, so a wrong value there would return an empty catalog silently. Billing then lights up with no code change as soon as the profiles carry the app's own `appl_…` RevenueCat public key, which is the single outstanding operator step. The products go on sale with the binary and App Review — App Store Connect has no activation API.
+- **iOS transacts.** The App Store catalog exists, the `sport-quiz-*` `eas.json` profiles build under `com.quizzzes.sport` — the bundle the consumables were provisioned against, since StoreKit matches products by the binary's bundle id and a wrong value would return an empty catalog silently — and both profiles now carry the app's own `appl_…` RevenueCat public key, so `revenueCatEnabled` is true on an iOS build and the coin packs bill for real. The products go on sale with the binary and App Review — App Store Connect has no activation API.
 - **Android does not.** There is no Google Play catalog and no Google public key, and `lib/revenuecat.ts` hands the `sport-quiz` slug no committed Android key, so the SDK stays disabled and a purchase **fails closed** with the error alert. This is a deliberate behaviour change: an Android device build used to grant coins for free on tap. Android economy testing moves to Expo Go.
 - **Expo Go and web** keep the local-grant stub so the dev economy stays playable.
 
