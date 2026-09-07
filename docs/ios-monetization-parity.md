@@ -3,14 +3,23 @@
 The app's monetization (paywall, in-app purchases, rewarded ads) used to be
 hardcoded to Android only via `Platform.OS === 'android'` checks. That gating is
 now **capability/config-driven**: each feature turns on for any native platform
-that has the required key/product configured. Android ships with committed
-fallbacks so it is always on; **iOS has no fallbacks, so it stays safely
-disabled until the credentials below are supplied** — at which point it lights
-up automatically with no further code change.
+that has the required key/product configured, and stays safely disabled wherever
+one is missing — lighting up automatically, with no further code change, as soon
+as the credential arrives.
 
-Until then iOS behaves exactly as before: no forced paywall, no purchases, no
-rewarded ads, and — critically — the paywall can never grant premium for free on
-a real device (subscribe fails closed off-store, mirroring `lib/iap.ts`).
+Committed fallbacks are scoped per app, not global. The Android RevenueCat key
+committed in `lib/revenuecat.ts` belongs to the **erudite build only**; a sibling
+inherits nothing until its own EAS profile supplies one. **No app has a committed
+iOS key** — every one comes from `eas.json`.
+
+That has since happened for iOS: both Erudite and Sport Quiz profiles now carry
+an `appl_…` key, so `revenueCatEnabled` is true on an iOS build of either. What
+still gates real money is per-app store catalog, not the client — see the
+checklist below, and [Verifying an iOS purchase](#verifying-an-ios-purchase-testflight-sandbox)
+for how to confirm a build actually charges. Wherever a key is genuinely absent
+the old guarantees hold unchanged: no forced paywall, no purchases, no rewarded
+ads, and — critically — the paywall can never grant premium for free on a real
+device (subscribe fails closed off-store, mirroring `lib/iap.ts`).
 
 ## How the gating works now
 
@@ -70,7 +79,10 @@ Nothing about this ships iOS on by accident. To bring iOS to parity, provide:
       placeholder `iosAppId` in `app.json` with the real iOS AdMob App ID.
 - [ ] Toggle **Show Paywall iOS** per-app in Nova once the above is live.
 - [ ] Verify on a real iOS build: paywall shows, a sandbox subscription grants
-      premium, consumables purchase, and a rewarded ad grants a life.
+      premium, consumables purchase, and a rewarded ad grants a life. Procedure:
+      [Verifying an iOS purchase](#verifying-an-ios-purchase-testflight-sandbox).
+      The consumable half is runnable today for Sport Quiz; the subscription half
+      waits on the App Store Connect catalog above.
 
 Until each item is done its feature stays disabled behind the capability flag,
 so partial setup never produces a broken iOS paywall.
@@ -79,12 +91,70 @@ This gating applies to the sibling apps too, each of which needs its own store
 identity and its own RevenueCat catalog before its paywall or shop can transact.
 [Sport Quiz](sport-quiz.md#coin-packs) is the worked example of the split, and
 the first sibling to transact on **iOS only**: its three `sportquiz_coins_*`
-consumables exist in App Store Connect and RevenueCat, so its coin packs bill for
-real as soon as its `eas.json` profile carries the app's own `appl_…` key and
-bundle id — while Android, which has no Google Play catalog and is handed no
-committed key, keeps billing disabled and fails closed. Capability gating is what
+consumables exist in App Store Connect and RevenueCat, and both its `eas.json`
+profiles now carry the app's own `appl_…` key and bundle id `com.quizzzes.sport`,
+so `revenueCatEnabled` is true on an iOS build and the coin packs bill for real
+once the products go on sale with the binary and App Review — while Android,
+which has no Google Play catalog and is handed no committed key, keeps billing
+disabled and fails closed. Capability gating is what
 lets one app be live on one store and safely dead on the other with no
 platform-specific purchase code.
+
+## Verifying an iOS purchase (TestFlight sandbox)
+
+How to confirm a build actually charges, before shipping it. Sport Quiz's coin
+packs are the worked example because they are the only thing in this tree
+currently provisioned to transact.
+
+**Before building, two free checks.** Both catch failures that are otherwise
+invisible until after a 20-40 minute build:
+
+- `npm run check:store-config` — see [Development](development.md#building-a-sibling-app-variant).
+- Confirm the key is live, using the curl in [Development](development.md#building-a-sibling-app-variant).
+  This matters because the shape check cannot tell a correct key from a
+  well-formed wrong one, and a wrong key does not error — it resolves an **empty
+  catalog**, which first shows up in TestFlight as every pack failing.
+
+**Build and distribute.** `eas build --profile sport-quiz-preview --platform ios`,
+then TestFlight. See [Long-Running Operations](long-running-operations.md#eas-cloud-builds)
+for running it detached rather than blocking on the queue.
+
+**Sandbox setup.** Apple's docs are explicit: *"Apps downloaded from TestFlight
+will automatically operate in a sandbox environment"* — no build flag or StoreKit
+config file needed. Sign in with a Sandbox Apple Account under
+Settings → Developer (create one in App Store Connect → Users and Access →
+Sandbox). Sandbox purchases cost nothing.
+
+**Three things to confirm:**
+
+1. A purchase credits exactly that pack's coins, **once**, with no alert.
+2. The CTA labels show localized store prices. If they still read
+   `$0.99 / $3.99 / $6.99` — the hardcoded fallbacks in
+   `lib/sport-quiz/economy.ts` — the catalog did **not** resolve. That is a
+   configuration failure (wrong key or wrong bundle id), not a UI bug, and it is
+   the single most informative signal on the screen.
+3. Cancelling the native sheet credits nothing and shows no error. A cancellation
+   must never read as a failure.
+
+**Two caveats that are genuinely unsettled — do not treat either as fact.**
+The three consumables are `CONSUMABLE` / `READY_TO_SUBMIT`. Apple does not
+document which product state is required for a sandbox purchase; the widely
+repeated claim that `READY_TO_SUBMIT` works pre-review comes from developer
+forums, not Apple. A sandbox purchase costs nothing, so **attempt it** rather
+than deferring on an assumption: if the products resolve, the verification is
+done before review; if they do not, that empirically establishes review as the
+gate. Separately, the Paid Applications Agreement must be Active for
+*submission* — whether it also gates sandbox testing is unconfirmed, so treat it
+as a likely cause of a generic store error rather than a prerequisite.
+
+**If the catalog comes back empty**, check in this order, cheapest first: the
+RevenueCat key (curl it); the bundle id, since StoreKit matches products by the
+binary's bundle id and returns an empty list with no error; whether the products
+are attached to the right RevenueCat app; then product state.
+
+Note that Android is **not** a fallback here. Sport Quiz's Android billing is
+deliberately fail-closed (see [Sport Quiz](sport-quiz.md#coin-packs)), so
+"test it on Android instead" is not available for this app.
 
 ## See Also
 

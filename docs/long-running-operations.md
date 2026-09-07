@@ -55,9 +55,7 @@ Publishing an over-the-air update (`eas update --channel …`) is *not* in this 
 
 ## Not a Long-Running Operation: the Test Suite
 
-The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 35 test files are pure logic and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **under 10 seconds**. Run `npm test` in the foreground.
-
-Note that the suite currently fails to load at all on Node 20 for a toolchain reason unrelated to test content — see [Development](development.md#unit-tests-jest). That failure is fast, not slow, so it carries no silence risk.
+The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 46 test files are pure logic and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — around 6 on a warm cache, under 20 cold. Run `npm test` in the foreground.
 
 ## See Also
 

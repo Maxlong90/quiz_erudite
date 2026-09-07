@@ -55,6 +55,8 @@ Which platform can actually charge differs, and this is the app's defining asymm
 - **Android does not.** There is no Google Play catalog and no Google public key, and `lib/revenuecat.ts` hands the `sport-quiz` slug no committed Android key, so the SDK stays disabled and a purchase **fails closed** with the error alert. This is a deliberate behaviour change: an Android device build used to grant coins for free on tap. Android economy testing moves to Expo Go.
 - **Expo Go and web** keep the local-grant stub so the dev economy stays playable.
 
+To actually confirm a build charges — a sandbox purchase, localized prices, and a clean cancellation — follow [Verifying an iOS purchase](ios-monetization-parity.md#verifying-an-ios-purchase-testflight-sandbox). It has to be iOS: per the asymmetry above, Android is fail-closed for this app, so there is no Android route to testing the packs.
+
 ## Levels and Ordering
 
 Both modes present their catalogue as a ladder of numbered levels rather than a single endless run, so progress is visible and a session has natural stopping points. Nothing about levels is stored — level membership, the `X/total` card counts, and completion are all *derived* from one persisted set of solved question ids (`sportquiz.solvedIds.v1`).
