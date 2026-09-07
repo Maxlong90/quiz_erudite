@@ -77,6 +77,15 @@ The `logo-quiz-preview` / `logo-quiz-production` and `sport-quiz-preview` / `spo
 
 **Sport Quiz** is fully wired: both profiles carry its `appl_…` RevenueCat public SDK key, its iOS bundle id `com.quizzzes.sport` — the App Store Connect app the `sportquiz_coins_*` consumables were provisioned against — and its Android package. The bundle id is load-bearing and must not be "tidied": StoreKit resolves products by the binary's bundle id, so any other value returns an empty catalog with no error. With the key present, `lib/revenuecat.ts` enables iOS billing automatically, so an iOS build sells coins for real once the products go live with App Review. `__tests__/lib/eas-profiles.test.ts` pins these invariants: a malformed key, a key filled into only one of the two mirrored profiles, or a changed bundle id all fail the suite.
 
+That test can only check a key's *shape*, though — it cannot tell a correct key from a well-formed wrong one, and a wrong RevenueCat key fails **silently** (an empty catalog, no error, first visible in TestFlight). So the Sport Quiz key was additionally validated against RevenueCat's live API, which anyone can repeat without backend access:
+
+```
+curl -H "Authorization: Bearer <appl_ key>" -H "X-Platform: ios" \
+  https://api.revenuecat.com/v1/subscribers/<any-id>/offerings
+```
+
+A valid key returns `201`; a wrong one returns `401 {"code":7225,"message":"Invalid API Key."}`. Because a key can only ever see its **own** RevenueCat project, the offerings it returns also identify that project: the Erudite key resolves the `default` offering (`erudite_annual` / `erudite_monthly` / `erudite_weekly`), while the Sport Quiz key resolves **zero** offerings — matching that app's provisioning exactly, since it sells consumables only and deliberately has no entitlement or offering. Same shape of check for any future sibling.
+
 **If either RevenueCat key ever has to be re-entered**, the value lives in exactly two places, both outside this repo: the RevenueCat dashboard (project `c58fe308` → app `app5174f09d20` → the Apple **public SDK key**, an `appl_…` string — *not* the `sk_…` secret key, which must never be committed), and the backend column `apps.revenuecat_apple_public_api_key` for app id 27, which the backend syncs from RevenueCat automatically. Put the identical value in **both** `sport-quiz-preview` and `sport-quiz-production`, then run:
 
 ```
