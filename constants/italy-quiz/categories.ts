@@ -335,6 +335,20 @@ export const ITALY_CATEGORIES: ItalyCategory[] = [
   },
 ];
 
+/**
+ * Share of a run that must be PHOTO questions, per subcategory slug.
+ *
+ * These two play as "mostly text with a sprinkle of photos" (80/20) per the
+ * product brief; every other subcategory draws freely from its pool, which
+ * already mixes text and photo questions roughly half and half. The ratio is
+ * applied when a run is DRAWN (see hooks/italy-quiz/use-run-progress), so all
+ * generated questions stay available and successive runs still differ.
+ */
+export const RUN_PHOTO_MIX: Record<string, number> = {
+  'regions-capitals': 0.2,
+  'ancient-rome': 0.2,
+};
+
 /** A category/subcategory with its labels already resolved to the active locale. */
 export interface LocalizedSubcategory {
   id: string;

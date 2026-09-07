@@ -16,13 +16,50 @@ export interface RunProgress {
   wrong: number[];
 }
 
-function shuffled(ids: number[], limit: number): number[] {
-  const a = [...ids];
+function shuffle<T>(items: T[]): T[] {
+  const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
-  return a.slice(0, limit);
+  return a;
+}
+
+/**
+ * Draw a run of `limit` questions.
+ *
+ * Without a `mix` the draw is a plain shuffle of the whole pool. With one, the
+ * run is composed to a fixed text/photo ratio — e.g. Regions & capitals and
+ * Ancient Rome are meant to play as "mostly text with a sprinkle of photos"
+ * (80/20), even though their pools hold far more of each. Composing at DRAW time
+ * (instead of trimming the pool) keeps every generated question available, so
+ * successive runs still show different questions.
+ *
+ * Short buckets never shrink the run: whatever one side lacks is topped up from
+ * the other.
+ */
+function drawRun(
+  pool: { id: number; hasImage: boolean }[],
+  limit: number,
+  mix: number | null,
+): number[] {
+  if (mix == null) {
+    return shuffle(pool.map((q) => q.id)).slice(0, limit);
+  }
+  const wantPhoto = Math.round(limit * mix);
+  const photo = shuffle(pool.filter((q) => q.hasImage).map((q) => q.id));
+  const text = shuffle(pool.filter((q) => !q.hasImage).map((q) => q.id));
+
+  const takePhoto = photo.slice(0, wantPhoto);
+  const takeText = text.slice(0, limit - takePhoto.length);
+  // One bucket ran short — top the run up from the other so it still has `limit`.
+  const rest = [
+    ...photo.slice(takePhoto.length),
+    ...text.slice(takeText.length),
+  ];
+  const filler = shuffle(rest).slice(0, limit - takePhoto.length - takeText.length);
+
+  return shuffle([...takePhoto, ...takeText, ...filler]);
 }
 
 /** A saved run is usable only while every ID still exists in the pool and the
@@ -51,10 +88,14 @@ function isValid(p: unknown, pool: Set<number>): p is RunProgress {
 export function useRunProgress(opts: {
   /** Storage key for this subcategory, or null to disable persistence. */
   key: string | null;
-  /** Every question ID currently available in the subcategory. */
-  poolIds: number[];
+  /** Every question currently available in the subcategory, with whether it
+   *  carries a photo (so a run can be composed to a fixed text/photo ratio). */
+  pool: { id: number; hasImage: boolean }[];
   /** How many questions a fresh run draws. */
   limit: number;
+  /** Share of the run that must be PHOTO questions (e.g. 0.2 = 20%), or null to
+   *  draw from the whole pool without composing a ratio. */
+  photoMix: number | null;
   /** Mistakes-only sub-run — used verbatim, never persisted. */
   retry: number[] | null;
   /** True once the content is loaded so `poolIds` is meaningful. */
@@ -62,7 +103,7 @@ export function useRunProgress(opts: {
   /** Bumped to force a brand-new run (Play again / Review mistakes). */
   epoch: number;
 }) {
-  const { key, poolIds, limit, retry, ready, epoch } = opts;
+  const { key, pool, limit, photoMix, retry, ready, epoch } = opts;
   const [state, setState] = useState<RunProgress | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const hydratedEpoch = useRef<number | null>(null);
@@ -72,7 +113,7 @@ export function useRunProgress(opts: {
   // (or otherwise disturb) a run the player is in the middle of.
   useEffect(() => {
     if (hydratedEpoch.current === epoch) return;
-    if (!ready || poolIds.length === 0) return;
+    if (!ready || pool.length === 0) return;
     hydratedEpoch.current = epoch;
     let cancelled = false;
 
@@ -84,8 +125,8 @@ export function useRunProgress(opts: {
 
     // A retry run: the passed IDs, in order, no persistence.
     if (retry && retry.length > 0) {
-      const pool = new Set(poolIds);
-      finishWith({ ids: retry.filter((n) => pool.has(n)), pos: 0, wrong: [] });
+      const known = new Set(pool.map((q) => q.id));
+      finishWith({ ids: retry.filter((n) => known.has(n)), pos: 0, wrong: [] });
       return;
     }
 
@@ -96,20 +137,20 @@ export function useRunProgress(opts: {
           const raw = await AsyncStorage.getItem(key);
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (isValid(parsed, new Set(poolIds))) saved = parsed;
+            if (isValid(parsed, new Set(pool.map((q) => q.id)))) saved = parsed;
           }
         } catch {
           // ignore a corrupt/unreadable entry — fall back to a fresh run
         }
       }
-      finishWith(saved ?? { ids: shuffled(poolIds, limit), pos: 0, wrong: [] });
+      finishWith(saved ?? { ids: drawRun(pool, limit, photoMix), pos: 0, wrong: [] });
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, epoch, poolIds.length]);
+  }, [ready, epoch, pool.length]);
 
   // Persist every change (except retry runs, which are transient).
   const isRetry = !!(retry && retry.length > 0);

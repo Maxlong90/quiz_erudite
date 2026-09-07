@@ -22,7 +22,7 @@ import { HelpModal } from '@/components/italy-quiz/help-modal';
 import { ReportModal } from '@/components/quiz/report-modal';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
-import { useItalyCategory } from '@/constants/italy-quiz/categories';
+import { useItalyCategory, RUN_PHOTO_MIX } from '@/constants/italy-quiz/categories';
 import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
 import { useRunProgress } from '@/hooks/italy-quiz/use-run-progress';
 import { useContentCache } from '@/hooks/use-content-cache';
@@ -98,7 +98,12 @@ export default function ItalyQuizGame() {
     return snapshot.questions.filter((q) => q.category_slug === sub);
   }, [snapshot, sub]);
 
-  const poolIds = useMemo(() => pool.map((q) => q.id), [pool]);
+  // Only id + hasImage reach the run builder, so it can compose a fixed
+  // text/photo ratio for the subcategories that ask for one.
+  const poolMeta = useMemo(
+    () => pool.map((q) => ({ id: q.id, hasImage: !!q.image_url })),
+    [pool],
+  );
   const byId = useMemo(() => new Map(pool.map((q) => [q.id, q])), [pool]);
 
   const {
@@ -111,8 +116,9 @@ export default function ItalyQuizGame() {
     clear,
   } = useRunProgress({
     key: retryIds ? null : sub ? `italy.run.${sub}` : null,
-    poolIds,
+    pool: poolMeta,
     limit: RUN_LENGTH,
+    photoMix: sub ? (RUN_PHOTO_MIX[sub] ?? null) : null,
     retry: retryIds,
     ready: pool.length > 0,
     epoch,
