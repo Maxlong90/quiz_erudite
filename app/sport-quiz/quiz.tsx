@@ -12,7 +12,6 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,6 +23,7 @@ import { AppBackground } from '@/components/sport-quiz/app-background';
 import { FitAnswerText } from '@/components/sport-quiz/fit-answer-text';
 import { CoinIcon, CoinPill, GlassIconButton, neonGlow } from '@/components/sport-quiz/ui';
 import { ReportSheet } from '@/components/sport-quiz/report-sheet';
+import { QuestionImage } from '@/components/sport-quiz/question-image';
 import { SportShareCard } from '@/components/sport-quiz/share-card';
 import { questionsForLevel, type SportQuizQuestion } from '@/lib/sport-quiz/content';
 import {
@@ -36,6 +36,7 @@ import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
 import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
+import { useWarmLevelImages } from '@/hooks/sport-quiz/use-warm-level-images';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
@@ -78,7 +79,12 @@ export default function SportQuizQuiz() {
   const shareCardRef = useRef<View>(null);
 
   // Every question of this level, frozen at mount (the level list guarantees the
-  // snapshot is ready before we get here).
+  // snapshot is ready before we get here). The freeze is LOAD-BEARING: the
+  // content sync merges each finished image batch into the live snapshot, so
+  // re-deriving this list mid-level would flip imageUri from a remote URL to a
+  // file:// path WHILE the question is on screen — expo-image would re-decode
+  // and flicker. The sync downloads in play order, so the front runs ahead of
+  // the player and the freeze captures local paths anyway.
   const runList = useMemo<SportQuizQuestion[]>(
     () => (snapshot ? questionsForLevel(snapshot, levelNumber) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +125,10 @@ export default function SportQuizQuiz() {
   useEffect(() => {
     if (levelNumber > 0) setLastLevel(levelNumber);
   }, [levelNumber, setLastLevel]);
+
+  // Keep this level and the next two decoded and ready. Reads the LIVE snapshot
+  // (not the frozen runList) so it picks up images as the sync lands them.
+  useWarmLevelImages(snapshot, levelNumber, 2);
 
   const isLast = index >= runList.length - 1;
 
@@ -248,9 +258,13 @@ export default function SportQuizQuiz() {
             numeric questions have NO image: the prompt sits directly under the
             counter, separated only by TEXT_TOP_GAP (= 75% of an answer button). */}
         {question.imageUri ? (
-          <View style={[styles.imageFrame, neonGlow(SQColors.neon, 10)]}>
-            <Image source={{ uri: question.imageUri }} style={styles.image} contentFit="contain" />
-          </View>
+          // Keyed by uri so each question starts from a clean loading state.
+          <QuestionImage
+            key={question.imageUri}
+            uri={question.imageUri}
+            style={styles.imageFrame}
+            loadingLabel={t.loadingContent}
+          />
         ) : (
           <View style={styles.textTopGap} />
         )}
@@ -434,19 +448,9 @@ const styles = StyleSheet.create({
 
   scrollContent: { paddingHorizontal: 16, paddingBottom: 8 },
 
-  imageFrame: {
-    alignSelf: 'center',
-    width: '86%',
-    height: 180,
-    borderRadius: SQRadius.md,
-    borderWidth: 1.5,
-    borderColor: SQColors.glassBorder,
-    backgroundColor: 'rgba(9,24,40,0.5)',
-    overflow: 'hidden',
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  image: { width: '100%', height: '100%' },
+  // Only the vertical rhythm lives here — the frame geometry (size, border,
+  // radius, neon glow) belongs to QuestionImage.
+  imageFrame: { marginTop: 4, marginBottom: 14 },
 
   prompt: {
     fontSize: 20,

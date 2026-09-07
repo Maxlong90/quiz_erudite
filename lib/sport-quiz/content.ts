@@ -13,7 +13,7 @@
  * excluded (its own mode). Stable, deterministic (keyed by question id) so
  * questions never hop levels between launches — bump SHUFFLE_SALT to re-shuffle.
  */
-import { resolveLocalImage, type ContentSnapshot } from '@/lib/content-cache';
+import { resolveLocalImage, withRemoteImages, type ContentSnapshot } from '@/lib/content-cache';
 import { EASY_QUESTION_IDS, HARD_QUESTION_IDS } from '@/lib/sport-quiz/difficulty';
 import { isLegendQuestion } from '@/lib/sport-quiz/legends';
 
@@ -157,6 +157,38 @@ export function buildLevels(snapshot: ContentSnapshot): SportQuizLevel[] {
 /** The questions of a single level (empty array when the level does not exist). */
 export function questionsForLevel(snapshot: ContentSnapshot, level: number): SportQuizQuestion[] {
   return buildLevels(snapshot).find((l) => l.level === level)?.questions ?? [];
+}
+
+/**
+ * How many Classic levels the content sync downloads AHEAD of everything else —
+ * the batch the splash holds for. Three levels ≈ 30 images (a level of 20
+ * alternates image/text, so roughly 10 of each).
+ */
+export const PRIORITY_LEVELS = 3;
+
+/** Every image question's url, in the order the player actually meets them. */
+function imageUrlsOf(questions: SportQuizQuestion[]): string[] {
+  return questions.map((q) => q.imageUri).filter((u): u is string => !!u);
+}
+
+/**
+ * Every Classic image question's RAW REMOTE url, in play order — the download
+ * order that keeps the download front running ahead of the player.
+ */
+export function classicImageUrlsInPlayOrder(snapshot: ContentSnapshot): string[] {
+  return imageUrlsOf(orderedQuestions(withRemoteImages(snapshot)));
+}
+
+/**
+ * The first `levels` Classic levels' image urls — the priority batch the splash
+ * waits on before letting the player in.
+ */
+export function priorityImageUrls(
+  snapshot: ContentSnapshot,
+  levels: number = PRIORITY_LEVELS,
+): string[] {
+  const first = buildLevels(withRemoteImages(snapshot)).slice(0, levels);
+  return imageUrlsOf(first.flatMap((l) => l.questions));
 }
 
 /** How many levels the snapshot yields. */

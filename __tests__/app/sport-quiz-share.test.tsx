@@ -75,6 +75,9 @@ jest.mock('@/hooks/sport-quiz/use-sport-quiz-content', () => ({
 // Both screens freeze their run list at mount from these helpers.
 jest.mock('@/lib/sport-quiz/content', () => ({
   questionsForLevel: () => [mockClassicQuestion],
+  // The quiz screen warms the next levels' images via useWarmLevelImages, which
+  // groups the pool with buildLevels. Sharing doesn't care — stub it empty.
+  buildLevels: () => [],
 }));
 jest.mock('@/lib/sport-quiz/legends', () => ({
   legendsQuestionsForLevel: () => [mockLegendQuestion],

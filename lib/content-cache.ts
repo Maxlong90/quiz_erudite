@@ -211,6 +211,36 @@ async function downloadImagesWithLimit(
   return map;
 }
 
+/**
+ * Turn a caller's requested download order into the ordered batches the sync
+ * actually runs. The caller's URLs are INTERSECTED with the real download set
+ * and de-duplicated across batches, and every URL it never mentioned trails in
+ * a final implicit batch — so a caller can neither drop, duplicate nor invent a
+ * download. Without `imageBatches` this is a single batch, i.e. exactly the
+ * pre-batching behaviour.
+ */
+function splitIntoBatches(
+  urls: string[],
+  data: ContentSnapshot,
+  imageBatches?: (data: ContentSnapshot) => string[][],
+): string[][] {
+  if (!imageBatches) return [urls];
+
+  const batches: string[][] = [];
+  const unclaimed = new Set(urls);
+  for (const requested of imageBatches(data)) {
+    // `delete` returns false for an unknown URL and for one an earlier batch
+    // already claimed, so this intersects AND de-dupes in a single pass.
+    const batch = requested.filter((u) => unclaimed.delete(u));
+    if (batch.length) batches.push(batch);
+  }
+  // Everything unmentioned trails in ENUMERATION order — a filter over the
+  // original array, NOT a Set difference, which would lose that order.
+  const rest = urls.filter((u) => unclaimed.has(u));
+  if (rest.length) batches.push(rest);
+  return batches;
+}
+
 export async function loadCachedSnapshot(appSlug: string = APP_SLUG): Promise<ContentSnapshot | null> {
   try {
     const raw = await AsyncStorage.getItem(snapshotKey(appSlug));
@@ -256,6 +286,26 @@ export interface SyncOptions {
    * cached local images are carried over so nothing already visible flickers.
    */
   onSnapshot?: (snapshot: ContentSnapshot) => void;
+  /**
+   * Split the image download into ORDERED batches that run strictly one after
+   * another, so the images the player sees first can never lose a download
+   * worker to an image they will not see for another twenty minutes. Receives
+   * the freshly fetched snapshot (which carries NO imageMap, so every URL it
+   * reads is the raw remote one).
+   *
+   * The returned URLs are intersected with the real download set, de-duplicated
+   * across batches, and anything not mentioned is appended as a final implicit
+   * batch in enumeration order — so a caller can never drop, duplicate or
+   * invent a URL. Absent => one batch, i.e. today's behaviour byte-for-byte.
+   */
+  imageBatches?: (data: ContentSnapshot) => string[][];
+  /**
+   * Fires after each batch from `imageBatches` completes, with the
+   * URL → local-file map for THAT batch only (not cumulative). Lets a caller
+   * merge a partial map into its snapshot and release a gate (e.g. a splash)
+   * before the long tail of images finishes downloading.
+   */
+  onBatchImages?: (map: Record<string, string>, batchIndex: number) => void;
 }
 
 /**
@@ -274,15 +324,23 @@ export async function syncContent({
   force = false,
   onProgress,
   onSnapshot,
+  imageBatches,
+  onBatchImages,
 }: SyncOptions): Promise<ContentSnapshot> {
   const report = (p: number) => onProgress?.(Math.max(0, Math.min(1, p)));
 
   // Skip work if cache is fresh enough and locale matches.
+  //
+  // An EMPTY snapshot never counts as fresh: an app synced before its content
+  // was generated would otherwise serve zero questions for the whole TTL (a
+  // whole day), even though the backend already has them. Re-fetching a
+  // question-less cache is cheap and self-healing.
   if (!force) {
     const cached = await loadCachedSnapshot(appSlug);
     if (cached
       && cached.locale === locale
       && cached.syncedAt
+      && (cached.questions?.length ?? 0) > 0
       && Date.now() - cached.syncedAt < SNAPSHOT_TTL_MS) {
       onSnapshot?.(cached);
       report(1);
@@ -322,13 +380,28 @@ export async function syncContent({
     ].filter((u): u is string => !!u),
   ));
 
-  const imageMap = await downloadImagesWithLimit(urls, imageDir, ({ total, done }) => {
-    if (total === 0) {
-      report(1);
-      return;
-    }
-    report(0.2 + 0.8 * (done / total));
-  });
+  const total = urls.length;
+  if (total === 0) report(1);
+
+  const batches = splitIntoBatches(urls, data as ContentSnapshot, imageBatches);
+
+  // Batches run STRICTLY one after another: batch 0 owns every download worker
+  // until it finishes, so the first levels' artwork can never be starved by the
+  // long tail. Progress stays one continuous 0.2..1.0 ramp across all batches.
+  const imageMap: Record<string, string> = {};
+  let doneBefore = 0;
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    // Divide by the OUTER `total`, never the callback payload's `total` — that
+    // one is the CURRENT batch's length, so using it would spike progress to
+    // 1.0 at the end of every batch and then drop back (non-monotonic).
+    const batchMap = await downloadImagesWithLimit(batch, imageDir, ({ done }) => {
+      report(0.2 + 0.8 * ((doneBefore + done) / total));
+    });
+    Object.assign(imageMap, batchMap);
+    doneBefore += batch.length;
+    onBatchImages?.(batchMap, i);
+  }
 
   const snapshot: ContentSnapshot = {
     ...data,
@@ -373,6 +446,18 @@ export async function cacheImages(
 export function resolveLocalImage(snapshot: ContentSnapshot | null, url: string | null): string | null {
   if (!url) return null;
   return snapshot?.imageMap?.[url] ?? url;
+}
+
+/**
+ * The same snapshot with its imageMap stripped, so `resolveLocalImage` falls all
+ * the way through to the RAW REMOTE url for every question. Lets a caller reuse
+ * the app's real ordering helpers (which resolve images as they build their
+ * view-models) to compute a download order — the download queue is keyed by
+ * remote url, and a half-filled imageMap would otherwise leak `file://` paths
+ * into it that match nothing.
+ */
+export function withRemoteImages(snapshot: ContentSnapshot): ContentSnapshot {
+  return { ...snapshot, imageMap: undefined };
 }
 
 /** Resolve an image URL against a bare URL→local-file map (no snapshot). */

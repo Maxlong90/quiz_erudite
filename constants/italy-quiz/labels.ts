@@ -22,6 +22,23 @@ export interface ItalyLabels {
   termsOfUse: string;
   version: string;
   ok: string;
+  // Quiz screen
+  next: string;
+  finish: string;
+  loadingContent: string;
+  noQuestions: string;
+  resultTitle: string;
+  resultCaption: string;
+  resultExcellent: string;
+  resultGood: string;
+  resultKeepGoing: string;
+  playAgain: string;
+  backToCategories: string;
+  retryMistakes: string;
+  helpTitle: string;
+  helpBody: string;
+  gotIt: string;
+  shareInvite: string;
 }
 
 const EN: ItalyLabels = {
@@ -37,6 +54,23 @@ const EN: ItalyLabels = {
   termsOfUse: 'Terms of Use',
   version: 'Version',
   ok: 'OK',
+  next: 'Next',
+  finish: 'Finish',
+  loadingContent: 'Loading questions…',
+  noQuestions: 'No questions here yet.',
+  resultTitle: 'Results',
+  resultCaption: 'Correct answers',
+  resultExcellent: 'Excellent! You really know Italy.',
+  resultGood: 'Nicely done — keep it up!',
+  resultKeepGoing: 'Keep practising, you’ll get there!',
+  playAgain: 'Play again',
+  backToCategories: 'Categories',
+  retryMistakes: 'Review mistakes',
+  helpTitle: 'Review your mistakes',
+  helpBody:
+    'A wrong answer never reveals the right one — you simply move on to the next question. Every question you miss is remembered, and at the end of the run you can tap “Review mistakes” to replay just those. Nothing is lost: you can always come back and master the ones you missed.',
+  gotIt: 'Got it',
+  shareInvite: 'How well do you know Italy? Play Italy Quiz: {url}',
 };
 
 const RU: ItalyLabels = {
@@ -52,6 +86,23 @@ const RU: ItalyLabels = {
   termsOfUse: 'Условия использования',
   version: 'Версия',
   ok: 'ОК',
+  next: 'Далее',
+  finish: 'Завершить',
+  loadingContent: 'Загружаем вопросы…',
+  noQuestions: 'Здесь пока нет вопросов.',
+  resultTitle: 'Результат',
+  resultCaption: 'Правильных ответов',
+  resultExcellent: 'Отлично! Вы прекрасно знаете Италию.',
+  resultGood: 'Хорошо — так держать!',
+  resultKeepGoing: 'Продолжайте тренироваться, всё получится!',
+  playAgain: 'Играть снова',
+  backToCategories: 'Категории',
+  retryMistakes: 'Работа над ошибками',
+  helpTitle: 'Работа над ошибками',
+  helpBody:
+    'При неправильном ответе правильный не показывается — вы просто переходите к следующему вопросу. Все вопросы, в которых вы ошиблись, запоминаются, и в конце игры можно нажать «Работа над ошибками», чтобы пройти именно их заново. Ничего не теряется: вы всегда сможете вернуться и закрепить то, что не угадали.',
+  gotIt: 'Понятно',
+  shareInvite: 'Хорошо знаешь Италию? Играй в Italy Quiz: {url}',
 };
 
 const ES: ItalyLabels = {
@@ -67,6 +118,23 @@ const ES: ItalyLabels = {
   termsOfUse: 'Términos de uso',
   version: 'Versión',
   ok: 'OK',
+  next: 'Siguiente',
+  finish: 'Finalizar',
+  loadingContent: 'Cargando preguntas…',
+  noQuestions: 'Aún no hay preguntas aquí.',
+  resultTitle: 'Resultado',
+  resultCaption: 'Respuestas correctas',
+  resultExcellent: '¡Excelente! Conoces muy bien Italia.',
+  resultGood: '¡Bien hecho, sigue así!',
+  resultKeepGoing: '¡Sigue practicando, lo lograrás!',
+  playAgain: 'Jugar de nuevo',
+  backToCategories: 'Categorías',
+  retryMistakes: 'Repasar errores',
+  helpTitle: 'Repaso de errores',
+  helpBody:
+    'Una respuesta incorrecta nunca revela la correcta: simplemente pasas a la siguiente pregunta. Cada pregunta que falles se guarda y, al terminar la partida, puedes pulsar «Repasar errores» para jugar solo esas. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
+  gotIt: 'Entendido',
+  shareInvite: '¿Conoces bien Italia? Juega a Italy Quiz: {url}',
 };
 
 const FR: ItalyLabels = {
@@ -82,6 +150,23 @@ const FR: ItalyLabels = {
   termsOfUse: 'Conditions d’utilisation',
   version: 'Version',
   ok: 'OK',
+  next: 'Suivant',
+  finish: 'Terminer',
+  loadingContent: 'Chargement des questions…',
+  noQuestions: 'Pas encore de questions ici.',
+  resultTitle: 'Résultats',
+  resultCaption: 'Bonnes réponses',
+  resultExcellent: 'Excellent ! Vous connaissez bien l’Italie.',
+  resultGood: 'Bien joué — continuez comme ça !',
+  resultKeepGoing: 'Continuez à vous entraîner, vous y arriverez !',
+  playAgain: 'Rejouer',
+  backToCategories: 'Catégories',
+  retryMistakes: 'Revoir les erreurs',
+  helpTitle: 'Travail sur les erreurs',
+  helpBody:
+    'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la question suivante. Chaque question ratée est mémorisée et, à la fin de la partie, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. Rien n’est perdu : vous pourrez toujours revenir et maîtriser celles que vous avez ratées.',
+  gotIt: 'Compris',
+  shareInvite: 'Connaissez-vous bien l’Italie ? Jouez à Italy Quiz : {url}',
 };
 
 const TABLE: Record<SupportedLocale, ItalyLabels> = { en: EN, ru: RU, es: ES, fr: FR };

@@ -18,6 +18,7 @@ import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
 import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
+import { useWarmLevelImages } from '@/hooks/sport-quiz/use-warm-level-images';
 
 interface LevelRow {
   level: number;
@@ -60,6 +61,17 @@ export default function SportQuizLevels() {
       })),
     [levels, solvedIds],
   );
+
+  // The level the player is most likely to open next — the one they last played,
+  // else the first unlocked level they haven't finished.
+  const nextLevel = useMemo(() => {
+    if (lastLevel > 0) return lastLevel;
+    return rows.find((r) => r.unlocked && r.solved < r.total)?.level ?? 0;
+  }, [lastLevel, rows]);
+
+  // Warm that level (and the one after) while the player browses, so the
+  // level → quiz jump lands on an already-decoded picture.
+  useWarmLevelImages(snapshot, nextLevel, 1);
 
   // On focus (returning from a level / its Level Complete screen) scroll to the
   // last-played level so the player lands on the card they just cleared.

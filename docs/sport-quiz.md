@@ -69,6 +69,20 @@ That derivation only works if a question's level never changes. Both modes there
 
 The two pools are disjoint by contract: a question belongs to Legends when its `category_slug` is `sport-legends` or a sub-slug of it, and Classic's level builder excludes exactly that predicate. Both sides import the same `isLegendQuestion` check, so the two definitions cannot drift apart.
 
+## Keeping Question Pictures Ahead of the Player
+
+Sport Quiz is image-heavy, and on a fresh install the content sync is still downloading artwork long after the game becomes playable. Left alone that produced the obvious symptom: a player entered Classic and watched the pictures load in front of them. Three mechanisms, in order of when they act, keep the artwork ahead of the player.
+
+**The download runs in play order.** The provider passes [`imageBatches`](content-and-offline.md#ordered-download-batches) to `syncContent`, which groups the queue as: the first three Classic levels, then the rest of Classic in the order the player meets it, then the opening Legends levels. Category icons trail in the implicit final group. The Legends group is not an afterthought — Legends is a peer of Classic on the mode picker, and Classic's ordering excludes the Legends pool entirely, so without its own group every Legends face would sink behind the whole Classic tail and a player who tapped Legends first would be *worse* off than before any of this.
+
+**The splash holds for the first group.** `app/sport-quiz/splash.tsx` still has its 3-second floor, but it now waits for `priorityReady` — the provider's signal that the first Classic levels' images are on disk — up to a hard 6-second ceiling. Past the ceiling it goes in anyway and lets the rest download in the background, because a partially-stocked game beats being trapped on a splash. `priorityReady` is a **one-way latch**: it is also set on the cache-hydrate path and on the TTL-fresh path (which returns without ever entering the image phase), and a forced resync never re-closes it.
+
+**Play stays two levels ahead.** `hooks/sport-quiz/use-warm-level-images.ts` hands the current level and the next two to expo-image's decode cache, one level at a time, current level first — a cold question 12 in the level being played outranks anything in the next level. It is deliberately **local-only**: a still-remote URL is skipped rather than prefetched, because downloading is the content sync's job and a second fetcher would only steal bandwidth from the ordered queue already prioritising those exact images, write a duplicate copy to disk, and warm a cache key that dies the moment the URL flips to `file://`. Bytes on disk still cost a decode, which is what this pays for.
+
+Finally, `components/sport-quiz/question-image.tsx` makes the remaining gap legible: the neon frame is never empty, showing a skeleton immediately and a spinner only once a load is genuinely slow, so a warm image that decodes in a frame or two never flashes a loading state. It clears on `onLoadEnd` rather than `onLoad`, so a dead URL stops spinning instead of hanging.
+
+One consequence is load-bearing elsewhere: the quiz screen freezes its question list at mount. The sync merges finished batches into the live snapshot, so re-deriving that list mid-level would flip a question's URI from remote to local *while it is on screen* and force a re-decode. Ordering the download by play order is what makes the freeze safe — the download front runs ahead of the player, so the frozen list captures local paths.
+
 ## Sports Legends and the Puzzle Plates
 
 A Legends question is an ordinary image question — an athlete's photo plus four names — with one addition: the photo starts covered by a 4×5 grid of plates. Each tap uncovers one plate for 5 coins, so the player chooses how much of the picture to buy before committing to a guess. The coin is charged *before* the state update, so a tap made with a short balance is cancelled rather than half-applied.

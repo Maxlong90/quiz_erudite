@@ -145,6 +145,11 @@ const buildConfig = ({ config } = {}) => {
       extra,
       name: 'Italy Quiz',
       slug: 'italy-quiz',
+      // Italy Quiz's OWN launcher / Expo Go icon (the vintage-map Italy mark from
+      // the backend), so it never shows the erudite base's logo-quiz icon.
+      // Overrides both the top-level icon (iOS + Expo Go project screen) and the
+      // Android adaptive foreground for this variant only.
+      icon: './assets/images/italy-quiz-icon.png',
       // Scope the Expo Go dev manifest to the tester's personal account so the
       // account-signed-in device can open it. iOS Expo Go opens a self-hosted
       // (non-exp.direct) dev tunnel only when the manifest's owner matches the
@@ -164,6 +169,14 @@ const buildConfig = ({ config } = {}) => {
       android: {
         ...base.android,
         package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          foregroundImage: './assets/images/italy-quiz-icon.png',
+          // Android insets the adaptive foreground, so the background shows at the
+          // edges. The erudite base is purple (#5E63F5), which would ring this
+          // parchment icon — use the icon's own aged-paper tone instead.
+          backgroundColor: '#B19354',
+        },
       },
     };
   }

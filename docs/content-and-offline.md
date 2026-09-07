@@ -13,6 +13,8 @@ The snapshot is one bundle holding everything a language needs: the app descript
 3. Collect every image URL — question images plus category and subcategory icons — deduplicate them, and download with up to six concurrent workers (progress 20 → 100%).
 4. Persist the snapshot (with its image map and sync timestamp) to AsyncStorage and store the version number separately.
 
+Note that step 2 already makes the game *playable*: `onSnapshot` fires the moment the JSON lands, carrying whatever images were cached previously, and the app can render from it while step 3 is still running. That is why download **order** matters — see below.
+
 ```
 locale change / forced resync
             │
@@ -24,6 +26,21 @@ locale change / forced resync
             │                                            │
             └──────────────→ persist snapshot + images ←─┘
 ```
+
+## Ordered Download Batches
+
+By default the download queue is plain enumeration order, which is fine when nothing is waiting on a particular image. It is not fine on a fresh install: the first level's pictures compete for the six workers with pictures the player will not see for an hour, so they arrive while the player is already looking at the question. Because `resolveLocalImage` falls back to the *remote* URL when no local file exists, that shows up as artwork loading in front of the player.
+
+`syncContent` therefore accepts two optional, additive options:
+
+- `imageBatches(data)` returns an array of URL groups. The groups are downloaded **strictly one after another**, so the first group owns every worker until it completes. The callback receives the freshly fetched snapshot, which carries no `imageMap` — every URL it reads is the raw remote one the download queue is keyed by.
+- `onBatchImages(map, index)` fires after each group with the URL → local-file map for **that group only**, letting a caller merge a partial map into its snapshot and release a gate before the long tail finishes.
+
+The caller cannot corrupt the queue. Its URLs are intersected with the real download set and de-duplicated across groups, and anything it never mentioned is appended as a final implicit group in enumeration order — so a caller can neither drop, duplicate nor invent a download. Omitting `imageBatches` yields exactly one group, which is the pre-existing behaviour byte for byte; this matters because `lib/content-cache.ts` is shared by Erudite, Logo Quiz, Flags Quiz, Coat of Arms and Sport Quiz, and only Sport Quiz passes these options today.
+
+Progress stays a single continuous 0.2 → 1.0 ramp across all groups: it is computed against the total URL count, never the per-group count, which would otherwise spike to 1.0 at each group boundary and fall back.
+
+Merging a partial `imageMap` mid-sync is safe by construction. An app's level grouping keys off whether a question *has* an image URL, never off whether that image has been downloaded, so a partially-filled map produces the same levels as a full one and a question can never hop levels underneath a player. [Sport Quiz](sport-quiz.md) uses this to hold its splash for the first levels' artwork.
 
 ## Image Caching
 

@@ -14,7 +14,7 @@
  * Levels are dense chunks of LEGENDS_LEVEL_SIZE questions, ordered by a stable,
  * deterministic shuffle keyed by question id (never hops levels between launches).
  */
-import { resolveLocalImage, type ContentSnapshot } from '@/lib/content-cache';
+import { resolveLocalImage, withRemoteImages, type ContentSnapshot } from '@/lib/content-cache';
 import type { SportQuizQuestion } from '@/lib/sport-quiz/content';
 
 /**
@@ -104,6 +104,30 @@ export function buildLegendsLevels(snapshot: ContentSnapshot): SportLegendsLevel
     levels.push({ level: levels.length + 1, questions: ordered.slice(i, i + LEGENDS_LEVEL_SIZE) });
   }
   return levels;
+}
+
+/**
+ * How many Legends levels are downloaded ahead of the Classic long tail. Legends
+ * is a PEER of Classic on the mode picker, and Classic's play order excludes the
+ * Legends pool entirely — so without its own priority batch every Legends face
+ * would sink to the very back of the download queue and a player who taps
+ * Legends first would get a WORSE experience than before any of this.
+ */
+export const LEGENDS_PRIORITY_LEVELS = 2;
+
+/**
+ * The first `levels` Legends levels' RAW REMOTE image urls. Every Legends
+ * question is an image question, so this is simply the first levels' faces.
+ */
+export function legendsPriorityImageUrls(
+  snapshot: ContentSnapshot,
+  levels: number = LEGENDS_PRIORITY_LEVELS,
+): string[] {
+  return buildLegendsLevels(withRemoteImages(snapshot))
+    .slice(0, levels)
+    .flatMap((l) => l.questions)
+    .map((q) => q.imageUri)
+    .filter((u): u is string => !!u);
 }
 
 /** The questions of a single Legends level (empty when the level does not exist). */

@@ -106,7 +106,7 @@ export const ITALY_CATEGORIES: ItalyCategory[] = [
         slug: 'middle-ages-city-states',
         label: {
           en: 'Middle Ages & city-states',
-          ru: 'Средневековье и город-государства',
+          ru: 'Средневековье\nи города-государства',
           es: 'Edad Media y ciudades-estado',
           fr: 'Moyen Âge et cités-États',
         },
@@ -159,7 +159,7 @@ export const ITALY_CATEGORIES: ItalyCategory[] = [
         slug: 'famous-buildings-monuments',
         label: {
           en: 'Famous buildings & monuments',
-          ru: 'Знаменитые здания и памятники',
+          ru: 'Знаменитые здания\nи памятники',
           es: 'Edificios y monumentos famosos',
           fr: 'Bâtiments et monuments célèbres',
         },

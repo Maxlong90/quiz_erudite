@@ -19,6 +19,7 @@ export type GlossyGlyph =
   | 'phone-portrait'
   | 'ellipsis-horizontal'
   | 'share-social'
+  | 'flag'
   | 'help';
 
 interface Props {

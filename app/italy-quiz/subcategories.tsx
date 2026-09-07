@@ -1,44 +1,34 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground, BG_BASE, useItalyBgReady } from '@/components/italy-quiz/app-background';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { useItalyCategory } from '@/constants/italy-quiz/categories';
 
 /**
- * Italy Quiz subcategory list (category → here). Background is a soft, lighter
- * blue-violet gradient (brightened per the brief — the old one was too dark) with
- * a gentle top glow; the glossy navy buttons keep their gloss band + drop shadow
- * so they still stand off the lighter background. Buttons match the category
- * buttons' size, and the whole list is lowered ~half a button below the back
- * button. The quiz flow is not wired yet, so tapping a subcategory is a no-op.
+ * Italy Quiz subcategory list (category → here). Uses the SAME background as the
+ * category screen — the landmarks artwork under a navy scrim — so the two read as
+ * one flow; the glossy navy buttons keep their gloss band and drop shadow, which
+ * is what separates them from the artwork. The quiz opens from any row.
  */
 export default function ItalyQuizSubcategories() {
   const { cat } = useLocalSearchParams<{ cat?: string }>();
   const category = useItalyCategory(cat);
+  const bgReady = useItalyBgReady();
+
+  if (!bgReady) {
+    return <View style={[styles.fill, { backgroundColor: BG_BASE }]} />;
+  }
 
   return (
     <View style={styles.fill}>
-      {/* Lighter blue-violet base gradient. */}
-      <LinearGradient
-        colors={['#6E7FD6', '#43539F', '#212F63']}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      {/* Soft light glow at the top so the header area has airy depth. */}
-      <LinearGradient
-        colors={['rgba(200, 214, 255, 0.5)', 'rgba(200, 214, 255, 0)']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.topGlow}
-        pointerEvents="none"
-      />
+      <AppBackground />
       <StatusBar style="light" />
+      {/* Soft scrim so the glossy buttons read clearly over the busy artwork. */}
+      <View style={styles.scrim} pointerEvents="none" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
         <View style={styles.header}>
@@ -65,9 +55,12 @@ export default function ItalyQuizSubcategories() {
               label={s.title}
               fontSize={22}
               paddingVertical={18}
-              onPress={() => {
-                // TODO: wire the Italy quiz flow (subcategory → quiz).
-              }}
+              onPress={() =>
+                router.push({
+                  pathname: '/italy-quiz/quiz',
+                  params: { cat: cat ?? '', sub: s.slug },
+                })
+              }
             />
           ))}
         </ScrollView>
@@ -77,8 +70,15 @@ export default function ItalyQuizSubcategories() {
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: '#212F63' },
-  topGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 280 },
+  fill: { flex: 1, backgroundColor: 'transparent' },
+  scrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(6, 15, 56, 0.42)',
+  },
 
   header: {
     flexDirection: 'row',
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '900',
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
   },

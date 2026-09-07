@@ -13,7 +13,12 @@ import {
   syncContent,
   type ContentSnapshot,
 } from '@/lib/content-cache';
-import { SPORT_QUIZ_SLUG } from '@/lib/sport-quiz/content';
+import {
+  classicImageUrlsInPlayOrder,
+  priorityImageUrls,
+  SPORT_QUIZ_SLUG,
+} from '@/lib/sport-quiz/content';
+import { legendsPriorityImageUrls } from '@/lib/sport-quiz/legends';
 import { useLocale } from '@/hooks/use-locale';
 
 type Status = 'idle' | 'syncing' | 'ready' | 'error';
@@ -23,6 +28,12 @@ interface SportQuizContentValue {
   status: Status;
   progress: number; // 0..1
   error: string | null;
+  /**
+   * The images of the first PRIORITY_LEVELS Classic levels are on disk — the
+   * splash gate. A ONE-WAY LATCH: once true it never goes back to false, so a
+   * re-sync (or a re-mounted splash) can never re-trap the player behind it.
+   */
+  priorityReady: boolean;
   /** Force a fresh sync now, ignoring the TTL. */
   resync: () => Promise<void>;
 }
@@ -41,6 +52,7 @@ export function SportQuizContentProvider({ children }: { children: ReactNode }) 
   const [status, setStatus] = useState<Status>('idle');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [priorityReady, setPriorityReady] = useState(false);
   // Tracks the locale the running sync is for, so a fast locale flip cancels the
   // in-flight sync.
   const inflightLocale = useRef<string | null>(null);
@@ -66,11 +78,38 @@ export function SportQuizContentProvider({ children }: { children: ReactNode }) 
             setProgress(p);
           }
         },
+        // Download in PLAY ORDER: the first Classic levels first, then the rest
+        // of Classic in the order the player meets them, then the opening
+        // Legends levels. Category icons fall into the implicit trailing batch.
+        imageBatches: (data) => {
+          const priority = priorityImageUrls(data);
+          const priorityKeys = new Set(priority);
+          return [
+            priority,
+            classicImageUrlsInPlayOrder(data).filter((u) => !priorityKeys.has(u)),
+            legendsPriorityImageUrls(data),
+          ];
+        },
+        // Merge each finished batch into the live snapshot so the artwork already
+        // on disk starts resolving to file:// immediately, instead of everything
+        // staying remote until the very last image lands. Safe mid-sync: level
+        // membership is decided by whether image_url is set, never by whether it
+        // has been downloaded, so a partial map cannot reshuffle a question.
+        onBatchImages: (map, batchIndex) => {
+          if (inflightLocale.current !== forLocale) return;
+          setSnapshot((prev) =>
+            prev ? { ...prev, imageMap: { ...prev.imageMap, ...map } } : prev,
+          );
+          if (batchIndex === 0) setPriorityReady(true);
+        },
       });
       if (inflightLocale.current === forLocale) {
         setSnapshot(fresh);
         setStatus('ready');
         setProgress(1);
+        // Also latch here: a TTL-fresh sync returns early WITHOUT ever entering
+        // the image phase, so onBatchImages never fires on that path.
+        setPriorityReady(true);
       }
     } catch (err) {
       // Log so the failure also shows in the Metro console, not just on-screen.
@@ -92,6 +131,9 @@ export function SportQuizContentProvider({ children }: { children: ReactNode }) 
         setSnapshot(cached);
         setStatus('ready');
         setProgress(1);
+        // A cached snapshot already carries its imageMap, so the artwork is on
+        // disk — never hold the splash on a returning player.
+        setPriorityReady(true);
       }
       await runSync(locale, false);
     })();
@@ -104,7 +146,14 @@ export function SportQuizContentProvider({ children }: { children: ReactNode }) 
     await runSync(locale, true);
   }, [locale, runSync]);
 
-  const value: SportQuizContentValue = { snapshot, status, progress, error, resync };
+  const value: SportQuizContentValue = {
+    snapshot,
+    status,
+    progress,
+    error,
+    priorityReady,
+    resync,
+  };
 
   return (
     <SportQuizContentContext.Provider value={value}>{children}</SportQuizContentContext.Provider>

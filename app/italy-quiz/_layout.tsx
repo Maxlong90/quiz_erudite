@@ -21,6 +21,7 @@ export default function ItalyQuizLayout() {
       <Stack.Screen name="index" options={{ animation: 'fade' }} />
       <Stack.Screen name="categories" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="subcategories" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="quiz" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
