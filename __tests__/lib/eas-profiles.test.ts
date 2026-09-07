@@ -66,6 +66,25 @@ describe('store keys are either real keys or explicit placeholders', () => {
       expect(iosKey.startsWith('appl_') || isPlaceholder(iosKey)).toBe(true);
     }
   });
+
+  // Store identifiers get the same treatment, and for a sharper reason. An
+  // unfilled `REPLACE_WITH_…` package has no dot, so Gradle rejects it and an
+  // Android build cannot even be produced — which was itself a safety barrier
+  // while Sport Quiz had no Play listing. Now that a real package is set that
+  // barrier is gone, so a *malformed* value (a typo, a half-edit, a dropped
+  // segment) would no longer fail loudly at the same point. This keeps the
+  // guarantee: an identifier is either a deliberate placeholder or genuinely
+  // well-formed reverse-DNS, never something in between.
+  const REVERSE_DNS = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/;
+
+  it.each(Object.keys(profiles))('%s carries no malformed store identifier', (name) => {
+    const env = envOf(name);
+    for (const key of ['EXPO_PUBLIC_IOS_BUNDLE_ID', 'EXPO_PUBLIC_ANDROID_PACKAGE']) {
+      const value = env[key];
+      if (value === undefined) continue;
+      expect([key, isPlaceholder(value) || REVERSE_DNS.test(value)]).toEqual([key, true]);
+    }
+  });
 });
 
 describe('no sibling app inherits the Erudite store identity', () => {
