@@ -76,8 +76,9 @@ Each sibling app keeps its own AsyncStorage namespace, entirely separate from th
 | [Flags Quiz](flags-quiz.md) | `flags.progress.*`, `flags.imageAnswer.v1`, `flags.help.seen.v1` | Per-mode run position, cached image-answer payload, first-run help flag |
 | [Coat of Arms](coat-of-arms-quiz.md) | `coat.progress.*`, `coat.imageAnswer.v1`, `coat.help.seen.v1` | Per-mode run position, cached image-answer payload, first-run help flag |
 | [Sport Quiz](sport-quiz.md) | `sportquiz.*` | Coin balance, wheel cooldown anchor, solved ids, last level, revealed puzzle plates |
+| [Italy Quiz](italy-quiz.md) | `italy.run.{slug}`, `italy.help.seen.v1` | Per-subcategory run (question ids, position, missed ids), first-run help flag |
 
-Two design choices recur across them. Progress is stored as a **run position** (Flags Quiz, Coat of Arms) or a **solved-id set** (Logo Quiz, Sport Quiz), never as derived state — levels, counts, and completion are recomputed from the primitive so a content update cannot invalidate saved progress. And nothing here is `quiz.*`-prefixed, so the erudite settings reset leaves every sibling app's progress untouched.
+Two design choices recur across them. Progress is stored as a **run position** (Flags Quiz, Coat of Arms, Italy Quiz) or a **solved-id set** (Logo Quiz, Sport Quiz), never as derived state — levels, counts, and completion are recomputed from the primitive so a content update cannot invalidate saved progress. Italy Quiz pushes that principle one step further by saving its run order as question **ids** rather than positions in the pool, so a pool that grows or is reordered between sessions cannot repoint a resumed run at different questions. And nothing here is `quiz.*`-prefixed, so the erudite settings reset leaves every sibling app's progress untouched.
 
 ### Answer-Statistics Stores
 
@@ -174,3 +175,4 @@ Progress stores accumulate monotonically as the player plays — stats and seen 
 - [Flags Quiz](flags-quiz.md) -- The image-answer question shape
 - [Coat of Arms](coat-of-arms-quiz.md) -- The two-variant question image and its reveal
 - [Sport Quiz](sport-quiz.md) -- Its coin stores and level derivation
+- [Italy Quiz](italy-quiz.md) -- Its id-based run store and hardcoded taxonomy

@@ -89,11 +89,11 @@ Every sibling app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG
 | `flags-quiz` | Flags Quiz | `flags-quiz` | [Flags Quiz](flags-quiz.md) |
 | `coat-of-arms` | Coat of Arms | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) |
 | `sport-quiz` | Sport Quiz | `sport-quiz` | [Sport Quiz](sport-quiz.md) |
-| `italy-history-and-geography-quiz` | Italy Quiz (scaffold) | `italy-quiz` | [Architecture](architecture.md#italy-quiz-an-unfinished-variant) |
+| `italy-history-and-geography-quiz` | Italy Quiz | `italy-quiz` | [Italy Quiz](italy-quiz.md) |
 
 `app.config.js` is a dynamic Expo config layered over the static `app.json`. For a build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. Every sibling branch overrides the app `name` and takes its iOS `bundleIdentifier` and Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`, and every one ships iPhone-only (`ios.supportsTablet: false`) because none has a tablet layout yet — which also matters for App Store review, since Apple otherwise reviews on iPad.
 
-Every branch except `logo-quiz` also overrides the Expo project `slug`. Sharing the base `quiz-erudit` slug makes variants collide in Expo Go, so opening one shows another's cached bundle. The logo variant deliberately keeps the base slug: it identifies the established EAS project, not the store listing. The Flags Quiz and Coat of Arms branches additionally override the launcher icon (`icon` plus the Android adaptive foreground) so the variant never shows another app's mark.
+Every branch except `logo-quiz` also overrides the Expo project `slug`. Sharing the base `quiz-erudit` slug makes variants collide in Expo Go, so opening one shows another's cached bundle. The logo variant deliberately keeps the base slug: it identifies the established EAS project, not the store listing. The Flags Quiz, Coat of Arms, and Italy Quiz branches additionally override the launcher icon (`icon` plus the Android adaptive foreground) so the variant never shows another app's mark. On Android the foreground alone is not enough: the system insets it and the adaptive background colour rings the artwork, so a variant whose icon is not purple must also set `adaptiveIcon.backgroundColor` — Italy Quiz pins the aged-paper tone of its vintage-map mark instead of inheriting the base build's purple.
 
 The `logo-quiz-preview` / `logo-quiz-production` and `sport-quiz-preview` / `sport-quiz-production` profiles in `eas.json` set `EXPO_PUBLIC_APP_SLUG` plus that app's bundle id, package, and RevenueCat keys. Where a value is still a `REPLACE_WITH_…` placeholder the identity vars fall back to the Erudite identity and the placeholder keys are rejected by the key shape check, so that sibling's store products do not resolve and its shop fails closed on a device (local-granting only in Expo Go).
 
@@ -258,4 +258,5 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 - [Flags Quiz](flags-quiz.md) -- Building a sibling app via `APP_SLUG`
 - [Coat of Arms](coat-of-arms-quiz.md) -- The heraldry sibling
 - [Sport Quiz](sport-quiz.md) -- The sports sibling
+- [Italy Quiz](italy-quiz.md) -- The Italy sibling, and the one variant with no EAS project
 - [INDEX](INDEX.md) -- Documentation entry point

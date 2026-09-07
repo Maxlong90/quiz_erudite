@@ -21,6 +21,7 @@ The same tree also builds five sibling apps, each selected by a build-time slug 
 - [Flags Quiz](flags-quiz.md) -- Flags: two question shapes and an out-of-snapshot content source; the template for later siblings
 - [Coat of Arms](coat-of-arms-quiz.md) -- Heraldry: clean-versus-original artwork and the post-answer reveal
 - [Sport Quiz](sport-quiz.md) -- Sports: a coins-only economy, puzzle plates, and a shared win screen
+- [Italy Quiz](italy-quiz.md) -- Italy: a hardcoded taxonomy over backend questions, and fifty-question resumable runs
 
 ### Operations
 

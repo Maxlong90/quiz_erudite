@@ -36,7 +36,7 @@ By default the download queue is plain enumeration order, which is fine when not
 - `imageBatches(data)` returns an array of URL groups. The groups are downloaded **strictly one after another**, so the first group owns every worker until it completes. The callback receives the freshly fetched snapshot, which carries no `imageMap` — every URL it reads is the raw remote one the download queue is keyed by.
 - `onBatchImages(map, index)` fires after each group with the URL → local-file map for **that group only**, letting a caller merge a partial map into its snapshot and release a gate before the long tail finishes.
 
-The caller cannot corrupt the queue. Its URLs are intersected with the real download set and de-duplicated across groups, and anything it never mentioned is appended as a final implicit group in enumeration order — so a caller can neither drop, duplicate nor invent a download. Omitting `imageBatches` yields exactly one group, which is the pre-existing behaviour byte for byte; this matters because `lib/content-cache.ts` is shared by Erudite, Logo Quiz, Flags Quiz, Coat of Arms and Sport Quiz, and only Sport Quiz passes these options today.
+The caller cannot corrupt the queue. Its URLs are intersected with the real download set and de-duplicated across groups, and anything it never mentioned is appended as a final implicit group in enumeration order — so a caller can neither drop, duplicate nor invent a download. Omitting `imageBatches` yields exactly one group, which is the pre-existing behaviour byte for byte; this matters because `lib/content-cache.ts` is shared by all six apps, and only Sport Quiz passes these options today.
 
 Progress stays a single continuous 0.2 → 1.0 ramp across all groups: it is computed against the total URL count, never the per-group count, which would otherwise spike to 1.0 at each group boundary and fall back.
 
@@ -60,7 +60,7 @@ Two properties of that field shape how the cache treats it. It is **absent, not 
 
 ## Per-App Cache Namespacing
 
-One build tree ships several apps — the main quiz, Logo Quiz, Flags Quiz, Coat of Arms, and Sport Quiz — selected by the build's `APP_SLUG` (see [Architecture](architecture.md#key-design-decisions)). They all draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
+One build tree ships several apps — the main quiz, Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, and Italy Quiz — selected by the build's `APP_SLUG` (see [Architecture](architecture.md#key-design-decisions)). They all draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
 
 The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys and `snapshot-images/` directory, so namespacing is a no-op for the primary app. Any other slug synced into the same build — for example a Logo Quiz screen syncing `logo-quiz` from an erudite build — gets a `:{slug}`-suffixed key set and its own `snapshot-images-{slug}/` directory. See [Logo Quiz](logo-quiz.md#from-mock-data-to-backend-content).
 
@@ -132,3 +132,4 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Flags Quiz](flags-quiz.md) -- A sibling that also caches a second content source outside the snapshot
 - [Coat of Arms](coat-of-arms-quiz.md) -- The app that consumes the second image variant
 - [Sport Quiz](sport-quiz.md) -- A sibling drawing its levels from the same snapshot
+- [Italy Quiz](italy-quiz.md) -- The one sibling that reads this cache through the main provider

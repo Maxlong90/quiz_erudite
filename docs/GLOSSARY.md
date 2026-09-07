@@ -26,11 +26,13 @@ This tree builds six apps that share infrastructure but not vocabulary. Several 
 
 ## Gameplay
 
-**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz and Coat of Arms have no levels at all.
+**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz, Coat of Arms, and Italy Quiz have no levels at all — they present a run instead.
 
-**Run** — A single pass through a shuffled question order in Flags Quiz and Coat of Arms, persisted as `{ order, pos, wrong }` so an interrupted session resumes exactly where it stopped. A *retry run* replays only the previously missed indices and is deliberately never persisted. See [Flags Quiz](flags-quiz.md#resuming-a-run).
+**Run** — A single pass through a shuffled question order in Flags Quiz, Coat of Arms, and Italy Quiz, persisted so an interrupted session resumes exactly where it stopped. Flags Quiz and Coat of Arms store it as `{ order, pos, wrong }`; [Italy Quiz](italy-quiz.md#resuming-a-run) stores question *ids* instead of indices, so a growing question pool cannot repoint a saved run. A *retry run* replays only the previously missed questions and is deliberately never persisted. See [Flags Quiz](flags-quiz.md#resuming-a-run).
 
 **Reveal** — The animated transition after an answer. In Flags Quiz and Coat of Arms it means the correct option gliding to centre while the wrong ones unmount; in Coat of Arms it additionally means the original picture dissolving in over the clean one. In Erudite it just means all options turning green or red.
+
+**Photo mix** — The share of an [Italy Quiz](italy-quiz.md#a-run-of-fifty-composed-to-a-photo-ratio) run that must be picture questions, pinned per subcategory. It is applied when the run is drawn rather than by trimming the pool, so every question stays eligible for a later run.
 
 **Plate** — One tile of the 4×5 grid covering an athlete's photo in Sport Quiz's Sports Legends mode. The player buys plates one at a time to uncover the picture. See [Sport Quiz](sport-quiz.md#sports-legends-and-the-puzzle-plates).
 
@@ -38,11 +40,11 @@ This tree builds six apps that share infrastructure but not vocabulary. Several 
 
 ## Economy and Monetization
 
-**Lives** — The spend currency for wrong answers in Erudite and Logo Quiz. Flags Quiz, Coat of Arms, and Sport Quiz have none. See [Gamification](gamification.md#lives).
+**Lives** — The spend currency for wrong answers in Erudite and Logo Quiz. Flags Quiz, Coat of Arms, Sport Quiz, and Italy Quiz have none. See [Gamification](gamification.md#lives).
 
 **Coins** — The currency in Logo Quiz and Sport Quiz. In Sport Quiz it is the *only* currency, and the 15-coin floor is the app's single hard gate. See [Sport Quiz](sport-quiz.md#the-coin-economy).
 
-**Premium** — A client-side flag unlocking Erudite's gated modes and Logo Quiz's later levels, backed by the RevenueCat `premium` entitlement wherever store billing is enabled. Flags Quiz, Coat of Arms, and Sport Quiz have no premium tier.
+**Premium** — A client-side flag unlocking Erudite's gated modes and Logo Quiz's later levels, backed by the RevenueCat `premium` entitlement wherever store billing is enabled. Flags Quiz, Coat of Arms, Sport Quiz, and Italy Quiz have no premium tier.
 
 **Entitlement / offering** — RevenueCat terms. An *entitlement* (`premium`) is what a purchase grants; an *offering* (`default`) is the set of packages the paywall can sell. An empty offering means the store catalog is not provisioned for that app.
 

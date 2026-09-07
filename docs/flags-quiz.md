@@ -100,4 +100,5 @@ Every Flags Quiz screen is blue with glossy buttons. The home, play, settings, a
 - [Logo Quiz](logo-quiz.md) -- The second app built from the same tree
 - [Coat of Arms](coat-of-arms-quiz.md) -- The sibling built on this app's types and UI kit
 - [Sport Quiz](sport-quiz.md) -- A later sibling with a coins-only economy
+- [Italy Quiz](italy-quiz.md) -- A later sibling that mirrors this app's run and answer flow
 - [Development](development.md) -- Building a sibling app variant

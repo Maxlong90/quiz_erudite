@@ -132,13 +132,17 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 | `flags-quiz` | [Flags Quiz](flags-quiz.md) — flags | `/flags-quiz/splash` | None |
 | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) — heraldry | `/coat-of-arms/splash` | None |
 | `sport-quiz` | [Sport Quiz](sport-quiz.md) — sports | `/sport-quiz/splash` | Coins only |
-| `italy-history-and-geography-quiz` | Italy Quiz — see [Italy Quiz: an unfinished variant](#italy-quiz-an-unfinished-variant) | `/italy-quiz/splash` | None yet |
+| `italy-history-and-geography-quiz` | [Italy Quiz](italy-quiz.md) — Italian history and geography | `/italy-quiz/splash` | None |
 
 The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, and Sport Quiz adapts Logo Quiz's level and wheel model. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
 
-### Italy Quiz: an unfinished variant
+### Italy Quiz: the variant with no content layer
 
-The `italy-history-and-geography-quiz` slug builds a sixth variant that is currently a **scaffold, not a playable game**. It has a splash, a home screen over cartoon-landmarks artwork, a settings screen, and a two-level category browser whose seven categories and 28 subcategories are hardcoded in `constants/italy-quiz/categories.ts` rather than fetched. Tapping a subcategory is a dead end: there is no quiz screen, no result screen, and no backend content sync. Treat the frontend category list as placeholder taxonomy — the app is not yet wired to its backend slug.
+The `italy-history-and-geography-quiz` slug builds a sixth variant that is now playable end to end — splash, home, category browser, quiz, and result — and is documented in full in [Italy Quiz](italy-quiz.md). Two of its structural choices are family-level facts rather than app details.
+
+Its taxonomy is **hardcoded, not fetched**: seven categories and 27 subcategories live in `constants/italy-quiz/categories.ts`, and each subcategory's `slug` is the join key against the snapshot's `category_slug`. A subcategory that matches no questions renders an empty-state note instead of failing, which is what let the browser ship before any content existed — and it also means a backend rename empties a subcategory silently.
+
+It is also the **only variant with no content provider of its own**. Every other sibling runs one because it fetches a slug that is not the build's own; Italy Quiz is only ever reached from an Italy build, where the app-wide `ContentCacheProvider` is already syncing exactly that slug. Its screens read `useContentCache` directly, which is why there is no `lib/italy-quiz/` at all and `hooks/italy-quiz/` holds only run state, not content.
 
 One quirk of the variant is worth knowing before touching `app.config.js`. Its branch strips `runtimeVersion`, `updates`, and `extra.eas` from the base config, because a manifest that looks like an updates-enabled EAS app makes Expo Go demand an Expo-account sign-in that an offline dev server cannot satisfy. Italy Quiz has no EAS build yet, so dropping those fields yields a plain, Expo-Go-friendly dev manifest. They must be restored once the variant gets its own EAS project, or it will never receive an over-the-air update.
 
@@ -197,7 +201,8 @@ constants/{slug}/       Its labels and theme
   flags-quiz/           Glossy buttons and flag artwork; dual-source content
   coat-of-arms/         Reuses the flags-quiz types and UI kit; crest artwork
   sport-quiz/           Neon-on-navy kit, coins, puzzle plates, win screen
-  italy-quiz/           Scaffold only: no lib/ or hooks/ (see above)
+  italy-quiz/           Landmarks artwork, glossy navy tiles; hooks/ holds run
+                        state only — no lib/, no content provider (see above)
 
 app.config.js           Dynamic Expo config: per-variant identity and store ids
 ```
@@ -212,4 +217,5 @@ app.config.js           Dynamic Expo config: per-variant identity and store ids
 - [Flags Quiz](flags-quiz.md) -- A geography flag game with two question shapes
 - [Coat of Arms](coat-of-arms-quiz.md) -- A heraldry game derived from Flags Quiz
 - [Sport Quiz](sport-quiz.md) -- A sports game with a coins-only economy
+- [Italy Quiz](italy-quiz.md) -- A single-topic quiz with a hardcoded taxonomy
 - [Development](development.md) -- Building a sibling app variant

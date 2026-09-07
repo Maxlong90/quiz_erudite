@@ -57,7 +57,7 @@ Publishing an over-the-air update (`eas update --channel …`) is *not* in this 
 
 ## Not a Long-Running Operation: the Test Suite
 
-The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 46 test files are pure logic and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — around 6 on a warm cache, under 20 cold. Run `npm test` in the foreground.
+The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 52 test files are pure logic and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — around 6 on a warm cache, under 20 cold. Run `npm test` in the foreground.
 
 ## See Also
 
