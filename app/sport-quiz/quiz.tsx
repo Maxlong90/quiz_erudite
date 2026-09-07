@@ -32,6 +32,11 @@ import {
   MIN_COINS_TO_ANSWER,
   WRONG_PENALTY_COINS,
 } from '@/lib/sport-quiz/economy';
+// Answer-reveal choreography, shared with Sports Legends so both modes play the
+// same beat: the wrong options fade out over FADE_MS while the correct answer
+// glides up under the question over MOVE_MS, and the Explanation is at full
+// opacity exactly as that glide lands.
+import { EXPLANATION_DELAY_MS, FADE_MS, MOVE_MS, UI_FADE_MS } from '@/lib/sport-quiz/reveal-timing';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -40,13 +45,6 @@ import { useWarmLevelImages } from '@/hooks/sport-quiz/use-warm-level-images';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
-
-// Answer-reveal timings (mirrors the Logo Quiz quiz): the wrong options fade out
-// over ~1s while the correct answer simultaneously glides up under the question
-// over ~1.7s; once it lands, the Explanation + "Next" button fade in.
-const FADE_MS = 1000;
-const MOVE_MS = 1700;
-const UI_FADE_MS = 300;
 
 // Answer button height and the vertical rhythm derived from it. The counter is
 // lifted up, and (on text/numeric questions) the prompt sits under the counter,
@@ -321,11 +319,15 @@ export default function SportQuizQuiz() {
           })}
         </View>
 
-        {/* Reveal panel — Explanation, shown below the centered answer once its
-            glide lands (on a fresh solve) or instantly (re-opening a solved one). */}
+        {/* Reveal panel — Explanation, shown below the centered answer. On a fresh
+            solve it fades in so that it is FULLY VISIBLE on the frame the answer's
+            glide lands (starts at MOVE_MS - UI_FADE_MS, see EXPLANATION_DELAY_MS);
+            re-opening an already-solved question shows it instantly, no animation.
+            The heading and the card share ONE Animated.View so they arrive as a
+            single block — splitting them into two entering animations would step. */}
         {revealing && !!question.explanation && question.explanation.trim().length > 0 && (
           <Animated.View
-            entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
+            entering={revealAnimated ? FadeIn.delay(EXPLANATION_DELAY_MS).duration(UI_FADE_MS) : undefined}
             style={styles.revealArea}
           >
             <Text style={styles.explHeading}>{t.explanationHeading}</Text>

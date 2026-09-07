@@ -35,6 +35,9 @@ import {
   LEGEND_WRONG_PENALTY_COINS,
   MIN_COINS_TO_ANSWER,
 } from '@/lib/sport-quiz/economy';
+// The SAME answer-reveal choreography as the Classic quiz — imported rather than
+// re-declared, so the two modes cannot drift apart.
+import { EXPLANATION_DELAY_MS, FADE_MS, MOVE_MS, UI_FADE_MS } from '@/lib/sport-quiz/reveal-timing';
 import { SQColors, SQRadius } from '@/constants/sport-quiz/theme';
 import { useSQLabels } from '@/constants/sport-quiz/labels';
 import { useSportQuiz } from '@/hooks/sport-quiz/use-sport-quiz';
@@ -42,11 +45,6 @@ import { useSportQuizContent } from '@/hooks/sport-quiz/use-sport-quiz-content';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 import { shareQuestionImage } from '@/lib/flags-quiz/share-image';
-
-// Same answer-reveal timings as the Classic quiz.
-const FADE_MS = 1000;
-const MOVE_MS = 1700;
-const UI_FADE_MS = 300;
 
 // FIXED answer-button height (compact, ~the original size) so all options are ALWAYS
 // the same size (long answers wrap, then shrink the font if still needed).
@@ -296,10 +294,14 @@ export default function SportLegendsQuiz() {
           })}
         </View>
 
-        {/* Bio — the athlete's story, shown once solved. */}
+        {/* Bio — the athlete's story, shown once solved. Same beat as the Classic
+            quiz: on a fresh solve it is FULLY VISIBLE on the frame the answer's
+            glide lands (see EXPLANATION_DELAY_MS), and a re-opened face shows it
+            instantly. Heading + card share ONE Animated.View so they arrive as a
+            single block rather than stepping in one after the other. */}
         {revealing && !!question.explanation && question.explanation.trim().length > 0 && (
           <Animated.View
-            entering={revealAnimated ? FadeIn.delay(MOVE_MS).duration(UI_FADE_MS) : undefined}
+            entering={revealAnimated ? FadeIn.delay(EXPLANATION_DELAY_MS).duration(UI_FADE_MS) : undefined}
             style={styles.revealArea}
           >
             <Text style={styles.explHeading}>{t.explanationHeading}</Text>
