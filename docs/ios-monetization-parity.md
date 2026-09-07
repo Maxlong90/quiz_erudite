@@ -18,7 +18,7 @@ a real device (subscribe fails closed off-store, mirroring `lib/iap.ts`).
 |---------|------------------------|--------------|
 | RevenueCat (paywall + IAP) | `revenueCatEnabled` in `lib/revenuecat.ts` | native platform **and** a public key exists for it (`keyForPlatform`) |
 | Rewarded ads | `adsEnabled` in `lib/ads.ts` | native platform **and** a rewarded unit id exists for it (`REWARDED_UNIT_ID`) |
-| Forced post-onboarding paywall | `app/onboarding.tsx` | `revenueCatEnabled` **and** per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) |
+| Forced post-onboarding paywall | `app/onboarding.tsx` | erudite build (`currentTemplate() === null`) **and** `revenueCatEnabled` **and** per-platform backend flag (`show_paywall_ios` / `show_paywall_android`) |
 | Paywall reviewer-unlock button | `app/paywall.tsx` | `revenueCatEnabled` **and** `show_paywall_review_button` (from the snapshot) |
 
 The per-platform paywall flags are delivered by the backend content snapshot

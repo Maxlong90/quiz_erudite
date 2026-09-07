@@ -40,6 +40,14 @@ jest.mock('@/hooks/use-content-cache', () => ({
   useContentCache: () => ({ snapshot: mockSnapshot }),
 }));
 
+// Which app this build IS. null = the erudite build (the only one that may show
+// this paywall); an entry = a sibling app. Mocked rather than imported for real
+// because the registry resolves the slug through the axios-backed api client.
+let mockTemplate: { splash: string; scaffoldBg: string } | null = null;
+jest.mock('@/constants/app-templates', () => ({
+  currentTemplate: () => mockTemplate,
+}));
+
 const mockMarkSeen = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/hooks/use-onboarding', () => ({
   useOnboarding: () => ({ hasSeen: false, markSeen: mockMarkSeen }),
@@ -76,6 +84,7 @@ const originalOS = Platform.OS;
 beforeEach(() => {
   mockSnapshot = null;
   mockRevenueCatEnabled = true;
+  mockTemplate = null; // the erudite build unless a test says otherwise
   mockReplace.mockClear();
   mockMarkSeen.mockClear();
 });
@@ -183,5 +192,58 @@ describe('onboarding post-markSeen navigation', () => {
     await skipOnboarding();
 
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+});
+
+/**
+ * This paywall sells ERUDITE premium, so it must never be forced on a sibling
+ * app. Normally a sibling never reaches this screen at all — app/index.tsx
+ * redirects it to its own splash — but that redirect is a single point of
+ * failure, and the same class of mistake has shipped once before (an
+ * unregistered template silently inherited the erudite intro on Logo Quiz).
+ * These cases pin the second line of defence.
+ *
+ * The live example is Sport Quiz: a coins-only app with no premium tier, no
+ * entitlement and no offering, whose backend config nevertheless returns
+ * show_paywall_ios: true — and whose iOS RevenueCat key is now configured, so
+ * revenueCatEnabled is true too. Both of the original conditions are therefore
+ * satisfiable for it; only the build check keeps the pitch away.
+ */
+describe('forced paywall is erudite-only', () => {
+  const SPORT_QUIZ = { splash: '/sport-quiz/splash', scaffoldBg: '#0C1E30' };
+
+  it('navigates to / on a sibling build even when billing is on and the iOS flag is true', async () => {
+    setPlatform('ios');
+    mockTemplate = SPORT_QUIZ;
+    mockRevenueCatEnabled = true;
+    mockSnapshot = { app: { show_paywall_ios: true } };
+
+    await skipOnboarding();
+
+    expect(mockReplace).toHaveBeenCalledWith('/');
+    expect(mockReplace).not.toHaveBeenCalledWith('/paywall');
+  });
+
+  it('navigates to / on a sibling build even when billing is on and the Android flag is true', async () => {
+    setPlatform('android');
+    mockTemplate = SPORT_QUIZ;
+    mockRevenueCatEnabled = true;
+    mockSnapshot = { app: { show_paywall_android: true } };
+
+    await skipOnboarding();
+
+    expect(mockReplace).toHaveBeenCalledWith('/');
+    expect(mockReplace).not.toHaveBeenCalledWith('/paywall');
+  });
+
+  it('still forces the paywall on the erudite build itself (the guard is not a blanket off-switch)', async () => {
+    setPlatform('ios');
+    mockTemplate = null; // erudite
+    mockRevenueCatEnabled = true;
+    mockSnapshot = { app: { show_paywall_ios: true } };
+
+    await skipOnboarding();
+
+    expect(mockReplace).toHaveBeenCalledWith('/paywall');
   });
 });

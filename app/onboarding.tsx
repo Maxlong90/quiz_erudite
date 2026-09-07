@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenBackground } from '@/components/screen-background';
+import { currentTemplate } from '@/constants/app-templates';
 import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useOnboarding } from '@/hooks/use-onboarding';
@@ -113,7 +114,17 @@ export default function OnboardingScreen() {
     const app = snapshotRef.current?.app;
     const platformFlag =
       Platform.OS === 'ios' ? app?.show_paywall_ios : app?.show_paywall_android;
-    const goPaywall = revenueCatEnabled && platformFlag === true;
+    // This paywall sells ERUDITE premium, so it may only ever be forced on the
+    // erudite build. A sibling app reaches its own splash via the redirect in
+    // app/index.tsx and never renders this screen — but that redirect is a
+    // single point of failure, and this exact class of mistake has shipped
+    // before (an unregistered template silently inherited the erudite intro on
+    // Logo Quiz; see __tests__/app/app-templates.test.tsx). Re-checking the
+    // build here means a registry or redirect regression can no longer force a
+    // subscription pitch onto an app that has nothing to sell — Sport Quiz, for
+    // instance, is coins-only yet its backend config carries show_paywall_ios.
+    const isEruditeBuild = currentTemplate() === null;
+    const goPaywall = isEruditeBuild && revenueCatEnabled && platformFlag === true;
     return goPaywall ? '/paywall' : '/';
   }
 
