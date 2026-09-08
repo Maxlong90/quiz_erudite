@@ -1,5 +1,6 @@
 /**
- * The token gallery (app/t/index.tsx).
+ * The token gallery (app/t/tokens.tsx), reached by long-pressing the wordmark
+ * on the template home.
  *
  * It is the instrument for the whole engine on a real device — which tier is
  * applied, which validator is held, which tokens the operator actually changed —
@@ -29,7 +30,7 @@ jest.mock('@/hooks/use-app-theme', () => ({
 }));
 
 /* eslint-disable import/first -- screen under test loads AFTER its mocks */
-import TTemplateHome from '@/app/t/index';
+import TThemeTokensScreen from '@/app/t/tokens';
 import { EruditeColors } from '@/constants/theme';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
@@ -58,7 +59,7 @@ function themeValue(overrides: Record<string, unknown> = {}) {
 function renderGallery() {
   return render(
     <ThemePrefProvider>
-      <TTemplateHome />
+      <TThemeTokensScreen />
     </ThemePrefProvider>,
   );
 }
