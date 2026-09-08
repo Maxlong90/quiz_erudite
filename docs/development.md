@@ -81,7 +81,7 @@ Like RevenueCat, rewarded ads are gated by capability, not a hardcoded `Platform
 
 ## Building a sibling app variant
 
-Every sibling app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG`. Five values select a sibling; anything else builds the main Erudite quiz:
+Every sibling app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG`. Six values select a non-Erudite build; anything else builds the main Erudite quiz:
 
 | `EXPO_PUBLIC_APP_SLUG` | Builds | Expo `slug` override | Docs |
 |------------------------|--------|----------------------|------|
@@ -90,8 +90,11 @@ Every sibling app is built from this same tree by flipping `EXPO_PUBLIC_APP_SLUG
 | `coat-of-arms` | Coat of Arms | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) |
 | `sport-quiz` | Sport Quiz | `sport-quiz` | [Sport Quiz](sport-quiz.md) |
 | `italy-history-and-geography-quiz` | Italy Quiz | `italy-quiz` | [Italy Quiz](italy-quiz.md) |
+| `configurable-quiz` | [Configurable Template](configurable-template.md) | *(none — keeps the base)* | [Configurable Template](configurable-template.md) |
 
-`app.config.js` is a dynamic Expo config layered over the static `app.json`. For a build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected. Every sibling branch overrides the app `name` and takes its iOS `bundleIdentifier` and Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`, and every one ships iPhone-only (`ios.supportsTablet: false`) because none has a tablet layout yet — which also matters for App Store review, since Apple otherwise reviews on iPad.
+`app.config.js` is a dynamic Expo config layered over the static `app.json`. For a build that is not a sibling variant it returns `app.json` byte-for-byte, so existing Erudite builds are unaffected.
+
+The configurable template is deliberately one of those pass-through builds: it has no `app.config.js` branch, no store identity of its own, and no EAS profile. Only the slug changes, which is enough to switch its redirect target, its scaffold colour, and the theme engine. It cannot be published as-is — a store build would need its own bundle id, package, and Expo project first. The slug string is a **contract with the backend**, fixed by the migration that seeds the matching app record, so renaming it on either side breaks the other. Every sibling branch overrides the app `name` and takes its iOS `bundleIdentifier` and Android `package` from `EXPO_PUBLIC_IOS_BUNDLE_ID` / `EXPO_PUBLIC_ANDROID_PACKAGE`, and every one ships iPhone-only (`ios.supportsTablet: false`) because none has a tablet layout yet — which also matters for App Store review, since Apple otherwise reviews on iPad.
 
 Every branch except `logo-quiz` also overrides the Expo project `slug`. Sharing the base `quiz-erudit` slug makes variants collide in Expo Go, so opening one shows another's cached bundle. The logo variant deliberately keeps the base slug: it identifies the established EAS project, not the store listing. The Flags Quiz, Coat of Arms, and Italy Quiz branches additionally override the launcher icon (`icon` plus the Android adaptive foreground) so the variant never shows another app's mark. On Android the foreground alone is not enough: the system insets it and the adaptive background colour rings the artwork, so a variant whose icon is not purple must also set `adaptiveIcon.backgroundColor` — Italy Quiz pins the aged-paper tone of its vintage-map mark instead of inheriting the base build's purple.
 
@@ -188,7 +191,7 @@ Because `updates.url` and `extra.eas.projectId` are injected per app from each A
 npm run lint
 ```
 
-Uses ESLint with the `eslint-config-expo` preset.
+Uses ESLint with the `eslint-config-expo` preset, plus one project rule: colour literals (`#rrggbb`, `rgb()`, `hsl()`) are banned under `app/t/`, where every colour must come from a theme token or a named tile ramp. The rule is an editor-time convenience; the authority is the source scan in `__tests__/app/t-no-color-literals.test.ts`, which catches forms an AST selector cannot see. See [Configurable Template](configurable-template.md#keeping-the-two-repositories-in-step).
 
 ## Unit Tests (Jest)
 
@@ -196,7 +199,7 @@ Uses ESLint with the `eslint-config-expo` preset.
 npm test
 ```
 
-Runs the Jest suite (`jest-expo` preset). The test files live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing and the two-variant image collection, the hint and lives economies, answer stats, store links, RevenueCat gating (including the per-slug committed-key scoping), the fail-closed purchase policy for every app's shop, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. `__tests__/app/` also holds screen-level integration tests that render a screen with its dependencies mocked: one pins the API-fallback no-repeat guarantees (dedupe by ID, seen filter), another pins the Coat of Arms reveal (the original image appears only after a correct answer, and never when the question has none), and another pins the Sport Quiz shop's money invariant (coins are credited only on a resolved purchase — never on a cancellation or a store failure). There is no device, emulator, or backend dependency, so the whole suite finishes in **under 10 seconds** and is safe to run on every change. It is not a long-running operation.
+Runs the Jest suite (`jest-expo` preset). The test files live in `__tests__/` and cover the device-local business logic in `lib/` and `hooks/` — content-cache namespacing and the two-variant image collection, the hint and lives economies, answer stats, store links, RevenueCat gating (including the per-slug committed-key scoping), the fail-closed purchase policy for every app's shop, the Logo Quiz and Flags Quiz content transforms, and similar pure logic. `__tests__/app/` also holds screen-level integration tests that render a screen with its dependencies mocked: one pins the API-fallback no-repeat guarantees (dedupe by ID, seen filter), another pins the Coat of Arms reveal (the original image appears only after a correct answer, and never when the question has none), and another pins the Sport Quiz shop's money invariant (coins are credited only on a resolved purchase — never on a cancellation or a store failure). The remote theme engine is covered end to end — wire parsing, cache records, the conditional fetch, the palette overlay, its inertness on every other build, and the no-colour-literal scan over `app/t/`. There is no device, emulator, or backend dependency, so all 70 files finish in **roughly ten seconds** and are safe to run on every change. It is not a long-running operation.
 
 One scoped entry point is worth knowing separately:
 
@@ -259,4 +262,5 @@ The app talks to the backend at `quiz-erudit-backend.turbosuslik.online`. Becaus
 - [Coat of Arms](coat-of-arms-quiz.md) -- The heraldry sibling
 - [Sport Quiz](sport-quiz.md) -- The sports sibling
 - [Italy Quiz](italy-quiz.md) -- The Italy sibling, and the one variant with no EAS project
+- [Configurable Template](configurable-template.md) -- The pass-through variant themed from the backend
 - [INDEX](INDEX.md) -- Documentation entry point

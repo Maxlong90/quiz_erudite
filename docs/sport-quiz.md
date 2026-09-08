@@ -89,6 +89,14 @@ A Legends question is an ordinary image question — an athlete's photo plus fou
 
 Uncovered plates are persisted per question (`sportquiz.revealedPlates.v1`) and rehydrated when the question is re-opened. This is what makes leaving mid-puzzle safe: a player who backs out and returns finds exactly the plates they paid for still open, and is never charged twice for the same plate. Guessing correctly or skipping clears the remaining plates at once and stops accepting taps.
 
+## The Answer Reveal
+
+Both quiz screens play the same beat after a correct pick or a paid Skip: the wrong options fade out, the correct one glides up and parks under the question, and the explanation appears. The two modes must feel identical here — a player switching between Classic and Legends should not sense a different rhythm — so the timings live in one module (`lib/sport-quiz/reveal-timing.ts`) rather than being copy-pasted into both screens with a comment promising they match.
+
+One rule shapes those numbers. The explanation's fade must **finish** on the frame the answer lands, not start there. Delaying it by the full glide meant the player watched the answer park and then waited in silence for text that did not exist yet — brief, but it read as a stall, because nothing on screen was moving. The delay is therefore derived by subtracting the fade duration from the glide duration, and the invariant is that the two add back up to it.
+
+The glide itself is a product decision and is not the knob to turn. It is the moment the answer "lands" and is unhurried on purpose, so anything that feels late gets re-phased against it. A longer fade simply starts earlier and overlaps more of the glide's tail, which is the correct direction.
+
 ## Navigating a Level
 
 Within a level the buttons change with the player's state, and each state exists to stop a specific misuse:

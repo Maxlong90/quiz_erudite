@@ -1,16 +1,24 @@
 # Glossary
 
-This tree builds six apps that share infrastructure but not vocabulary. Several words mean different things depending on which app you are reading about — "level" and "run" most of all. This glossary fixes the meaning of each term and points at the document that explains it properly.
+This tree builds seven apps that share infrastructure but not vocabulary. Several words mean different things depending on which app you are reading about — "level" and "run" most of all. This glossary fixes the meaning of each term and points at the document that explains it properly.
 
 ## Build and App Family
 
-**App slug** — The build-time identifier in `EXPO_PUBLIC_APP_SLUG`, exposed in code as `APP_SLUG`. It does double duty: it is the path segment in every backend endpoint (`/apps/{slug}/…`) *and* the switch that decides which of the six apps the build is. See [Architecture](architecture.md#key-design-decisions).
+**App slug** — The build-time identifier in `EXPO_PUBLIC_APP_SLUG`, exposed in code as `APP_SLUG`. It does double duty: it is the path segment in every backend endpoint (`/apps/{slug}/…`) *and* the switch that decides which of the seven apps the build is. See [Architecture](architecture.md#key-design-decisions).
 
-**Sibling app** — Any of the five non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz. Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch.
+**Sibling app** — Any of the five non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz. Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch. The [configurable template](configurable-template.md) is a seventh build but not a sibling — it has no bespoke artwork of its own.
 
 **Erudite** — The default app and the one most of these docs describe by default: the seven-subject general-knowledge quiz with lives, hints, and premium modes.
 
-**Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the six apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
+**Configurable template** — The build under the `configurable-quiz` slug and the `app/t/` route folder, whose colours arrive from the backend instead of a checked-in palette. One binary becomes one app per operator preset. See [Configurable Template](configurable-template.md).
+
+**Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the seven apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
+
+**Remote token** — One of the ten semantic colours the backend serves to a configurable-template build (`bgGradient`, `accent`, the three `optIdle*`, and the rest). The other twenty palette tokens stay compiled into the binary, which is why a theme is always an overlay and never a whole palette. See [Configurable Template](configurable-template.md#the-wire-contract).
+
+**Inertness gate** — The checked-in list of slugs (`T_TEMPLATE_SLUGS`) that decides whether the theme engine runs at all. A build absent from it performs no theme fetch, no cache read, and no overlay, so no admin edit can re-skin a shipped app. See [Configurable Template](configurable-template.md#selecting-the-build).
+
+**Ramp / spectrum** — Tile artwork terms in the configurable template. The *spectrum* is the 15 named brand hues; a *ramp* is a named two-stop gradient built from two of them, and it is what a category or mode tile asks for. Neither is a palette token. See [Configurable Template](configurable-template.md#tile-artwork-a-bundled-spectrum).
 
 ## Content
 
@@ -69,6 +77,7 @@ This tree builds six apps that share infrastructure but not vocabulary. Several 
 ## See Also
 
 - [Architecture](architecture.md) -- System structure and the sibling-app family
+- [Configurable Template](configurable-template.md) -- Templates, remote tokens, and ramps
 - [Data Model](data-model.md) -- The entities these terms name
 - [Content and Offline](content-and-offline.md) -- Snapshot, image map, and seen sets
 - [INDEX](INDEX.md) -- Documentation entry point

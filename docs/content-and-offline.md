@@ -60,9 +60,11 @@ Two properties of that field shape how the cache treats it. It is **absent, not 
 
 ## Per-App Cache Namespacing
 
-One build tree ships several apps — the main quiz, Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, and Italy Quiz — selected by the build's `APP_SLUG` (see [Architecture](architecture.md#key-design-decisions)). They all draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
+One build tree ships several apps — the main quiz, Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz, and the [configurable template](configurable-template.md) — selected by the build's `APP_SLUG` (see [Architecture](architecture.md#key-design-decisions)). They all draw content through this same cache, so its storage is namespaced per app slug to stop one app's snapshot or images from clobbering another's. `loadCachedSnapshot`, `getCachedVersion`, `clearCache`, and `syncContent` all take an app slug and default it to the build's `APP_SLUG`.
 
 The app that matches `APP_SLUG` keeps the original un-suffixed AsyncStorage keys and `snapshot-images/` directory, so namespacing is a no-op for the primary app. Any other slug synced into the same build — for example a Logo Quiz screen syncing `logo-quiz` from an erudite build — gets a `:{slug}`-suffixed key set and its own `snapshot-images-{slug}/` directory. See [Logo Quiz](logo-quiz.md#from-mock-data-to-backend-content).
+
+The remote theme cache follows the same convention under its own `theme.remote.v1` prefix, and for the same reason. It is otherwise a separate store with a separate lifecycle: a theme carries no 24-hour TTL and is revalidated by ETag on every launch rather than re-downloaded on a clock. See [Configurable Template](configurable-template.md#the-cache-record).
 
 ## Caching Content Served Outside the Snapshot
 
@@ -133,3 +135,4 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Coat of Arms](coat-of-arms-quiz.md) -- The app that consumes the second image variant
 - [Sport Quiz](sport-quiz.md) -- A sibling drawing its levels from the same snapshot
 - [Italy Quiz](italy-quiz.md) -- The one sibling that reads this cache through the main provider
+- [Configurable Template](configurable-template.md) -- The separate, ETag-validated theme cache

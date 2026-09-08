@@ -2,7 +2,7 @@
 
 A mobile general-knowledge trivia app built with React Native and Expo. Players answer multiple-choice questions across seven subjects — geography, history, science and nature, arts and literature, sports, entertainment, and general knowledge — each split into subcategories. Content is downloaded once per language and cached for offline play; lives, hints, achievements, and other progress live entirely on the device.
 
-The same tree also builds five sibling apps, each selected by a build-time slug and each with its own screens, artwork, and economy.
+The same tree also builds five sibling apps, each selected by a build-time slug and each with its own screens, artwork, and economy. A sixth, configurable build takes its palette from the backend instead of from code.
 
 ## Documentation
 
@@ -22,6 +22,7 @@ The same tree also builds five sibling apps, each selected by a build-time slug 
 - [Coat of Arms](coat-of-arms-quiz.md) -- Heraldry: clean-versus-original artwork and the post-answer reveal
 - [Sport Quiz](sport-quiz.md) -- Sports: a coins-only economy, puzzle plates, and a shared win screen
 - [Italy Quiz](italy-quiz.md) -- Italy: a hardcoded taxonomy over backend questions, and fifty-question resumable runs
+- [Configurable Template](configurable-template.md) -- The build whose palette is operator data: wire contract, three-tier resolution, and the inertness gate
 
 ### Operations
 

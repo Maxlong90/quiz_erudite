@@ -65,10 +65,11 @@ The bottom bar (`components/bottom-bar.tsx`) links home, stats, shop, account, a
 
 ## State and Context
 
-Four React context providers wrap the whole tree, in this order: `LocaleProvider`, `ThemePrefProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
+Five React context providers wrap the whole tree, in this order: `LocaleProvider`, `ThemePrefProvider`, `AppThemeProvider`, `PremiumProvider`, `ContentCacheProvider`. They are ordered so each can depend on the one above it — content sync keys off the active locale, for example.
 
 - **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`, `fr`). It seeds from the device locale and falls back to English.
 - **`ThemePrefProvider`** (`hooks/use-theme-pref.ts`) holds the app-selected appearance (`dark` or `light`), hydrated from storage and flipped by the Settings appearance switcher. Because the choice lives in React state above every screen, changing it repaints the whole app instantly. See [Theming and Appearance](#theming-and-appearance).
+- **`AppThemeProvider`** (`hooks/app-theme-provider.ts`) supplies the remote colour palette on a configurable-template build and a frozen inert value on every other build. It was **inserted** rather than slotted in, so no existing provider moved: reordering the others would change mount order and effect timing for the five shipped apps, which is exactly the class of change that makes an "inert" claim unverifiable. It sits above `ThemedRoot`, which consumes the palette. See [Configurable Template](configurable-template.md).
 - **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Wherever store billing is enabled (any native platform with a RevenueCat key — Android today, iOS once its key is supplied) it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
 
@@ -84,7 +85,7 @@ Before this system, roughly 650 hardcoded hex values were scattered across scree
 
 `constants/theme.ts` defines `EruditePalette` — a set of semantic tokens named by role, not by colour (`text`, `textMuted`, `surface`, `sheet`, `scrim`, `border`, `accent`, `success`, `danger`, `gold`, and quiz-option tokens such as `optCorrectBg` and `explanationBg`). `EruditeColors` provides one concrete `dark` and one `light` value for every token. The dark values are a byte-for-byte lift of the old hardcoded colours, so the dark theme is unchanged from before the migration — the light theme is purely additive, and dark remains the default.
 
-Two tokens carry deliberate design intent worth knowing. The brand accent `#7c5cff` is identical in both themes — it anchors the identity regardless of appearance. The `accentSoft` token, however, is *darkened* in light mode (`#6a45f5` instead of `#a78bff`): the pale dark-mode accent is invisible on a white surface, so light mode uses a stronger tone for progress bars and labels. The `onAccent` token stays white in both themes because it sits on coloured gradients (category and mode tiles) that keep their brand colours regardless of appearance — and because `onAccent` is *not* one of the ten remote tokens, that whiteness is a fixed constraint the tile artwork has to be designed around (see [Tile artwork](#tile-artwork-a-bundled-spectrum)).
+Two tokens carry deliberate design intent worth knowing. The brand accent `#7c5cff` is identical in both themes — it anchors the identity regardless of appearance. The `accentSoft` token, however, is *darkened* in light mode (`#6a45f5` instead of `#a78bff`): the pale dark-mode accent is invisible on a white surface, so light mode uses a stronger tone for progress bars and labels. The `onAccent` token stays white in both themes because it sits on coloured gradients (category and mode tiles) that keep their brand colours regardless of appearance — and because `onAccent` is *not* one of the ten remote tokens, that whiteness is a fixed constraint the tile artwork has to be designed around (see [Tile artwork](configurable-template.md#tile-artwork-a-bundled-spectrum)).
 
 ### How screens consume the palette
 
@@ -111,31 +112,11 @@ The navigator itself must repaint too. `app/_layout.tsx` splits into an outer `R
 
 ### Remote theme (bundled → cache → network)
 
-One build is the exception to everything below: the **configurable template** (`app/t/`, build slug `configurable-quiz`), whose palette is *data* rather than code. It resolves colours in three tiers:
-
-| Tier | Source | When it applies |
-|------|--------|-----------------|
-| `bundled` | `EruditeColors`, compiled into the binary | always the starting point, so the first frame never waits |
-| `cache` | the last theme this device fetched (`theme.remote.v1` in AsyncStorage) | as soon as the storage read returns, typically before the splash floor elapses |
-| `network` | `GET /apps/{slug}/theme`, a conditional request | on a `200`; in the steady state it is a `304` and nothing changes |
-
-The backend serves **ten** of `EruditePalette`'s ~thirty tokens — `bgGradient`, `bgSolid`, `accent`, `accentSoft`, `accentBg`, `accentBgSoft`, `accentBorderSoft`, and the three `optIdle*` — so the engine is an *overlay* onto a bundled palette, never a construction from the payload; the other twenty (`surface`, `text`, `scrim`, `success`, …) always keep their compiled values. The bundled tier is **derived** from `EruditeColors` rather than copied, and `__tests__/lib/theme-bundled-parity.test.ts` pins all twenty literals against the backend's `ColorTokenRegistry` so the two repos cannot drift.
-
-The engine lives in `lib/theme/` (`contract.ts` parses and validates the wire payload, `theme-cache.ts` persists it, `theme-api.ts` performs the conditional GET, `resolve.ts` overlays it) behind `AppThemeProvider` (`hooks/app-theme-provider.ts`). `hooks/use-app-theme.ts` holds only the context and is deliberately I/O-free, because `useThemeColors` sits on it and is pulled into essentially every screen. `app/t/splash.tsx` holds a bounded **network window** — a 1500 ms brand floor, a 3500 ms hard cap — so a first-ever launch paints the operator's colours immediately instead of flashing the bundled palette and flipping; `app/t/index.tsx` is the template's home screen — the Erudite home ported so that no colour literal remains — and `app/t/tokens.tsx` is a live token gallery showing the active tier, the held ETag, and which tokens the operator overrode, reached by long-pressing the home wordmark. That long-press is deliberately not `__DEV__`-gated: the gallery is meant to be read on a real device against a real operator preset, which means a preview or release build.
-
-`__tests__/app/t-no-color-literals.test.ts` holds the no-literal line for the whole surface. It is a **source scan**, not a render assertion — a hex on a branch no test exercises is still a hex — and it covers `app/t/**` plus the shared components those screens render (`ScreenBackground`, `BottomBar`, the home modals), none of which had a guard of its own.
-
-### Tile artwork: a bundled spectrum
-
-Category and mode tiles are the one part of the template's colour that is *not* a palette token. `constants/t/tile-palette.ts` holds a named 15-hue brand spectrum, the 10 two-stop ramps built from it, and the mode/category assignments that pick a ramp; screens ask for a ramp by key through `hooks/t/use-tile-gradients.ts` and never see a hex. Every value is lifted byte-for-byte from the shipped Erudite tiles, and `__tests__/constants/t-tile-palette.test.ts` pins each ramp against the live `CATEGORY_VISUALS` so the two builds cannot drift — which matters because a template category tile pushes into `app/category/[slug].tsx`, an Erudite screen still reading that map.
-
-The spectrum exists rather than a flat list of 17 gradients because the 17 tiles are really 10 pairs drawn from 15 hues, with 7 exact duplicates that are design statements rather than coincidences. It is also the cheap shape to remote later: 15 flat colour tokens and no new wire machinery, where a gradient map would need a two-stop gradient type on both sides (`GRADIENT_STOPS` is fixed at 3).
-
-The spectrum is **deliberately not derived from `accent`.** Tile labels are `onAccent` — white in both appearances and not operator-settable — and the shipped worst case (`#ffd23a`) already sits at roughly 1.44:1 against it; deriving every tile from one seed would put all 17 in that band at once for a pale accent, and fixing it would mean widening the wire. Derivation also collapses seven category identities into shades of one hue, in a grid that uses hue as its primary index. A contrast ratchet in the ramp test keeps anyone from quietly adding a paler hue. If hue derivation is ever wanted, it belongs behind the endpoint as a declarative rule in the backend's `ColorTokenRegistry`, next to the existing alpha and lightness operations — `lib/theme/contract.ts` is explicit that derive rules stay on the backend side of the line, and an operator cannot preview a client-side rotation.
-
-One naming note, so it is not "fixed" later: the hue names (`sun`, `ember`, `orchid`) are a conscious exception to this document's own rule that tokens are named by role rather than by colour. A brand spectrum has no role beyond being itself.
+One build is the exception to everything above: the **configurable template** (`app/t/`, build slug `configurable-quiz`), whose palette is *data* rather than code. It resolves colours in three tiers — the bundled `EruditeColors`, then the last theme this device cached, then a conditional `GET /apps/{slug}/theme` — and each tier only ever *overlays* ten of `EruditePalette`'s roughly thirty tokens onto the one below. The engine lives in `lib/theme/` behind `AppThemeProvider` (`hooks/app-theme-provider.ts`); `hooks/use-app-theme.ts` holds only the context and is deliberately I/O-free, because `useThemeColors` sits on it and is pulled into essentially every screen.
 
 Two properties are load-bearing. **Fail-open:** a malformed payload, an unknown schema version, a timeout or an offline device each leave the app on the best palette it already had, and nothing in the chain throws or leaves the splash stranded. **Inert everywhere else:** the engine is gated on the build-time allow-list `T_TEMPLATE_SLUGS` in `constants/app-templates.ts`, so every shipped build gets a frozen constant whose palettes *are* `EruditeColors` by reference — no request, no storage read, and no re-render. That gate is deliberately a checked-in list rather than runtime data parity, because parity would let an operator re-skin a store-published app by saving a form in Nova.
+
+The wire contract, the cache record, the splash network window, the bundled tile spectrum, and the token gallery are all documented in [Configurable Template](configurable-template.md).
 
 ### Scope: Erudite and the configurable template
 
@@ -151,7 +132,7 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**One tree, many apps.** The repository templates six distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
+**One tree, many apps.** The repository templates seven distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. The redirect targets live in one registry (`APP_TEMPLATES` in `constants/app-templates.ts`), so a new app is added there rather than by editing the home route. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
 
 | `APP_SLUG` | App | Entry route | Economy |
 |------------|-----|-------------|---------|
@@ -161,6 +142,7 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) — heraldry | `/coat-of-arms/splash` | None |
 | `sport-quiz` | [Sport Quiz](sport-quiz.md) — sports | `/sport-quiz/splash` | Coins only |
 | `italy-history-and-geography-quiz` | [Italy Quiz](italy-quiz.md) — Italian history and geography | `/italy-quiz/splash` | None |
+| `configurable-quiz` | [Configurable Template](configurable-template.md) — an operator-themed quiz | `/t/splash` | Lives, hints, premium (inherited) |
 
 The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, and Sport Quiz adapts Logo Quiz's level and wheel model. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
 
@@ -205,7 +187,8 @@ hooks/                  Locale, premium, content cache, quiz session,
   app-theme-provider.ts The bundled → cache → network theme engine
 lib/                    Device-local business logic and persistence
   content-cache.ts      Snapshot download + image cache
-  theme/                Remote colour theme: contract, cache, API, resolver
+  theme/                Remote colour theme: contract, cache, API, resolver,
+                        bundled tier, and total hex arithmetic (color.ts)
   lives.ts  hints.ts    Currency stores
   mistakes.ts           Recent-mistake ring buffer
   quiz-stats.ts         Career totals + per-bucket seen sets
@@ -235,6 +218,13 @@ constants/{slug}/       Its labels and theme
   italy-quiz/           Landmarks artwork, glossy navy tiles; hooks/ holds run
                         state only — no lib/, no content provider (see above)
 
+The configurable template uses the same shape under the short name `t`, but its
+colours come from the wire rather than from constants/t/theme.ts:
+
+app/t/                  Splash, home, and the live token gallery
+hooks/t/                Tile-gradient lookups (no content or economy provider)
+constants/t/            The bundled tile spectrum and its ramps
+
 app.config.js           Dynamic Expo config: per-variant identity and store ids
 ```
 
@@ -249,4 +239,5 @@ app.config.js           Dynamic Expo config: per-variant identity and store ids
 - [Coat of Arms](coat-of-arms-quiz.md) -- A heraldry game derived from Flags Quiz
 - [Sport Quiz](sport-quiz.md) -- A sports game with a coins-only economy
 - [Italy Quiz](italy-quiz.md) -- A single-topic quiz with a hardcoded taxonomy
+- [Configurable Template](configurable-template.md) -- The build whose palette is backend data
 - [Development](development.md) -- Building a sibling app variant
