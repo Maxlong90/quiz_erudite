@@ -26,17 +26,18 @@ import { useFQLabels } from '@/constants/football-quiz/labels';
  * button must not climb above it onto the stands. Anchoring it to the service
  * row (a fixed gap above it) keeps the whole bottom block together and makes the
  * button grow upward into the turf band as the diameter changes, never past it.
- * At ⌀230 the top lands ~11 dp below the turf line, which is the practical
- * ceiling for this diameter.
+ * At ⌀190 the top lands ~51 dp below the turf line — comfortably inside the
+ * band, with room to spare on screens of other proportions. (⌀230 also fits, but
+ * only by 11 dp, and read as too heavy on device.)
  *
  * Text sizes are measured, never hardcoded — see components/football-quiz/auto-fit-text.
  */
 const SCREEN_PAD = 16;
 const ROW_GAP = 10;
-/** Approved: dark fill, ⌀230, 12 dp above the service row. */
-const PLAY_D = 230;
+/** Approved: dark fill, ⌀190, 12 dp above the service row. */
+const PLAY_D = 190;
 const PLAY_GAP = 12;
-/** Kept proportional to the approved ⌀190 button (glyph 92, label 42). */
+/** Proportions of the approved ⌀190 button — at this diameter, exactly 92 / 42. */
 const PLAY_GLYPH = Math.round(PLAY_D * (92 / 190));
 const PLAY_LABEL = Math.round(PLAY_D * (42 / 190));
 const SERVICE_ICON = 22;
