@@ -56,7 +56,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **Reveal** — The animated transition after an answer. In Flags Quiz and Coat of Arms it means the correct option gliding to centre while the wrong ones unmount; in Coat of Arms it additionally means the original picture dissolving in over the clean one. In Erudite it just means all options turning green or red.
 
-**Scale question** — An [Italy Quiz](italy-quiz.md#two-question-shapes) question answered by dragging a slider between two bounds, correct within a per-question tolerance. It exists so a tour is not pure pass/fail on recall: nobody knows Rome's founding year exactly, but everyone can place it on a line. Unlike a multiple-choice miss, it always reveals the true value.
+**Estimate question** — An [Italy Quiz](italy-quiz.md#every-question-is-a-tap) question whose four options are RANGES rather than facts ("800–600 BC", "about 120 years"). It exists so a tour is not pure pass/fail on recall: nobody knows Rome's founding year exactly, but everyone can reason about the century. Its options are answered on a four-notch slider instead of the 2×2 grid — same options and same scoring, but slid along rather than tapped, because ranges are ordered. Options must be authored smallest-to-largest.
 
 **Plate** — One tile of the 4×5 grid covering an athlete's photo in Sport Quiz's Sports Legends mode. The player buys plates one at a time to uncover the picture. See [Sport Quiz](sport-quiz.md#sports-legends-and-the-puzzle-plates).
 

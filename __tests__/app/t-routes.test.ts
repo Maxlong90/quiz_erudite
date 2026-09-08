@@ -27,13 +27,22 @@ const HOME_DESTINATIONS: { route: string; file: string; why: string }[] = [
     file: 't/tokens.tsx',
     why: 'long-press on the wordmark — the only device-level view of the live theme',
   },
-  { route: '/quiz', file: 'quiz.tsx', why: 'every mode tile that starts a run' },
+  { route: '/t/quiz', file: 't/quiz.tsx', why: 'every mode tile that starts a run' },
+  {
+    route: '/t/results',
+    file: 't/results.tsx',
+    why: 'where every finished run lands, and the only way back to /t',
+  },
   {
     route: '/category/[slug]',
     file: 'category/[slug].tsx',
-    why: 'tapping a category tile with questions in it',
+    why: 'tapping a category tile with questions in it — not ported yet',
   },
-  { route: '/paywall', file: 'paywall.tsx', why: 'tapping a premium-locked mode tile' },
+  {
+    route: '/paywall',
+    file: 'paywall.tsx',
+    why: 'tapping a premium-locked mode tile — not ported yet',
+  },
 ];
 
 /** Routes the BottomBar rendered by the template home can reach. */
@@ -115,6 +124,102 @@ function codeOf(relativePath: string): string {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[^:"'`\\])\/\/.*$/gm, '$1');
 }
+
+/**
+ * ESCAPE CHECK: no screen under app/t/ may navigate out of the /t subtree.
+ *
+ * This is the single highest-frequency bug available in this port. Every screen
+ * here is a copy of an Erudite screen, and those screens go home with
+ * `router.replace('/')`. app/t/quiz.tsx alone inherited FOUR of them. On a
+ * template build app/index.tsx redirects '/' to '/t/splash', so a missed one
+ * does not crash or dead-end — it silently bounces the player through the splash
+ * screen on the way home, which only shows up on a device.
+ *
+ * A source scan rather than a render assertion, for the same reason
+ * t-no-color-literals.test.ts is one: a route on a branch no test exercises (an
+ * error state, a modal's onClose) is still a route.
+ */
+const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
+
+/**
+ * Destinations that legitimately leave /t because their screens are not ported
+ * yet. Each entry is asserted BOTH to be tolerated by the check above AND to
+ * still be PRESENT somewhere under app/t — so the day its subtask lands and the
+ * last caller is re-pointed, the second assertion goes red asking for the entry
+ * to be deleted. A temporary list that deletes itself, the same idiom the
+ * literals guard used for its AHEAD_OF_THE_WALK list.
+ */
+const NOT_YET_PORTED: { prefix: string; subtask: string; why: string }[] = [
+  { prefix: '/category/', subtask: 'Э7-D', why: 'the category screen is not copied yet' },
+  { prefix: '/paywall', subtask: 'Э7-E', why: 'the paywall is not copied yet' },
+];
+
+function routeLiteralsIn(relativePath: string): { route: string; line: number }[] {
+  return codeOf(relativePath)
+    .split('\n')
+    .flatMap((text, index) =>
+      [...text.matchAll(ROUTE_LITERAL)].map((match) => ({ route: match[2], line: index + 1 })),
+    );
+}
+
+describe('every route the template navigates to stays inside /t', () => {
+  // Recursive, so a nested screen added later is covered without a change here.
+  function sourceFilesUnder(dir: string): string[] {
+    return fs.readdirSync(path.join(APP_DIR, dir), { withFileTypes: true }).flatMap((entry) => {
+      const relative = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) return sourceFilesUnder(relative);
+      return /\.tsx?$/.test(entry.name) ? [relative] : [];
+    });
+  }
+
+  const templateSources = sourceFilesUnder('t');
+
+  it('scans a real set of files', () => {
+    // A silently empty list would make every assertion below vacuously true.
+    expect(templateSources.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(templateSources)('%s navigates only to /t routes', (file) => {
+    const escaping = routeLiteralsIn(file).filter(
+      ({ route }) =>
+        route !== '/t' &&
+        !route.startsWith('/t/') &&
+        !NOT_YET_PORTED.some((pending) => route.startsWith(pending.prefix)),
+    );
+    expect({ file, escaping }).toEqual({ file, escaping: [] });
+  });
+
+  it.each(NOT_YET_PORTED)(
+    '$prefix is still reached from app/t — once $subtask lands, delete the entry ($why)',
+    ({ prefix }) => {
+      const callers = templateSources.filter((file) =>
+        routeLiteralsIn(file).some(({ route }) => route.startsWith(prefix)),
+      );
+      expect({ prefix, callers: callers.length > 0 }).toEqual({ prefix, callers: true });
+    },
+  );
+
+  it('really does reach into the quiz loop', () => {
+    // Proves the scanner sees route literals at all, rather than that the regex
+    // silently matches nothing and every file trivially passes.
+    const home = routeLiteralsIn('t/index.tsx').map(({ route }) => route);
+    expect(home).toContain('/t/quiz');
+    expect(routeLiteralsIn('t/quiz.tsx').map(({ route }) => route)).toContain('/t/results');
+    expect(routeLiteralsIn('t/results.tsx').map(({ route }) => route)).toContain('/t');
+  });
+
+  it.each([
+    ["router.replace('/');", ['/']],
+    ['router.push(`/category/${slug}`);', ['/category/${slug}']],
+    ["const url = 'https://example.test/';", []],
+    ["await AsyncStorage.getItem('quiz.seen.v1.');", []],
+  ])('picks the route out of %s', (source, expected) => {
+    // A URL cannot match: the opening quote is followed by `h`, not `/`. Neither
+    // can a storage key. A template literal must, because app/t/index.tsx uses
+    // one for the category route.
+    expect([...source.matchAll(ROUTE_LITERAL)].map((match) => match[2])).toEqual(expected);
+  });
+});
 
 describe('the template home is a screen, not the erudite entry gate', () => {
   const home = codeOf(path.join('t', 'index.tsx'));

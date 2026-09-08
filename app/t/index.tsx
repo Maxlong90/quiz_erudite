@@ -183,28 +183,28 @@ export default function THomeScreen() {
   // one-liner intent ("today's question goes here").
   function startTodayQuestion() {
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: { count: '1', locale, mode: 'daily' },
     });
   }
 
   function startRandom10() {
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: { count: '10', locale, mode: 'quick' },
     });
   }
 
   function startSurvival() {
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: { count: '10', locale, mode: 'survival' },
     });
   }
 
   function startMistakes() {
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: { count: '10', locale, mode: 'quick', source: 'mistakes' },
     });
   }
@@ -212,7 +212,7 @@ export default function THomeScreen() {
   function startHard(variant: 'typing' | 'letters') {
     setHardOpen(false);
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: { count: '10', locale, mode: 'hard', hardVariant: variant },
     });
   }
@@ -220,7 +220,7 @@ export default function THomeScreen() {
   function startTimeLimit(totalSeconds: number) {
     setTimeLimitOpen(false);
     router.push({
-      pathname: '/quiz',
+      pathname: '/t/quiz',
       params: {
         count: '50',
         locale,
@@ -254,7 +254,7 @@ export default function THomeScreen() {
       // *something* visible to the player.
       params.mode = 'quick';
     }
-    router.push({ pathname: '/quiz', params });
+    router.push({ pathname: '/t/quiz', params });
   }
 
   // Modes definitions. "Today's Question" and "Time Limit" come first

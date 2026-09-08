@@ -24,6 +24,13 @@ export default function TTemplateLayout() {
       <Stack.Screen name="index" options={{ animation: 'fade' }} />
       {/* The token gallery, pushed from a long-press on the home wordmark. */}
       <Stack.Screen name="tokens" options={{ animation: 'slide_from_right' }} />
+      {/* The quiz loop. Both mirror the options app/_layout.tsx gives the
+          Erudite originals: the back gesture is disabled so a swipe cannot
+          abandon a run mid-question or skip past the score — leaving a run is
+          the explicit close button, which spends the life it owes and flushes
+          queued answers first. */}
+      <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="results" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -14,7 +14,6 @@ import { Flag } from '@/components/flags-quiz/flag';
 import { ItalyColors } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
 import { FQ_LANGUAGE_NAMES } from '@/constants/flags-quiz/labels';
-import { useContentCache } from '@/hooks/use-content-cache';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 
@@ -36,8 +35,6 @@ export default function ItalyQuizSettings() {
   const t = useItalyLabels();
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const { resync } = useContentCache();
   const bgReady = useItalyBgReady();
 
   const openUrl = (url: string) => {
@@ -48,22 +45,6 @@ export default function ItalyQuizSettings() {
     Haptics.selectionAsync().catch(() => {});
     changeLocale(l);
     setLangOpen(false);
-  };
-
-  // Content is cached for a day, so freshly generated questions/photos would
-  // otherwise only appear on the next sync — this pulls them right now.
-  const onRefresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      await resync();
-      Alert.alert(t.appName, t.refreshDone);
-    } catch {
-      // Offline / server hiccup — the cached questions stay usable either way.
-      Alert.alert(t.appName, t.noQuestions);
-    } finally {
-      setRefreshing(false);
-    }
   };
 
   const onRate = () => {
@@ -105,7 +86,6 @@ export default function ItalyQuizSettings() {
             onPress={() => setLangOpen(true)}
             icon={<Flag locale={locale} />}
           />
-          <GlossyButton label={t.refreshContent} onPress={onRefresh} inactive={refreshing} />
           <GlossyButton label={t.rateApp} onPress={onRate} />
           <GlossyButton label={t.contactSupport} onPress={onSupport} />
           <GlossyButton label={t.privacyPolicy} onPress={() => openUrl(PRIVACY_URL)} />

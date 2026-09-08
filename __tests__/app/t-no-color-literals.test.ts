@@ -75,22 +75,6 @@ const EXEMPT = new Map<string, string>([
   ],
 ]);
 
-/**
- * Clean today, but not yet reachable from app/t — the screens that render them
- * land in a later subtask. The hand list this file replaced rotted because a
- * MISSING entry was invisible; this one cannot, because each entry is ALSO
- * asserted to be OUTSIDE the walk's closure. The day app/t/quiz.tsx lands, the
- * walk covers these on its own and that second assertion goes red asking for the
- * entry to be deleted. A temporary list that deletes itself.
- */
-const AHEAD_OF_THE_WALK: { file: string; why: string }[] = [
-  { file: 'components/quiz/lives-bar.tsx', why: 'app/t/quiz.tsx renders it next' },
-  {
-    file: 'components/achievements/achievement-badge.tsx',
-    why: 'ditto, by way of the ported results screen',
-  },
-];
-
 /** #rgb..#rrggbbaa, plus any rgb()/rgba() call. */
 const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(/g;
 
@@ -259,8 +243,10 @@ describe('the scan covers what it claims to', () => {
   it('reaches a whole surface, not a handful of files', () => {
     // A FLOOR, never an exact count: an exact count fails on every unrelated
     // import added anywhere in the closure, which trains people to bump the
-    // number without looking at what moved.
-    expect(reached.size).toBeGreaterThanOrEqual(18);
+    // number without looking at what moved. Was 18; the ported quiz loop
+    // (app/t/quiz.tsx and app/t/results.tsx) roughly doubled the closure to 36,
+    // so this floor moved once and should keep lagging the real number.
+    expect(reached.size).toBeGreaterThanOrEqual(30);
   });
 
   it('resolves every in-scope specifier it follows', () => {
@@ -316,16 +302,25 @@ describe('the /t surface holds no colour literals', () => {
     });
   });
 
-  it.each(AHEAD_OF_THE_WALK)('$file is clean before the walk gets there ($why)', ({ file }) => {
-    expect(literalsIn(file)).toEqual([]);
+  it.each([
+    ['components/quiz/lives-bar.tsx', 'app/t/quiz.tsx renders it directly'],
+    [
+      'components/achievements/achievement-badge.tsx',
+      'app/t/results.tsx reaches it through the unlock modal',
+    ],
+  ])('the walk now covers %s (%s)', (file) => {
+    // These two were carried by a temporary AHEAD_OF_THE_WALK list while they
+    // were clean but unreachable — each entry asserted BOTH cleanliness AND
+    // disjointness from the closure, so landing the screens that import them
+    // turned the list red and asked for its own deletion. It is gone; this is
+    // what replaces it, pinning that the walk really did take over rather than
+    // that the coverage quietly vanished with the list.
+    expect({ file, reachedVia: reached.get(file) ?? null }).toEqual({
+      file,
+      reachedVia: expect.any(Array),
+    });
+    expect(scanned).toContain(file);
   });
-
-  it.each(AHEAD_OF_THE_WALK)(
-    '$file is still ahead of the walk — once it is not, delete the entry',
-    ({ file }) => {
-      expect({ file, reached: reached.has(file) }).toEqual({ file, reached: false });
-    },
-  );
 });
 
 describe('the template reads its colours through one funnel', () => {

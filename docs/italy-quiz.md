@@ -1,6 +1,6 @@
 # Italy Quiz
 
-Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, and why one of its two question shapes deliberately breaks the app's own "never reveal the answer" rule.
+Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, and why four of its twenty questions ask for a range instead of a fact.
 
 ## Why a Sixth App
 
@@ -50,19 +50,25 @@ It **waits for a tap** rather than auto-advancing, so the player controls the pa
 
 Interludes are **suppressed during a mistakes review**, where the questions jump between acts by definition and an interlude would fire on almost every question.
 
-## Two Question Shapes
+## One Question Shape, Two Ways to Answer It
 
-A `choice` question is four options, one right, with an optional bundled image — a photo question and a text question are the same kind with and without `image`.
+There is one question shape: four options, one right, with an optional bundled image — a photo question and a text question are the same thing with and without `image`.
 
-A `scale` question is answered by dragging a slider between `min` and `max`, and counts as correct within `tolerance` of the truth. It exists because a tour of twenty facts is otherwise a pass/fail on what the player happens to have read. Nobody knows the founding year of Rome to the year, but everyone can place it on a line, so a scale question is a place where a player who knows nothing precise still has something to do.
+Four of Rome's twenty carry an `estimate` flag. Their options are **ranges** rather than facts — "800–600 BC", "about 120 years", "about 1.5 million €" — and they exist because a tour of twenty facts is otherwise a pure pass/fail on what the player happens to have read. The exact founding year of Rome is knowledge; "older than Athens, younger than Egypt" is reasoning, and everyone can do the second. The explanation still gives the exact number, so nothing is lost by not asking for it.
 
-The slider is built on the core `PanResponder`, not a slider package. Italy Quiz is previewed in Expo Go, which only carries the native modules baked into it, so a new native dependency would mean a full rebuild before anyone could look at the screen.
+### The notched slider
 
-### A miss reveals nothing — except on a scale
+`estimate` changes only the INPUT, never the scoring. Because ranges are inherently ordered, the four options are laid along a line and answered with `NotchedSlider`: the thumb snaps to one of four notches, the reading above names whichever option it is resting on, and confirming reports that option's index down the ordinary answer path. `options` must therefore be authored smallest-to-largest, and a small hint pair under the track ("earlier ◀ ▶ later" or "less ◀ ▶ more", picked by the question's `axis`) says which way the line runs.
 
-For a `choice` question, only the option the player taps changes colour, a wrong pick never highlights where the correct answer was, and the tour moves on by itself after a brief pause. This mirrors [Flags Quiz](flags-quiz.md#the-answer-flow) and exists to protect the mistakes review: a question whose answer was just shown is worthless to replay. A correct pick behaves the opposite way — it does not auto-advance, the explanation appears, and a Next button lets the player control the pace of the thing actually worth reading.
+The snapping is the whole point. A first version of this was a continuous slider that asked the player to hit one year out of eleven centuries — a target nobody can hit. With four stops each target is a quarter of the track wide, so a sloppy drag still lands where it was aimed, and there is exactly one right notch and three wrong ones like any other question.
 
-A `scale` question **always reveals the true value**, right or wrong, and marks it on the track next to where the player left the thumb. A distance with no destination teaches nothing: "you were 300 years off" is only information once the year is on screen. The cost is real and accepted — a missed scale question is partly spoiled for the review — and it is the reason `formatScaleGap` exists alongside `formatScaleValue`.
+That first version was also outright broken in a way worth recording, because the failure is easy to repeat. It measured where its track sat on screen **once, in a ref callback at mount**, before layout had settled; the measurement came back near zero and every touch afterwards mapped about thirty pixels off — a constant error of nearly a century, for the life of the screen. `NotchedSlider` measures nothing global: the grant event's own `locationX` is already relative to the component, and each move is that anchor plus the page-space delta. It is exact by construction and cannot drift when the surrounding `ScrollView` moves. For the same reason it refuses `onPanResponderTerminationRequest` — once a drag starts, the scroll view may not take the gesture away mid-stroke.
+
+The thumb stays dim and the confirm button inactive until the player first touches the track, so the starting notch is never mistaken for a pre-selected answer.
+
+### A miss reveals nothing
+
+Only the option the player taps changes colour, a wrong pick never highlights where the correct answer was, and the tour moves on by itself after a brief pause. This mirrors [Flags Quiz](flags-quiz.md#the-answer-flow) and exists to protect the mistakes review: a question whose answer was just shown is worthless to replay. A correct pick behaves the opposite way — it does not auto-advance, the explanation appears, and a Next button lets the player control the pace of the thing actually worth reading.
 
 ## Callbacks: Then → Now
 
@@ -101,6 +107,8 @@ The mistakes flow is not discoverable from the question screen: a player who ans
 ## Artwork Gating
 
 The landmarks artwork is a single heavy bundled image, and the glossy buttons drawn over it render instantly. Left alone the screen showed its buttons first and the background popped in a beat later. Every screen using that background therefore holds on a plain dusk-toned fill — matched to the artwork's sky so the reveal is seamless — until `useItalyBgReady` reports the asset decoded and cached. The gate fails open: an asset that cannot be warmed still lets the screen through.
+
+The settings screen deliberately has **no "refresh questions" action**. It had one, inherited from the siblings, which called `resync()` on the content snapshot — an snapshot this app stopped reading. It downloaded data nothing opened and reported success, which is worse than not being there.
 
 Question images are bundled under `assets/italy-quiz/questions/`, with their source and licence recorded in `CREDITS.md` beside them. They came from Wikimedia Commons for the prototype; anything shipped to a store needs its licence checked against that file.
 

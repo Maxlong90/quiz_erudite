@@ -20,13 +20,12 @@ import { ActInterlude } from '@/components/italy-quiz/act-interlude';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { HelpModal } from '@/components/italy-quiz/help-modal';
-import { ScaleSlider, ScaleReadout } from '@/components/italy-quiz/scale-slider';
+import { NotchedSlider } from '@/components/italy-quiz/notched-slider';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
 import { getPlace, pickText, useItalyPlace } from '@/constants/italy-quiz/places';
-import { formatScaleGap, formatScaleValue } from '@/constants/italy-quiz/question';
 import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
 import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
 import { useTourProgress } from '@/hooks/italy-quiz/use-tour-progress';
@@ -54,12 +53,12 @@ const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
  * replaced the old subject subcategories: the player is not tested on "History",
  * they walk one city from its founding to its football derby.
  *
- * Two question shapes share the screen. A `choice` question behaves as before — a
- * wrong pick reveals nothing and auto-advances, a correct one shows the
- * explanation and waits for Next. A `scale` question is answered on a slider and
- * ALWAYS reveals the true value, right or wrong: a number means nothing without
- * the real number next to it, and unlike a hidden multiple-choice answer it
- * teaches something the moment it is shown.
+ * Every question is four options, one right. A wrong pick lights only the tapped
+ * option, reveals nothing, and auto-advances; a correct one shows the explanation
+ * and waits for Next, so the player sets the pace of the part worth reading.
+ * Questions flagged `estimate` offer ordered RANGES instead of facts and are
+ * answered on a four-notch slider rather than the 2×2 grid — same options, same
+ * scoring, different input. See constants/italy-quiz/question.
  *
  * Questions come from `constants/italy-quiz/tour-content` — hand-authored files
  * in the app. Nothing here reads the backend content snapshot.
@@ -86,8 +85,8 @@ export default function ItalyQuizGame() {
 
   // Answer state for the current question, reset whenever the question changes.
   const [picked, setPicked] = useState<number | null>(null);
-  const [guess, setGuess] = useState<number | null>(null);
-  const [guessLocked, setGuessLocked] = useState(false);
+  /** Notch the slider is resting on for an `estimate` question, null until touched. */
+  const [notch, setNotch] = useState<number | null>(null);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -111,16 +110,10 @@ export default function ItalyQuizGame() {
   const prevQuestion = pos > 0 && ids[pos - 1] != null ? byId.get(ids[pos - 1]) : undefined;
   const act = rawPlace?.acts.find((a) => a.id === question?.act) ?? null;
 
-  // A fresh scale question starts with the slider in the middle — a neutral
-  // position that does not hint at the answer.
   useEffect(() => {
     setPicked(null);
-    setGuessLocked(false);
-    setGuess(question?.kind === 'scale' ? Math.round((question.min + question.max) / 2) : null);
-    // Keyed on the question's identity only: min/max belong to that question, so
-    // listing them would just re-run the reset without ever changing the outcome.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question?.id, question?.kind]);
+    setNotch(null);
+  }, [question?.id]);
 
   // Resuming mid-tour drops the player straight back into the question.
   useEffect(() => {
@@ -145,7 +138,7 @@ export default function ItalyQuizGame() {
 
   const onPick = useCallback(
     (i: number) => {
-      if (picked !== null || !question || question.kind !== 'choice') return;
+      if (picked !== null || !question) return;
       const right = i === question.correct;
       Haptics.notificationAsync(
         right
@@ -165,25 +158,23 @@ export default function ItalyQuizGame() {
     [picked, question, pos, ids.length, addWrong, setPos, finish],
   );
 
-  const onLockGuess = useCallback(() => {
-    if (!question || question.kind !== 'scale' || guess == null || guessLocked) return;
-    const right = Math.abs(guess - question.answer) <= question.tolerance;
-    Haptics.notificationAsync(
-      right ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error,
-    ).catch(() => {});
-    setGuessLocked(true);
-    if (!right) addWrong(question.id);
-  }, [question, guess, guessLocked, addWrong]);
-
   const startTour = useCallback((idsForRetry: number[] | null) => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     setRetryIds(idsForRetry);
     setPicked(null);
-    setGuessLocked(false);
+    setNotch(null);
     setDone(false);
     setInterludeSeen(null);
     setIntroDone(idsForRetry != null);
     setEpoch((e) => e + 1);
+  }, []);
+
+  /** Each notch the thumb crosses ticks, so the snap is felt as well as seen. */
+  const onNotch = useCallback((next: number) => {
+    setNotch((prev) => {
+      if (prev !== next) Haptics.selectionAsync().catch(() => {});
+      return next;
+    });
   }, []);
 
   const onShare = useCallback(() => {
@@ -424,8 +415,8 @@ export default function ItalyQuizGame() {
   }
 
   // --- Question --------------------------------------------------------------
-  const answeredChoice = picked !== null;
-  const answeredRight = answeredChoice && question.kind === 'choice' && picked === question.correct;
+  const answered = picked !== null;
+  const answeredRight = answered && picked === question.correct;
   const callbackQuestion = question.callback ? byId.get(question.callback) : undefined;
 
   const ActStrip = (
@@ -468,15 +459,6 @@ export default function ItalyQuizGame() {
     </View>
   );
 
-  const scaleAnswered = question.kind === 'scale' && guessLocked;
-  const scaleRight =
-    question.kind === 'scale' && guess != null
-      ? Math.abs(guess - question.answer) <= question.tolerance
-      : false;
-  const showExplanation =
-    (question.kind === 'choice' && answeredRight) || (question.kind === 'scale' && guessLocked);
-  const showNext = showExplanation;
-
   return Shell(
     <>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -505,115 +487,109 @@ export default function ItalyQuizGame() {
           <Text style={styles.questionText}>{pickText(question.question, locale)}</Text>
         </View>
 
-        {question.kind === 'choice' ? (
-          <View style={styles.options}>
-            {question.options.map((opt, i) => {
-              // ONLY the tapped option lights up — a wrong pick never reveals
-              // where the right answer was.
-              const scheme =
-                answeredChoice && i === picked ? (answeredRight ? CORRECT : WRONG) : null;
-              return (
-                <Pressable
-                  key={i}
-                  onPress={() => onPick(i)}
-                  disabled={answeredChoice}
-                  style={({ pressed }) => [
-                    styles.optionWrap,
-                    pressed && !answeredChoice && styles.pressed,
-                  ]}
-                >
-                  <LinearGradient
-                    colors={
-                      scheme ? [scheme.light, scheme.dark] : [ItalyColors.tileLight, ItalyColors.tileDark]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[
-                      styles.option,
-                      ItalyShadow.card,
-                      { borderColor: scheme ? scheme.rim : ItalyColors.tileRim },
-                      answeredChoice && !scheme && styles.optionDimmed,
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
-                      style={styles.optionGloss}
-                      pointerEvents="none"
-                    />
-                    <Text
-                      style={[styles.optionText, scheme && styles.optionTextLit]}
-                      numberOfLines={2}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                    >
-                      {pickText(opt, locale)}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.scaleBlock}>
-            <ScaleReadout
-              text={formatScaleValue(guess ?? question.min, question.display, locale)}
+        {/* An `estimate` question's four options are ordered ranges, so they are
+            answered by sliding along them rather than tapping one of four tiles.
+            The thumb snaps to a notch, the reading above names the option it is
+            resting on, and confirming sends that index down the ordinary answer
+            path — same scoring, same colours, same mistakes review. */}
+        {question.estimate ? (
+          <View style={styles.estimateBlock}>
+            <Text
+              style={[styles.estimateReading, notch === null && styles.estimateReadingDim]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {pickText(question.options[notch ?? 0], locale)}
+            </Text>
+
+            <NotchedSlider
+              count={question.options.length}
+              value={notch ?? 0}
+              onChange={onNotch}
+              disabled={answered}
+              dim={notch === null}
+              state={answered ? (answeredRight ? 'correct' : 'wrong') : null}
             />
-            <ScaleSlider
-              min={question.min}
-              max={question.max}
-              value={guess ?? question.min}
-              onChange={setGuess}
-              disabled={guessLocked}
-              answer={guessLocked ? question.answer : undefined}
-              correct={scaleRight}
-            />
-            <View style={styles.scaleEnds}>
-              <Text style={styles.scaleEnd}>
-                {formatScaleValue(question.min, question.display, locale)}
+
+            <View style={styles.axisRow}>
+              <Text style={styles.axisLabel}>
+                ◀ {question.axis === 'time' ? t.axisEarlier : t.axisLess}
               </Text>
-              <Text style={styles.scaleEnd}>
-                {formatScaleValue(question.max, question.display, locale)}
+              <Text style={styles.axisLabel}>
+                {question.axis === 'time' ? t.axisLater : t.axisMore} ▶
               </Text>
             </View>
 
-            {scaleAnswered ? (
-              <View style={styles.scaleVerdict}>
-                <Text style={[styles.scaleVerdictTop, { color: scaleRight ? '#7BE8A5' : '#FFD54A' }]}>
-                  {scaleRight
-                    ? t.scaleSpotOn
-                    : t.scaleMiss.replace(
-                        '{gap}',
-                        formatScaleGap(guess! - question.answer, question.display, locale),
-                      )}
-                </Text>
-                <Text style={styles.scaleVerdictBottom}>
-                  {t.scaleTruth.replace(
-                    '{value}',
-                    formatScaleValue(question.answer, question.display, locale),
-                  )}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.scaleConfirmWrap}>
+            {!answered ? (
+              <View style={styles.confirmWrap}>
                 <GlossyButton
                   label={t.scaleConfirm}
                   fontSize={20}
                   paddingVertical={14}
-                  onPress={onLockGuess}
+                  inactive={notch === null}
+                  onPress={() => onPick(notch as number)}
                 />
               </View>
-            )}
+            ) : null}
           </View>
+        ) : (
+        <View style={styles.options}>
+          {question.options.map((opt, i) => {
+            // ONLY the tapped option lights up — a wrong pick never reveals
+            // where the right answer was.
+            const scheme = answered && i === picked ? (answeredRight ? CORRECT : WRONG) : null;
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onPick(i)}
+                disabled={answered}
+                style={({ pressed }) => [
+                  styles.optionWrap,
+                  pressed && !answered && styles.pressed,
+                ]}
+              >
+                <LinearGradient
+                  colors={
+                    scheme ? [scheme.light, scheme.dark] : [ItalyColors.tileLight, ItalyColors.tileDark]
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.option,
+                    ItalyShadow.card,
+                    { borderColor: scheme ? scheme.rim : ItalyColors.tileRim },
+                    answered && !scheme && styles.optionDimmed,
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
+                    style={styles.optionGloss}
+                    pointerEvents="none"
+                  />
+                  <Text
+                    style={[styles.optionText, scheme && styles.optionTextLit]}
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                  >
+                    {pickText(opt, locale)}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            );
+          })}
+        </View>
         )}
 
-        {showExplanation ? (
+        {answeredRight ? (
           <View style={styles.explainCard}>
             <Text style={styles.explainText}>{pickText(question.explanation, locale)}</Text>
           </View>
         ) : null}
       </ScrollView>
 
-      {showNext ? (
+      {answeredRight ? (
         <View style={styles.footer}>
           <View style={styles.nextWrap}>
             <GlossyButton
@@ -728,6 +704,28 @@ const styles = StyleSheet.create({
     rowGap: 14,
   },
   optionWrap: { width: '48%' },
+  // --- Estimate question (notched slider) ------------------------------------
+  estimateBlock: { gap: 2, paddingHorizontal: 4 },
+  estimateReading: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    minHeight: 62,
+    textAlignVertical: 'center',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  /** Before the first touch the reading is a placeholder, not a choice. */
+  estimateReadingDim: { opacity: 0.45 },
+  axisRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  axisLabel: { color: '#C3CEF5', fontSize: 13, fontWeight: '700' },
+  confirmWrap: { width: '55%', alignSelf: 'center', marginTop: 14 },
   option: {
     height: OPTION_H,
     alignItems: 'center',
@@ -754,15 +752,6 @@ const styles = StyleSheet.create({
   },
   /** Green/red states are dark, so their label flips to white. */
   optionTextLit: { color: '#FFFFFF' },
-
-  // --- Scale question --------------------------------------------------------
-  scaleBlock: { gap: 8, paddingHorizontal: 4 },
-  scaleEnds: { flexDirection: 'row', justifyContent: 'space-between' },
-  scaleEnd: { color: '#C3CEF5', fontSize: 12, fontWeight: '700' },
-  scaleConfirmWrap: { width: '55%', alignSelf: 'center', marginTop: 8 },
-  scaleVerdict: { alignItems: 'center', marginTop: 6, gap: 2 },
-  scaleVerdictTop: { fontSize: 20, fontWeight: '900' },
-  scaleVerdictBottom: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 
   explainCard: {
     backgroundColor: '#FFFFFF',

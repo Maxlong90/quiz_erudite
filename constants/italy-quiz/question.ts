@@ -1,16 +1,22 @@
 /**
- * Italy Quiz question shapes and the helpers that render a scale question's
- * numbers.
+ * Italy Quiz question shape.
  *
- * Two kinds of question exist, and the second one is the whole point:
+ * There is one kind — four options, one right — with two optional flags that
+ * change how it plays:
  *
- * - `choice` — four options, one right. What every app in this tree already does.
- *   Carries an optional bundled image, so a photo question and a text question
- *   are the same kind with and without `image`.
- * - `scale` — the player drags a slider and the answer counts as correct when it
- *   lands within `tolerance` of the truth. Nobody knows the founding year of Rome
- *   to the year, but everyone can place it on a line, so a tour full of `choice`
- *   questions the player simply doesn't know stops being a wall of misses.
+ * - `image` — a bundled picture above the question. A photo question and a text
+ *   question are the same thing with and without it.
+ * - `estimate` — marks a question nobody can answer from memory, whose options
+ *   are RANGES rather than facts ("800–600 BC", "about 120 years"). It exists so
+ *   a tour is not a pure pass/fail on recall: the exact founding year of Rome is
+ *   knowledge, but "older than Athens, younger than Egypt" is reasoning, and
+ *   everyone can do the second. The explanation still gives the exact number.
+ *
+ *   It changes only the INPUT, never the scoring: the four options are answered
+ *   on a four-notch slider instead of a 2×2 grid, and confirming reports the same
+ *   option index down the same path. Ranges are inherently ordered, so
+ *   `options` MUST be authored smallest-to-largest — the slider draws them along
+ *   a line and reversing one would read as a mistake.
  *
  * A question may also carry `callback`, the id of an EARLIER question in the same
  * tour that it refers back to. It is how "then → now" is built: question 5 asks
@@ -23,84 +29,26 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import type { LocalizedText } from './places';
-import type { SupportedLocale } from '@/hooks/use-locale';
 
-/** How a scale question's numbers are written out. */
-export type ScaleDisplay = 'year-bc' | 'years' | 'people' | 'euro';
-
-interface QuestionBase {
+export interface ItalyQuestion {
   id: number;
   /** Act id from the place's `acts` — decides which fifth of the tour it lands in. */
   act: string;
   question: LocalizedText;
-  explanation: LocalizedText;
-  /** Bundled image (require(...)). A question without one renders as plain text. */
-  image?: ImageSourcePropType;
-  /** Id of an earlier question in this tour that this one refers back to. */
-  callback?: number;
-}
-
-export interface ChoiceQuestion extends QuestionBase {
-  kind: 'choice';
   options: LocalizedText[];
   /** Index into `options`. */
   correct: number;
-}
-
-export interface ScaleQuestion extends QuestionBase {
-  kind: 'scale';
-  min: number;
-  max: number;
-  answer: number;
-  /** Anything within this distance of `answer` counts as correct. */
-  tolerance: number;
-  display: ScaleDisplay;
-}
-
-export type ItalyQuestion = ChoiceQuestion | ScaleQuestion;
-
-const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g;
-
-function group(n: number): string {
-  return String(Math.round(n)).replace(THOUSANDS, ' ');
-}
-
-/** Write a scale value the way its question wants it read. */
-export function formatScaleValue(
-  value: number,
-  display: ScaleDisplay,
-  locale: SupportedLocale,
-): string {
-  const ru = locale === 'ru';
-  switch (display) {
-    case 'year-bc':
-      return value < 0
-        ? `${group(-value)} ${ru ? 'до н.э.' : 'BC'}`
-        : `${group(value)} ${ru ? 'н.э.' : 'AD'}`;
-    case 'years':
-      return ru ? `${group(value)} лет` : `${group(value)} years`;
-    case 'people':
-      return ru ? `${group(value)} чел.` : `${group(value)} people`;
-    case 'euro':
-      return `${group(value)} €`;
-  }
-}
-
-/** Write the DISTANCE between a guess and the truth ("промах 53 года"). */
-export function formatScaleGap(
-  gap: number,
-  display: ScaleDisplay,
-  locale: SupportedLocale,
-): string {
-  const ru = locale === 'ru';
-  const n = group(Math.abs(gap));
-  switch (display) {
-    case 'year-bc':
-    case 'years':
-      return ru ? `${n} лет` : `${n} years`;
-    case 'people':
-      return ru ? `${n} чел.` : `${n} people`;
-    case 'euro':
-      return `${n} €`;
-  }
+  explanation: LocalizedText;
+  /** Bundled image (require(...)). A question without one renders as plain text. */
+  image?: ImageSourcePropType;
+  /** Options are ordered ranges — answered on a notched slider. */
+  estimate?: boolean;
+  /**
+   * What the slider's axis runs along, which picks the pair of hints under it
+   * ("earlier → later" for a date, "less → more" for a quantity). Only read when
+   * `estimate` is set.
+   */
+  axis?: 'time' | 'amount';
+  /** Id of an earlier question in this tour that this one refers back to. */
+  callback?: number;
 }

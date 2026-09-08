@@ -7,7 +7,8 @@
  *
  * How the twenty are composed, and why:
  *
- * - Ten `choice`, six of them photo questions, four `scale`. Roughly every third
+ * - Twenty multiple-choice questions: six carry a photo and four are `estimate`
+ *   questions answered from ranges rather than recall. Roughly every third
  *   question changes the shape of the screen, so a twenty-question tour never
  *   settles into one rhythm.
  * - Question 1 is a deliberate warm-up everyone gets right. A tour that opens
@@ -30,7 +31,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 1,
     act: 'antiquity',
-    kind: 'choice',
     question: {
       ru: 'Какое сооружение Древнего Рима до сих пор стоит в центре города?',
       en: 'Which building of ancient Rome still stands in the city centre today?',
@@ -50,7 +50,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 2,
     act: 'antiquity',
-    kind: 'choice',
     image: require('../../../assets/italy-quiz/questions/pantheon.jpg'),
     question: {
       ru: 'Что это за здание? Его бетонный купол с отверстием в центре почти две тысячи лет остаётся самым большим неармированным куполом в мире.',
@@ -71,7 +70,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 3,
     act: 'antiquity',
-    kind: 'choice',
     question: {
       ru: 'На какой реке стоит Рим?',
       en: 'Which river does Rome stand on?',
@@ -91,16 +89,19 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 4,
     act: 'antiquity',
-    kind: 'scale',
+    estimate: true,
+    axis: 'time',
     question: {
       ru: 'По легенде Рим основал Ромул. В каком году?',
       en: 'Legend says Romulus founded Rome. In which year?',
     },
-    min: -1200,
-    max: -100,
-    answer: -753,
-    tolerance: 80,
-    display: 'year-bc',
+    options: [
+      { ru: 'Раньше 1000 года до н.э.', en: 'Before 1000 BC' },
+      { ru: '1000–800 годы до н.э.', en: '1000–800 BC' },
+      { ru: '800–600 годы до н.э.', en: '800–600 BC' },
+      { ru: 'Позже 600 года до н.э.', en: 'After 600 BC' },
+    ],
+    correct: 2,
     explanation: {
       ru: '753 год до н.э. — дата по расчётам Варрона, от неё римляне вели своё летоисчисление. Археология, впрочем, говорит, что поселения на Палатинском холме существовали и на несколько веков раньше.',
       en: '753 BC, the date calculated by Varro, from which Romans counted their years. Archaeology says settlements on the Palatine were there centuries earlier.',
@@ -109,7 +110,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 5,
     act: 'antiquity',
-    kind: 'choice',
     image: require('../../../assets/italy-quiz/questions/domitian-stadium.jpg'),
     question: {
       ru: 'Под современным Римом сохранились руины стадиона императора Домициана на тридцать тысяч зрителей. Что там проходило?',
@@ -132,7 +132,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 6,
     act: 'middle-ages',
-    kind: 'choice',
     question: {
       ru: 'Империя пала, город обезлюдел. Кто фактически стал в Риме главной властью на следующую тысячу лет?',
       en: 'The empire fell and the city emptied. Who effectively became Rome’s ruling power for the next thousand years?',
@@ -152,16 +151,19 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 7,
     act: 'middle-ages',
-    kind: 'scale',
+    estimate: true,
+    axis: 'amount',
     question: {
       ru: 'На пике империи в Риме жил примерно миллион человек. До скольких упало население в худшие годы Средневековья?',
       en: 'At the empire’s peak about a million people lived in Rome. How low did the population fall in the worst medieval years?',
     },
-    min: 5000,
-    max: 300000,
-    answer: 25000,
-    tolerance: 15000,
-    display: 'people',
+    options: [
+      { ru: 'Около 5 тысяч', en: 'About 5 thousand' },
+      { ru: 'Около 25 тысяч', en: 'About 25 thousand' },
+      { ru: 'Около 100 тысяч', en: 'About 100 thousand' },
+      { ru: 'Около 300 тысяч', en: 'About 300 thousand' },
+    ],
+    correct: 1,
     explanation: {
       ru: 'Около 25 000 — меньше, чем в нынешнем райцентре. Люди ютились в излучине Тибра, а древний Форум так зарос, что его называли Кампо Ваччино — «коровье поле».',
       en: 'Around 25,000 — fewer than in a small town today. People huddled in the bend of the Tiber, and the ancient Forum grew so wild it was called Campo Vaccino, the "cow field".',
@@ -170,7 +172,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 8,
     act: 'middle-ages',
-    kind: 'choice',
     question: {
       ru: 'Откуда веками брали камень и мрамор на новые римские постройки?',
       en: 'Where did Rome quarry the stone and marble for its new buildings, century after century?',
@@ -190,7 +191,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 9,
     act: 'middle-ages',
-    kind: 'choice',
     image: require('../../../assets/italy-quiz/questions/castel-sant-angelo.jpg'),
     question: {
       ru: 'Это Замок Святого Ангела — папская крепость с тайным ходом прямо из Ватикана. А чем он был построен изначально?',
@@ -211,7 +211,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 10,
     act: 'middle-ages',
-    kind: 'choice',
     question: {
       ru: 'Почти семьдесят лет подряд папы вообще не жили в Риме. Где была их резиденция?',
       en: 'For almost seventy years the popes did not live in Rome at all. Where was their seat?',
@@ -233,7 +232,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 11,
     act: 'renaissance',
-    kind: 'choice',
     question: {
       ru: 'Микеланджело считал роспись Сикстинской капеллы навязанной работой. А что он считал своим настоящим делом?',
       en: 'Michelangelo thought painting the Sistine Chapel was work forced upon him. What did he consider his real craft?',
@@ -253,16 +251,19 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 12,
     act: 'renaissance',
-    kind: 'scale',
+    estimate: true,
+    axis: 'amount',
     question: {
       ru: 'Сколько лет строили Собор Святого Петра?',
       en: 'How many years did it take to build St Peter’s Basilica?',
     },
-    min: 10,
-    max: 250,
-    answer: 120,
-    tolerance: 25,
-    display: 'years',
+    options: [
+      { ru: 'Около 20 лет', en: 'About 20 years' },
+      { ru: 'Около 50 лет', en: 'About 50 years' },
+      { ru: 'Около 120 лет', en: 'About 120 years' },
+      { ru: 'Около 250 лет', en: 'About 250 years' },
+    ],
+    correct: 2,
     explanation: {
       ru: '120 лет — с 1506 по 1626 год. За это время сменилось больше двадцати пап и почти столько же главных архитекторов: Браманте, Рафаэль, Микеланджело, Бернини.',
       en: '120 years, from 1506 to 1626. More than twenty popes came and went in that time, and almost as many chief architects: Bramante, Raphael, Michelangelo, Bernini.',
@@ -271,7 +272,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 13,
     act: 'renaissance',
-    kind: 'choice',
     image: require('../../../assets/italy-quiz/questions/creation-of-adam.jpg'),
     question: {
       ru: 'Кто написал эту фреску?',
@@ -292,7 +292,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 14,
     act: 'renaissance',
-    kind: 'choice',
     question: {
       ru: 'Фонтан Треви, площадь Навона, колоннада Святого Петра. В каком стиле сложился облик современного центра Рима?',
       en: 'The Trevi fountain, Piazza Navona, the colonnade of St Peter’s. What style shaped the look of central Rome as we see it?',
@@ -312,7 +311,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 15,
     act: 'renaissance',
-    kind: 'choice',
     callback: 2,
     question: {
       ru: 'На балдахин над алтарём Собора Святого Петра Бернини потребовалось шестьдесят тонн бронзы. Откуда её взяли?',
@@ -335,7 +333,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 16,
     act: 'today',
-    kind: 'choice',
     callback: 5,
     image: require('../../../assets/italy-quiz/questions/piazza-navona.jpg'),
     question: {
@@ -357,7 +354,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 17,
     act: 'today',
-    kind: 'choice',
     question: {
       ru: 'Сколько независимых государств помещается внутри города Рима?',
       en: 'How many independent states fit inside the city of Rome?',
@@ -377,16 +373,19 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 18,
     act: 'today',
-    kind: 'scale',
+    estimate: true,
+    axis: 'amount',
     question: {
       ru: 'Сколько евро туристы бросают в фонтан Треви за год?',
       en: 'How many euros do tourists throw into the Trevi fountain in a year?',
     },
-    min: 50000,
-    max: 5000000,
-    answer: 1400000,
-    tolerance: 500000,
-    display: 'euro',
+    options: [
+      { ru: 'Около 100 тысяч €', en: 'About 100 thousand €' },
+      { ru: 'Около 500 тысяч €', en: 'About 500 thousand €' },
+      { ru: 'Около 1,5 миллиона €', en: 'About 1.5 million €' },
+      { ru: 'Около 4 миллионов €', en: 'About 4 million €' },
+    ],
+    correct: 2,
     explanation: {
       ru: 'Около 1,4 миллиона евро. Монеты вылавливают каждую ночь и передают католической благотворительной организации «Каритас». Попытка забрать их себе — уголовное преступление.',
       en: 'Around 1.4 million euros. The coins are fished out nightly and handed to the Catholic charity Caritas. Taking them for yourself is a criminal offence.',
@@ -395,7 +394,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 19,
     act: 'today',
-    kind: 'choice',
     image: require('../../../assets/italy-quiz/questions/carbonara.jpg'),
     question: {
       ru: 'Что это за блюдо, ставшее визитной карточкой римской кухни?',
@@ -416,7 +414,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 20,
     act: 'today',
-    kind: 'choice',
     question: {
       ru: 'Два римских клуба играют дерби на одном и том же стадионе. Какие?',
       en: 'Two Roman clubs play their derby in the very same stadium. Which two?',

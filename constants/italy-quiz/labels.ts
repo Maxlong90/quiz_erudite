@@ -1,8 +1,8 @@
 /**
  * UI strings for the Italy Quiz module (App Template: World), kept local to the
  * feature (en/ru/es/fr) — mirrors the Flags Quiz labels pattern. Screen chrome
- * only; quiz content comes from the backend snapshot. Picked by the app's active
- * locale via useItalyLabels().
+ * only. Picked by the app's active
+ * locale via useItalyLabels(). Quiz content itself lives in constants/italy-quiz/questions.
  */
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
 
@@ -21,17 +21,17 @@ export interface ItalyLabels {
   comingSoon: string;
   /** Starts the tour from the intro card. */
   startTour: string;
-  // Scale questions
-  /** Locks in the slider guess. */
-  scaleConfirm: string;
-  /** Shown when the guess landed inside the tolerance. */
-  scaleSpotOn: string;
-  /** How far the guess was off — `{gap}` is substituted. */
-  scaleMiss: string;
-  /** The true value — `{value}` is substituted. */
-  scaleTruth: string;
   /** Header of the ribbon reminding the player of an earlier question. */
   callbackThen: string;
+  // Estimate questions (notched slider)
+  /** Locks in the notch the player stopped on. */
+  scaleConfirm: string;
+  /** Hints under a slider whose axis is time. */
+  axisEarlier: string;
+  axisLater: string;
+  /** Hints under a slider whose axis is a quantity. */
+  axisLess: string;
+  axisMore: string;
   // Settings screen
   selectLanguage: string;
   rateApp: string;
@@ -57,9 +57,6 @@ export interface ItalyLabels {
   helpBody: string;
   gotIt: string;
   shareInvite: string;
-  /** Settings row that force-refreshes the downloaded question set. */
-  refreshContent: string;
-  refreshDone: string;
 }
 
 const EN: ItalyLabels = {
@@ -71,11 +68,12 @@ const EN: ItalyLabels = {
   whereTo: 'Where to?',
   comingSoon: 'coming soon',
   startTour: "Let's go",
-  scaleConfirm: 'Answer',
-  scaleSpotOn: 'Spot on!',
-  scaleMiss: 'Off by {gap}',
-  scaleTruth: 'Answer: {value}',
   callbackThen: 'BACK THEN',
+  scaleConfirm: 'Answer',
+  axisEarlier: 'earlier',
+  axisLater: 'later',
+  axisLess: 'less',
+  axisMore: 'more',
   selectLanguage: 'Language',
   rateApp: 'Rate the App',
   contactSupport: 'Contact Support',
@@ -100,8 +98,6 @@ const EN: ItalyLabels = {
     'A wrong answer never reveals the right one — you simply move on to the next question. Every question you miss is remembered, and at the end of the run you can tap “Review mistakes” to replay just those. Nothing is lost: you can always come back and master the ones you missed.',
   gotIt: 'Got it',
   shareInvite: 'How well do you know Italy? Play Italy Quiz: {url}',
-  refreshContent: 'Refresh questions',
-  refreshDone: 'Questions updated.',
 };
 
 const RU: ItalyLabels = {
@@ -113,11 +109,12 @@ const RU: ItalyLabels = {
   whereTo: 'Куда поедем?',
   comingSoon: 'скоро',
   startTour: 'Поехали',
-  scaleConfirm: 'Ответить',
-  scaleSpotOn: 'В точку!',
-  scaleMiss: 'Промах {gap}',
-  scaleTruth: 'Правильно: {value}',
   callbackThen: 'ТОГДА',
+  scaleConfirm: 'Ответить',
+  axisEarlier: 'раньше',
+  axisLater: 'позже',
+  axisLess: 'меньше',
+  axisMore: 'больше',
   selectLanguage: 'Язык',
   rateApp: 'Оценить приложение',
   contactSupport: 'Связаться с поддержкой',
@@ -142,8 +139,6 @@ const RU: ItalyLabels = {
     'При неправильном ответе правильный не показывается — вы просто переходите к следующему вопросу. Все вопросы, в которых вы ошиблись, запоминаются, и в конце игры можно нажать «Работа над ошибками», чтобы пройти именно их заново. Ничего не теряется: вы всегда сможете вернуться и закрепить то, что не угадали.',
   gotIt: 'Понятно',
   shareInvite: 'Хорошо знаешь Италию? Играй в Italy Quiz: {url}',
-  refreshContent: 'Обновить вопросы',
-  refreshDone: 'Вопросы обновлены.',
 };
 
 const ES: ItalyLabels = {
@@ -155,11 +150,12 @@ const ES: ItalyLabels = {
   whereTo: '¿A dónde vamos?',
   comingSoon: 'próximamente',
   startTour: 'Vamos',
-  scaleConfirm: 'Responder',
-  scaleSpotOn: '¡Justo!',
-  scaleMiss: 'Fallo de {gap}',
-  scaleTruth: 'Respuesta: {value}',
   callbackThen: 'ENTONCES',
+  scaleConfirm: 'Responder',
+  axisEarlier: 'antes',
+  axisLater: 'después',
+  axisLess: 'menos',
+  axisMore: 'más',
   selectLanguage: 'Idioma',
   rateApp: 'Valorar la app',
   contactSupport: 'Contactar soporte',
@@ -184,8 +180,6 @@ const ES: ItalyLabels = {
     'Una respuesta incorrecta nunca revela la correcta: simplemente pasas a la siguiente pregunta. Cada pregunta que falles se guarda y, al terminar la partida, puedes pulsar «Repasar errores» para jugar solo esas. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
   gotIt: 'Entendido',
   shareInvite: '¿Conoces bien Italia? Juega a Italy Quiz: {url}',
-  refreshContent: 'Actualizar preguntas',
-  refreshDone: 'Preguntas actualizadas.',
 };
 
 const FR: ItalyLabels = {
@@ -197,11 +191,12 @@ const FR: ItalyLabels = {
   whereTo: 'On va où ?',
   comingSoon: 'bientôt',
   startTour: 'C’est parti',
-  scaleConfirm: 'Répondre',
-  scaleSpotOn: 'Pile !',
-  scaleMiss: 'Écart de {gap}',
-  scaleTruth: 'Réponse : {value}',
   callbackThen: 'À L’ÉPOQUE',
+  scaleConfirm: 'Répondre',
+  axisEarlier: 'plus tôt',
+  axisLater: 'plus tard',
+  axisLess: 'moins',
+  axisMore: 'plus',
   selectLanguage: 'Langue',
   rateApp: 'Noter l’application',
   contactSupport: 'Contacter le support',
@@ -226,8 +221,6 @@ const FR: ItalyLabels = {
     'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la question suivante. Chaque question ratée est mémorisée et, à la fin de la partie, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. Rien n’est perdu : vous pourrez toujours revenir et maîtriser celles que vous avez ratées.',
   gotIt: 'Compris',
   shareInvite: 'Connaissez-vous bien l’Italie ? Jouez à Italy Quiz : {url}',
-  refreshContent: 'Actualiser les questions',
-  refreshDone: 'Questions mises à jour.',
 };
 
 const TABLE: Record<SupportedLocale, ItalyLabels> = { en: EN, ru: RU, es: ES, fr: FR };
