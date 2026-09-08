@@ -52,6 +52,11 @@ const TEMPLATE_DESTINATIONS: { route: string; file: string; why: string }[] = [
     file: 't/paywall.tsx',
     why: 'a premium-locked tile on the home OR on the mode picker, and the onboarding pitch',
   },
+  {
+    route: '/t/splash',
+    file: 't/splash.tsx',
+    why: "the dev reset in settings, which wipes onboarding.seen.v1 and sends the player back through the template's first-launch path",
+  },
 ];
 
 /** Routes the BottomBar rendered by the template home can reach. */

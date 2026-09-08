@@ -18,12 +18,21 @@ The slice is deliberately narrow. It themes **one screen end to end** rather tha
 | `t/quiz-mode/[slug]` | Mode picker | Per-subcategory mode cards; where a run is configured |
 | `t/quiz` | Quiz | The game loop; every mode tile starts here |
 | `t/results` | Results | Score, achievement unlocks, and the way back to `t/index` |
+| `t/paywall` | Paywall | Reached from a premium-locked tile and the onboarding pitch |
+| `t/stats` | Stats | Lifetime totals and achievement rows |
+| `t/shop` | Shop | Lives and hint bundles; the coins-and-ads economy |
+| `t/account` | Account | Sign-up / log-in form and the third-party sign-in buttons |
+| `t/settings` | Settings | Language, appearance, links, and the dev reset |
 
 The quiz loop closed the largest hole in that list. Before it, a mode tile started `app/quiz`, which finished on `app/results`, which went home with `router.replace('/')` — and on a template build `/` redirects to `/t/splash`, so every finished run bounced the player through the splash screen on the way back. The two ported screens are deliberate copies of the Erudite originals along the line this project already draws: a **screen owns a route**, so each app gets its own (there are six sibling `app/<slug>/quiz.tsx` files besides this one); a **leaf component owns none**, so every app shares one. Nothing under `components/` was duplicated to do it.
 
 The browse path closed the next one. A category tile used to push into `app/category/[slug].tsx` — a shared *Erudite* screen — and from there `app/quiz-mode/[slug].tsx` started the run on `/quiz`, the Erudite quiz loop rather than the template's own. Both are now copied into `app/t/`, so the whole chain (home → category → mode picker → quiz → results) stays inside the subtree. The copies take their tile artwork from `hooks/t/use-tile-gradients.ts` instead of `constants/category-visuals.ts`; the ramps are pinned equal to the Erudite gradients, so the port is zero-pixel and a tile cannot change colour mid-navigation.
 
-**One** destination still leaves the subtree, and it is tracked by name in `__tests__/app/t-routes.test.ts`: a premium-locked tile routes to `app/paywall` — now from *two* screens, the home and the mode picker, so both must be re-pointed in the commit that ports it. That screen reads the palette through the same `useThemeColors` hook, so it *does* pick up the operator's colours, but it still carries hardcoded literals in places, so its theming is partial. That test asserts the pending destination is BOTH tolerated AND still reachable from `app/t`, so the day it is ported the entry goes red asking to be deleted rather than lingering as a permanent exemption. Its `until` field is a condition rather than a subtask letter, because the letter is what rotted last time.
+The bottom bar's five destinations closed the rest. `app/t/` is now **route-closed**: every route any template screen pushes lands inside the subtree, and `__tests__/app/t-routes.test.ts` asserts that with no tolerance list at all — the `NOT_YET_PORTED` mechanism that once tracked pending destinations was deleted when the paywall landed, and the docblock there refuses its reintroduction. (When it existed, its `until` field was a *condition* rather than a subtask letter, because the letter is what rotted.)
+
+Porting `settings` fixed a leak of that same family, one that had been shipping unnoticed: its dev reset ended with `router.replace('/splash')`, dropping a template player onto the **Erudite** splash. It never crashed, because on a template build `/` redirects to `/t/splash` anyway — so the player was silently bounced through another brand's screen, visible only on a device. The copy replaces it with `/t/splash`, which is also the *correct* destination and not merely the in-subtree one: the reset clears `onboarding.seen.v1`, the key `app/t/splash.tsx` branches on to route a first-launch player onward to `t/onboarding`.
+
+One boundary is still open and is deliberate: all five screens that render the bottom bar still render the **shared** `components/bottom-bar.tsx`, whose slots point at the Erudite `/account`, `/paywall`, `/shop`, `/` and `/settings`. The escape check only scans `app/t/**`, so it cannot see them. Re-pointing one screen at a time would leave the bar half-ported across the subtree, so `components/t/bottom-bar.tsx` replaces all five at once.
 
 The template also has no economy or content of its own. It draws categories and questions from the ordinary content cache and reuses the lives, hints, premium, and locale providers unchanged.
 
@@ -190,6 +199,22 @@ The spectrum is **deliberately not derived from `accent`**. Tile labels use `onA
 Mode assignments are exhaustive by construction — a mode without a ramp is a compile error rather than a silent fallback to grey. Category assignments are the opposite, because category slugs are backend data and an unknown one is an ordinary runtime case that resolves to the neutral fallback ramp. That lookup map is built on a **null prototype** on purpose: the key is untrusted operator data, and on a plain object a category slugged `constructor` or `toString` would inherit a function instead of missing. The fallback would never fire, an undefined gradient would reach a native `LinearGradient`, and Android would throw rather than render the neutral tile.
 
 One naming note, so it is not "fixed" later: the hue names (`sun`, `ember`, `orchid`) are a conscious exception to the rule that tokens are named by role rather than by colour. A brand spectrum has no role beyond being itself.
+
+## Third-Party Brand Colour: the Seam That Stays
+
+`constants/t/oauth-brand.ts` is the second — and by intent the last — module in the `app/t` surface allowed to hold colour literals. It carries six values: the fill, label ink, and glyph ink of the Apple and Google sign-in buttons on `t/account`.
+
+It exists because those six are **not ours to choose**. Apple's Human Interface Guidelines permit Sign in with Apple in black or white only, with the label ink fixed against it; Google's identity guidelines fix the `G` at `#4285F4` on a white button. An operator preset that recoloured either would produce a build that violates a vendor guideline and can be rejected at store review. So a configurable version of these values is not a feature being declined — it is a defect being declined.
+
+That makes this the exact inverse of every other colour in the template. Everything reachable through `useTemplateTheme()` is operator data *by construction*, so anything routed through the funnel is, by definition, something an operator may move. These must never move. They therefore sit outside the funnel entirely, and the screen's stylesheet references `OAUTH_BRAND` directly rather than through its palette parameter — the indirection would be a lie about where the value comes from.
+
+**The difference from the tile spectrum is the part worth remembering.** `constants/t/tile-palette.ts` is *temporary*: it holds literals precisely so a later stage can lift them onto the wire as flat colour tokens. This file is *permanent*, and remoting it would **be** the bug rather than the fix. A future reader who finds these hexes and reaches for the wire contract should stop at that sentence.
+
+Nor can they be `withAlpha` derivations of anything in the palette, the way the same screen's premium badge is. That badge's `#ffd23a22` / `#ffd23a66` wash and border became `withAlpha(c.gold, 0.133)` and `withAlpha(c.gold, 0.4)` — byte-exact, since `gold` is `#ffd23a` in both appearances and `withAlpha` rounds rather than truncates. The OAuth colours are not tints of *our* brand colour; they are somebody else's brand colour.
+
+Both exemptions are named in two places that are asserted to stay in step: the `EXEMPT` map in `__tests__/app/t-no-color-literals.test.ts`, and the `ignores` list in `eslint.config.js`. The mirror test iterates the map rather than naming a file, so half a pair cannot land — and it matches inside the `ignores` array specifically, because both seam paths also appear in the lint *message* shown to developers, which a whole-file containment check would happily accept as an exemption that was never granted.
+
+Each exemption is also asserted to still be *earned*: an exempt file that goes clean fails the suite and asks to be deleted, so a dead exemption cannot linger. On the account screen the six values are read back off the rendered buttons under an operator preset and under both appearances, which is what proves they are inert rather than merely untested. The light-appearance reading is the sharpest of the three: wiring the Apple label to `c.text` passes in dark, where `text` is also `#fff`, and fails only in light.
 
 ## Artwork: Asset Packs Staged at Build Time
 

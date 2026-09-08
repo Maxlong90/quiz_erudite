@@ -31,6 +31,14 @@
  *    place they are allowed to live, and __tests__/constants/t-tile-palette.ts
  *    pins every value in it against the shipped Erudite artwork. It is asserted
  *    below to really contain literals, so a dead exemption cannot linger.
+ *  - constants/t/oauth-brand.ts is the OTHER kind of seam: six Apple/Google
+ *    brand hexes that are not ours to choose (Apple's HIG allows a black or
+ *    white Sign in with Apple button; Google fixes the `G` at #4285F4 on white),
+ *    so an operator preset moving them would ship a guideline violation. Unlike
+ *    the tile spectrum this one is PERMANENT — remoting it would be the bug, not
+ *    the fix — which is why the values live outside the funnel entirely instead
+ *    of becoming palette tokens. __tests__/app/t-account.test.tsx reads each one
+ *    back off a rendered button under a preset and under both appearances.
  *  - constants/theme.ts and lib/theme/** are the bundled palette and the wire
  *    parser; theme-bundled-parity.test.ts already pins those. The walk is scoped
  *    so it never reaches lib/ at all, and that negative is asserted.
@@ -72,6 +80,10 @@ const EXEMPT = new Map<string, string>([
   [
     'constants/t/tile-palette.ts',
     'IS the literals; __tests__/constants/t-tile-palette.test.ts pins every value',
+  ],
+  [
+    'constants/t/oauth-brand.ts',
+    'IS the literals: vendor-mandated Apple/Google brand colour no operator preset may move; __tests__/app/t-account.test.tsx pins each one as a rendered style prop',
   ],
 ]);
 
@@ -237,6 +249,10 @@ describe('the scan covers what it claims to', () => {
       'components/quiz-mode/timed-count-modal.tsx',
       'the sheet app/t/quiz-mode/[slug].tsx opens for a timed run',
     ],
+    [
+      'components/settings/appearance-modal.tsx',
+      'the sheet app/t/settings.tsx opens for the theme picker — one of the two files that port added to the closure',
+    ],
   ])('the walk reaches %s (%s)', (file) => {
     expect({ file, reachedVia: reached.get(file) ?? null }).toEqual({
       file,
@@ -389,12 +405,39 @@ describe('the scanner itself', () => {
     expect([...source.matchAll(SPECIFIER)].map((match) => match[1])).toEqual([specifier]);
   });
 
-  it('keeps the ESLint mirror of the tile-palette exemption in step', () => {
-    // The exemption lives in two files with nothing tying them together; this is
-    // the tie. Read as text rather than require()d — pulling eslint-config-expo
-    // through the RN transform is not worth it.
-    expect(readFileSync(join(ROOT, 'eslint.config.js'), 'utf8')).toContain(
-      'constants/t/tile-palette.ts',
-    );
+  it.each([...EXEMPT.keys()])('keeps the ESLint mirror of the exemption for %s in step', (file) => {
+    // Each exemption lives in two files with nothing tying them together; this is
+    // the tie. It iterates EXEMPT rather than naming a file, so half a pair
+    // cannot land: a second exemption that reached this test hardcoded to the
+    // first one would have added an eslint-less hole and left the suite green —
+    // the silent under-checking this whole file exists to eliminate.
+    //
+    // Read as text rather than require()d — pulling eslint-config-expo through
+    // the RN transform is not worth it — and comment-stripped, so a path merely
+    // MENTIONED in a comment cannot stand in for one actually listed.
+    //
+    // It matches inside an `ignores: [...]` array rather than anywhere in the
+    // file, and that narrowing is not theoretical: eslint.config.js names both
+    // seams in the NO_COLOUR_LITERALS message it shows developers, so a
+    // whole-file `toContain` passes for a file that was never exempted at all.
+    // A plain containment check was written first and verified to do exactly
+    // that — it stayed green with the `ignores` entry deleted and ESLint
+    // raising six errors on the file.
+    //
+    // KNOWN LIMIT: this still cannot tell the rule-scoped `ignores` from the
+    // GLOBAL one (an object carrying only `ignores`, which would stop linting
+    // the file altogether rather than exempting it from one rule — the hazard
+    // eslint.config.js warns about at that key). Distinguishing them means
+    // reconstructing the config object from text, which is brittle enough to be
+    // worse than the gap; require()ing it is what the paragraph above rules out.
+    const ignoreLists = [
+      ...stripComments(readFileSync(join(ROOT, 'eslint.config.js'), 'utf8'))
+        .matchAll(/\bignores:\s*\[([^\]]*)\]/g),
+    ].map((match) => match[1]);
+
+    expect({ file, exempted: ignoreLists.some((list) => list.includes(`'${file}'`)) }).toEqual({
+      file,
+      exempted: true,
+    });
   });
 });

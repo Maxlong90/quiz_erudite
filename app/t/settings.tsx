@@ -1,0 +1,485 @@
+/**
+ * The configurable template's settings screen — a deliberate COPY of
+ * app/settings.tsx, for the reason app/t/quiz.tsx's docblock sets out: a screen
+ * owns a route, so each app gets its own; the leaf components it renders
+ * (ScreenBackground, BottomBar, LanguageModal, AppearanceModal) are shared, not
+ * duplicated.
+ *
+ * The diff against app/settings.tsx is exactly two things:
+ *  1. the palette arrives through hooks/t/use-template-theme.ts — at ALL FOUR
+ *     call sites: the screen, SectionLabel, Row and Divider. The shipped screen
+ *     carries NO colour literals, so unlike app/t/account.tsx there was nothing
+ *     to extract here; the funnel swap is the whole colour story.
+ *  2. the dev reset's router.replace('/splash') became '/t/splash'. That is a
+ *     BUG FIX rather than a mechanical route rewrite, and the bug was
+ *     PRE-EXISTING: the shipped literal sent a template player into the ERUDITE
+ *     splash. It never crashed or dead-ended, because on a template build
+ *     app/index.tsx redirects `/` to `/t/splash` anyway — it silently bounced
+ *     the player through the wrong brand's screen, visible only on a device.
+ *     '/t/splash' is also the CORRECT destination rather than merely the
+ *     in-subtree one: the wipe clears 'onboarding.seen.v1', which is the key
+ *     app/t/splash.tsx branches on to send a first-launch player to
+ *     /t/onboarding.
+ *
+ * WHAT AN OPERATOR PRESET CAN ACTUALLY MOVE HERE is one prop: the Row icon's
+ * `colors.accentSoft`. Every other colour on the screen is text / textFaint /
+ * surface / surfaceSoft / border / borderSoft / textDisabled / danger /
+ * onAccent, none of which is in REMOTE_TOKEN_KEYS today. So the render suite
+ * covers the Row call site, and the SOURCE guard in
+ * __tests__/app/t-no-color-literals.test.ts is what covers the other three —
+ * worth knowing before reading that suite as thinner than it ought to be.
+ *
+ * STILL POINTING AT quizzzes.com: PRIVACY_URL, TERMS_URL and SUPPORT_EMAIL stay
+ * hardcoded because ContentSnapshot['app'] carries no field to read them from.
+ * The store links beside them are ALREADY operator-aware through
+ * getStoreLinks(snapshot?.app), so only those three are stranded; widening the
+ * snapshot is backend work, not a port.
+ *
+ * KNOWN BOUNDARY, not an oversight: the <BottomBar current="settings" /> below
+ * is still the SHARED components/bottom-bar.tsx, whose five slots point at the
+ * ERUDITE /account, /paywall, /shop, / and /settings. The escape check in
+ * __tests__/app/t-routes.test.ts only scans app/t/**, so it cannot see them.
+ * components/t/bottom-bar.tsx closes this, in the subtask that re-points all
+ * five template screens at once — re-pointing one screen's bar now would leave
+ * the bar half-ported across the subtree.
+ *
+ * makeStyles keeps its EruditePalette signature: a TemplateTheme already
+ * satisfies it structurally, and this screen uses no derived tier role, so
+ * widening the type would falsely signal that it needs the superset.
+ */
+import { useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
+import {
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { BottomBar } from '@/components/bottom-bar';
+import { ScreenBackground } from '@/components/screen-background';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LanguageModal } from '@/components/settings/language-modal';
+import { AppearanceModal } from '@/components/settings/appearance-modal';
+import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { usePremium } from '@/hooks/use-premium';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
+import { useThemePref, type ThemePref } from '@/hooks/use-theme-pref';
+import { useTranslation } from '@/hooks/use-translation';
+import type { EruditePalette } from '@/constants/theme';
+import { clearCache as clearContentCache } from '@/lib/content-cache';
+import { getAndroidPackage, getStoreLinks } from '@/lib/store-links';
+import { useContentCache } from '@/hooks/use-content-cache';
+import type { StringKey } from '@/i18n/strings';
+
+const ONBOARDING_KEY = 'onboarding.seen.v1';
+// All gameplay state lives under the "quiz." namespace: seen-sets,
+// stats, achievements, mistakes, lives, hints, today's question.
+const QUIZ_PREFIX = 'quiz.';
+
+// External URLs — kept in one place so a future real Privacy/Terms page is a
+// one-line change. Store links are no longer hardcoded here: they come from
+// the snapshot's app config via getStoreLinks() (with safe fallbacks).
+const PRIVACY_URL = 'https://quizzzes.com/privacy';
+const TERMS_URL = 'https://quizzzes.com/terms';
+const SUPPORT_EMAIL = 'support@quizzzes.com';
+
+// Current app version, read from the build's Expo config (app.json `version`).
+const APP_VERSION = Constants.expoConfig?.version ?? '';
+
+const LANGUAGE_LABEL: Record<SupportedLocale, string> = {
+  en: 'English',
+  es: 'Español',
+  ru: 'Русский',
+  fr: 'Français',
+};
+
+const THEME_LABEL_KEY: Record<ThemePref, StringKey> = {
+  dark: 'settings.theme.dark',
+  light: 'settings.theme.light',
+};
+
+export default function SettingsScreen() {
+  const { locale, changeLocale, resetLocale } = useLocale();
+  const { resetPremium } = usePremium();
+  const { theme, setTheme } = useThemePref();
+  const { t } = useTranslation();
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { snapshot } = useContentCache();
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+
+  async function handleReset() {
+    const allKeys = await AsyncStorage.getAllKeys();
+    // Wipe every gameplay key (stats, achievements, mistakes, lives,
+    // hints, seen-sets, today's question) plus the onboarding flag.
+    const quizKeys = allKeys.filter((k) => k.startsWith(QUIZ_PREFIX));
+    await Promise.all([
+      AsyncStorage.removeItem(ONBOARDING_KEY),
+      quizKeys.length ? AsyncStorage.multiRemove(quizKeys) : Promise.resolve(),
+      clearContentCache(),
+      resetLocale(),
+      resetPremium(),
+    ]);
+    router.replace('/t/splash');
+  }
+
+  function confirmReset() {
+    if (typeof Alert?.alert === 'function') {
+      Alert.alert(
+        'Reset app?',
+        'Wipe language, onboarding and premium flags and start from scratch.',
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: 'Reset', style: 'destructive', onPress: handleReset },
+        ],
+      );
+    } else {
+      handleReset();
+    }
+  }
+
+  function openUrl(url: string) {
+    Linking.openURL(url).catch(() => {});
+  }
+
+  function handleContactUs() {
+    const subject = 'Quizzes — feedback';
+    const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+    Linking.openURL(mailto).catch(() => {
+      Alert.alert('Email', SUPPORT_EMAIL);
+    });
+  }
+
+  async function handleRecommend() {
+    const { storeUrl } = getStoreLinks(snapshot?.app, Platform.OS);
+    try {
+      await Share.share({ message: `${t('settings.recommend.text')} ${storeUrl}` });
+    } catch {
+      // user cancelled
+    }
+  }
+
+  function handleRateUs() {
+    const { rateDeepLink, rateFallbackUrl } = getStoreLinks(snapshot?.app, Platform.OS);
+    Linking.openURL(rateDeepLink).catch(() => {
+      openUrl(rateFallbackUrl);
+    });
+  }
+
+  function handleSubscriptionManagement() {
+    const url = Platform.OS === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : `https://play.google.com/store/account/subscriptions?package=${getAndroidPackage(snapshot?.app)}`;
+    openUrl(url);
+  }
+
+  function handleRestorePurchases() {
+    Alert.alert(
+      t('settings.restorePurchases.titleAlert'),
+      t('settings.restorePurchases.messageAlert'),
+      [{ text: t('settings.restorePurchases.dismiss') }],
+    );
+  }
+
+  function handleSignIn() {
+    // Optional account / cross-device sync — UI placeholder for now.
+    Alert.alert(
+      t('settings.signIn.titleAlert'),
+      t('settings.signIn.messageAlert'),
+      [{ text: t('settings.restorePurchases.dismiss') }],
+    );
+  }
+
+  return (
+    <ScreenBackground>
+      <SafeAreaView style={styles.flex}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <SectionLabel labelKey="settings.section.share" />
+          <View style={styles.card}>
+            <Row
+              icon="square.and.arrow.up"
+              label={t('settings.recommend')}
+              onPress={handleRecommend}
+            />
+            <Divider />
+            <Row
+              icon="star.fill"
+              label={t('settings.rateUs')}
+              onPress={handleRateUs}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.preferences" />
+          <View style={styles.card}>
+            <Row
+              icon="globe"
+              label={t('settings.language')}
+              value={LANGUAGE_LABEL[locale]}
+              onPress={() => setLanguageOpen(true)}
+            />
+            <Divider />
+            <Row
+              icon="paintpalette.fill"
+              label={t('settings.appearance')}
+              value={t(THEME_LABEL_KEY[theme])}
+              onPress={() => setAppearanceOpen(true)}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.account" />
+          <View style={styles.card}>
+            <Row
+              icon="person.fill"
+              label={t('settings.signIn')}
+              onPress={handleSignIn}
+            />
+            <Divider />
+            <Row
+              icon="arrow.clockwise"
+              label={t('settings.restorePurchases')}
+              onPress={handleRestorePurchases}
+            />
+            <Divider />
+            <Row
+              icon="creditcard.fill"
+              label={t('settings.subscriptionManagement')}
+              onPress={handleSubscriptionManagement}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.help" />
+          <View style={styles.card}>
+            <Row
+              icon="envelope.fill"
+              label={t('settings.contactUs')}
+              onPress={handleContactUs}
+            />
+          </View>
+
+          <SectionLabel labelKey="settings.section.about" />
+          <View style={styles.card}>
+            <Row
+              icon="lock.fill"
+              label={t('settings.privacyPolicy')}
+              onPress={() => openUrl(PRIVACY_URL)}
+            />
+            <Divider />
+            <Row
+              icon="doc.text.fill"
+              label={t('settings.termsOfUse')}
+              onPress={() => openUrl(TERMS_URL)}
+            />
+          </View>
+
+          {__DEV__ && (
+            <View style={styles.devSection}>
+              <Text style={styles.devSectionLabel}>Developer</Text>
+              <Pressable
+                onPress={confirmReset}
+                style={({ pressed }) => [styles.devButton, pressed && styles.devButtonPressed]}
+                testID="dev-reset"
+              >
+                <Text style={styles.devButtonText}>Reset onboarding flags</Text>
+              </Pressable>
+              <Text style={styles.devHint}>
+                Wipes language pick, onboarding seen, and premium flag, then sends you back to the splash screen.
+              </Text>
+            </View>
+          )}
+
+          {!!APP_VERSION && (
+            <Text style={styles.versionText}>
+              {t('settings.version')} {APP_VERSION}
+            </Text>
+          )}
+        </ScrollView>
+
+        <BottomBar current="settings" />
+      </SafeAreaView>
+
+      <LanguageModal
+        visible={languageOpen}
+        selected={locale}
+        onClose={() => setLanguageOpen(false)}
+        onPick={(picked) => changeLocale(picked)}
+      />
+
+      <AppearanceModal
+        visible={appearanceOpen}
+        selected={theme}
+        onClose={() => setAppearanceOpen(false)}
+        onPick={(picked) => setTheme(picked)}
+      />
+    </ScreenBackground>
+  );
+}
+
+function SectionLabel({ labelKey }: { labelKey: StringKey }) {
+  const { t } = useTranslation();
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <Text style={styles.sectionLabel}>{t(labelKey)}</Text>;
+}
+
+interface RowProps {
+  icon: React.ComponentProps<typeof IconSymbol>['name'];
+  label: string;
+  /** Optional right-aligned value (e.g. current language). */
+  value?: string;
+  onPress: () => void;
+}
+
+function Row({ icon, label, value, onPress }: RowProps) {
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <View style={styles.rowIcon}>
+        <IconSymbol name={icon} size={20} color={colors.accentSoft} />
+      </View>
+      <Text style={styles.rowLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      {value && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
+      <IconSymbol name="chevron.right" size={18} color={colors.textDisabled} />
+    </Pressable>
+  );
+}
+
+function Divider() {
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return <View style={styles.divider} />;
+}
+
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: c.text,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: c.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    backgroundColor: c.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  rowPressed: {
+    backgroundColor: c.surfaceSoft,
+  },
+  rowIcon: {
+    width: 28,
+    alignItems: 'center',
+  },
+  rowLabel: {
+    flex: 1,
+    color: c.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rowValue: {
+    color: c.textFaint,
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.border,
+    marginLeft: 58,
+  },
+  devSection: {
+    marginTop: 28,
+    gap: 10,
+  },
+  devSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: c.textDisabled,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    paddingHorizontal: 4,
+  },
+  devButton: {
+    backgroundColor: c.danger,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  devButtonPressed: {
+    opacity: 0.85,
+  },
+  devButtonText: {
+    color: c.onAccent,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  devHint: {
+    color: c.textDisabled,
+    fontSize: 12,
+    paddingHorizontal: 8,
+    lineHeight: 16,
+  },
+  versionText: {
+    color: c.textDisabled,
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 24,
+    letterSpacing: 0.3,
+  },
+});

@@ -20,6 +20,8 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **Ramp / spectrum** — Tile artwork terms in the configurable template. The *spectrum* is the 15 named brand hues; a *ramp* is a named two-stop gradient built from two of them, and it is what a category or mode tile asks for. Neither is a palette token. See [Configurable Template](configurable-template.md#tile-artwork-a-bundled-spectrum).
 
+**Brand colour (third-party)** — The Apple and Google sign-in button colours in `constants/t/oauth-brand.ts`. Not a token, and deliberately unreachable through the colour funnel: the vendors' guidelines fix these values, so letting an operator preset move them would ship a store-review risk. Unlike the tile spectrum — a temporary seam waiting to be remoted — this one is permanent, and remoting it would be the bug. See [Configurable Template](configurable-template.md#third-party-brand-colour-the-seam-that-stays).
+
 ## Artwork
 
 **Asset pack** — One complete set of the configurable template's bundled pictures, checked in under `asset-packs/<pack>.assets/`. The operator picks a pack, and the build service copies it into the staging directory before Metro runs; the app never sees more than one. Only the template has packs — the five sibling apps keep their artwork checked in against their screens. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).

@@ -43,13 +43,17 @@ export default function TTemplateLayout() {
           queued answers first. */}
       <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
       <Stack.Screen name="results" options={{ gestureEnabled: false }} />
-      {/* Two of the bottom bar's destinations. Both mirror the options
+      {/* Four of the bottom bar's five destinations — the fifth, paywall, is
+          registered above with its own options. All four mirror the options
           app/_layout.tsx gives the Erudite originals, so the push animation is
-          unchanged by the port. The bar that reaches them is still the shared
-          one, pointing at the Erudite routes; components/t/bottom-bar.tsx closes
-          that in the subtask that also ports account and settings. */}
+          unchanged by the port. The bar that reaches them is still the SHARED
+          components/bottom-bar.tsx, whose five slots point at the Erudite
+          routes; that stays true until components/t/bottom-bar.tsx exists and
+          every screen under app/t/ imports it instead. */}
       <Stack.Screen name="stats" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="shop" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="account" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }
