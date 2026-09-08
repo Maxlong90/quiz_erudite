@@ -167,7 +167,7 @@ const NOT_YET_PORTED: { prefix: string; until: string; why: string }[] = [
   {
     prefix: '/paywall',
     until: 'the paywall is ported',
-    why: 'BOTH app/t/index.tsx and app/t/quiz-mode/[slug].tsx send a premium-locked tap there — re-point both in the commit that deletes this entry, or the assertion below stays green off the survivor while the escape check fires on the other',
+    why: 'THREE files reach it — app/t/index.tsx (1 site), app/t/quiz-mode/[slug].tsx (1) and app/t/onboarding.tsx (3) — so re-point ALL FIVE in the commit that deletes this entry. Miss one and the assertion below stays green off the survivor while the escape check fires on the files you did re-point',
   },
 ];
 
@@ -215,6 +215,22 @@ describe('every route the template navigates to stays inside /t', () => {
       expect({ prefix, callers: callers.length > 0 }).toEqual({ prefix, callers: true });
     },
   );
+
+  it.each(NOT_YET_PORTED)('$prefix is reached from exactly the files its `why` names', ({ prefix }) => {
+    // The `why` above tells the next porter WHICH files to re-point, and a
+    // count in prose is exactly the kind of thing that rots — this entry's
+    // first draft named two files when three reach /paywall. Pinning the set
+    // makes the instruction self-checking: add a caller and this goes red
+    // asking for the prose to be updated, rather than letting the next porter
+    // re-point four of five sites and leave the fifth escaping.
+    const callers = templateSources.filter((file) =>
+      routeLiteralsIn(file).some(({ route }) => route.startsWith(prefix)),
+    );
+    expect({ prefix, callers: callers.sort() }).toEqual({
+      prefix,
+      callers: ['t/index.tsx', 't/onboarding.tsx', 't/quiz-mode/[slug].tsx'],
+    });
+  });
 
   it('really does reach into the quiz loop', () => {
     // Proves the scanner sees route literals at all, rather than that the regex
