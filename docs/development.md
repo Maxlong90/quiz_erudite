@@ -148,6 +148,22 @@ Build one like this:
 
 For the configurable template there is a step 0: choose the artwork. `npm run asset-pack <name>` (e.g. `base`, `neon`) copies `asset-packs/<name>.assets/` into `assets/t/`, which is where the template's static `require()` calls point. It must run **before** prebuild and bundling, because Metro reads whatever is on disk at that moment — on a real build the backend does this copy against its own clone. `base` is what is committed; staging anything else turns `__tests__/app/t-asset-packs.test.ts` red on purpose, so re-run it with `base` before committing. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
 
+### Swapping a pack against a running dev build
+
+Fast Refresh does **not** reliably show the new artwork, and the reason is worth knowing before you spend an hour on it. Swapping a pack changes bytes behind an unchanged path, so every layer that caches by *path* rather than by content keeps serving the old image: Metro is fine (it re-reads the file, and its dev asset endpoint serves current bytes for any `hash` query), but Fresco's **in-memory** bitmap cache in the running app is not. Clearing the on-disk caches while the process is alive does nothing — the bitmap is already in RAM.
+
+The order that works is force-stop first, then clear, then relaunch:
+
+```bash
+npm run asset-pack neon
+adb -s emulator-5556 shell am force-stop <package>
+for d in image_cache image_manager_disk_cache http-cache; do
+  adb -s emulator-5556 shell run-as <package> rm -rf "cache/$d"
+done
+```
+
+None of this applies to a real build: the backend copies into a fresh clone before Metro has ever run, and `expo export` emits assets under content-hashed filenames, so two packs cannot collide in any cache. This is purely an artifact of swapping underneath a live dev server.
+
 Three constraints shape this path:
 
 - **`android/` is generated, gitignored, and carries the last prebuild's slug.** It is not evidence of what you are about to build. Read `applicationId` in `android/app/build.gradle` before trusting an install; `com.quizzzes.erudite` there means the tree is currently prebuilt as Erudite, whatever env var you meant to set.

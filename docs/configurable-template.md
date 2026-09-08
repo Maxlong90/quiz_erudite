@@ -180,7 +180,9 @@ The Exams project, which this mechanism is copied from, stages packs straight in
 
 `assets/t/` matches the existing `assets/<app>/` convention (`assets/sport-quiz/`, `assets/italy-quiz/`) and is owned entirely by the template. Because the destination is app-specific and no longer the reference project's default, the backend has to be *told* where to copy — which is why the manifest carries a `target` field rather than leaving `assets/t` duplicated as a constant in PHP.
 
-That field is also a path-traversal and clobber vector, since it is data supplied by whoever authors a pack. A pack declaring `"target": "assets/onboarding"` would delete the Erudite artwork on the build server's clone. Both halves guard it against an allowlist rather than a traversal check: the set of legal destinations is one entry long, so an allowlist is both stricter and simpler.
+That field is also a path-traversal and clobber vector, since it is data supplied by whoever authors a pack. A pack declaring `"target": "assets/onboarding"` would delete the Erudite artwork on the build server's clone — and the copy is a `rm -rf` followed by a write, so there is nothing to roll back.
+
+Guard it with an **allowlist**, on both sides. The tempting shape is a pattern like `^assets/[a-z0-9-]+$`, and it is worth seeing why that fails: it rejects `../../etc` and `assets/t/../onboarding` and looks like it has covered the problem, but it happily accepts `assets/onboarding` — the one destination the check exists to prevent. Traversal was never the real risk here; a perfectly well-formed path pointing at a live directory is. The set of legal destinations is one entry long, so comparing against that set is both stricter and simpler than any pattern. `scripts/apply-asset-pack.mjs` refuses with a non-zero exit, and `__tests__/app/t-asset-packs.test.ts` fails the pack that declares it.
 
 ### The manifest is a build-time contract
 
