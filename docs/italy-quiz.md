@@ -46,7 +46,7 @@ The Renaissance gets its own act rather than sitting inside a broader "centuries
 
 Between two acts the screen hands over to `ActInterlude`. Without it, question 5 is about Domitian's stadium and question 6 is suddenly about the Pope, and the jump reads as a random change of subject — the exact failure the mixed-discipline tour was supposed to fix. The card names how much time just passed, sets up the next act, and gives a natural place to put the phone down halfway through twenty questions.
 
-It **waits for a tap** rather than auto-advancing, so the player controls the pace. The button says `AVANTI!` on every interlude — a recurring beat of the tour — with the destination underneath so nobody is guessing where they are being taken.
+It **waits for a tap** rather than auto-advancing, so the player controls the pace. The button **names the act being entered** — "To the Middle Ages", "To the Renaissance", "To the present day" — rather than carrying one recurring word. The card's entire job is to explain where the tour is jumping, and the button is the one control the player actually reads; a generic label throws that away. The copy is per-act, authored beside the interlude in `places.ts`.
 
 Interludes are **suppressed during a mistakes review**, where the questions jump between acts by definition and an interlude would fire on almost every question.
 
@@ -87,7 +87,7 @@ place tapped
 saved tour for this place? ──yes──→ resume at pos (intro skipped)
       │ no
       ↓
- intro card → act 1 ──act ends──→ interlude ──AVANTI──→ act 2 → …
+ intro card → act 1 ──act ends──→ interlude ──tap──→ act 2 → …
       │                                                        │
       └──── persisted every change ────────── result ←─────────┘
                                                 │

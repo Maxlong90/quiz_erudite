@@ -41,8 +41,13 @@ export interface ActInterlude {
   headline: LocalizedText;
   /** Two or three sentences setting up what the next act is about. */
   body: LocalizedText;
-  /** Sub-label under the "AVANTI!" button — where the player is going. */
-  destination: LocalizedText;
+  /**
+   * The continue button's label. Deliberately NAMES the destination rather than
+   * saying something generic: the card's whole job is to explain where the tour
+   * is jumping to, and a button reading "Next" throws that away on the one
+   * control the player actually presses.
+   */
+  cta: LocalizedText;
 }
 
 export interface ItalyAct {
@@ -84,7 +89,7 @@ const ROME_ACTS: ItalyAct[] = [
         ru: 'Империя рухнула. Город опустел с миллиона человек до двадцати пяти тысяч, а на Форуме, где решались судьбы мира, начали пасти коров.',
         en: 'The empire fell. The city emptied from a million people down to twenty-five thousand, and cattle grazed on the Forum where the world was once run.',
       },
-      destination: { ru: 'в Средние века', en: 'to the Middle Ages' },
+      cta: { ru: 'В Средние века', en: 'To the Middle Ages' },
     },
   },
   {
@@ -97,7 +102,7 @@ const ROME_ACTS: ItalyAct[] = [
         ru: 'Папы вернулись из Авиньона в разорённый город и решили, что Рим снова станет столицей мира. Начинается самая дорогая стройка в истории Европы.',
         en: 'The popes returned from Avignon to a ruined city and decided Rome would be the capital of the world again. The most expensive building project in European history begins.',
       },
-      destination: { ru: 'в Возрождение', en: 'to the Renaissance' },
+      cta: { ru: 'В Возрождение', en: 'To the Renaissance' },
     },
   },
   {
@@ -110,7 +115,7 @@ const ROME_ACTS: ItalyAct[] = [
         ru: 'Рим стал столицей новой страны — Италии. Теперь сюда приезжают не завоёвывать, а фотографироваться: тридцать пять миллионов туристов в год.',
         en: 'Rome became the capital of a new country — Italy. People come now not to conquer but to take pictures: thirty-five million tourists a year.',
       },
-      destination: { ru: 'в наши дни', en: 'to the present day' },
+      cta: { ru: 'В наши дни', en: 'To the present day' },
     },
   },
 ];

@@ -12,23 +12,21 @@ import { GlossyButton } from '@/components/italy-quiz/glossy-button';
  * through twenty questions, and gives a natural place to put the phone down.
  *
  * It waits for a tap rather than auto-advancing — the player decides when to move
- * on. The button says AVANTI on every interlude so it becomes the tour's own
- * recurring beat, with the destination underneath so nobody is guessing where
- * they are being taken.
+ * on. The button NAMES the act being entered ("To the Renaissance") instead of
+ * carrying a generic word: the card exists to explain where the tour is jumping,
+ * and the button is the one control the player actually looks at.
  */
 export function ActInterlude({
   icon,
   headline,
   body,
   cta,
-  destination,
   onContinue,
 }: {
   icon: string;
   headline: string;
   body: string;
   cta: string;
-  destination: string;
   onContinue: () => void;
 }) {
   return (
@@ -39,13 +37,7 @@ export function ActInterlude({
         <Text style={styles.body}>{body}</Text>
       </View>
       <View style={styles.footer}>
-        <GlossyButton
-          label={cta}
-          sublabel={destination}
-          fontSize={26}
-          paddingVertical={16}
-          onPress={onContinue}
-        />
+        <GlossyButton label={cta} fontSize={24} paddingVertical={18} onPress={onContinue} />
       </View>
     </View>
   );

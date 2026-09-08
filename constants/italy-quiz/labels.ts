@@ -21,8 +21,6 @@ export interface ItalyLabels {
   comingSoon: string;
   /** Starts the tour from the intro card. */
   startTour: string;
-  /** Recurring button on every act interlude. */
-  interludeCta: string;
   // Scale questions
   /** Locks in the slider guess. */
   scaleConfirm: string;
@@ -73,7 +71,6 @@ const EN: ItalyLabels = {
   whereTo: 'Where to?',
   comingSoon: 'coming soon',
   startTour: "Let's go",
-  interludeCta: 'AVANTI!',
   scaleConfirm: 'Answer',
   scaleSpotOn: 'Spot on!',
   scaleMiss: 'Off by {gap}',
@@ -116,7 +113,6 @@ const RU: ItalyLabels = {
   whereTo: 'Куда поедем?',
   comingSoon: 'скоро',
   startTour: 'Поехали',
-  interludeCta: 'AVANTI!',
   scaleConfirm: 'Ответить',
   scaleSpotOn: 'В точку!',
   scaleMiss: 'Промах {gap}',
@@ -159,7 +155,6 @@ const ES: ItalyLabels = {
   whereTo: '¿A dónde vamos?',
   comingSoon: 'próximamente',
   startTour: 'Vamos',
-  interludeCta: '¡AVANTI!',
   scaleConfirm: 'Responder',
   scaleSpotOn: '¡Justo!',
   scaleMiss: 'Fallo de {gap}',
@@ -202,7 +197,6 @@ const FR: ItalyLabels = {
   whereTo: 'On va où ?',
   comingSoon: 'bientôt',
   startTour: 'C’est parti',
-  interludeCta: 'AVANTI !',
   scaleConfirm: 'Répondre',
   scaleSpotOn: 'Pile !',
   scaleMiss: 'Écart de {gap}',

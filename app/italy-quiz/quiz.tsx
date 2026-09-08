@@ -417,8 +417,7 @@ export default function ItalyQuizGame() {
         icon={act.icon}
         headline={pickText(act.interlude.headline, locale)}
         body={pickText(act.interlude.body, locale)}
-        cta={t.interludeCta}
-        destination={pickText(act.interlude.destination, locale)}
+        cta={pickText(act.interlude.cta, locale)}
         onContinue={() => setInterludeSeen(pos)}
       />,
     );
