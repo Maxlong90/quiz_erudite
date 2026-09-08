@@ -14,6 +14,12 @@ export interface RunProgress {
   ids: number[];
   pos: number;
   wrong: number[];
+  /**
+   * How many questions the subcategory held when this run was drawn. When the
+   * backend adds or removes content, the saved run would otherwise keep
+   * replaying the old, narrower selection — so a changed pool retires it.
+   */
+  poolSize?: number;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -68,6 +74,9 @@ function isValid(p: unknown, pool: Set<number>): p is RunProgress {
   if (!p || typeof p !== 'object') return false;
   const r = p as RunProgress;
   if (!Array.isArray(r.ids) || r.ids.length === 0) return false;
+  // Content changed since the draw — start fresh so new questions (and any
+  // newly added photos) can actually appear.
+  if (r.poolSize != null && r.poolSize !== pool.size) return false;
   if (!r.ids.every((n) => Number.isInteger(n) && pool.has(n))) return false;
   if (typeof r.pos !== 'number' || r.pos < 0 || r.pos > r.ids.length) return false;
   if (!Array.isArray(r.wrong) || !r.wrong.every((n) => Number.isInteger(n))) return false;
@@ -126,7 +135,12 @@ export function useRunProgress(opts: {
     // A retry run: the passed IDs, in order, no persistence.
     if (retry && retry.length > 0) {
       const known = new Set(pool.map((q) => q.id));
-      finishWith({ ids: retry.filter((n) => known.has(n)), pos: 0, wrong: [] });
+      finishWith({
+        ids: retry.filter((n) => known.has(n)),
+        pos: 0,
+        wrong: [],
+        poolSize: pool.length,
+      });
       return;
     }
 
@@ -143,7 +157,9 @@ export function useRunProgress(opts: {
           // ignore a corrupt/unreadable entry — fall back to a fresh run
         }
       }
-      finishWith(saved ?? { ids: drawRun(pool, limit, photoMix), pos: 0, wrong: [] });
+      finishWith(
+        saved ?? { ids: drawRun(pool, limit, photoMix), pos: 0, wrong: [], poolSize: pool.length },
+      );
     })();
 
     return () => {

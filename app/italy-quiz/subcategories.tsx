@@ -39,11 +39,15 @@ export default function ItalyQuizSubcategories() {
           >
             <GlossyIconButton glyph="chevron-back" size={44} />
           </Pressable>
-          <Text style={styles.title} numberOfLines={2}>
-            {category?.title ?? ''}
-          </Text>
-          <View style={{ width: 44 }} />
         </View>
+        <Text
+          style={styles.title}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {category?.title ?? ''}
+        </Text>
 
         <ScrollView
           contentContainerStyle={styles.list}
@@ -83,17 +87,17 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    gap: 8,
   },
   title: {
-    flex: 1,
     textAlign: 'center',
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '900',
+    paddingHorizontal: 20,
+    // Half a subcategory button (~62 tall) below the back row.
+    marginTop: 31,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
@@ -102,7 +106,7 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 24,
     // Lowered ~half a button height below the back/header row per the brief.
-    paddingTop: 48,
+    paddingTop: 28,
     paddingBottom: 32,
     gap: 14,
   },

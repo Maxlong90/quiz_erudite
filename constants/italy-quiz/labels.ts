@@ -39,6 +39,9 @@ export interface ItalyLabels {
   helpBody: string;
   gotIt: string;
   shareInvite: string;
+  /** Settings row that force-refreshes the downloaded question set. */
+  refreshContent: string;
+  refreshDone: string;
 }
 
 const EN: ItalyLabels = {
@@ -71,6 +74,8 @@ const EN: ItalyLabels = {
     'A wrong answer never reveals the right one — you simply move on to the next question. Every question you miss is remembered, and at the end of the run you can tap “Review mistakes” to replay just those. Nothing is lost: you can always come back and master the ones you missed.',
   gotIt: 'Got it',
   shareInvite: 'How well do you know Italy? Play Italy Quiz: {url}',
+  refreshContent: 'Refresh questions',
+  refreshDone: 'Questions updated.',
 };
 
 const RU: ItalyLabels = {
@@ -103,6 +108,8 @@ const RU: ItalyLabels = {
     'При неправильном ответе правильный не показывается — вы просто переходите к следующему вопросу. Все вопросы, в которых вы ошиблись, запоминаются, и в конце игры можно нажать «Работа над ошибками», чтобы пройти именно их заново. Ничего не теряется: вы всегда сможете вернуться и закрепить то, что не угадали.',
   gotIt: 'Понятно',
   shareInvite: 'Хорошо знаешь Италию? Играй в Italy Quiz: {url}',
+  refreshContent: 'Обновить вопросы',
+  refreshDone: 'Вопросы обновлены.',
 };
 
 const ES: ItalyLabels = {
@@ -135,6 +142,8 @@ const ES: ItalyLabels = {
     'Una respuesta incorrecta nunca revela la correcta: simplemente pasas a la siguiente pregunta. Cada pregunta que falles se guarda y, al terminar la partida, puedes pulsar «Repasar errores» para jugar solo esas. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
   gotIt: 'Entendido',
   shareInvite: '¿Conoces bien Italia? Juega a Italy Quiz: {url}',
+  refreshContent: 'Actualizar preguntas',
+  refreshDone: 'Preguntas actualizadas.',
 };
 
 const FR: ItalyLabels = {
@@ -167,6 +176,8 @@ const FR: ItalyLabels = {
     'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la question suivante. Chaque question ratée est mémorisée et, à la fin de la partie, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. Rien n’est perdu : vous pourrez toujours revenir et maîtriser celles que vous avez ratées.',
   gotIt: 'Compris',
   shareInvite: 'Connaissez-vous bien l’Italie ? Jouez à Italy Quiz : {url}',
+  refreshContent: 'Actualiser les questions',
+  refreshDone: 'Questions mises à jour.',
 };
 
 const TABLE: Record<SupportedLocale, ItalyLabels> = { en: EN, ru: RU, es: ES, fr: FR };

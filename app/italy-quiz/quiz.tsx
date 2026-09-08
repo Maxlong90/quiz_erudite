@@ -16,10 +16,12 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
+import { AppBackground } from '@/components/italy-quiz/app-background';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { HelpModal } from '@/components/italy-quiz/help-modal';
-import { ReportModal } from '@/components/quiz/report-modal';
+import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
+import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
 import { useItalyCategory, RUN_PHOTO_MIX } from '@/constants/italy-quiz/categories';
@@ -40,6 +42,9 @@ const RUN_LENGTH = 50;
  * does not auto-advance: it shows the explanation and waits for "Next".
  */
 const WRONG_ADVANCE_MS = 700;
+
+/** Answer button height — same as the Flags Quiz option tiles. */
+const OPTION_H = 68;
 
 /** Answer-state colours — green for a correct pick, red for a wrong one. */
 const CORRECT = { light: '#3FBF6A', dark: '#12703B', rim: '#0A4223' };
@@ -197,14 +202,14 @@ export default function ItalyQuizGame() {
   const Background = (
     <>
       <LinearGradient
-        colors={['#6E7FD6', '#43539F', '#212F63']}
+        colors={[ItalyColors.bgTop, ItalyColors.bgMid, ItalyColors.bgBottom]}
         locations={[0, 0.55, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(200, 214, 255, 0.5)', 'rgba(200, 214, 255, 0)']}
+        colors={[ItalyColors.bgGlow, 'rgba(200, 214, 255, 0)']}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.topGlow}
@@ -270,12 +275,18 @@ export default function ItalyQuizGame() {
     <>
       <HelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
       {question ? (
-        <ReportModal
+        /* Report form. The shared ReportModal paints itself from the erudite
+           theme (purple), so Italy uses the colour-configurable sheet instead —
+           the same one Flags Quiz opens — in the app's blue. */
+        <QuizMenuModal
           visible={reportOpen}
-          contentType="question"
-          contentId={question.id}
-          locale={locale}
           onClose={() => setReportOpen(false)}
+          question={{ id: question.id } as unknown as LogoQuizQuestion}
+          appConfig={undefined}
+          locale={locale}
+          initialView="report"
+          primaryGradient={[ItalyColors.tileLight, ItalyColors.tileDark]}
+          sheetGradient={['#E8F0FF', '#B9CEF6']}
         />
       ) : null}
     </>
@@ -316,43 +327,93 @@ export default function ItalyQuizGame() {
   if (done || !question) {
     const total = ids.length;
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-    const verdict =
-      pct >= 80 ? t.resultExcellent : pct >= 50 ? t.resultGood : t.resultKeepGoing;
+    const tier = pct >= 80 ? 'excellent' : pct >= 40 ? 'good' : 'keepGoing';
+    const tierColor = tier === 'excellent' ? '#37B24D' : tier === 'good' ? '#F59F00' : '#E03131';
+    // A perfect run always earns the trophy; nothing right gets a soft smile.
+    const allCorrect = total > 0 && score === total;
+    const emoji = allCorrect
+      ? '\u{1F3C6}'
+      : score === 0
+        ? '\u{1F972}'
+        : tier === 'excellent'
+          ? '\u{1F389}'
+          : tier === 'good'
+            ? '\u{1F44D}'
+            : '\u{1F4AA}';
+    const message =
+      tier === 'excellent'
+        ? t.resultExcellent
+        : tier === 'good'
+          ? t.resultGood
+          : t.resultKeepGoing;
     // Snapshot the misses now — starting the review resets the live list.
     const misses = [...wrong];
-    return Shell(
-      <>
-        <View style={styles.centre}>
-          <Text style={styles.resultTitle}>{t.resultTitle}</Text>
-          <Text style={styles.resultScore}>
-            {score}/{total}
-          </Text>
-          <Text style={styles.resultCaption}>{t.resultCaption}</Text>
-          <Text style={styles.verdict}>{verdict}</Text>
-        </View>
-        <View style={styles.resultActions}>
-          {misses.length > 0 ? (
-            <GlossyButton
-              label={`${t.retryMistakes} (${misses.length})`}
-              fontSize={19}
-              paddingVertical={16}
-              onPress={() => startRun(misses)}
-            />
-          ) : null}
-          <GlossyButton
-            label={t.playAgain}
-            fontSize={20}
-            paddingVertical={16}
-            onPress={() => startRun(null)}
-          />
-          <GlossyButton
-            label={t.backToCategories}
-            fontSize={20}
-            paddingVertical={16}
-            onPress={() => router.dismissTo('/italy-quiz/categories')}
-          />
-        </View>
-      </>,
+
+    return (
+      <View style={styles.fill}>
+        {/* Home artwork, softened the same ~30% as the Flags Quiz result. */}
+        <AppBackground blurRadius={13} />
+        <View style={styles.resultScrim} pointerEvents="none" />
+        <StatusBar style="light" />
+
+        <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+          <ScrollView
+            contentContainerStyle={styles.resultScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.emoji}>{emoji}</Text>
+            <Text style={styles.resultTitle}>{t.resultTitle}</Text>
+
+            {/* Big square score tile — the Flags Quiz shape in the Italy palette. */}
+            <LinearGradient
+              colors={[ItalyColors.tileLight, ItalyColors.tileDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.square, { borderColor: tierColor }, ItalyShadow.card]}
+            >
+              <LinearGradient
+                colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+                style={styles.squareGloss}
+                pointerEvents="none"
+              />
+              <Text
+                style={[styles.score, { color: tierColor }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+              >{`${score}/${total}`}</Text>
+              <Text style={[styles.percent, { color: tierColor }]}>{`${pct}%`}</Text>
+              <Text style={styles.caption}>{t.resultCaption}</Text>
+            </LinearGradient>
+
+            <Text style={styles.message}>{message}</Text>
+
+            <View style={styles.resultButtons}>
+              {misses.length > 0 ? (
+                <GlossyButton
+                  label={`${t.retryMistakes} (${misses.length})`}
+                  fontSize={20}
+                  paddingVertical={18}
+                  onPress={() => startRun(misses)}
+                />
+              ) : null}
+              <GlossyButton
+                label={t.playAgain}
+                fontSize={22}
+                paddingVertical={18}
+                onPress={() => startRun(null)}
+              />
+              <GlossyButton
+                label={t.backToCategories}
+                fontSize={22}
+                paddingVertical={18}
+                onPress={() => router.dismissTo('/italy-quiz/categories')}
+              />
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+        {Modals}
+      </View>
     );
   }
 
@@ -381,6 +442,7 @@ export default function ItalyQuizGame() {
           <Text style={styles.questionText}>{question.question}</Text>
         </View>
 
+        {/* 2x2 grid, like Flags Quiz: two options per row, facing each other. */}
         <View style={styles.options}>
           {question.options.map((opt, i) => {
             // ONLY the tapped option lights up. A wrong pick never reveals
@@ -392,7 +454,10 @@ export default function ItalyQuizGame() {
                 key={i}
                 onPress={() => onPick(i)}
                 disabled={answered}
-                style={({ pressed }) => pressed && !answered && styles.pressed}
+                style={({ pressed }) => [
+                  styles.optionWrap,
+                  pressed && !answered && styles.pressed,
+                ]}
               >
                 <LinearGradient
                   colors={
@@ -448,7 +513,7 @@ export default function ItalyQuizGame() {
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: '#212F63' },
+  fill: { flex: 1, backgroundColor: ItalyColors.bgBottom },
   topGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 280 },
 
   hud: {
@@ -463,12 +528,13 @@ const styles = StyleSheet.create({
   titleRow: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    // One icon-tile of breathing room under the HUD row.
+    paddingTop: 44,
     gap: 2,
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '900',
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.4)',
@@ -478,10 +544,11 @@ const styles = StyleSheet.create({
   counterText: {
     color: '#D6DEFF',
     fontWeight: '800',
-    fontSize: 15,
+    fontSize: 20,
   },
 
-  body: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20, gap: 14 },
+  // Half an answer-button of space between the title block and the question.
+  body: { paddingHorizontal: 20, paddingTop: OPTION_H / 2, paddingBottom: 20, gap: 14 },
 
   imageFrame: {
     width: '100%',
@@ -495,10 +562,10 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%' },
 
   questionCard: {
-    backgroundColor: 'rgba(10, 27, 84, 0.72)',
+    backgroundColor: ItalyColors.cardBg,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1.5,
+    borderColor: ItalyColors.cardRim,
     paddingVertical: 16,
     paddingHorizontal: 18,
   },
@@ -510,12 +577,19 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
 
-  options: { gap: 12 },
+  // Two per row, facing each other — the Flags Quiz answer grid.
+  options: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 14,
+  },
+  optionWrap: { width: '48%' },
   option: {
+    height: OPTION_H,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
     borderRadius: 18,
     borderWidth: 2,
   },
@@ -530,40 +604,102 @@ const styles = StyleSheet.create({
   },
   optionDimmed: { opacity: 0.55 },
   optionText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    color: ItalyColors.tileGlyph,
+    fontSize: 20,
+    fontWeight: '900',
     textAlign: 'center',
   },
+  /** Green/red states are dark, so their label flips to white. */
+  optionTextLit: { color: '#FFFFFF' },
 
+  // White card, navy rim, navy text — same treatment as the Flags Quiz note.
   explainCard: {
-    backgroundColor: 'rgba(6, 15, 56, 0.62)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: ItalyColors.tileRim,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
-  explainText: { color: '#E7ECFF', fontSize: 15, lineHeight: 21 },
+  explainText: {
+    color: ItalyColors.ink,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 21,
+  },
 
   // Pinned above the safe-area bottom; the button itself only takes the width of
   // its own label (alignSelf: centre) instead of stretching edge to edge.
   footer: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
-  nextWrap: { alignSelf: 'center' },
+  nextWrap: { width: '48%', alignSelf: 'center' },
 
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
   note: { color: '#E7ECFF', fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
-  resultTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
-  resultScore: { color: '#FFFFFF', fontSize: 64, fontWeight: '900' },
-  resultCaption: { color: '#D6DEFF', fontSize: 15, fontWeight: '700' },
-  verdict: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginTop: 12,
+  // --- Result screen (blurred home artwork + Flags-Quiz score tile) ---
+  resultScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(33, 47, 99, 0.55)',
   },
-  resultActions: { paddingHorizontal: 24, paddingBottom: 16, gap: 12 },
+  resultScroll: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    gap: 18,
+  },
+  emoji: { fontSize: 64, lineHeight: 76 },
+  resultTitle: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '900',
+    textShadowColor: 'rgba(4, 16, 60, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  square: {
+    width: 200,
+    height: 200,
+    borderRadius: 28,
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginVertical: 4,
+    overflow: 'hidden',
+  },
+  squareGloss: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    right: 2,
+    height: '50%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  score: {
+    fontSize: 56,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+    alignSelf: 'stretch',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  percent: { fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  caption: { color: ItalyColors.tileGlyph, fontSize: 14, fontWeight: '700', marginTop: 2 },
+  message: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  resultButtons: { width: '100%', gap: 12, marginTop: 4 },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

@@ -40,6 +40,13 @@ export default function ItalyQuizCategories() {
           >
             <GlossyIconButton glyph="chevron-back" size={44} />
           </Pressable>
+          <Pressable
+            onPress={() => router.push('/italy-quiz/settings')}
+            hitSlop={8}
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <GlossyIconButton glyph="settings-sharp" size={44} />
+          </Pressable>
         </View>
 
         <ScrollView
@@ -70,6 +77,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
