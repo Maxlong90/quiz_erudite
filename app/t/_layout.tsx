@@ -18,6 +18,9 @@ export default function TTemplateLayout() {
       }}
     >
       <Stack.Screen name="splash" options={{ animation: 'none' }} />
+      {/* Reached from the splash on a first launch only; its artwork is whichever
+          asset pack the build staged (constants/t/asset-slots.ts). */}
+      <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
       <Stack.Screen name="index" options={{ animation: 'fade' }} />
       {/* The token gallery, pushed from a long-press on the home wordmark. */}
       <Stack.Screen name="tokens" options={{ animation: 'slide_from_right' }} />

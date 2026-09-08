@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "pack": "neon",
+  "title": "Неоновый",
+  "onboarding_types": ["universal"],
+  "target": "assets/t",
+  "slots": {
+    "splash/logo.png": { "w": 256, "h": 256, "title": "Сплэш, логотип" },
+    "onboarding/step1.png": { "w": 256, "h": 256, "title": "Онбординг, слайд 1" },
+    "onboarding/step2.png": { "w": 256, "h": 256, "title": "Онбординг, слайд 2" },
+    "onboarding/step3.png": { "w": 256, "h": 256, "title": "Онбординг, слайд 3" },
+    "paywall/hero.png": { "w": 1024, "h": 768, "title": "Премиум, иллюстрация (последний слайд онбординга)" }
+  }
+}

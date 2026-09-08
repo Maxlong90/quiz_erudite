@@ -12,6 +12,21 @@ import { REMOTE_TOKEN_KEYS, type RemoteTokenKey } from '@/lib/theme/contract';
 import { clearCachedTheme } from '@/lib/theme/theme-cache';
 
 /**
+ * Which asset pack this binary was built from.
+ *
+ * A deliberately BOUNDED exception to "the manifest is a build-time contract,
+ * never a runtime one": it is read here for a debug label and nowhere for slot
+ * resolution — constants/t/asset-slots.ts owns that, and a test pins it. Since
+ * the staging copy drops manifest.json beside the artwork, the gallery can
+ * answer "which pack is in this APK?" without anyone unzipping it.
+ *
+ * Requiring JSON is safe in both environments: unlike images, `.json` is not
+ * rewritten by jest-expo's asset transformer, so this is real parsed data under
+ * Metro and under the test runner alike.
+ */
+const STAGED_PACK: { pack: string; title: string } = require('@/assets/t/manifest.json');
+
+/**
  * The configurable template's live token gallery.
  *
  * It is the instrument for the whole engine — which tier is applied, which
@@ -161,6 +176,11 @@ export default function TThemeTokensScreen() {
           <Meta
             label="network"
             value={appTheme.networkSettled ? 'settled' : 'in flight'}
+            colors={colors}
+          />
+          <Meta
+            label="asset_pack"
+            value={`${STAGED_PACK.pack} (${STAGED_PACK.title})`}
             colors={colors}
           />
 

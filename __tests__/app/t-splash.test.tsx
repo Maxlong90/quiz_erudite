@@ -34,6 +34,18 @@ jest.mock('@/hooks/use-app-theme', () => ({
   useAppTheme: () => mockThemeValue,
 }));
 
+// Whether onboarding has already been seen, which picks the splash's
+// DESTINATION without touching any of its gates. Defaults to `true` — a
+// returning player — so every timing assertion below stays about the window and
+// not about the route. The real hook reads AsyncStorage, which jest.setup.js
+// mocks to an EMPTY store; left unmocked it would resolve `false` here and send
+// this entire suite to /t/onboarding, on a promise whose flush order relative to
+// the fake timers is not something these tests should have to reason about.
+let mockHasSeen: boolean | null = true;
+jest.mock('@/hooks/use-onboarding', () => ({
+  useOnboarding: () => ({ hasSeen: mockHasSeen, markSeen: jest.fn() }),
+}));
+
 /* eslint-disable import/first -- screen under test loads AFTER its mocks */
 import TTemplateSplash from '@/app/t/splash';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
@@ -68,6 +80,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   mockReplace.mockClear();
   mockThemeValue = { hydrated: false, networkSettled: false };
+  mockHasSeen = true;
 });
 
 afterEach(() => {
@@ -164,5 +177,46 @@ describe('t splash', () => {
     const { THEME_FETCH_TIMEOUT_MS } = require('@/lib/theme/theme-api');
     expect(THEME_FETCH_TIMEOUT_MS).toBeLessThan(CAP_MS);
     expect(FLOOR_MS).toBeLessThan(CAP_MS);
+  });
+});
+
+/**
+ * Where the splash goes once the window closes. This is a destination choice
+ * layered on top of the timing contract above, never a fourth gate — the splash
+ * leaves at exactly the same moment either way.
+ */
+describe('t splash destination', () => {
+  it('sends a first-ever launch to the template onboarding', () => {
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true };
+    render(<Splash />);
+
+    advance(FLOOR_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t/onboarding');
+  });
+
+  it('goes home when the storage read has not resolved by the cap', () => {
+    // `null` is "unknown", which includes the read having thrown. Fail-open
+    // direction matters: guessing "unseen" would replay onboarding for a
+    // returning player every time storage hiccuped.
+    mockHasSeen = null;
+    render(<Splash />);
+
+    advance(CAP_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t');
+  });
+
+  it('still leaves at the floor, not later, when onboarding is pending', () => {
+    // The destination must not become a gate: a slow storage read may not hold
+    // the splash open past the window it exists for.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true };
+    render(<Splash />);
+
+    advance(FLOOR_MS - 1);
+    expect(mockReplace).not.toHaveBeenCalled();
+
+    advance(1);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
   });
 });

@@ -146,6 +146,8 @@ Build one like this:
 
 `npx expo run:android --variant release` collapses steps 2 to 4 into one command and is equivalent; the split form is worth knowing because it lets you inspect the generated identity before spending a build.
 
+For the configurable template there is a step 0: choose the artwork. `npm run asset-pack <name>` (e.g. `base`, `neon`) copies `asset-packs/<name>.assets/` into `assets/t/`, which is where the template's static `require()` calls point. It must run **before** prebuild and bundling, because Metro reads whatever is on disk at that moment — on a real build the backend does this copy against its own clone. `base` is what is committed; staging anything else turns `__tests__/app/t-asset-packs.test.ts` red on purpose, so re-run it with `base` before committing. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
+
 Three constraints shape this path:
 
 - **`android/` is generated, gitignored, and carries the last prebuild's slug.** It is not evidence of what you are about to build. Read `applicationId` in `android/app/build.gradle` before trusting an install; `com.quizzzes.erudite` there means the tree is currently prebuilt as Erudite, whatever env var you meant to set.
@@ -253,7 +255,8 @@ hooks/         Context providers and stateful hooks
 lib/           Device-local business logic and persistence
 constants/     Category visuals and theme
 i18n/          String tables for en, ru, es, fr
-assets/        Icons, splash, images
+assets/        Icons, splash, images (assets/t/ is staged from an asset pack)
+asset-packs/   Swappable image packs for the configurable template
 .maestro/      E2E flows
 scripts/       Build and utility scripts
 docs/          Documentation

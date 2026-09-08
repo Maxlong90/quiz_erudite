@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ScreenBackground } from '@/components/screen-background';
+import { T_ASSET_SLOTS } from '@/constants/t/asset-slots';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { useOnboarding } from '@/hooks/use-onboarding';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 /**
@@ -34,6 +36,7 @@ const T_SPLASH_CAP_MS = 3500;
 export default function TTemplateSplash() {
   const colors = useThemeColors();
   const appTheme = useAppTheme();
+  const { hasSeen } = useOnboarding();
 
   // Rendered without the provider (or on a build where the engine is inert)
   // there is nothing to wait for, so both gates read as already settled.
@@ -61,12 +64,26 @@ export default function TTemplateSplash() {
     // including a timeout or an outright failure, and the cap fires regardless.
     if (!capped && !(floorDone && hydrated && networkSettled)) return;
     navigated.current = true;
-    router.replace('/t');
-  }, [floorDone, capped, hydrated, networkSettled]);
+    // `hasSeen` picks the DESTINATION; it is deliberately not a fourth gate.
+    // Making it one would stall the splash on a slow or broken storage read and
+    // cost the screen the fail-open property it is built around. Hence the
+    // explicit `=== false`: `null` means the read has not resolved (or threw),
+    // and the safe direction is home — a returning player must never be dropped
+    // back into onboarding because storage hiccuped.
+    router.replace(hasSeen === false ? '/t/onboarding' : '/t');
+  }, [floorDone, capped, hydrated, networkSettled, hasSeen]);
 
   return (
     <ScreenBackground>
       <View style={styles.center}>
+        {/* The staged pack's logo. Which bytes these are was decided at build
+            time by the copy into assets/t/ — see constants/t/asset-slots.ts. */}
+        <Image
+          source={T_ASSET_SLOTS['splash/logo.png']}
+          style={styles.logo}
+          resizeMode="contain"
+          testID="t-splash-logo"
+        />
         <Text style={[styles.wordmark, { color: colors.accent }]}>QUIZ</Text>
         <Text style={[styles.tagline, { color: colors.textMuted }]}>Configurable template</Text>
       </View>
@@ -76,6 +93,7 @@ export default function TTemplateSplash() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  logo: { width: 128, height: 128, marginBottom: 20 },
   wordmark: { fontSize: 56, fontWeight: '900', letterSpacing: 4 },
   tagline: { marginTop: 12, fontSize: 16, fontWeight: '600', letterSpacing: 0.4 },
 });

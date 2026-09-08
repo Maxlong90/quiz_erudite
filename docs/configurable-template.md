@@ -166,6 +166,90 @@ Mode assignments are exhaustive by construction — a mode without a ramp is a c
 
 One naming note, so it is not "fixed" later: the hue names (`sun`, `ember`, `orchid`) are a conscious exception to the rule that tokens are named by role rather than by colour. A brand spectrum has no role beyond being itself.
 
+## Artwork: Asset Packs Staged at Build Time
+
+Colours arrive at runtime. Pictures cannot, and the reason is not a design preference: React Native has no dynamic `require`. Metro must see a string literal at the call site to bundle a file at all, so there is no version of "fetch the operator's onboarding art" that ends in a `require()`. Ten hex strings fit in a conditional GET; a megabyte of authored illustration does not, and even if it did, nothing could bundle it.
+
+So the *delivery stage* moves instead of the mechanism. Several **asset packs** live in the repository under `asset-packs/<pack>.assets/`, and the build service copies the selected one into a fixed staging directory **before Metro runs**. The paths the screens require never change; only the bytes behind them do. Swapping a pack needs no code change, no runtime lookup, and no new machinery on either side of the wire. `scripts/apply-asset-pack.mjs` performs that copy locally (`npm run asset-pack neon`) and is the reference the backend's `ProcessBuildTask` transliterates.
+
+The seam is `constants/t/asset-slots.ts`: five literal requires and nothing else. It is the images' answer to what `constants/t/tile-palette.ts` is for tile colour — one reviewable place, so a scan of a single file sees every bundled picture the template can draw. Centralising costs nothing, because Metro's constraint is on the *argument* to `require`, not on where the call sits.
+
+### Why the staging directory is `assets/t/`, not `assets/`
+
+The Exams project, which this mechanism is copied from, stages packs straight into `assets/` and overwrites `assets/onboarding/`. Following that literally here would be destructive. `assets/onboarding/*.png` is a live directory in this repository: `app/onboarding.tsx` statically requires twenty-two files from it, and that is the **shipped Erudite build**. A pack copied over it would clobber a production app's artwork for the sake of a template.
+
+`assets/t/` matches the existing `assets/<app>/` convention (`assets/sport-quiz/`, `assets/italy-quiz/`) and is owned entirely by the template. Because the destination is app-specific and no longer the reference project's default, the backend has to be *told* where to copy — which is why the manifest carries a `target` field rather than leaving `assets/t` duplicated as a constant in PHP.
+
+That field is also a path-traversal and clobber vector, since it is data supplied by whoever authors a pack. A pack declaring `"target": "assets/onboarding"` would delete the Erudite artwork on the build server's clone. Both halves guard it against an allowlist rather than a traversal check: the set of legal destinations is one entry long, so an allowlist is both stricter and simpler.
+
+### The manifest is a build-time contract
+
+Each pack ships a `manifest.json`, and it exists for the backend, not for the app:
+
+```json
+{
+  "schema": 1,
+  "pack": "base",
+  "title": "Базовый",
+  "onboarding_types": ["universal"],
+  "target": "assets/t",
+  "slots": {
+    "splash/logo.png": { "w": 256, "h": 256, "title": "Сплэш, логотип" }
+  }
+}
+```
+
+It is how the operator's pack picker learns which packs exist (`pack`, `title`), which are compatible with a given onboarding shape (`onboarding_types`), and how to lay out and label each image in the form (`slots`). Without it the backend would be inferring intent from filenames, which survives two packs and breaks on the third.
+
+Nothing in the app resolves a slot through it. `constants/t/asset-slots.ts` owns resolution; a manifest-driven lookup would have to be dynamic, which is the one thing that does not exist. The staging copy does bring `manifest.json` along into `assets/t/`, so a built APK carries an on-disk record of which pack produced it, and the token gallery reads exactly that for its `asset_pack` row — a debug label, and the single bounded exception to "the manifest is never consulted at runtime".
+
+Three properties are worth not rediscovering:
+
+- **One `asset-packs/` directory, not the reference project's two-family split.** Exams encodes onboarding compatibility in the filesystem (`asset-packs/` versus `asset-packs-universal/`). That forces the backend to know a naming convention, and promoting a pack to universal becomes a git rename that breaks every reference to it. `onboarding_types` carries the same fact inside the file the backend already parses.
+- **Every slot is a nested path**, including `splash/logo.png`, which the reference had as a bare `splash.png`. Uniform nesting leaves the safe-relative-path validation with no special case.
+- **One slot has a different aspect ratio.** `paywall/hero.png` is 1024×768 where the rest are 256×256. If all five were square, the manifest-versus-bytes assertion could never catch a transposed width and height or a slot copied from the wrong file.
+
+Declared dimensions are a record of what the artwork *is*, not a target it should be resized to. A pack that declares 1024×1024 for art composited from 256×256 glyphs is shipping a silent 4× upscale; declare what the file actually contains.
+
+### What the artwork has to survive
+
+A pack is drawn against an unknown background. `ScreenBackground` paints the operator's remote three-stop `bgGradient`, and the player can flip the appearance, so a full-bleed coloured rectangle reads as a broken card on every preset the pack was not authored against. A pure-transparent glyph has the opposite failure: art drawn for a dark preset can vanish outright on a light one.
+
+Both committed packs therefore use a transparent canvas with a **bounded opaque plate** behind the subject, and they take opposite treatments — `base` is a light circle with a dark ring, `neon` a dark hexagon with a bright ring. Each stays legible on either appearance, and the pair differs by silhouette and subject rather than by tint, so a swap is obvious at a glance rather than a matter of comparing shades.
+
+Tinting monochrome glyphs with `accent` was considered and rejected: it would be theme-proof by construction, but it rules out multicolour artwork entirely and would leave two packs differing only in outline.
+
+### Clear-then-copy, and what the tests hold
+
+The staging copy wipes the target rather than merging into it. A pack that renamed or dropped a slot would otherwise leave the previous pack's file in place, the `require()` would keep resolving to it, and a shipped APK would carry one image from the wrong pack with nothing anywhere reporting a problem.
+
+`__tests__/app/t-asset-packs.test.ts` is structural rather than render-based, and it has to be: jest-expo rewrites every image module to `module.exports = 1`, so no rendering test in this repository can tell which PNG a `require()` resolved to. The identity is gone before the test runs. The filesystem proof stands in for it — manifests agree with the bytes on disk, every pack declares an identical slot set, and the requires in the source agree with the manifests in both directions. That last one is the valuable half: a slot nobody renders and a require no pack supplies are the only two ways this feature rots silently, and both ship green and surface months later as a blank image on a device.
+
+One test asserts that `assets/t/` is byte-identical to `base`. It is expected to go **red** while another pack is staged for an experiment, and that redness is the point: it stops a local swap from being committed and quietly changing what every future build starts from.
+
+Adding a sixth slot is a three-place edit — `constants/t/asset-slots.ts`, the `slots` object in *every* manifest, and real artwork in every pack. The tests catch two of the three omissions; forgetting the seam just means the slot is never drawn.
+
+### Weight, and what does not get bundled
+
+`asset-packs/**` is unreachable from any module, so Metro never walks into it and none of it reaches an APK — only the staged copy under `assets/t/` does. `app.json` declares no `assetBundlePatterns`, and **it should stay that way**: adding a pattern to "include the packs" would ship every pack in every binary.
+
+Two packs are roughly 450 KB. That is fine, and it does not stay fine. At twenty packs this is multi-megabyte git history in a repository the build service clones on every build, and the answer at that point is a pack registry with artwork fetched at build time rather than committed — not a larger repository.
+
+## Where the Slots Are Drawn
+
+`app/t/onboarding.tsx` exists as much for the artwork as for the flow. Before it, nothing under `app/t` rendered a single bundled picture — every image on the home screen is a remote `icon_url` — so the pack mechanism would have had slots with no reader: a contract that compiles, ships, and means nothing. It draws four of the five slots; the splash draws the fifth.
+
+It follows the shape of `app/onboarding.tsx` without importing from it, for the reason already recorded for `app/t/index.tsx`. The Erudite screen carries concerns that are not the template's — a language-picker back button, a content-snapshot wait, a per-platform forced-paywall gate — and extracting a shared component would mean editing a file five live apps render in order to add a sixth caller.
+
+Two behaviours are load-bearing rather than incidental:
+
+- **The closing slide only pitches where a store can charge.** With billing unavailable it degrades to a plain "get started" — the same capability-driven gating the Erudite flow uses, which is what keeps a store reviewer from meeting a purchase they cannot complete. It reuses the shared `/paywall` rather than growing a second one; the home screen already pushes there from a premium-locked mode tile.
+- **`markSeen()` resolves before any navigation away, the paywall included.** `app/paywall.tsx` exits with `router.replace('/')`, and on a template build `/` redirects to `/t/splash`. A player who opened the paywall from the last slide and closed it therefore returns through the splash — and if the flag were not written first, the splash would read "unseen" and push them into onboarding again, a loop with no exit that does not involve buying something.
+
+On the splash, `hasSeen` picks the destination and is deliberately **not** a fourth gate alongside the floor, cap, and theme conditions. Making it one would stall the screen on a slow or broken storage read and cost it the fail-open property it is built around. The check is explicitly `=== false`, because `null` means the read has not resolved or threw — and the safe direction is home, since replaying onboarding for a returning player is worse than skipping it for a new one.
+
+The template introduces **no new strings**: the three intro slides reuse the existing `onboarding.page1..3` keys, already complete in all four locales. The premium slide borrows `paywall.subtitle` and `paywall.feature.unlimited` rather than `paywall.title`, which reads "Quizzzes Premium" in every locale — a brand name that has no business appearing in a build an operator ships under their own.
+
 ## The Token Gallery
 
 `app/t/tokens.tsx` is the instrument for the whole engine. It reports which tier is applied, the held ETag, how long ago the last successful revalidation was, the schema version, `supports_dark`, and which tokens the operator has actually overridden. It offers three actions: refetch unconditionally, clear the cache and refetch, and flip the appearance.
@@ -186,7 +270,7 @@ That is harder for this build than for a sibling, and the difficulty is what its
 - **So the artifact is a release APK with the bundle embedded.** No dev server is involved, `EXPO_PUBLIC_APP_SLUG=test-quiz` is compiled in, and the app fetches its theme from the production backend exactly as an installed app would. [Development](development.md#building-a-variant-as-a-release-apk) has the build steps.
 - **And it must install beside the existing build, not over it.** Android replaces an app whose package matches, data and all. This is the one config branch whose `package` and `bundleIdentifier` are literals rather than fallbacks to the Erudite identity, so an unset env var cannot turn a verification build into a silent overwrite of the app it was meant to sit next to. Its own `scheme` (`testquiz`) keeps `quizerudit://` links unambiguous while both are installed.
 
-Four observations are worth making once the app is on the device, one per design property:
+Five observations are worth making once the app is on the device, one per design property:
 
 | What you look for | What it proves |
 |-------------------|----------------|
@@ -194,10 +278,13 @@ Four observations are worth making once the app is on the device, one per design
 | An admin edit to the app's preset appears after a restart, with no rebuild | The conditional fetch sees the new ETag and the overlay applies |
 | Colours survive a restart with the device offline | The cache tier carries the last good theme |
 | The neighbouring build is untouched and unchanged | The inertness gate holds, and the packages really are separate |
+| The splash and onboarding artwork stays legible after flipping the appearance, and the gallery's `asset_pack` row names the pack that was staged | The pack's plate treatment survives both themes, and the build really did bundle the staged bytes |
 
 Verification writes into production data, so it carries an obligation: the preset override used to prove tier three must be reverted afterwards, and the endpoint's ETag returning to its previous value is the check that it was. Every shipped app's preset stores `NULL` tokens, and leaving a stray override behind would be indistinguishable from an operator's real edit.
 
-As of this changeset the build identity is in place and the server half is confirmed, but the release APK has not yet been produced on this host — the Gradle run was cut off before it emitted an artifact, and nothing named `test-quiz` is installed on the emulator. The four observations above are therefore still open: the on-device behaviour rests on the unit tests and on reading the code, not on having watched it.
+As of this changeset the build identity is in place and the server half is confirmed, but the release APK has not yet been produced on this host — the Gradle run was cut off before it emitted an artifact, and nothing named `test-quiz` is installed on the emulator. The five observations above are therefore still open: the on-device behaviour rests on the unit tests and on reading the code, not on having watched it.
+
+The same holds for the artwork half. That a pack swap reaches the bundled bytes was demonstrated on this host at the filesystem level — `npm run asset-pack neon` changes all five files behind the unchanged `require()` paths, the byte-identity test goes red naming `base`, and restoring returns every checksum — but no APK was built from a second pack, so nothing here rests on having seen the neon artwork render on a screen.
 
 ## Failure Modes
 

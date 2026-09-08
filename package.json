@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest",
-    "check:store-config": "jest __tests__/lib/eas-profiles.test.ts"
+    "check:store-config": "jest __tests__/lib/eas-profiles.test.ts",
+    "asset-pack": "node ./scripts/apply-asset-pack.mjs"
   },
   "dependencies": {
     "@babel/plugin-transform-computed-properties": "^7.28.6",
