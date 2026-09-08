@@ -174,6 +174,31 @@ So the *delivery stage* moves instead of the mechanism. Several **asset packs** 
 
 The seam is `constants/t/asset-slots.ts`: five literal requires and nothing else. It is the images' answer to what `constants/t/tile-palette.ts` is for tile colour — one reviewable place, so a scan of a single file sees every bundled picture the template can draw. Centralising costs nothing, because Metro's constraint is on the *argument* to `require`, not on where the call sits.
 
+Colour and artwork run on the same picker but on different clocks, and the diagram is the shortest way to see where each one crosses into the app:
+
+```
+  Operator picks, in Nova
+   ┌──────────────┐          ┌──────────────┐
+   │ theme preset │          │  asset pack  │
+   └──────┬───────┘          └──────┬───────┘
+          │                         │ ProcessBuildTask
+          │                         │ (clear, then copy)
+          │                         ↓
+          │                  ┌──────────────┐
+          │                  │  assets/t/   │ ← npm run asset-pack <name>
+          │                  └──────┬───────┘   does this locally
+          │                         ↓
+          │                  ┌──────────────┐   literal require()
+          │                  │    Metro     │ ← constants/t/asset-slots.ts
+          │                  └──────┬───────┘
+          │                         ↓
+          │  GET /apps/{slug}/theme ┌──────────────┐
+          └────────────────────────→│ installed app│
+             every launch, ETagged  └──────────────┘
+                                      pictures frozen at build,
+                                      colours refreshed at runtime
+```
+
 ### Why the staging directory is `assets/t/`, not `assets/`
 
 The Exams project, which this mechanism is copied from, stages packs straight into `assets/` and overwrites `assets/onboarding/`. Following that literally here would be destructive. `assets/onboarding/*.png` is a live directory in this repository: `app/onboarding.tsx` statically requires twenty-two files from it, and that is the **shipped Erudite build**. A pack copied over it would clobber a production app's artwork for the sake of a template.
@@ -284,9 +309,9 @@ Five observations are worth making once the app is on the device, one per design
 
 Verification writes into production data, so it carries an obligation: the preset override used to prove tier three must be reverted afterwards, and the endpoint's ETag returning to its previous value is the check that it was. Every shipped app's preset stores `NULL` tokens, and leaving a stray override behind would be indistinguishable from an operator's real edit.
 
-As of this changeset the build identity is in place and the server half is confirmed, but the release APK has not yet been produced on this host — the Gradle run was cut off before it emitted an artifact, and nothing named `test-quiz` is installed on the emulator. The five observations above are therefore still open: the on-device behaviour rests on the unit tests and on reading the code, not on having watched it.
+The colour half is no longer open. A release APK was produced on this host and installed as `com.turbosuslik.testquiz` beside `com.quizzzes.erudite`, both packages survive on the emulator, and launching it opens the template's own home under a remote green palette that appears nowhere in the bundled navy — the overlay is reaching a real screen, from a real backend, with no dev server involved. Read the install with `adb shell pm list packages`; a build cut off by the silence watchdog leaves no APK at all, so the presence of `android/app/build/outputs/apk/release/app-release.apk` is itself the signal that the Gradle run finished.
 
-The same holds for the artwork half. That a pack swap reaches the bundled bytes was demonstrated on this host at the filesystem level — `npm run asset-pack neon` changes all five files behind the unchanged `require()` paths, the byte-identity test goes red naming `base`, and restoring returns every checksum — but no APK was built from a second pack, so nothing here rests on having seen the neon artwork render on a screen.
+The artwork half is still open, and the reason is a date rather than a doubt. That APK predates the asset-pack work, so its bundle carries no reference to `assets/t/` — grepping `assets/index.android.bundle` inside the APK for that prefix is the cheap way to tell whether a given binary is old enough to be irrelevant to a question about artwork. What has been shown is one step short of the device: `npm run asset-pack neon` changes all five files behind the unchanged `require()` paths, the byte-identity test goes red naming `base`, and restoring returns every checksum. Nothing here rests on having watched the neon artwork render.
 
 ## Failure Modes
 

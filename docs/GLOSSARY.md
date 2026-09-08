@@ -6,7 +6,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **App slug** — The build-time identifier in `EXPO_PUBLIC_APP_SLUG`, exposed in code as `APP_SLUG`. It does double duty: it is the path segment in every backend endpoint (`/apps/{slug}/…`) *and* the switch that decides which of the seven apps the build is. See [Architecture](architecture.md#key-design-decisions).
 
-**Sibling app** — Any of the five non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz. Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch. The [configurable template](configurable-template.md) is a seventh build but not a sibling — it has no bespoke artwork of its own.
+**Sibling app** — Any of the five non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz. Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch. The [configurable template](configurable-template.md) is a seventh build but not a sibling — its artwork is not checked in against its screens but staged from an interchangeable [asset pack](#artwork) at build time.
 
 **Erudite** — The default app and the one most of these docs describe by default: the seven-subject general-knowledge quiz with lives, hints, and premium modes.
 
@@ -19,6 +19,16 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 **Inertness gate** — The checked-in list of slugs (`T_TEMPLATE_SLUGS`) that decides whether the theme engine runs at all. A build absent from it performs no theme fetch, no cache read, and no overlay, so no admin edit can re-skin a shipped app. See [Configurable Template](configurable-template.md#selecting-the-build).
 
 **Ramp / spectrum** — Tile artwork terms in the configurable template. The *spectrum* is the 15 named brand hues; a *ramp* is a named two-stop gradient built from two of them, and it is what a category or mode tile asks for. Neither is a palette token. See [Configurable Template](configurable-template.md#tile-artwork-a-bundled-spectrum).
+
+## Artwork
+
+**Asset pack** — One complete set of the configurable template's bundled pictures, checked in under `asset-packs/<pack>.assets/`. The operator picks a pack, and the build service copies it into the staging directory before Metro runs; the app never sees more than one. Only the template has packs — the five sibling apps keep their artwork checked in against their screens. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
+
+**Slot** — One named picture position in the template, keyed by its relative path (`onboarding/step1.png`, `paywall/hero.png`). The slot list is a contract: every pack must supply exactly the same five, and `constants/t/asset-slots.ts` is the only place their paths are written down. Do not confuse a slot with a token — a token is a colour resolved at runtime, a slot is a file resolved at bundle time.
+
+**Staging directory** — `assets/t/`, the fixed destination the pack is copied into and the only path the template's `require()` calls point at. Deliberately not the reference project's `assets/`, which holds the shipped Erudite artwork a pack would otherwise overwrite. A pack's `target` field names it, and both the script and the backend check that name against a one-entry allowlist.
+
+**Pack manifest** — The `manifest.json` inside each pack. It is the build-time contract with the backend: which packs exist, which onboarding shapes they suit, and the human label and declared pixel size of every slot. The app resolves nothing through it; the copy that lands in `assets/t/` serves only as a record of which pack a binary was built from.
 
 ## Content
 

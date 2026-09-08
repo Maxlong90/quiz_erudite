@@ -116,7 +116,9 @@ One build is the exception to everything above: the **configurable template** (`
 
 Two properties are load-bearing. **Fail-open:** a malformed payload, an unknown schema version, a timeout or an offline device each leave the app on the best palette it already had, and nothing in the chain throws or leaves the splash stranded. **Inert everywhere else:** the engine is gated on the build-time allow-list `T_TEMPLATE_SLUGS` in `constants/app-templates.ts`, so every shipped build gets a frozen constant whose palettes *are* `EruditeColors` by reference — no request, no storage read, and no re-render. That gate is deliberately a checked-in list rather than runtime data parity, because parity would let an operator re-skin a store-published app by saving a form in Nova.
 
-The wire contract, the cache record, the splash network window, the bundled tile spectrum, and the token gallery are all documented in [Configurable Template](configurable-template.md).
+Artwork for that build travels on a different schedule from its colours, and the split is not a preference. React Native has no dynamic `require`, so Metro must see a string literal to bundle an image at all — a fetched illustration could never reach a `require()`. The delivery *stage* moves instead: several packs live under `asset-packs/`, and the build service copies the chosen one into `assets/t/` before Metro runs, so the paths in `constants/t/asset-slots.ts` never change while the bytes behind them do. Colours are runtime data; pictures are build-time data.
+
+The wire contract, the cache record, the splash network window, the bundled tile spectrum, the asset packs, and the token gallery are all documented in [Configurable Template](configurable-template.md).
 
 ### Scope: Erudite and the configurable template
 
@@ -221,9 +223,11 @@ constants/{slug}/       Its labels and theme
 The configurable template uses the same shape under the short name `t`, but its
 colours come from the wire rather than from constants/t/theme.ts:
 
-app/t/                  Splash, home, and the live token gallery
+app/t/                  Splash, onboarding, home, and the live token gallery
 hooks/t/                Tile-gradient lookups (no content or economy provider)
-constants/t/            The bundled tile spectrum and its ramps
+constants/t/            The bundled tile spectrum, its ramps, and the image slots
+asset-packs/            Swappable artwork packs; one is staged into assets/t/
+                        before Metro runs (template only — see below)
 
 app.config.js           Dynamic Expo config: per-variant identity and store ids
 ```
