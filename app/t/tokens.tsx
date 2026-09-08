@@ -6,7 +6,7 @@ import { APP_SLUG } from '@/api/client';
 import { ScreenBackground } from '@/components/screen-background';
 import { Fonts, type EruditePalette } from '@/constants/theme';
 import { INERT_THEME_VALUE, useAppTheme, type AppThemeValue } from '@/hooks/use-app-theme';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
 import { useThemePref } from '@/hooks/use-theme-pref';
 import { REMOTE_TOKEN_KEYS, type RemoteTokenKey } from '@/lib/theme/contract';
 import { clearCachedTheme } from '@/lib/theme/theme-cache';
@@ -121,7 +121,7 @@ function TokenRow({ tokenKey, value, overridden, colors }: {
 }
 
 export default function TThemeTokensScreen() {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const { theme, setTheme } = useThemePref();
   // Falls back to the inert value so the screen still renders standalone (and
   // under a test harness) without an AppThemeProvider above it.

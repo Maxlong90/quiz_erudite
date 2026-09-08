@@ -16,7 +16,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { T_ASSET_SLOTS, type TAssetSlot } from '@/constants/t/asset-slots';
 import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import type { EruditePalette } from '@/constants/theme';
 import type { StringKey } from '@/i18n/strings';
@@ -41,7 +41,7 @@ import type { StringKey } from '@/i18n/strings';
  * Extracting a shared component would mean editing a file five live apps render
  * in order to add a sixth caller. The structure is copied; the code is not.
  *
- * Colours come exclusively from useThemeColors(), like everywhere in `/t`
+ * Colours come exclusively from useTemplateTheme(), like everywhere in `/t`
  * (__tests__/app/t-no-color-literals.test.ts and an eslint rule both enforce it).
  */
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -82,7 +82,7 @@ export default function TTemplateOnboarding() {
   const [page, setPage] = useState(0);
   const { markSeen } = useOnboarding();
   const { t } = useTranslation();
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const isPremiumSlide = page === SLIDE_COUNT - 1;

@@ -64,11 +64,24 @@ describe('the template stack', () => {
   const layout = fs.readFileSync(path.join(APP_DIR, 't', '_layout.tsx'), 'utf8');
   const screenNames = [...layout.matchAll(/<Stack\.Screen\s+name="([^"]+)"/g)].map((m) => m[1]);
 
+  /**
+   * Screen names as expo-router derives them: the path under app/t/ with the
+   * .tsx dropped, segments joined by `/`. Recursive on purpose — a nested route
+   * such as `category/[slug]` registers under its full path, and a flat
+   * readdirSync would report the layout as registering a screen that "does not
+   * exist" the moment one lands. Today the result is unchanged.
+   */
+  function screenFilesUnder(dir: string): string[] {
+    return fs.readdirSync(path.join(APP_DIR, 't', dir), { withFileTypes: true }).flatMap((entry) => {
+      const relative = dir ? `${dir}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) return screenFilesUnder(relative);
+      if (!entry.name.endsWith('.tsx') || entry.name === '_layout.tsx') return [];
+      return [relative.replace(/\.tsx$/, '')];
+    });
+  }
+
   it('registers every screen file under app/t/', () => {
-    const files = fs
-      .readdirSync(path.join(APP_DIR, 't'))
-      .filter((name) => name.endsWith('.tsx') && name !== '_layout.tsx')
-      .map((name) => name.replace(/\.tsx$/, ''));
+    const files = screenFilesUnder('');
 
     // An unregistered screen still renders (expo-router is file-based) but
     // silently loses the per-screen options declared here — for `tokens` that

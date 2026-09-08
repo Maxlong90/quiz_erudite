@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomBar } from '@/components/bottom-bar';
 import { ScreenBackground } from '@/components/screen-background';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
 import type { EruditePalette } from '@/constants/theme';
 import { ClaimLivesModal } from '@/components/lives/claim-lives-modal';
 import { HardModeModal } from '@/components/home/hard-mode-modal';
@@ -40,7 +40,7 @@ import type { StringKey } from '@/i18n/strings';
 /**
  * The configurable template's home screen — the Erudite home (app/index.tsx)
  * ported so that NOT ONE COLOUR LITERAL remains. Every colour here is either an
- * EruditePalette token via useThemeColors() (and therefore operator-settable for
+ * EruditePalette token via useTemplateTheme() (and therefore operator-settable for
  * the ten keys in REMOTE_TOKEN_KEYS) or a named ramp from
  * constants/t/tile-palette.ts. __tests__/app/t-no-color-literals.test.ts holds
  * that line for the whole app/t/ surface.
@@ -100,7 +100,7 @@ interface ModeDef {
 }
 
 export default function THomeScreen() {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const { locale } = useLocale();
@@ -469,7 +469,7 @@ interface SegmentedTabsProps {
 }
 
 function SegmentedTabs({ tab, onChange, leftLabel, rightLabel }: SegmentedTabsProps) {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isLeft = tab === 'categories';
   return (
@@ -497,7 +497,7 @@ function SegmentedTabs({ tab, onChange, leftLabel, rightLabel }: SegmentedTabsPr
 }
 
 function Wordmark() {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     // Long-press opens the token gallery this route used to hold — the only way
@@ -521,7 +521,7 @@ interface TileProps {
 }
 
 function CategoryTile({ category, onPress }: TileProps) {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useTranslation();
   // Only the GRADIENT is bypassed — the emoji is not a colour, and keeping one
@@ -569,7 +569,7 @@ function CategoryTile({ category, onPress }: TileProps) {
 }
 
 function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boolean }) {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const gradient = useModeTileGradient(mode.id);
@@ -619,7 +619,7 @@ function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boole
 }
 
 function ComingSoonTile() {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   return (

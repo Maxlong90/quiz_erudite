@@ -39,7 +39,10 @@ export function AchievementBadge({ progress, size = 56 }: Props) {
 
   return (
     <LinearGradient
-      colors={def.gradient ?? ['#7c5cff', '#3aa6ff']}
+      // Every entry in lib/achievements.ts defines its own gradient, so this
+      // fallback is unreachable today; it stays themed so a future entry that
+      // omits one gets the brand ramp rather than a stale hardcoded blue.
+      colors={def.gradient ?? [themeColors.accent, themeColors.accentSoft]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[

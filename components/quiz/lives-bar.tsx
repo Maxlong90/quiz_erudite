@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import type { EruditePalette } from '@/constants/theme';
+import { withAlpha } from '@/lib/theme/color';
 
 interface Props {
   count: number;
@@ -35,7 +36,11 @@ const makeStyles = (c: EruditePalette) => StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: '#ef444433',
+    // A 20% wash of the danger token. In dark this rounds to the byte the
+    // literal here spelled out (#ef4444 + 0.2 -> #ef444433), so it is pixel-
+    // identical; in light it now follows `danger` instead of keeping a
+    // dark-mode red on a pale backdrop.
+    backgroundColor: withAlpha(c.danger, 0.2),
   },
   wrapEmpty: {
     backgroundColor: c.borderSoft,

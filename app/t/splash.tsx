@@ -6,7 +6,7 @@ import { ScreenBackground } from '@/components/screen-background';
 import { T_ASSET_SLOTS } from '@/constants/t/asset-slots';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
 
 /**
  * Splash for the configurable template, and the engine's NETWORK WINDOW.
@@ -34,7 +34,7 @@ const T_SPLASH_FLOOR_MS = 1500;
 const T_SPLASH_CAP_MS = 3500;
 
 export default function TTemplateSplash() {
-  const colors = useThemeColors();
+  const colors = useTemplateTheme();
   const appTheme = useAppTheme();
   const { hasSeen } = useOnboarding();
 
