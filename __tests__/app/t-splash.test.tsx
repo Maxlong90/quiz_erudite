@@ -19,7 +19,7 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: jest.fn() },
 }));

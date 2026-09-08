@@ -81,7 +81,7 @@ describe('app-template registry', () => {
   it('scaffolds the configurable template in its BUNDLED background colour', () => {
     // The scaffold paints during the cold-start hand-off, before any theme data
     // exists, so it must equal the tier the app renders with at that moment.
-    expect(APP_TEMPLATES['configurable-quiz'].scaffoldBg).toBe(EruditeColors.dark.bgSolid);
+    expect(APP_TEMPLATES['test-quiz'].scaffoldBg).toBe(EruditeColors.dark.bgSolid);
   });
 
   it('gives every entry its own opaque scaffold colour', () => {

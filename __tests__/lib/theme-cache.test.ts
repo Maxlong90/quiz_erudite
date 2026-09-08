@@ -10,7 +10,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: jest.fn() },
 }));
@@ -33,7 +33,7 @@ function record(overrides: Partial<CachedThemeRecord> = {}): CachedThemeRecord {
     etag: '"abc123"',
     schemaVersion: 1,
     theme: BUNDLED_THEME,
-    appSlug: 'configurable-quiz',
+    appSlug: 'test-quiz',
     syncedAt: 1_700_000_000_000,
     ...overrides,
   };
@@ -46,7 +46,7 @@ beforeEach(async () => {
 
 describe('themeKey', () => {
   it('uses the bare key for the build slug', () => {
-    expect(themeKey('configurable-quiz')).toBe(BUILD_KEY);
+    expect(themeKey('test-quiz')).toBe(BUILD_KEY);
     expect(themeKey()).toBe(BUILD_KEY);
   });
 
@@ -57,7 +57,7 @@ describe('themeKey', () => {
   it('NEVER collides with the appearance-preference key', () => {
     // 'app.theme.v1' belongs to hooks/use-theme-pref.ts. Writing a theme blob
     // there would corrupt the user's dark/light choice.
-    for (const slug of ['configurable-quiz', 'erudite-quiz', 'logo-quiz']) {
+    for (const slug of ['test-quiz', 'erudite-quiz', 'logo-quiz']) {
       expect(themeKey(slug)).not.toBe('app.theme.v1');
       expect(themeKey(slug).startsWith('theme.remote.')).toBe(true);
     }
@@ -131,7 +131,7 @@ describe('loadCachedTheme / saveCachedTheme', () => {
 describe('touchCachedTheme', () => {
   it('updates only the freshness stamp', async () => {
     await saveCachedTheme(record());
-    await touchCachedTheme('configurable-quiz', 1_800_000_000_000);
+    await touchCachedTheme('test-quiz', 1_800_000_000_000);
 
     const loaded = await loadCachedTheme();
     expect(loaded?.syncedAt).toBe(1_800_000_000_000);
@@ -141,7 +141,7 @@ describe('touchCachedTheme', () => {
   });
 
   it('does nothing when there is no record to touch', async () => {
-    await touchCachedTheme('configurable-quiz', 1_800_000_000_000);
+    await touchCachedTheme('test-quiz', 1_800_000_000_000);
     expect(await loadCachedTheme()).toBeNull();
   });
 });
@@ -156,7 +156,7 @@ describe('clearCachedTheme', () => {
   it('leaves another app’s record alone', async () => {
     await saveCachedTheme(record());
     await saveCachedTheme(record({ appSlug: 'erudite-quiz' }));
-    await clearCachedTheme('configurable-quiz');
+    await clearCachedTheme('test-quiz');
     expect(await loadCachedTheme('erudite-quiz')).not.toBeNull();
   });
 });

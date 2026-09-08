@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockGet = jest.fn();
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: (...args: unknown[]) => mockGet(...args) },
 }));

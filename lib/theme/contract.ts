@@ -52,7 +52,7 @@ export type RemoteTokenKey = (typeof REMOTE_TOKEN_KEYS)[number];
 export type RemoteTokens = Pick<EruditePalette, RemoteTokenKey>;
 
 export interface RemoteTheme {
-  /** Operator-facing preset name, e.g. 'configurable-quiz 1'. Cosmetic. */
+  /** Operator-facing preset name, e.g. 'test-quiz 1'. Cosmetic. */
   name: string | null;
   /**
    * False means the operator did not author a dark variant. The backend then

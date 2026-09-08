@@ -15,7 +15,7 @@
  */
 const mockGet = jest.fn();
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: (...args: unknown[]) => mockGet(...args) },
 }));
@@ -43,17 +43,17 @@ beforeEach(() => jest.clearAllMocks());
 describe('fetchAppTheme', () => {
   it('requests the theme endpoint with NO query parameters', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    await fetchAppTheme('configurable-quiz', null);
+    await fetchAppTheme('test-quiz', null);
 
     const [url, config] = mockGet.mock.calls[0];
     // Colours are locale-independent; a query param would fork the ETag space.
-    expect(url).toBe('/apps/configurable-quiz/theme');
+    expect(url).toBe('/apps/test-quiz/theme');
     expect(config.params).toBeUndefined();
   });
 
   it('uses a short per-request timeout, not the shared 15s client one', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    await fetchAppTheme('configurable-quiz', null);
+    await fetchAppTheme('test-quiz', null);
 
     // A theme is optional; a splash budget is not.
     expect(lastConfig().timeout).toBe(THEME_FETCH_TIMEOUT_MS);
@@ -62,7 +62,7 @@ describe('fetchAppTheme', () => {
 
   it('accepts 304 as a valid status (trap 1)', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    await fetchAppTheme('configurable-quiz', null);
+    await fetchAppTheme('test-quiz', null);
 
     const { validateStatus } = lastConfig();
     expect(validateStatus(304)).toBe(true);
@@ -73,7 +73,7 @@ describe('fetchAppTheme', () => {
 
   it('returns the parsed theme on a 200', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    const result = await fetchAppTheme('configurable-quiz', null);
+    const result = await fetchAppTheme('test-quiz', null);
 
     expect(result).toEqual({
       status: 'updated',
@@ -85,7 +85,7 @@ describe('fetchAppTheme', () => {
 
   it('stores the ETag VERBATIM, quotes included (trap 3)', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    const result = await fetchAppTheme('configurable-quiz', null);
+    const result = await fetchAppTheme('test-quiz', null);
 
     expect(result.status).toBe('updated');
     if (result.status !== 'updated') return;
@@ -100,20 +100,20 @@ describe('fetchAppTheme', () => {
       data: body(),
       headers: { get: (name: string) => (name === 'etag' ? ETAG : undefined) },
     });
-    const result = await fetchAppTheme('configurable-quiz', null);
+    const result = await fetchAppTheme('test-quiz', null);
     expect(result.status === 'updated' && result.etag).toBe(ETAG);
   });
 
   it('replays a held ETag as If-None-Match, byte for byte', async () => {
     mockGet.mockResolvedValueOnce({ status: 304, data: '', headers: { etag: ETAG } });
-    await fetchAppTheme('configurable-quiz', ETAG);
+    await fetchAppTheme('test-quiz', ETAG);
 
     expect(lastConfig().headers).toEqual({ 'If-None-Match': ETAG });
   });
 
   it('omits If-None-Match entirely when forced (etag null)', async () => {
     mockGet.mockResolvedValueOnce(ok(body()));
-    await fetchAppTheme('configurable-quiz', null);
+    await fetchAppTheme('test-quiz', null);
 
     // That unconditional GET is what makes a fresh Nova edit visible without a
     // relaunch or a cache-busting dance.
@@ -123,7 +123,7 @@ describe('fetchAppTheme', () => {
   it('reports 304 as unchanged and NEVER parses its (empty) body', async () => {
     // Symfony's setNotModified() strips the body and the Content-Type.
     mockGet.mockResolvedValueOnce({ status: 304, data: '', headers: { etag: ETAG } });
-    await expect(fetchAppTheme('configurable-quiz', ETAG)).resolves.toEqual({
+    await expect(fetchAppTheme('test-quiz', ETAG)).resolves.toEqual({
       status: 'unchanged',
     });
   });
@@ -131,28 +131,28 @@ describe('fetchAppTheme', () => {
   it('reports a 200 whose ETag matches the held one as unchanged (trap 2)', async () => {
     // The RN platform cache revalidated for us and replayed the cached body.
     mockGet.mockResolvedValueOnce(ok(body(), ETAG));
-    await expect(fetchAppTheme('configurable-quiz', ETAG)).resolves.toEqual({
+    await expect(fetchAppTheme('test-quiz', ETAG)).resolves.toEqual({
       status: 'unchanged',
     });
   });
 
   it('reports a 200 with a DIFFERENT ETag as updated', async () => {
     mockGet.mockResolvedValueOnce(ok(body(), '"newvalidator"'));
-    const result = await fetchAppTheme('configurable-quiz', ETAG);
+    const result = await fetchAppTheme('test-quiz', ETAG);
     expect(result.status).toBe('updated');
     if (result.status === 'updated') expect(result.etag).toBe('"newvalidator"');
   });
 
   it('reports updated when the response carries no ETag at all', async () => {
     mockGet.mockResolvedValueOnce(ok(body(), null));
-    const result = await fetchAppTheme('configurable-quiz', ETAG);
+    const result = await fetchAppTheme('test-quiz', ETAG);
     expect(result.status).toBe('updated');
     if (result.status === 'updated') expect(result.etag).toBeNull();
   });
 
   it('reports a newer schema as unsupported', async () => {
     mockGet.mockResolvedValueOnce(ok(body({ schema_version: 2 })));
-    await expect(fetchAppTheme('configurable-quiz', null)).resolves.toEqual({
+    await expect(fetchAppTheme('test-quiz', null)).resolves.toEqual({
       status: 'unsupported',
       schemaVersion: 2,
     });
@@ -160,18 +160,18 @@ describe('fetchAppTheme', () => {
 
   it('reports a malformed body as failed, so the caller keeps its last-known-good', async () => {
     mockGet.mockResolvedValueOnce(ok({ schema_version: 1, theme: { name: 'broken' } }));
-    const result = await fetchAppTheme('configurable-quiz', null);
+    const result = await fetchAppTheme('test-quiz', null);
     expect(result.status).toBe('failed');
   });
 
   it('reports an HTML error page as failed rather than crashing', async () => {
     mockGet.mockResolvedValueOnce(ok('<!doctype html><h1>502</h1>'));
-    expect((await fetchAppTheme('configurable-quiz', null)).status).toBe('failed');
+    expect((await fetchAppTheme('test-quiz', null)).status).toBe('failed');
   });
 
   it('reports a network error as failed', async () => {
     mockGet.mockRejectedValueOnce(new Error('Network Error'));
-    const result = await fetchAppTheme('configurable-quiz', ETAG);
+    const result = await fetchAppTheme('test-quiz', ETAG);
     expect(result.status).toBe('failed');
     if (result.status === 'failed') expect((result.error as Error).message).toBe('Network Error');
   });
@@ -180,13 +180,13 @@ describe('fetchAppTheme', () => {
     mockGet.mockRejectedValueOnce(Object.assign(new Error('timeout of 2500ms'), {
       code: 'ECONNABORTED',
     }));
-    expect((await fetchAppTheme('configurable-quiz', ETAG)).status).toBe('failed');
+    expect((await fetchAppTheme('test-quiz', ETAG)).status).toBe('failed');
   });
 
   it('NEVER throws, whatever the transport does', async () => {
     for (const rejection of [new Error('boom'), 'a string', null, undefined]) {
       mockGet.mockRejectedValueOnce(rejection);
-      await expect(fetchAppTheme('configurable-quiz', null)).resolves.toHaveProperty(
+      await expect(fetchAppTheme('test-quiz', null)).resolves.toHaveProperty(
         'status',
         'failed',
       );

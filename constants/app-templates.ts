@@ -54,7 +54,7 @@ export const APP_TEMPLATES: Record<string, AppTemplate> = {
   // (EruditeColors.dark.bgSolid, '#1a1a47'), so the cold-start scaffold matches
   // the tier the app paints with before any theme data arrives and there is
   // nothing to flash. Pinned by __tests__/constants/t-template-slugs.test.ts.
-  'configurable-quiz': { splash: '/t/splash', scaffoldBg: '#1a1a47' },
+  'test-quiz': { splash: '/t/splash', scaffoldBg: '#1a1a47' },
   // scaffoldBg = FQColors.bgBase — the average tone of the "light haze" backdrop.
   'football-quiz': { splash: '/football-quiz/splash', scaffoldBg: '#2B2B26' },
 };
@@ -76,15 +76,17 @@ export const APP_TEMPLATES: Record<string, AppTemplate> = {
  * instantly re-skin a store build nobody QA'd. Inertness a non-engineer can
  * revoke by clicking Save is not inertness.
  *
- * `'configurable-quiz'` is a CONTRACT with the backend, fixed by migration
- * 2026_09_07_000003_seed_configurable_quiz_demo.php. Renaming it there breaks
- * this client, and vice versa.
+ * `'test-quiz'` is a CONTRACT with the backend: the demo App is seeded by
+ * 2026_09_07_000003_seed_configurable_quiz_demo.php and renamed to this slug by
+ * 2026_09_08_000001_rename_demo_app_to_test_app.php. Renaming it there breaks
+ * this client, and vice versa. Note the slug names the APP, not the template —
+ * the app_categories row keeps code `configurable`.
  *
  * Adding a shipped slug here is a deliberate, reviewable act that re-skins a live
  * app; __tests__/constants/t-template-slugs.test.ts fails the build if one
  * appears by accident.
  */
-export const T_TEMPLATE_SLUGS = ['configurable-quiz'] as const;
+export const T_TEMPLATE_SLUGS = ['test-quiz'] as const;
 
 export type TTemplateSlug = (typeof T_TEMPLATE_SLUGS)[number];
 

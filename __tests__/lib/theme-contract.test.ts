@@ -16,7 +16,7 @@ import {
   parseThemeEnvelope,
 } from '@/lib/theme/contract';
 
-/** A byte-for-byte copy of what the live endpoint serves for configurable-quiz. */
+/** A byte-for-byte copy of what the live endpoint serves for test-quiz. */
 function validTokens(): Record<string, unknown> {
   return {
     bgGradient: ['#1a1a47', '#2d1f5e', '#1a1a47'],
@@ -34,7 +34,7 @@ function validTokens(): Record<string, unknown> {
 
 function validTheme(): Record<string, unknown> {
   return {
-    name: 'configurable-quiz 1',
+    name: 'test-quiz 1',
     supports_dark: true,
     light: validTokens(),
     dark: validTokens(),
@@ -100,7 +100,7 @@ describe('parseThemeEnvelope', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.schemaVersion).toBe(1);
-    expect(result.theme.name).toBe('configurable-quiz 1');
+    expect(result.theme.name).toBe('test-quiz 1');
     expect(result.theme.supports_dark).toBe(true);
     expect(result.theme.dark.bgGradient).toEqual(['#1a1a47', '#2d1f5e', '#1a1a47']);
     expect(result.theme.light.accent).toBe('#7c5cff');

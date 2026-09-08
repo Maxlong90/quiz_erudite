@@ -31,7 +31,7 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: jest.fn() },
 }));
@@ -144,7 +144,7 @@ function themeValue(theme: typeof BUNDLED_THEME) {
     palettes: resolvePalettes(EruditeColors, theme),
     source: 'network',
     schemaVersion: 1,
-    name: 'configurable-quiz 1',
+    name: 'test-quiz 1',
     supportsDark: true,
     hydrated: true,
     networkSettled: true,
@@ -263,7 +263,7 @@ describe('t home — the ported screen still works', () => {
   });
 
   it('keeps the categories grid distinguishable from the error state when empty', async () => {
-    // The real shape of the configurable-quiz app today: the backend resolves
+    // The real shape of the test-quiz app today: the backend resolves
     // it (200) but it owns no content categories, so the grid holds exactly the
     // dashed "More categories" card — NOT the 😕 load-failure state.
     mockFetchCategories.mockResolvedValue([]);

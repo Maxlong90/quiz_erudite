@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockGet = jest.fn();
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: (...args: unknown[]) => mockGet(...args) },
 }));
@@ -37,7 +37,7 @@ const NEW_ETAG = '"new-validator"';
 function editedTheme(accent = '#ff0055') {
   return {
     ...BUNDLED_THEME,
-    name: 'configurable-quiz 1',
+    name: 'test-quiz 1',
     dark: { ...BUNDLED_THEME.dark, accent },
     light: { ...BUNDLED_THEME.light, accent },
   };
@@ -70,7 +70,7 @@ async function seedCache(theme = BUNDLED_THEME, etag: string | null = OLD_ETAG) 
     etag,
     schemaVersion: 1,
     theme,
-    appSlug: 'configurable-quiz',
+    appSlug: 'test-quiz',
     syncedAt: 1_700_000_000_000,
   });
 }
@@ -93,7 +93,7 @@ describe('cold start, empty cache', () => {
     expect(result.current?.palettes.dark.accent).toBe('#ff0055');
     expect(result.current?.hydrated).toBe(true);
     expect(result.current?.networkSettled).toBe(true);
-    expect(result.current?.name).toBe('configurable-quiz 1');
+    expect(result.current?.name).toBe('test-quiz 1');
     expect(result.current?.etag).toBe(NEW_ETAG);
   });
 
@@ -110,7 +110,7 @@ describe('cold start, empty cache', () => {
     const { result } = renderEngine();
     await waitFor(() => expect(result.current?.source).toBe('network'));
 
-    const cached = await loadCachedTheme('configurable-quiz');
+    const cached = await loadCachedTheme('test-quiz');
     expect(cached?.etag).toBe(NEW_ETAG);
     expect(cached?.theme.dark.accent).toBe('#ff0055');
   });

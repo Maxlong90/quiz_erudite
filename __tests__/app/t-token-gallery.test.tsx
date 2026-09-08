@@ -11,7 +11,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'configurable-quiz',
+  APP_SLUG: 'test-quiz',
   API_URL: 'https://example.test/api/v1',
   apiClient: { get: jest.fn() },
 }));
@@ -43,7 +43,7 @@ function themeValue(overrides: Record<string, unknown> = {}) {
     palettes: resolvePalettes(EruditeColors, theme),
     source: 'network',
     schemaVersion: 1,
-    name: 'configurable-quiz 1',
+    name: 'test-quiz 1',
     supportsDark: true,
     hydrated: true,
     networkSettled: true,
@@ -81,8 +81,8 @@ describe('token gallery', () => {
 
   it('shows the build slug and the preset name', () => {
     renderGallery();
-    expect(screen.getByText('configurable-quiz')).toBeTruthy();
-    expect(screen.getByText('configurable-quiz 1')).toBeTruthy();
+    expect(screen.getByText('test-quiz')).toBeTruthy();
+    expect(screen.getByText('test-quiz 1')).toBeTruthy();
   });
 
   it('labels a preset-less app rather than showing an empty name', () => {

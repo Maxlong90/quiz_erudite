@@ -20,7 +20,7 @@ import {
 import { apiClient } from '@/api/client';
 
 jest.mock('@/api/client', () => ({
-  APP_SLUG: 'test-app',
+  APP_SLUG: 'test-quiz',
   apiClient: { post: jest.fn(), get: jest.fn() },
 }));
 
@@ -86,7 +86,7 @@ describe('flushAnswers', () => {
     await flushAnswers();
     expect(post).toHaveBeenCalledTimes(3); // 200 + 200 + 50
     for (const call of post.mock.calls) {
-      expect(call[0]).toBe('/apps/test-app/answers');
+      expect(call[0]).toBe('/apps/test-quiz/answers');
       expect(call[1].answers.length).toBeLessThanOrEqual(200);
     }
     expect(await readQueue()).toEqual([]);
@@ -147,7 +147,7 @@ describe('fetchQuestionStats + loadCachedStats', () => {
       data: { threshold: 30, stats: { '42': { total: 100, counts: [10, 70, 20, 0] } } },
     });
     await fetchQuestionStats('en');
-    expect(get).toHaveBeenCalledWith('/apps/test-app/question-stats', { params: {} });
+    expect(get).toHaveBeenCalledWith('/apps/test-quiz/question-stats', { params: {} });
     const cache = await loadCachedStats();
     expect(cache).not.toBeNull();
     expect(cache!.locale).toBe('en');
@@ -165,7 +165,7 @@ describe('fetchQuestionStats + loadCachedStats', () => {
   it('forwards a since timestamp for incremental refresh', async () => {
     get.mockResolvedValue({ data: { threshold: 30, stats: {} } });
     await fetchQuestionStats('en', 1700000000);
-    expect(get).toHaveBeenCalledWith('/apps/test-app/question-stats', {
+    expect(get).toHaveBeenCalledWith('/apps/test-quiz/question-stats', {
       params: { since: 1700000000 },
     });
   });

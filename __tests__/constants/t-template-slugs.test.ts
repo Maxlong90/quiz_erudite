@@ -35,7 +35,7 @@ describe('T_TEMPLATE_SLUGS', () => {
     // A CONTRACT with the backend, fixed by migration
     // 2026_09_07_000003_seed_configurable_quiz_demo.php. Renaming it in either
     // repo breaks the other.
-    expect(T_TEMPLATE_SLUGS).toEqual(['configurable-quiz']);
+    expect(T_TEMPLATE_SLUGS).toEqual(['test-quiz']);
   });
 
   it.each(SHIPPED_BUILD_SLUGS)('does NOT contain the shipped build %s', (slug) => {
@@ -53,11 +53,11 @@ describe('T_TEMPLATE_SLUGS', () => {
   it('scaffolds the configurable template in the BUNDLED dark background', () => {
     // The scaffold is painted during the cold-start hand-off, before any theme
     // data exists. Matching the bundled tier is what makes that hand-off flashless.
-    expect(APP_TEMPLATES['configurable-quiz'].scaffoldBg).toBe(EruditeColors.dark.bgSolid);
-    expect(APP_TEMPLATES['configurable-quiz'].scaffoldBg).toBe('#1a1a47');
+    expect(APP_TEMPLATES['test-quiz'].scaffoldBg).toBe(EruditeColors.dark.bgSolid);
+    expect(APP_TEMPLATES['test-quiz'].scaffoldBg).toBe('#1a1a47');
   });
 
   it('points the configurable template at its own splash', () => {
-    expect(APP_TEMPLATES['configurable-quiz'].splash).toBe('/t/splash');
+    expect(APP_TEMPLATES['test-quiz'].splash).toBe('/t/splash');
   });
 });
