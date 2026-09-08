@@ -7,74 +7,42 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/football-quiz/app-background';
 import { AutoFitText, FittedGroup } from '@/components/football-quiz/auto-fit-text';
-import { goldGlow } from '@/components/football-quiz/ui';
 import { FQColors, FQRadius, FQ_GOLD_GRADIENT } from '@/constants/football-quiz/theme';
-import { useFQLabels, useFQModeLines } from '@/constants/football-quiz/labels';
+import { useFQLabels } from '@/constants/football-quiz/labels';
 
 /**
  * Football Quiz home.
  *
- * Layout: the wordmark centred at the top over the dark sky, then the two game
- * modes as equal glass cards, then Shop and Settings as a thin service row. No
- * coin counter — coins live in the shop and the quiz, where they are spent.
+ * The wordmark sits at the top over the dark sky; a single round PLAY sits just
+ * above the Shop / Settings row, where the two mode cards used to be. No coin
+ * counter — coins live in the shop and the quiz, where they are spent.
  *
- * TEXT FITTING IS MEASURED ON BOTH SIDES — see components/football-quiz/auto-fit-text.
+ * PLAY leads to the mode-select screen (app/football-quiz/play.tsx), the way
+ * Sport Quiz does it: the two modes no longer fit on the home screen, so
+ * choosing one is a step of its own again.
  *
- * Three attempts failed before this, all by computing what should be measured:
- * adjustsFontSizeToFit broke words; a size from Roboto's metrics is wrong on iOS
- * (SF Black is wider); and hand-computing the available width missed the 2 dp
- * border per side plus letterSpacing, ~6 dp, which clipped the label again.
+ * WHY THE BUTTON IS PLACED FROM THE BOTTOM. The backdrop's turf starts at 61% of
+ * the frame's height — measured off the artwork itself, not estimated — and the
+ * button must not climb above it onto the stands. Anchoring it to the service
+ * row (a fixed gap above it) keeps the whole bottom block together and makes the
+ * button grow upward into the turf band as the diameter changes, never past it.
+ * At ⌀230 the top lands ~11 dp below the turf line, which is the practical
+ * ceiling for this diameter.
  *
- * AutoFitText measures its own box (onLayout) AND its own string (onTextLayout),
- * so nothing is assumed about font, screen or surrounding styles. FittedGroup
- * makes the four mode words share one size, and the two service labels another,
- * so each row stays typographically uniform.
+ * Text sizes are measured, never hardcoded — see components/football-quiz/auto-fit-text.
  */
 const SCREEN_PAD = 16;
-const CARD_GAP = 10;
-const CARD_PAD = 12;
-const CARD_H = 100;
-const MODE_ICON = 32;
+const ROW_GAP = 10;
+/** Approved: dark fill, ⌀230, 12 dp above the service row. */
+const PLAY_D = 230;
+const PLAY_GAP = 12;
+/** Kept proportional to the approved ⌀190 button (glyph 92, label 42). */
+const PLAY_GLYPH = Math.round(PLAY_D * (92 / 190));
+const PLAY_LABEL = Math.round(PLAY_D * (42 / 190));
 const SERVICE_ICON = 22;
-const SERVICE_PAD = 16;
 const SERVICE_GAP = 9;
-/** Upper bounds — the measurement only ever scales down from here. */
-const MODE_MAX = 24;
+const SERVICE_PAD = 16;
 const SERVICE_MAX = 22;
-
-function ModeCard({
-  glyph,
-  lines,
-  onPress,
-}: {
-  glyph: keyof typeof Ionicons.glyphMap;
-  lines: [string, string];
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.mode,
-        goldGlow(14, 0.4),
-        pressed && { transform: [{ scale: 0.98 }], opacity: 0.92 },
-      ]}
-    >
-      <LinearGradient
-        colors={[FQColors.glassStrong, FQColors.glass]}
-        style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.lg }]}
-      />
-      <Ionicons name={glyph} size={MODE_ICON} color={FQColors.goldLight} />
-      <View style={styles.modeLabels}>
-        {lines.map((line) => (
-          <AutoFitText key={line} maxFontSize={MODE_MAX} style={styles.modeLabel}>
-            {line}
-          </AutoFitText>
-        ))}
-      </View>
-    </Pressable>
-  );
-}
 
 function ServicePill({
   glyph,
@@ -99,7 +67,6 @@ function ServicePill({
 
 export default function FootballQuizHome() {
   const t = useFQLabels();
-  const modes = useFQModeLines();
 
   return (
     <View style={styles.fill}>
@@ -120,14 +87,19 @@ export default function FootballQuizHome() {
         <View style={{ flex: 1 }} />
 
         <View style={styles.deck}>
-          {/* One group per row: all four mode words share a size, and the two
-              service labels share theirs. */}
-          <FittedGroup>
-            <View style={styles.modes}>
-              <ModeCard glyph="football" lines={modes.classic} onPress={() => router.push('/football-quiz/levels')} />
-              <ModeCard glyph="star" lines={modes.legends} onPress={() => router.push('/football-quiz/levels')} />
-            </View>
-          </FittedGroup>
+          <View style={styles.playRow}>
+            <Pressable
+              onPress={() => router.push('/football-quiz/play')}
+              style={({ pressed }) => [
+                styles.play,
+                pressed && { transform: [{ scale: 0.97 }], opacity: 0.92 },
+              ]}
+            >
+              <Ionicons name="play" size={PLAY_GLYPH} color={FQColors.goldLight} style={styles.playGlyph} />
+              <Text style={styles.playLabel}>PLAY</Text>
+            </Pressable>
+          </View>
+
           <FittedGroup>
             <View style={styles.services}>
               <ServicePill glyph="cart" label={t.shop} onPress={() => router.push('/football-quiz/shop')} />
@@ -168,28 +140,38 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
   },
 
-  deck: { paddingHorizontal: SCREEN_PAD, paddingBottom: 26, gap: CARD_GAP },
-  modes: { flexDirection: 'row', gap: CARD_GAP },
-  mode: {
-    flex: 1,
-    height: CARD_H,
-    borderRadius: FQRadius.lg,
+  deck: { paddingHorizontal: SCREEN_PAD, paddingBottom: 26 },
+  // This margin IS the approved gap between the button and the service row.
+  playRow: { alignItems: 'center', marginBottom: PLAY_GAP },
+  play: {
+    width: PLAY_D,
+    height: PLAY_D,
+    borderRadius: PLAY_D / 2,
+    // Dark variant: same fill as Shop / Settings, so the bottom of the screen
+    // reads as one system. Rim and glow are lighter than the gold variant's —
+    // at equal weight the outline would out-shout the fill.
+    backgroundColor: 'rgba(12,14,16,0.70)',
     borderWidth: 2,
     borderColor: FQColors.glassBorder,
-    overflow: 'hidden',
-    paddingHorizontal: CARD_PAD,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    shadowColor: FQColors.gold,
+    shadowOpacity: 0.22,
+    shadowRadius: Math.round(PLAY_D * 0.3),
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
   },
-  modeLabels: { width: '100%' },
-  modeLabel: {
+  playGlyph: { marginBottom: -6 },
+  playLabel: {
+    color: FQColors.goldLight,
     fontWeight: '900',
-    color: FQColors.text,
-    textAlign: 'center',
+    fontSize: PLAY_LABEL,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowRadius: 10,
+    textShadowOffset: { width: 0, height: 2 },
   },
 
-  services: { flexDirection: 'row', gap: CARD_GAP },
+  services: { flexDirection: 'row', gap: ROW_GAP },
   service: {
     flex: 1,
     flexDirection: 'row',

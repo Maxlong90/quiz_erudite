@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/football-quiz/app-background';
 import { CoinPill, FQIconButton, ScreenTitle, goldGlow } from '@/components/football-quiz/ui';
 import { FQColors, FQRadius } from '@/constants/football-quiz/theme';
-import { useSQLabels } from '@/constants/sport-quiz/labels';
+import { useFQLabels } from '@/constants/football-quiz/labels';
 import { MOCK_COINS } from '@/lib/football-quiz/mock';
 
 /**
@@ -56,7 +56,7 @@ function ModeButton({
 }
 
 export default function FootballQuizPlay() {
-  const t = useSQLabels();
+  const t = useFQLabels();
 
   return (
     <View style={styles.fill}>
