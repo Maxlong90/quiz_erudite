@@ -55,6 +55,8 @@ export const APP_TEMPLATES: Record<string, AppTemplate> = {
   // the tier the app paints with before any theme data arrives and there is
   // nothing to flash. Pinned by __tests__/constants/t-template-slugs.test.ts.
   'configurable-quiz': { splash: '/t/splash', scaffoldBg: '#1a1a47' },
+  // scaffoldBg = FQColors.bgBase — the average tone of the "light haze" backdrop.
+  'football-quiz': { splash: '/football-quiz/splash', scaffoldBg: '#2B2B26' },
 };
 
 /**

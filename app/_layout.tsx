@@ -94,6 +94,7 @@ function ThemedRoot() {
         <Stack.Screen name="coat-of-arms" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="sport-quiz" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="italy-quiz" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="football-quiz" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="t" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen
           name="onboarding"

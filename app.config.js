@@ -123,6 +123,34 @@ const buildConfig = ({ config } = {}) => {
     };
   }
 
+  // Football Quiz variant (App Template: Sports, backend app id 4): its own Expo
+  // project identity (name + slug) so it is a separate app in Expo Go and never
+  // shows another variant's cached bundle. Store identity falls back to the
+  // erudite identity until an operator supplies football-quiz values.
+  if (appSlug === 'football-quiz') {
+    return {
+      ...base,
+      name: 'Football Quiz',
+      slug: 'football-quiz',
+      ios: {
+        ...base.ios,
+        bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || base.ios?.bundleIdentifier,
+        // iPhone-only from the first release, per the brief — there is no tablet
+        // layout. Overrides the erudite base (supportsTablet: true).
+        supportsTablet: false,
+      },
+      android: {
+        ...base.android,
+        package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || base.android?.package,
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          // The erudite base is purple (#5E63F5); use this app's own base tone.
+          backgroundColor: '#2B2B26',
+        },
+      },
+    };
+  }
+
   // Italy Quiz variant (App Template: World, backend slug
   // `italy-history-and-geography-quiz`): its own Expo project identity (name +
   // slug) so it is a separate app in Expo Go and never shows another variant's
