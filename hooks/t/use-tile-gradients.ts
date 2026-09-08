@@ -52,6 +52,11 @@ export function useModeTileGradient(id: TModeId): TileGradient {
  * The gradient for a content category. Category slugs are backend data, so an
  * unknown one is an ordinary runtime case and gets the neutral fallback ramp —
  * the same one constants/category-visuals.ts gives the Erudite build.
+ *
+ * The `??` below is only sound because CATEGORY_RAMPS has a NULL PROTOTYPE (see
+ * constants/t/tile-palette.ts): on a plain object literal a slug such as
+ * `constructor` would inherit a function rather than miss, and this would hand
+ * a native LinearGradient an undefined gradient.
  */
 export function useCategoryTileGradient(slug: string): TileGradient {
   return TILE_GRADIENTS[CATEGORY_RAMPS[slug] ?? FALLBACK_RAMP];

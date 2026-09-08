@@ -160,16 +160,28 @@ export const MODE_RAMPS = Object.freeze({
  * constants/category-visuals.ts. A `/t` category tile pushes into
  * app/category/[slug].tsx — an Erudite screen still reading CATEGORY_VISUALS —
  * so a tile that changed colour mid-navigation would read as a rendering bug.
+ *
+ * DO NOT "tidy" the null prototype away. Because the KEY is untrusted operator
+ * data, a plain object literal makes `CATEGORY_RAMPS[slug] ?? FALLBACK_RAMP`
+ * unsound: for a category slugged `constructor` or `toString` the lookup
+ * inherits a FUNCTION from Object.prototype instead of yielding undefined, so
+ * the `??` never fires and the tile resolves to `undefined` — which reaches a
+ * native LinearGradient and throws "Unable to parse color" on Android rather
+ * than rendering the neutral fallback. A null prototype has no inherited keys,
+ * so every unknown slug (including `__proto__`) misses cleanly and every
+ * consumer of this map gets that for free.
  */
-export const CATEGORY_RAMPS: Readonly<Record<string, TileRamp>> = Object.freeze({
-  geography: 'twilight',
-  history: 'earth',
-  'science-and-nature': 'forest',
-  'arts-literature': 'bloom',
-  sports: 'sunset',
-  entertainment: 'nebula',
-  'general-knowledge': 'sunrise',
-});
+export const CATEGORY_RAMPS: Readonly<Record<string, TileRamp>> = Object.freeze(
+  Object.assign(Object.create(null) as Record<string, TileRamp>, {
+    geography: 'twilight',
+    history: 'earth',
+    'science-and-nature': 'forest',
+    'arts-literature': 'bloom',
+    sports: 'sunset',
+    entertainment: 'nebula',
+    'general-knowledge': 'sunrise',
+  } satisfies Record<string, TileRamp>),
+);
 
 export const FALLBACK_RAMP: TileRamp = 'dusk';
 
