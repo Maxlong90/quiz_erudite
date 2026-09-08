@@ -1,0 +1,24 @@
+import { Stack } from 'expo-router';
+
+/**
+ * The configurable AppTemplate (task Э0-B). Every screen here draws its colours
+ * from the remote theme engine (hooks/use-app-theme.ts) rather than from a
+ * checked-in palette, which is what makes this template one app per operator
+ * preset instead of one app per build.
+ *
+ * The card background stays transparent so each screen's own ScreenBackground
+ * gradient — the themed one — is the only thing painted underneath.
+ */
+export default function TTemplateLayout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+    >
+      <Stack.Screen name="splash" options={{ animation: 'none' }} />
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
+    </Stack>
+  );
+}

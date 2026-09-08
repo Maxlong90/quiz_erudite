@@ -109,9 +109,25 @@ Two tokens carry deliberate design intent worth knowing. The brand accent `#7c5c
 
 The navigator itself must repaint too. `app/_layout.tsx` splits into an outer `RootLayout` (which mounts the providers) and an inner `ThemedRoot` (which runs *under* `ThemePrefProvider`, so it can consume the theme). `ThemedRoot` drives three things off the palette that used to be module-level constants: the react-navigation theme (`background`/`card` set to `bgSolid` so sliding screens do not flash a white card), the Stack `contentStyle` background, and the Android system root-view colour via `SystemUI.setBackgroundColorAsync` (so the translucent system navigation bar stays on-theme). A `ready` gate holds a neutral `bgSolid` fill on cold start until the persisted preference loads, avoiding a one-frame dark flash for light-mode users.
 
-### Scope: Erudite only
+### Remote theme (bundled → cache → network)
 
-Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts` — [Logo Quiz](logo-quiz.md)'s pastel periwinkle, the glossy blue that [Flags Quiz](flags-quiz.md) and [Coat of Arms](coat-of-arms-quiz.md) share, [Sport Quiz](sport-quiz.md)'s neon-on-navy, and Italy Quiz's deep navy — and none of them are touched by this system. The token layer is additive: the legacy `Colors`/`QuizColors` maps in `constants/theme.ts` (which back an Expo-starter OS-scheme path) remain in place, and the OS-driven `ThemedText`/`ThemedView` primitives are intentionally *not* reused here — they read the device colour scheme, which is the wrong signal for an app-selected appearance.
+One build is the exception to everything below: the **configurable template** (`app/t/`, build slug `configurable-quiz`), whose palette is *data* rather than code. It resolves colours in three tiers:
+
+| Tier | Source | When it applies |
+|------|--------|-----------------|
+| `bundled` | `EruditeColors`, compiled into the binary | always the starting point, so the first frame never waits |
+| `cache` | the last theme this device fetched (`theme.remote.v1` in AsyncStorage) | as soon as the storage read returns, typically before the splash floor elapses |
+| `network` | `GET /apps/{slug}/theme`, a conditional request | on a `200`; in the steady state it is a `304` and nothing changes |
+
+The backend serves **ten** of `EruditePalette`'s ~thirty tokens — `bgGradient`, `bgSolid`, `accent`, `accentSoft`, `accentBg`, `accentBgSoft`, `accentBorderSoft`, and the three `optIdle*` — so the engine is an *overlay* onto a bundled palette, never a construction from the payload; the other twenty (`surface`, `text`, `scrim`, `success`, …) always keep their compiled values. The bundled tier is **derived** from `EruditeColors` rather than copied, and `__tests__/lib/theme-bundled-parity.test.ts` pins all twenty literals against the backend's `ColorTokenRegistry` so the two repos cannot drift.
+
+The engine lives in `lib/theme/` (`contract.ts` parses and validates the wire payload, `theme-cache.ts` persists it, `theme-api.ts` performs the conditional GET, `resolve.ts` overlays it) behind `AppThemeProvider` (`hooks/app-theme-provider.ts`). `hooks/use-app-theme.ts` holds only the context and is deliberately I/O-free, because `useThemeColors` sits on it and is pulled into essentially every screen. `app/t/splash.tsx` holds a bounded **network window** — a 1500 ms brand floor, a 3500 ms hard cap — so a first-ever launch paints the operator's colours immediately instead of flashing the bundled palette and flipping; `app/t/index.tsx` is a live token gallery showing the active tier, the held ETag, and which tokens the operator overrode.
+
+Two properties are load-bearing. **Fail-open:** a malformed payload, an unknown schema version, a timeout or an offline device each leave the app on the best palette it already had, and nothing in the chain throws or leaves the splash stranded. **Inert everywhere else:** the engine is gated on the build-time allow-list `T_TEMPLATE_SLUGS` in `constants/app-templates.ts`, so every shipped build gets a frozen constant whose palettes *are* `EruditeColors` by reference — no request, no storage read, and no re-render. That gate is deliberately a checked-in list rather than runtime data parity, because parity would let an operator re-skin a store-published app by saving a form in Nova.
+
+### Scope: Erudite and the configurable template
+
+Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts` — [Logo Quiz](logo-quiz.md)'s pastel periwinkle, the glossy blue that [Flags Quiz](flags-quiz.md) and [Coat of Arms](coat-of-arms-quiz.md) share, [Sport Quiz](sport-quiz.md)'s neon-on-navy, and Italy Quiz's deep navy — and none of them are touched by this system. (None of them even call `useThemeColors`, which is why the only shipped build a theme-engine regression could reach is Erudite itself.) The tokens described here back the Erudite build and, through the remote overlay above, the configurable template. The token layer is additive: the legacy `Colors`/`QuizColors` maps in `constants/theme.ts` (which back an Expo-starter OS-scheme path) remain in place, and the OS-driven `ThemedText`/`ThemedView` primitives are intentionally *not* reused here — they read the device colour scheme, which is the wrong signal for an app-selected appearance.
 
 ## Key Design Decisions
 
@@ -173,8 +189,11 @@ hooks/                  Locale, premium, content cache, quiz session,
                         lives, hints, mistakes, achievements, translation
   use-theme-pref.ts     App-selected appearance (dark/light), persisted
   use-theme-colors.ts   Resolves the active EruditePalette
+  use-app-theme.ts      Remote-theme context (I/O-free) + the inert value
+  app-theme-provider.ts The bundled → cache → network theme engine
 lib/                    Device-local business logic and persistence
   content-cache.ts      Snapshot download + image cache
+  theme/                Remote colour theme: contract, cache, API, resolver
   lives.ts  hints.ts    Currency stores
   mistakes.ts           Recent-mistake ring buffer
   quiz-stats.ts         Career totals + per-bucket seen sets

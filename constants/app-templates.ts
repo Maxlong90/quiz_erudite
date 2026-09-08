@@ -50,7 +50,41 @@ export const APP_TEMPLATES: Record<string, AppTemplate> = {
   'sport-quiz': { splash: '/sport-quiz/splash', scaffoldBg: '#0C1E30' },
   // Route folder (`italy-quiz`) intentionally differs from the backend slug.
   'italy-history-and-geography-quiz': { splash: '/italy-quiz/splash', scaffoldBg: '#7C74C9' },
+  // The configurable template (app/t). Its scaffold is the BUNDLED dark bgSolid
+  // (EruditeColors.dark.bgSolid, '#1a1a47'), so the cold-start scaffold matches
+  // the tier the app paints with before any theme data arrives and there is
+  // nothing to flash. Pinned by __tests__/constants/t-template-slugs.test.ts.
+  'configurable-quiz': { splash: '/t/splash', scaffoldBg: '#1a1a47' },
 };
+
+/**
+ * Builds whose palette is DATA rather than code — the configurable AppTemplate
+ * (app/t), themed at runtime from GET /api/v1/apps/{slug}/theme.
+ *
+ * This list is the INERTNESS GATE for the remote theme engine. A build not named
+ * here cannot fetch a theme, cannot read the theme cache key and cannot apply a
+ * palette: APP_SLUG is baked into the binary from EXPO_PUBLIC_APP_SLUG and this
+ * list is a checked-in literal, so the guarantee is static and holds no matter
+ * what an operator does in Nova.
+ *
+ * The alternative — shipping the engine live everywhere and relying on every
+ * production preset resolving to the bundled palette — was rejected: it makes
+ * inertness a property of production DATA, so an operator saving the colour form
+ * for a shipped app (the exact workflow the backend exists to enable) would
+ * instantly re-skin a store build nobody QA'd. Inertness a non-engineer can
+ * revoke by clicking Save is not inertness.
+ *
+ * `'configurable-quiz'` is a CONTRACT with the backend, fixed by migration
+ * 2026_09_07_000003_seed_configurable_quiz_demo.php. Renaming it there breaks
+ * this client, and vice versa.
+ *
+ * Adding a shipped slug here is a deliberate, reviewable act that re-skins a live
+ * app; __tests__/constants/t-template-slugs.test.ts fails the build if one
+ * appears by accident.
+ */
+export const T_TEMPLATE_SLUGS = ['configurable-quiz'] as const;
+
+export type TTemplateSlug = (typeof T_TEMPLATE_SLUGS)[number];
 
 /**
  * The template this build IS, or null for the erudite build (which keeps the
@@ -61,4 +95,14 @@ export const APP_TEMPLATES: Record<string, AppTemplate> = {
  */
 export function currentTemplate(): AppTemplate | null {
   return APP_TEMPLATES[APP_SLUG] ?? null;
+}
+
+/**
+ * True when THIS build is a configurable-template build, i.e. when the remote
+ * theme engine is switched on. A function, not a constant, for the same reason
+ * as currentTemplate(): the lookup happens at call time, which keeps it honest
+ * under tests that vary the build slug.
+ */
+export function isTTemplateBuild(): boolean {
+  return (T_TEMPLATE_SLUGS as readonly string[]).includes(APP_SLUG);
 }

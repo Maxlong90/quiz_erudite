@@ -19,7 +19,8 @@ import path from 'path';
 // axios-backed api client. Only the static map matters here, so stub the slug.
 jest.mock('@/api/client', () => ({ APP_SLUG: 'erudite-quiz' }));
 
-import { APP_TEMPLATES } from '@/constants/app-templates';
+import { APP_TEMPLATES, T_TEMPLATE_SLUGS } from '@/constants/app-templates';
+import { EruditeColors } from '@/constants/theme';
 
 const APP_DIR = path.join(__dirname, '..', '..', 'app');
 
@@ -67,6 +68,20 @@ describe('app-template registry', () => {
         exists: true,
       });
     }
+  });
+
+  it('registers every configurable-template build', () => {
+    // The remote theme engine is gated on T_TEMPLATE_SLUGS; a slug there that is
+    // NOT here would still fall through to the shared erudite splash.
+    for (const slug of T_TEMPLATE_SLUGS) {
+      expect(Object.keys(APP_TEMPLATES)).toContain(slug);
+    }
+  });
+
+  it('scaffolds the configurable template in its BUNDLED background colour', () => {
+    // The scaffold paints during the cold-start hand-off, before any theme data
+    // exists, so it must equal the tier the app renders with at that moment.
+    expect(APP_TEMPLATES['configurable-quiz'].scaffoldBg).toBe(EruditeColors.dark.bgSolid);
   });
 
   it('gives every entry its own opaque scaffold colour', () => {

@@ -5,6 +5,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { AppThemeProvider } from '@/hooks/app-theme-provider';
 import { ContentCacheProvider } from '@/hooks/use-content-cache';
 import { useImmersiveNavBar } from '@/hooks/use-immersive-nav-bar';
 import { LocaleProvider } from '@/hooks/use-locale';
@@ -93,6 +94,7 @@ function ThemedRoot() {
         <Stack.Screen name="coat-of-arms" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="sport-quiz" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="italy-quiz" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="t" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen
           name="onboarding"
           options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
@@ -143,11 +145,17 @@ function RootLayout() {
   return (
     <LocaleProvider>
       <ThemePrefProvider>
-        <PremiumProvider>
-          <ContentCacheProvider>
-            <ThemedRoot />
-          </ContentCacheProvider>
-        </PremiumProvider>
+        {/* Pure INSERTION — no existing provider moves. Reordering these would
+            change mount order and effect timing for the shipped builds, which is
+            exactly the class of diff that makes an "inert" claim unverifiable.
+            It sits above ThemedRoot because ThemedRoot calls useThemeColors. */}
+        <AppThemeProvider>
+          <PremiumProvider>
+            <ContentCacheProvider>
+              <ThemedRoot />
+            </ContentCacheProvider>
+          </PremiumProvider>
+        </AppThemeProvider>
       </ThemePrefProvider>
     </LocaleProvider>
   );
