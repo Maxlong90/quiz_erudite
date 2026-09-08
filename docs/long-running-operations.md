@@ -5,7 +5,8 @@ Some commands in this project run for tens of minutes while printing nothing. Th
 This file records which operations are dangerous to run in the foreground, how long they actually take, and what to run instead. Wrap anything listed here in `suslik-bg` and end the turn, or ask the operator to trigger it from the dashboard.
 
 <!-- AGENT-SUMMARY:START -->
-- `npx expo run:android` / Gradle `assembleDebug` — median ~10 min, up to 27 min measured, long silent stretches → SIGTERM. Safe: `suslik-bg "npx expo run:android"`, or the dashboard Mobile modal.
+- `npx expo run:android` / Gradle `assembleDebug` — median ~3 min but a long tail (1 in 6 runs exceeds 10 min, 27 min measured), long silent stretches → SIGTERM. Safe: `suslik-bg "npx expo run:android"`, or the dashboard Mobile modal.
+- Gradle `assembleRelease` (a variant APK with the JS bundle embedded) — strictly slower than debug, and the bundling/minify tail is silent → SIGTERM leaves no APK and no error. Safe: `suslik-bg "cd android && ./gradlew assembleRelease"`.
 - Full rebuild from scratch (uninstall → `npx expo prebuild` → Gradle → reinstall) — ~15-30 min, silent → SIGTERM. Safe: dashboard Mobile modal → «Пересобрать APK с нуля» (runs as a supervised background job).
 - `npm install` — several minutes, near-silent while resolving and linking an ~870 MB tree → SIGTERM risk. Safe: `suslik-bg "npm install"`.
 - `eas build --profile <name>` — 20-40 min queued on EAS servers, output is sparse polling → SIGTERM. Safe: `suslik-bg`, then poll the build URL in a later turn.
@@ -17,13 +18,18 @@ This file records which operations are dangerous to run in the foreground, how l
 
 **Why it is slow.** The tree carries the full Expo module set plus native dependencies for RevenueCat, AdMob, Reanimated, view-shot, and Sentry. A cold build compiles every one of them, runs Kotlin and C++ toolchains, and bundles the JS. Gradle prints task names as it goes, but several individual tasks — C++ compilation, dexing, and the release bundling step — run for many minutes without emitting a line.
 
-**Measured duration.** Twenty multi-minute builds are recorded in the local Gradle daemon logs (`~/.gradle/daemon/8.14.3/daemon-*.out.log`). The distribution: minimum 1 minute for a warm incremental build, **median about 10 minutes**, maximum 27 minutes. Warm builds that touch nothing native can finish in 10 seconds, but you cannot rely on landing in that case.
+**Measured duration.** Seventy-seven completed builds are recorded in the local Gradle daemon logs (`~/.gradle/daemon/*/daemon-*.out.log`). The distribution: minimum 6 seconds for a build that touches nothing, **median about 3 minutes**, ninth decile about 15 minutes, maximum 27 minutes. The median is the misleading number here. What matters is the tail: **13 of those 77 runs — better than one in six — ran past the ten-minute silence window**, and nothing about a build tells you in advance which kind it will be. A median that clears the watchdog is not a reason to foreground the command.
+
+**The release variant is the slow end.** `assembleRelease` does everything a debug build does and then bundles the JS, minifies it, and crunches the PNGs, so it lands in the tail by construction rather than by luck. It is also the case where a kill is hardest to read: Gradle's log ends with a client disconnection and no verdict, `android/app/build/outputs/` holds no APK, and nothing anywhere says why. Two such attempts on 2026-09-08 are in the daemon logs, both cut off mid-compile with no artifact. If a release build "finished" but there is no APK on disk, it was killed — do not re-run it in the foreground.
 
 **How to run it safely.** Prefer not to run it at all. In the steady state the emulator, Metro, and the app are already up, and JS or TypeScript edits reach the device through Metro Fast Refresh — a code change needs no rebuild. When a rebuild really is required (a new native dependency, changed native config, or an app that will not start), wrap it:
 
 ```
 suslik-bg "npx expo run:android"
+suslik-bg "cd /var/www/quiz-erudit/android && ./gradlew assembleRelease"
 ```
+
+The second form is how a sibling or template variant gets a release APK with its bundle embedded, which is what an on-device check of a non-default build needs — see [Development](development.md#building-a-variant-as-a-release-apk).
 
 **Verifying without a build.** To confirm the current state instead of rebuilding, check the emulator, Metro, and the foreground activity with the fast `adb` and `lsof` probes documented in `CLAUDE.md`, then take a screenshot through Maestro. Those are instant and answer the question a rebuild was usually meant to answer.
 

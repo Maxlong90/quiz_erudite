@@ -10,7 +10,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **Erudite** — The default app and the one most of these docs describe by default: the seven-subject general-knowledge quiz with lives, hints, and premium modes.
 
-**Configurable template** — The build under the `test-quiz` slug and the `app/t/` route folder, whose colours arrive from the backend instead of a checked-in palette. One binary becomes one app per operator preset. See [Configurable Template](configurable-template.md).
+**Configurable template** — The build under the `test-quiz` slug and the `app/t/` route folder, whose colours arrive from the backend instead of a checked-in palette. One binary becomes one app per operator preset. It carries its own name ("Test App"), Android package, and URL scheme, so it installs beside another build of this tree rather than over it. See [Configurable Template](configurable-template.md).
 
 **Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the seven apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
 

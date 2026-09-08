@@ -176,6 +176,29 @@ Reaching it by long-pressing the home wordmark, and not gating that on `__DEV__`
 
 A token counts as "overridden" when it differs from the bundled value in **either** appearance, so the marker answers "did the operator touch this token" and stays put when you flip the light/dark toggle.
 
+## Verifying on a Device
+
+The engine's central promises are all about what a real device does at a real moment: the first frame carries no flash, an operator's edit reaches an installed app with no rebuild, and a restart without a network keeps the colours. The test suite cannot prove any of them, because it has no device. The backend cannot prove them either — it only proves that the endpoint answers and that a preset edit moves the ETag. The app has to run on a screen.
+
+That is harder for this build than for a sibling, and the difficulty is what its `app.config.js` branch exists to remove:
+
+- **Metro serves one slug.** A debug binary pulls its JS from the dev server at launch. The shared dev host runs one Metro for another build, so a debug APK of the template would show that build's bundle, and there is no scheme on the installed app to deep-link into a second server. Taking the operator's session down to make room is not an option.
+- **So the artifact is a release APK with the bundle embedded.** No dev server is involved, `EXPO_PUBLIC_APP_SLUG=test-quiz` is compiled in, and the app fetches its theme from the production backend exactly as an installed app would. [Development](development.md#building-a-variant-as-a-release-apk) has the build steps.
+- **And it must install beside the existing build, not over it.** Android replaces an app whose package matches, data and all. This is the one config branch whose `package` and `bundleIdentifier` are literals rather than fallbacks to the Erudite identity, so an unset env var cannot turn a verification build into a silent overwrite of the app it was meant to sit next to. Its own `scheme` (`testquiz`) keeps `quizerudit://` links unambiguous while both are installed.
+
+Four observations are worth making once the app is on the device, one per design property:
+
+| What you look for | What it proves |
+|-------------------|----------------|
+| Opens on the bundled dark navy, no white flash, no foreign colour | The bundled tier really does paint the first frame, and the scaffold colour matches it |
+| An admin edit to the app's preset appears after a restart, with no rebuild | The conditional fetch sees the new ETag and the overlay applies |
+| Colours survive a restart with the device offline | The cache tier carries the last good theme |
+| The neighbouring build is untouched and unchanged | The inertness gate holds, and the packages really are separate |
+
+Verification writes into production data, so it carries an obligation: the preset override used to prove tier three must be reverted afterwards, and the endpoint's ETag returning to its previous value is the check that it was. Every shipped app's preset stores `NULL` tokens, and leaving a stray override behind would be indistinguishable from an operator's real edit.
+
+As of this changeset the build identity is in place and the server half is confirmed, but the release APK has not yet been produced on this host — the Gradle run was cut off before it emitted an artifact, and nothing named `test-quiz` is installed on the emulator. The four observations above are therefore still open: the on-device behaviour rests on the unit tests and on reading the code, not on having watched it.
+
 ## Failure Modes
 
 Fail-open is the engine's central property. Every failure leaves the app on the best palette it already had, and nothing in the chain throws or strands the splash.
