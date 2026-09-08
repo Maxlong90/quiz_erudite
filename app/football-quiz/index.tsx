@@ -71,8 +71,6 @@ function ModeCard({
         style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.lg }]}
       />
       <Ionicons name={glyph} size={MODE_ICON} color={FQColors.goldLight} />
-      {/* Held back for the one frame it takes to measure, so nothing is ever
-          shown clipped or at the wrong size. */}
       {fontSize != null && (
         <View>
           {lines.map((line) => (
