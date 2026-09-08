@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Platform,
   Pressable,
@@ -17,72 +16,80 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { AppBackground } from '@/components/italy-quiz/app-background';
+import { ActInterlude } from '@/components/italy-quiz/act-interlude';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { HelpModal } from '@/components/italy-quiz/help-modal';
+import { ScaleSlider, ScaleReadout } from '@/components/italy-quiz/scale-slider';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
-import { useItalyCategory, RUN_PHOTO_MIX } from '@/constants/italy-quiz/categories';
+import { getPlace, pickText, useItalyPlace } from '@/constants/italy-quiz/places';
+import { formatScaleGap, formatScaleValue } from '@/constants/italy-quiz/question';
+import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
 import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
-import { useRunProgress } from '@/hooks/italy-quiz/use-run-progress';
-import { useContentCache } from '@/hooks/use-content-cache';
+import { useTourProgress } from '@/hooks/italy-quiz/use-tour-progress';
 import { useLocale } from '@/hooks/use-locale';
-import { resolveLocalImage } from '@/lib/content-cache';
 import { getStoreLinks } from '@/lib/store-links';
 
-/** Questions drawn per run. */
-const RUN_LENGTH = 50;
-
 /**
- * How long a WRONG pick stays lit before the run moves on. A wrong pick never
- * reveals the correct answer (mirrors Flags Quiz / Coat of Arms) — the missed
- * question simply comes back in the end-of-run mistakes review. A CORRECT pick
- * does not auto-advance: it shows the explanation and waits for "Next".
+ * How long a WRONG multiple-choice pick stays lit before the tour moves on. The
+ * right option is never revealed — the missed question comes back in the
+ * end-of-tour review instead, which is worthless if the answer was just shown.
  */
 const WRONG_ADVANCE_MS = 700;
 
-/** Answer button height — same as the Flags Quiz option tiles. */
 const OPTION_H = 68;
 
-/** Answer-state colours — green for a correct pick, red for a wrong one. */
 const CORRECT = { light: '#3FBF6A', dark: '#12703B', rim: '#0A4223' };
 const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
 
 /**
- * Italy Quiz gameplay (subcategory → here). Mixed text/photo multiple choice: a
- * question carries an image only when the backend generated an `image_questions`
- * item, so the card shows the photo when there is one and reads as a plain text
- * question otherwise.
+ * Italy Quiz gameplay — one TOUR of one place (place picker → here).
  *
- * Answer flow: only the TAPPED option lights up. A wrong pick never reveals the
- * right answer and moves on by itself; a correct pick reveals the explanation and
- * waits for the "Next" button. Missed questions are collected and replayable from
- * the result screen ("Review mistakes").
+ * A tour is twenty questions split into four acts by time: antiquity → middle
+ * ages → renaissance → today, five questions each, with an interlude card
+ * between acts. Inside an act the disciplines are mixed on purpose, which is what
+ * replaced the old subject subcategories: the player is not tested on "History",
+ * they walk one city from its founding to its football derby.
  *
- * The run's order/position/mistakes live in useRunProgress, so leaving the app
- * mid-run and coming back resumes on the same question with the same score — and
- * a background content re-sync can never reshuffle the run underfoot.
+ * Two question shapes share the screen. A `choice` question behaves as before — a
+ * wrong pick reveals nothing and auto-advances, a correct one shows the
+ * explanation and waits for Next. A `scale` question is answered on a slider and
+ * ALWAYS reveals the true value, right or wrong: a number means nothing without
+ * the real number next to it, and unlike a hidden multiple-choice answer it
+ * teaches something the moment it is shown.
+ *
+ * Questions come from `constants/italy-quiz/tour-content` — hand-authored files
+ * in the app. Nothing here reads the backend content snapshot.
  */
 export default function ItalyQuizGame() {
-  const { cat, sub } = useLocalSearchParams<{ cat?: string; sub?: string }>();
+  const { place: placeId } = useLocalSearchParams<{ place?: string }>();
   const t = useItalyLabels();
   const { locale } = useLocale();
-  const category = useItalyCategory(cat);
-  const { snapshot, status } = useContentCache();
+  const place = useItalyPlace(placeId);
+  const rawPlace = useMemo(() => getPlace(placeId), [placeId]);
+  const questions = useMemo(() => getTourQuestions(placeId), [placeId]);
+  const byId = useMemo(() => new Map(questions.map((q) => [q.id, q])), [questions]);
 
   const [helpOpen, setHelpOpen] = useFirstRunHelp();
   const [reportOpen, setReportOpen] = useState(false);
 
-  // `epoch` forces a brand-new run (Play again / Review mistakes); `retryIds`
-  // restricts that run to the questions just missed.
   const [epoch, setEpoch] = useState(0);
   const [retryIds, setRetryIds] = useState<number[] | null>(null);
-  const [picked, setPicked] = useState<number | null>(null);
   const [done, setDone] = useState(false);
-  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The intro card is dismissed once per tour; a resumed tour skips it. */
+  const [introDone, setIntroDone] = useState(false);
+  /** Position whose interlude the player has already tapped through. */
+  const [interludeSeen, setInterludeSeen] = useState<number | null>(null);
 
+  // Answer state for the current question, reset whenever the question changes.
+  const [picked, setPicked] = useState<number | null>(null);
+  const [guess, setGuess] = useState<number | null>(null);
+  const [guessLocked, setGuessLocked] = useState(false);
+
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
       if (advanceTimer.current) clearTimeout(advanceTimer.current);
@@ -90,107 +97,92 @@ export default function ItalyQuizGame() {
     [],
   );
 
-  // `sub` is the backend category slug — the same value the snapshot puts on
-  // each question's `category_slug`, so it doubles as the run's filter key.
-  const subcategory = useMemo(
-    () => category?.subcategories.find((s) => s.slug === sub) ?? null,
-    [category, sub],
-  );
+  const isRetry = !!(retryIds && retryIds.length > 0);
 
-  /** Every question of this subcategory, keyed by id for O(1) lookup. */
-  const pool = useMemo(() => {
-    if (!snapshot || !sub) return [];
-    return snapshot.questions.filter((q) => q.category_slug === sub);
-  }, [snapshot, sub]);
-
-  // Only id + hasImage reach the run builder, so it can compose a fixed
-  // text/photo ratio for the subcategories that ask for one.
-  const poolMeta = useMemo(
-    () => pool.map((q) => ({ id: q.id, hasImage: !!q.image_url })),
-    [pool],
-  );
-  const byId = useMemo(() => new Map(pool.map((q) => [q.id, q])), [pool]);
-
-  const {
-    hydrated,
-    ids,
-    pos,
-    wrong,
-    setPos,
-    addWrong,
-    clear,
-  } = useRunProgress({
-    key: retryIds ? null : sub ? `italy.run.${sub}` : null,
-    pool: poolMeta,
-    limit: RUN_LENGTH,
-    photoMix: sub ? (RUN_PHOTO_MIX[sub] ?? null) : null,
+  const { hydrated, ids, pos, wrong, setPos, addWrong, clear } = useTourProgress({
+    key: isRetry || !placeId ? null : `italy.tour.${placeId}`,
+    place: rawPlace,
+    questions,
     retry: retryIds,
-    ready: pool.length > 0,
     epoch,
   });
 
-  const raw = ids[pos] != null ? byId.get(ids[pos]) : undefined;
-  const question = raw
-    ? {
-        id: raw.id,
-        question: raw.question,
-        options: raw.options,
-        correct_option: raw.correct_option,
-        explanation: raw.explanation,
-        imageUri: resolveLocalImage(snapshot, raw.image_url),
-      }
-    : null;
+  const question = ids[pos] != null ? byId.get(ids[pos]) : undefined;
+  const prevQuestion = pos > 0 && ids[pos - 1] != null ? byId.get(ids[pos - 1]) : undefined;
+  const act = rawPlace?.acts.find((a) => a.id === question?.act) ?? null;
 
-  // Every answered question is either right or wrong, so the score is derived.
+  // A fresh scale question starts with the slider in the middle — a neutral
+  // position that does not hint at the answer.
+  useEffect(() => {
+    setPicked(null);
+    setGuessLocked(false);
+    setGuess(question?.kind === 'scale' ? Math.round((question.min + question.max) / 2) : null);
+    // Keyed on the question's identity only: min/max belong to that question, so
+    // listing them would just re-run the reset without ever changing the outcome.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.id, question?.kind]);
+
+  // Resuming mid-tour drops the player straight back into the question.
+  useEffect(() => {
+    if (hydrated && pos > 0) setIntroDone(true);
+  }, [hydrated, pos]);
+
   const score = Math.max(0, pos - wrong.length);
+
+  const finish = useCallback(() => {
+    setDone(true);
+    clear();
+  }, [clear]);
 
   const goNext = useCallback(() => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     if (pos + 1 >= ids.length) {
-      setDone(true);
-      clear();
+      finish();
       return;
     }
     setPos(pos + 1);
-    setPicked(null);
-  }, [pos, ids.length, setPos, clear]);
+  }, [pos, ids.length, setPos, finish]);
 
   const onPick = useCallback(
     (i: number) => {
-      if (picked !== null || !question) return;
-      const right = i === question.correct_option;
+      if (picked !== null || !question || question.kind !== 'choice') return;
+      const right = i === question.correct;
       Haptics.notificationAsync(
         right
           ? Haptics.NotificationFeedbackType.Success
           : Haptics.NotificationFeedbackType.Error,
       ).catch(() => {});
       setPicked(i);
-      if (right) {
-        // Correct: the explanation appears and the player taps Next when ready.
-        return;
-      }
-      // Wrong: remembered for the review; the right answer stays hidden and the
-      // run moves on by itself.
+      if (right) return; // explanation + Next; the player sets the pace
+
       addWrong(question.id);
       const last = pos + 1 >= ids.length;
       advanceTimer.current = setTimeout(() => {
-        if (last) {
-          setDone(true);
-          clear();
-          return;
-        }
-        setPos(pos + 1);
-        setPicked(null);
+        if (last) finish();
+        else setPos(pos + 1);
       }, WRONG_ADVANCE_MS);
     },
-    [picked, question, pos, ids.length, addWrong, setPos, clear],
+    [picked, question, pos, ids.length, addWrong, setPos, finish],
   );
 
-  const startRun = useCallback((idsForRetry: number[] | null) => {
+  const onLockGuess = useCallback(() => {
+    if (!question || question.kind !== 'scale' || guess == null || guessLocked) return;
+    const right = Math.abs(guess - question.answer) <= question.tolerance;
+    Haptics.notificationAsync(
+      right ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error,
+    ).catch(() => {});
+    setGuessLocked(true);
+    if (!right) addWrong(question.id);
+  }, [question, guess, guessLocked, addWrong]);
+
+  const startTour = useCallback((idsForRetry: number[] | null) => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     setRetryIds(idsForRetry);
     setPicked(null);
+    setGuessLocked(false);
     setDone(false);
+    setInterludeSeen(null);
+    setIntroDone(idsForRetry != null);
     setEpoch((e) => e + 1);
   }, []);
 
@@ -218,7 +210,6 @@ export default function ItalyQuizGame() {
     </>
   );
 
-  /** Back on the left, help / report / share on the right — as in Flags Quiz. */
   const Hud = (
     <View style={styles.hud}>
       <Pressable
@@ -257,27 +248,10 @@ export default function ItalyQuizGame() {
     </View>
   );
 
-  const TitleRow = (
-    <View style={styles.titleRow}>
-      {/* Some titles are deliberately two-line (e.g. «Средневековье\nи города-государства»). */}
-      <Text style={styles.title} numberOfLines={2}>
-        {subcategory?.title ?? ''}
-      </Text>
-      {!done && question ? (
-        <Text style={styles.counterText}>
-          {pos + 1}/{ids.length}
-        </Text>
-      ) : null}
-    </View>
-  );
-
   const Modals = (
     <>
       <HelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
       {question ? (
-        /* Report form. The shared ReportModal paints itself from the erudite
-           theme (purple), so Italy uses the colour-configurable sheet instead —
-           the same one Flags Quiz opens — in the app's blue. */
         <QuizMenuModal
           visible={reportOpen}
           onClose={() => setReportOpen(false)}
@@ -292,30 +266,21 @@ export default function ItalyQuizGame() {
     </>
   );
 
-  const Shell = (children: React.ReactNode) => (
+  const Shell = (children: React.ReactNode, header?: React.ReactNode) => (
     <View style={styles.fill}>
       {Background}
       <StatusBar style="light" />
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
         {Hud}
-        {TitleRow}
+        {header}
         {children}
       </SafeAreaView>
       {Modals}
     </View>
   );
 
-  // --- Loading / empty -------------------------------------------------------
-  if ((!snapshot && (status === 'idle' || status === 'syncing')) || (pool.length > 0 && !hydrated)) {
-    return Shell(
-      <View style={styles.centre}>
-        <ActivityIndicator color="#FFFFFF" size="large" />
-        <Text style={styles.note}>{t.loadingContent}</Text>
-      </View>,
-    );
-  }
-
-  if (pool.length === 0 || ids.length === 0) {
+  // --- Empty (a locked place opened directly) --------------------------------
+  if (!rawPlace || ids.length === 0 || !hydrated) {
     return Shell(
       <View style={styles.centre}>
         <Text style={styles.note}>{t.noQuestions}</Text>
@@ -329,7 +294,6 @@ export default function ItalyQuizGame() {
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
     const tier = pct >= 80 ? 'excellent' : pct >= 40 ? 'good' : 'keepGoing';
     const tierColor = tier === 'excellent' ? '#37B24D' : tier === 'good' ? '#F59F00' : '#E03131';
-    // A perfect run always earns the trophy; nothing right gets a soft smile.
     const allCorrect = total > 0 && score === total;
     const emoji = allCorrect
       ? '\u{1F3C6}'
@@ -351,20 +315,15 @@ export default function ItalyQuizGame() {
 
     return (
       <View style={styles.fill}>
-        {/* Home artwork, softened the same ~30% as the Flags Quiz result. */}
         <AppBackground blurRadius={13} />
         <View style={styles.resultScrim} pointerEvents="none" />
         <StatusBar style="light" />
 
         <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-          <ScrollView
-            contentContainerStyle={styles.resultScroll}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.resultScroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.emoji}>{emoji}</Text>
             <Text style={styles.resultTitle}>{t.resultTitle}</Text>
 
-            {/* Big square score tile — the Flags Quiz shape in the Italy palette. */}
             <LinearGradient
               colors={[ItalyColors.tileLight, ItalyColors.tileDark]}
               start={{ x: 0, y: 0 }}
@@ -394,20 +353,20 @@ export default function ItalyQuizGame() {
                   label={`${t.retryMistakes} (${misses.length})`}
                   fontSize={20}
                   paddingVertical={18}
-                  onPress={() => startRun(misses)}
+                  onPress={() => startTour(misses)}
                 />
               ) : null}
               <GlossyButton
                 label={t.playAgain}
                 fontSize={22}
                 paddingVertical={18}
-                onPress={() => startRun(null)}
+                onPress={() => startTour(null)}
               />
               <GlossyButton
-                label={t.backToCategories}
+                label={t.whereTo}
                 fontSize={22}
                 paddingVertical={18}
-                onPress={() => router.dismissTo('/italy-quiz/categories')}
+                onPress={() => router.dismissTo('/italy-quiz/places')}
               />
             </View>
           </ScrollView>
@@ -417,86 +376,245 @@ export default function ItalyQuizGame() {
     );
   }
 
+  // --- Tour intro ------------------------------------------------------------
+  if (!introDone) {
+    return Shell(
+      <View style={styles.introWrap}>
+        <View style={styles.introCentre}>
+          <Text style={styles.introTitle}>{place?.title}</Text>
+          <Text style={styles.introTagline}>{place?.tagline}</Text>
+          <View style={styles.actList}>
+            {rawPlace.acts.map((a) => (
+              <View key={a.id} style={styles.actRow}>
+                <Text style={styles.actRowIcon}>{a.icon}</Text>
+                <Text style={styles.actRowLabel}>{pickText(a.label, locale)}</Text>
+                <Text style={styles.actRowCount}>
+                  {ids.filter((id) => byId.get(id)?.act === a.id).length}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <View style={styles.introFooter}>
+          <GlossyButton
+            label={t.startTour}
+            fontSize={26}
+            paddingVertical={16}
+            onPress={() => setIntroDone(true)}
+          />
+        </View>
+      </View>,
+    );
+  }
+
+  // --- Interlude between acts ------------------------------------------------
+  // Fires when the act changes from one question to the next. Suppressed during a
+  // mistakes review, where the questions jump between acts by definition.
+  const actChanged = !!prevQuestion && prevQuestion.act !== question.act;
+  if (!isRetry && actChanged && interludeSeen !== pos && act?.interlude) {
+    return Shell(
+      <ActInterlude
+        icon={act.icon}
+        headline={pickText(act.interlude.headline, locale)}
+        body={pickText(act.interlude.body, locale)}
+        cta={t.interludeCta}
+        destination={pickText(act.interlude.destination, locale)}
+        onContinue={() => setInterludeSeen(pos)}
+      />,
+    );
+  }
+
   // --- Question --------------------------------------------------------------
-  const answered = picked !== null;
-  const answeredRight = answered && picked === question.correct_option;
+  const answeredChoice = picked !== null;
+  const answeredRight = answeredChoice && question.kind === 'choice' && picked === question.correct;
+  const callbackQuestion = question.callback ? byId.get(question.callback) : undefined;
+
+  const ActStrip = (
+    <View style={styles.actStrip}>
+      {rawPlace.acts.map((a) => {
+        const actIds = ids.filter((id) => byId.get(id)?.act === a.id);
+        const answeredHere = actIds.filter((id) => ids.indexOf(id) < pos).length;
+        const isCurrent = a.id === question.act;
+        return (
+          <View key={a.id} style={styles.actSeg}>
+            <Text style={[styles.actIcon, !isCurrent && styles.actIconDim]}>{a.icon}</Text>
+            <View style={styles.actBar}>
+              <View
+                style={[
+                  styles.actBarFill,
+                  {
+                    width: actIds.length
+                      ? `${Math.round((answeredHere / actIds.length) * 100)}%`
+                      : '0%',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+
+  const TitleRow = (
+    <View style={styles.titleRow}>
+      {ActStrip}
+      <Text style={styles.title} numberOfLines={1}>
+        {place?.title}
+        {act ? ` · ${pickText(act.label, locale)}` : ''}
+      </Text>
+      <Text style={styles.counterText}>
+        {pos + 1}/{ids.length}
+      </Text>
+    </View>
+  );
+
+  const scaleAnswered = question.kind === 'scale' && guessLocked;
+  const scaleRight =
+    question.kind === 'scale' && guess != null
+      ? Math.abs(guess - question.answer) <= question.tolerance
+      : false;
+  const showExplanation =
+    (question.kind === 'choice' && answeredRight) || (question.kind === 'scale' && guessLocked);
+  const showNext = showExplanation;
 
   return Shell(
     <>
-      <ScrollView
-        contentContainerStyle={styles.body}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Photo questions carry an image; text questions simply don't. */}
-        {question.imageUri ? (
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {/* "Then" ribbon — the earlier question this one answers back to. */}
+        {callbackQuestion ? (
+          <View style={styles.callback}>
+            {callbackQuestion.image ? (
+              <Image source={callbackQuestion.image} style={styles.callbackThumb} />
+            ) : null}
+            <View style={styles.callbackText}>
+              <Text style={styles.callbackLabel}>↩ {t.callbackThen}</Text>
+              <Text style={styles.callbackBody} numberOfLines={3}>
+                {pickText(callbackQuestion.question, locale)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {question.image ? (
           <View style={styles.imageFrame}>
-            <Image
-              source={{ uri: question.imageUri }}
-              style={styles.image}
-              resizeMode="cover"
-            />
+            <Image source={question.image} style={styles.image} resizeMode="cover" />
           </View>
         ) : null}
 
         <View style={styles.questionCard}>
-          <Text style={styles.questionText}>{question.question}</Text>
+          <Text style={styles.questionText}>{pickText(question.question, locale)}</Text>
         </View>
 
-        {/* 2x2 grid, like Flags Quiz: two options per row, facing each other. */}
-        <View style={styles.options}>
-          {question.options.map((opt, i) => {
-            // ONLY the tapped option lights up. A wrong pick never reveals
-            // where the right answer was.
-            const scheme =
-              answered && i === picked ? (answeredRight ? CORRECT : WRONG) : null;
-            return (
-              <Pressable
-                key={i}
-                onPress={() => onPick(i)}
-                disabled={answered}
-                style={({ pressed }) => [
-                  styles.optionWrap,
-                  pressed && !answered && styles.pressed,
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    scheme
-                      ? [scheme.light, scheme.dark]
-                      : [ItalyColors.tileLight, ItalyColors.tileDark]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[
-                    styles.option,
-                    ItalyShadow.card,
-                    { borderColor: scheme ? scheme.rim : ItalyColors.tileRim },
-                    answered && !scheme && styles.optionDimmed,
+        {question.kind === 'choice' ? (
+          <View style={styles.options}>
+            {question.options.map((opt, i) => {
+              // ONLY the tapped option lights up — a wrong pick never reveals
+              // where the right answer was.
+              const scheme =
+                answeredChoice && i === picked ? (answeredRight ? CORRECT : WRONG) : null;
+              return (
+                <Pressable
+                  key={i}
+                  onPress={() => onPick(i)}
+                  disabled={answeredChoice}
+                  style={({ pressed }) => [
+                    styles.optionWrap,
+                    pressed && !answeredChoice && styles.pressed,
                   ]}
                 >
                   <LinearGradient
-                    colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
-                    style={styles.optionGloss}
-                    pointerEvents="none"
-                  />
-                  <Text style={styles.optionText}>{opt}</Text>
-                </LinearGradient>
-              </Pressable>
-            );
-          })}
-        </View>
+                    colors={
+                      scheme ? [scheme.light, scheme.dark] : [ItalyColors.tileLight, ItalyColors.tileDark]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.option,
+                      ItalyShadow.card,
+                      { borderColor: scheme ? scheme.rim : ItalyColors.tileRim },
+                      answeredChoice && !scheme && styles.optionDimmed,
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
+                      style={styles.optionGloss}
+                      pointerEvents="none"
+                    />
+                    <Text
+                      style={[styles.optionText, scheme && styles.optionTextLit]}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
+                      {pickText(opt, locale)}
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.scaleBlock}>
+            <ScaleReadout
+              text={formatScaleValue(guess ?? question.min, question.display, locale)}
+            />
+            <ScaleSlider
+              min={question.min}
+              max={question.max}
+              value={guess ?? question.min}
+              onChange={setGuess}
+              disabled={guessLocked}
+              answer={guessLocked ? question.answer : undefined}
+              correct={scaleRight}
+            />
+            <View style={styles.scaleEnds}>
+              <Text style={styles.scaleEnd}>
+                {formatScaleValue(question.min, question.display, locale)}
+              </Text>
+              <Text style={styles.scaleEnd}>
+                {formatScaleValue(question.max, question.display, locale)}
+              </Text>
+            </View>
 
-        {/* Explanation only after a CORRECT pick — on a miss it would give the
-            answer away, which is exactly what the mistakes review avoids. */}
-        {answeredRight && question.explanation ? (
+            {scaleAnswered ? (
+              <View style={styles.scaleVerdict}>
+                <Text style={[styles.scaleVerdictTop, { color: scaleRight ? '#7BE8A5' : '#FFD54A' }]}>
+                  {scaleRight
+                    ? t.scaleSpotOn
+                    : t.scaleMiss.replace(
+                        '{gap}',
+                        formatScaleGap(guess! - question.answer, question.display, locale),
+                      )}
+                </Text>
+                <Text style={styles.scaleVerdictBottom}>
+                  {t.scaleTruth.replace(
+                    '{value}',
+                    formatScaleValue(question.answer, question.display, locale),
+                  )}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.scaleConfirmWrap}>
+                <GlossyButton
+                  label={t.scaleConfirm}
+                  fontSize={20}
+                  paddingVertical={14}
+                  onPress={onLockGuess}
+                />
+              </View>
+            )}
+          </View>
+        )}
+
+        {showExplanation ? (
           <View style={styles.explainCard}>
-            <Text style={styles.explainText}>{question.explanation}</Text>
+            <Text style={styles.explainText}>{pickText(question.explanation, locale)}</Text>
           </View>
         ) : null}
       </ScrollView>
 
-      {/* Pinned footer: only after a correct answer, hugging its own label. */}
-      {answeredRight ? (
+      {showNext ? (
         <View style={styles.footer}>
           <View style={styles.nextWrap}>
             <GlossyButton
@@ -509,6 +627,7 @@ export default function ItalyQuizGame() {
         </View>
       ) : null}
     </>,
+    TitleRow,
   );
 }
 
@@ -525,30 +644,56 @@ const styles = StyleSheet.create({
   },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
-  titleRow: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    // One icon-tile of breathing room under the HUD row.
-    paddingTop: 44,
-    gap: 2,
+  // --- Act progress strip ----------------------------------------------------
+  actStrip: { flexDirection: 'row', alignSelf: 'stretch', gap: 8, paddingHorizontal: 4 },
+  actSeg: { flex: 1, alignItems: 'center', gap: 4 },
+  actIcon: { fontSize: 16 },
+  actIconDim: { opacity: 0.45 },
+  actBar: {
+    height: 5,
+    alignSelf: 'stretch',
+    borderRadius: 3,
+    backgroundColor: 'rgba(8, 22, 66, 0.45)',
+    overflow: 'hidden',
   },
+  actBarFill: { height: '100%', borderRadius: 3, backgroundColor: ItalyColors.tileLight },
+
+  titleRow: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, gap: 8 },
   title: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
   },
-  counterText: {
-    color: '#D6DEFF',
-    fontWeight: '800',
-    fontSize: 20,
-  },
+  counterText: { color: '#D6DEFF', fontWeight: '800', fontSize: 16 },
 
-  // Half an answer-button of space between the title block and the question.
-  body: { paddingHorizontal: 20, paddingTop: OPTION_H / 2, paddingBottom: 20, gap: 14 },
+  body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, gap: 14 },
+
+  // --- Callback ribbon -------------------------------------------------------
+  callback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(8, 22, 66, 0.45)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderColor: 'rgba(210, 224, 255, 0.4)',
+    borderLeftColor: ItalyColors.tileLight,
+    padding: 10,
+  },
+  callbackThumb: { width: 54, height: 54, borderRadius: 10 },
+  callbackText: { flex: 1, gap: 2 },
+  callbackLabel: {
+    color: ItalyColors.tileLight,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  callbackBody: { color: '#E7ECFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
 
   imageFrame: {
     width: '100%',
@@ -571,13 +716,12 @@ const styles = StyleSheet.create({
   },
   questionText: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 25,
   },
 
-  // Two per row, facing each other — the Flags Quiz answer grid.
   options: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -605,14 +749,22 @@ const styles = StyleSheet.create({
   optionDimmed: { opacity: 0.55 },
   optionText: {
     color: ItalyColors.tileGlyph,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '900',
     textAlign: 'center',
   },
   /** Green/red states are dark, so their label flips to white. */
   optionTextLit: { color: '#FFFFFF' },
 
-  // White card, navy rim, navy text — same treatment as the Flags Quiz note.
+  // --- Scale question --------------------------------------------------------
+  scaleBlock: { gap: 8, paddingHorizontal: 4 },
+  scaleEnds: { flexDirection: 'row', justifyContent: 'space-between' },
+  scaleEnd: { color: '#C3CEF5', fontSize: 12, fontWeight: '700' },
+  scaleConfirmWrap: { width: '55%', alignSelf: 'center', marginTop: 8 },
+  scaleVerdict: { alignItems: 'center', marginTop: 6, gap: 2 },
+  scaleVerdictTop: { fontSize: 20, fontWeight: '900' },
+  scaleVerdictBottom: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+
   explainCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -621,22 +773,51 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
   },
-  explainText: {
-    color: ItalyColors.ink,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 21,
-  },
+  explainText: { color: ItalyColors.ink, fontSize: 15, fontWeight: '600', lineHeight: 21 },
 
-  // Pinned above the safe-area bottom; the button itself only takes the width of
-  // its own label (alignSelf: centre) instead of stretching edge to edge.
   footer: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
   nextWrap: { width: '48%', alignSelf: 'center' },
 
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 8 },
   note: { color: '#E7ECFF', fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
-  // --- Result screen (blurred home artwork + Flags-Quiz score tile) ---
+  // --- Tour intro ------------------------------------------------------------
+  introWrap: { flex: 1, paddingHorizontal: 28, paddingBottom: 24 },
+  introCentre: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  introTitle: {
+    color: '#FFFFFF',
+    fontSize: 40,
+    fontWeight: '900',
+    textAlign: 'center',
+    textShadowColor: 'rgba(4, 16, 60, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  introTagline: {
+    color: '#D6DEFF',
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  actList: { alignSelf: 'stretch', gap: 10 },
+  actRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: 'rgba(8, 22, 66, 0.35)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(210, 224, 255, 0.3)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  actRowIcon: { fontSize: 22 },
+  actRowLabel: { flex: 1, color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  actRowCount: { color: '#C3CEF5', fontSize: 17, fontWeight: '900' },
+  introFooter: { width: '100%' },
+
+  // --- Result screen ---------------------------------------------------------
   resultScrim: {
     position: 'absolute',
     top: 0,

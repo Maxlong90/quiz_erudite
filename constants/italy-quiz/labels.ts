@@ -14,6 +14,26 @@ export interface ItalyLabels {
   settings: string;
   /** Title of the category picker screen (Play → categories). */
   categories: string;
+  // Place picker + tour intro
+  /** Title of the place picker (Play → places). */
+  whereTo: string;
+  /** Sublabel on a place that has no questions authored yet. */
+  comingSoon: string;
+  /** Starts the tour from the intro card. */
+  startTour: string;
+  /** Recurring button on every act interlude. */
+  interludeCta: string;
+  // Scale questions
+  /** Locks in the slider guess. */
+  scaleConfirm: string;
+  /** Shown when the guess landed inside the tolerance. */
+  scaleSpotOn: string;
+  /** How far the guess was off — `{gap}` is substituted. */
+  scaleMiss: string;
+  /** The true value — `{value}` is substituted. */
+  scaleTruth: string;
+  /** Header of the ribbon reminding the player of an earlier question. */
+  callbackThen: string;
   // Settings screen
   selectLanguage: string;
   rateApp: string;
@@ -50,6 +70,15 @@ const EN: ItalyLabels = {
   play: 'Play',
   settings: 'Settings',
   categories: 'Categories',
+  whereTo: 'Where to?',
+  comingSoon: 'coming soon',
+  startTour: "Let's go",
+  interludeCta: 'AVANTI!',
+  scaleConfirm: 'Answer',
+  scaleSpotOn: 'Spot on!',
+  scaleMiss: 'Off by {gap}',
+  scaleTruth: 'Answer: {value}',
+  callbackThen: 'BACK THEN',
   selectLanguage: 'Language',
   rateApp: 'Rate the App',
   contactSupport: 'Contact Support',
@@ -84,6 +113,15 @@ const RU: ItalyLabels = {
   play: 'Играть',
   settings: 'Настройки',
   categories: 'Категории',
+  whereTo: 'Куда поедем?',
+  comingSoon: 'скоро',
+  startTour: 'Поехали',
+  interludeCta: 'AVANTI!',
+  scaleConfirm: 'Ответить',
+  scaleSpotOn: 'В точку!',
+  scaleMiss: 'Промах {gap}',
+  scaleTruth: 'Правильно: {value}',
+  callbackThen: 'ТОГДА',
   selectLanguage: 'Язык',
   rateApp: 'Оценить приложение',
   contactSupport: 'Связаться с поддержкой',
@@ -118,6 +156,15 @@ const ES: ItalyLabels = {
   play: 'Jugar',
   settings: 'Ajustes',
   categories: 'Categorías',
+  whereTo: '¿A dónde vamos?',
+  comingSoon: 'próximamente',
+  startTour: 'Vamos',
+  interludeCta: '¡AVANTI!',
+  scaleConfirm: 'Responder',
+  scaleSpotOn: '¡Justo!',
+  scaleMiss: 'Fallo de {gap}',
+  scaleTruth: 'Respuesta: {value}',
+  callbackThen: 'ENTONCES',
   selectLanguage: 'Idioma',
   rateApp: 'Valorar la app',
   contactSupport: 'Contactar soporte',
@@ -152,6 +199,15 @@ const FR: ItalyLabels = {
   play: 'Jouer',
   settings: 'Réglages',
   categories: 'Catégories',
+  whereTo: 'On va où ?',
+  comingSoon: 'bientôt',
+  startTour: 'C’est parti',
+  interludeCta: 'AVANTI !',
+  scaleConfirm: 'Répondre',
+  scaleSpotOn: 'Pile !',
+  scaleMiss: 'Écart de {gap}',
+  scaleTruth: 'Réponse : {value}',
+  callbackThen: 'À L’ÉPOQUE',
   selectLanguage: 'Langue',
   rateApp: 'Noter l’application',
   contactSupport: 'Contacter le support',

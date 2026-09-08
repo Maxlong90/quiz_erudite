@@ -44,13 +44,19 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 ## Gameplay
 
-**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz, Coat of Arms, and Italy Quiz have no levels at all — they present a run instead.
+**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz and Coat of Arms have no levels at all — they present a run instead, and Italy Quiz a [tour](#tour).
 
-**Run** — A single pass through a shuffled question order in Flags Quiz, Coat of Arms, and Italy Quiz, persisted so an interrupted session resumes exactly where it stopped. Flags Quiz and Coat of Arms store it as `{ order, pos, wrong }`; [Italy Quiz](italy-quiz.md#resuming-a-run) stores question *ids* instead of indices, so a growing question pool cannot repoint a saved run. A *retry run* replays only the previously missed questions and is deliberately never persisted. See [Flags Quiz](flags-quiz.md#resuming-a-run).
+**Run** — A single pass through a shuffled question order in Flags Quiz and Coat of Arms, persisted as `{ order, pos, wrong }` so an interrupted session resumes exactly where it stopped. A *retry run* replays only the previously missed questions and is deliberately never persisted. See [Flags Quiz](flags-quiz.md#resuming-a-run). Italy Quiz calls its equivalent a [tour](#tour).
+
+**Tour** — [Italy Quiz](italy-quiz.md#a-tour-is-four-acts-of-time)'s unit of play: twenty questions about one *place*, split into four [acts](#act) of time. It replaced the app's subject categories, so the disciplines that used to be separate subcategories are mixed inside a single tour instead of picked from a list.
+
+**Act** — One of the four chronological fifths of an Italy Quiz tour — antiquity, middle ages, renaissance, today — always played in order. Between two acts an *interlude* card names the jump in time and waits for a tap. Acts may never be reordered, because a *callback* pair is authored across them.
+
+**Callback** — A question that refers back to an earlier one in the same Italy Quiz tour, drawn as a ribbon above the question. It is how the app links a place's antiquity to its present — Domitian's stadium in act one becomes Piazza Navona in act four.
 
 **Reveal** — The animated transition after an answer. In Flags Quiz and Coat of Arms it means the correct option gliding to centre while the wrong ones unmount; in Coat of Arms it additionally means the original picture dissolving in over the clean one. In Erudite it just means all options turning green or red.
 
-**Photo mix** — The share of an [Italy Quiz](italy-quiz.md#a-run-of-fifty-composed-to-a-photo-ratio) run that must be picture questions, pinned per subcategory. It is applied when the run is drawn rather than by trimming the pool, so every question stays eligible for a later run.
+**Scale question** — An [Italy Quiz](italy-quiz.md#two-question-shapes) question answered by dragging a slider between two bounds, correct within a per-question tolerance. It exists so a tour is not pure pass/fail on recall: nobody knows Rome's founding year exactly, but everyone can place it on a line. Unlike a multiple-choice miss, it always reveals the true value.
 
 **Plate** — One tile of the 4×5 grid covering an athlete's photo in Sport Quiz's Sports Legends mode. The player buys plates one at a time to uncover the picture. See [Sport Quiz](sport-quiz.md#sports-legends-and-the-puzzle-plates).
 

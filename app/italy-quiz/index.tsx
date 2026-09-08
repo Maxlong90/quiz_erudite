@@ -54,7 +54,7 @@ export default function ItalyQuizHome() {
         </View>
 
         {/* Play — centred, then nudged so it sits over the open hills. Opens the
-            category picker. */}
+            place picker. */}
         <View style={styles.center} pointerEvents="box-none">
           <Pressable
             onLayout={(e) => setPlayH(e.nativeEvent.layout.height)}
@@ -65,7 +65,7 @@ export default function ItalyQuizHome() {
               ],
               opacity: pressed ? 0.9 : 1,
             })}
-            onPress={() => router.push('/italy-quiz/categories')}
+            onPress={() => router.push('/italy-quiz/places')}
           >
             <LinearGradient
               colors={[ItalyColors.tileLight, ItalyColors.tileDark]}
