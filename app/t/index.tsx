@@ -580,7 +580,7 @@ function ModeTile({ mode, premiumLocked }: { mode: ModeDef; premiumLocked: boole
     // Tap on a premium-locked tile sends the player to the paywall
     // instead of opening the (still inaccessible) mode.
     if (premiumLocked) {
-      router.push('/paywall');
+      router.push('/t/paywall');
       return;
     }
     mode.onPress?.();

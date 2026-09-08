@@ -4,11 +4,18 @@
  * Two things are pinned here, and neither is cosmetic.
  *
  * ORDERING. markSeen() must resolve BEFORE any navigation away, the paywall
- * included. app/paywall.tsx exits with `router.replace('/')`, and on a template
- * build `/` redirects to `/t/splash` — so a player who opened the paywall from
- * the last slide and closed it comes back through the splash. If the flag were
- * not written first, the splash would read "unseen" and push them into
- * onboarding again: a loop with no exit that does not involve buying something.
+ * included. The paywall is PUSHED, so this screen stays mounted underneath it
+ * and a dismissal navigates to /t rather than popping back — writing the flag
+ * first is what makes that a return home instead of a second trip through
+ * onboarding, whatever order the transitions arrive in.
+ *
+ * The ordering used to guard something sharper: until app/t/paywall.tsx existed
+ * the last slide pitched the ERUDITE paywall, which exits with
+ * `router.replace('/')`, and on a template build `/` redirects to /t/splash — an
+ * unmarked player came back through the splash and was pushed into onboarding
+ * again, a loop with no exit that did not involve buying something. The ported
+ * paywall exits to '/t' directly, so that hazard is gone and this assertion now
+ * pins the cheaper invariant.
  *
  * CAPABILITY GATING. The closing pitch only appears where a store can actually
  * charge. Same rule the Erudite flow follows — a build that cannot take money
@@ -128,10 +135,10 @@ describe('t onboarding', () => {
 
     fireEvent.press(getByTestId('t-onboarding-primary'));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/paywall'));
-    // THE ordering assertion. Closing the shared paywall replaces to '/', which
-    // on this build lands back on /t/splash; unmarked, that bounces the player
-    // into onboarding again.
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/t/paywall'));
+    // THE ordering assertion: the flag is written before the push, so however
+    // the player leaves the paywall they land on a home that knows they have
+    // seen this screen rather than being pushed back into it.
     expect(markSeenCalls).toEqual([0]);
   });
 
@@ -144,7 +151,7 @@ describe('t onboarding', () => {
     fireEvent.press(getByTestId('t-onboarding-primary'));
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/t'));
-    expect(mockPush).not.toHaveBeenCalledWith('/paywall');
+    expect(mockPush).not.toHaveBeenCalledWith('/t/paywall');
     expect(mockMarkSeen).toHaveBeenCalled();
   });
 });

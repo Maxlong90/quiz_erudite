@@ -29,6 +29,13 @@ export default function TTemplateLayout() {
           originals, so the push animation is unchanged by the port. */}
       <Stack.Screen name="category/[slug]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="quiz-mode/[slug]" options={{ animation: 'slide_from_right' }} />
+      {/* The paywall, reached from a premium-locked tile on the home or the mode
+          picker, and from the onboarding's last slide. The back gesture is off
+          because both of its exits are WITHHELD ON PURPOSE: the backend's
+          `seconds_before_quit_button_shown` hides the ✕ for a configured number
+          of seconds, and a swipe-back would hand the player the dismissal the
+          operator paid to delay. */}
+      <Stack.Screen name="paywall" options={{ gestureEnabled: false, animation: 'fade' }} />
       {/* The quiz loop. Both mirror the options app/_layout.tsx gives the
           Erudite originals: the back gesture is disabled so a swipe cannot
           abandon a run mid-question or skip past the score — leaving a run is

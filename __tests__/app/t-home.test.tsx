@@ -301,7 +301,7 @@ describe('t home — premium gating survived the port', () => {
 
     fireEvent.press(screen.getByTestId('mode-byTopic'));
 
-    expect(mockPush).toHaveBeenCalledWith('/paywall');
+    expect(mockPush).toHaveBeenCalledWith('/t/paywall');
   });
 
   it('opens the config modal for a premium player instead', async () => {
@@ -315,7 +315,7 @@ describe('t home — premium gating survived the port', () => {
     // those alone would pass with the modal shut.
     await waitFor(() => expect(screen.getByText('Start quiz')).toBeTruthy());
     expect(screen.getByText('Questions')).toBeTruthy();
-    expect(mockPush).not.toHaveBeenCalledWith('/paywall');
+    expect(mockPush).not.toHaveBeenCalledWith('/t/paywall');
   });
 });
 

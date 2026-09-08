@@ -28,7 +28,7 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
  * ----------------------
  * A derived role earns a name in this hook only if TWO OR MORE screens use it.
  * The tier scale below qualifies (the results screen and the stats screen share
- * it). A tint used by exactly one screen — say the eight "on the purple panel"
+ * it). A tint used by exactly one screen — say the nine "on the purple panel"
  * shades of the paywall — stays an inline withAlpha(...) in that screen's own
  * makeStyles. Without that rule this file becomes the dumping ground the
  * literals guard was written to prevent.

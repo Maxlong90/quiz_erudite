@@ -12,8 +12,9 @@
  *     the badge pill reads the named TILE_BADGE_SCRIM rather than `#00000066`;
  *  3. starting a run pushes '/t/quiz' — without it the template's mode picker
  *     would launch the ERUDITE quiz loop, which is the whole point of the port;
- *  4. the premium gate still routes to /paywall, which is deliberately NOT
- *     ported yet (see NOT_YET_PORTED in __tests__/app/t-routes.test.ts).
+ *  4. the premium gate routes to /t/paywall. The Erudite '/paywall' is a real
+ *     screen, so the un-ported route would not have failed — it would have
+ *     pitched the wrong app's paywall and then exited through the wrong home.
  *
  * NEITHER hooks/t/use-template-theme.ts NOR hooks/t/use-tile-gradients.ts is
  * mocked: both are the thing under test, and a mocked ramp would make every
@@ -382,9 +383,10 @@ describe('t quiz-mode — routes stay inside /t', () => {
     await renderReady();
 
     fireEvent.press(screen.getByTestId('mode-timed'));
-    // Pins BOTH that the premium gate survived the copy AND that /paywall is
-    // still the destination NOT_YET_PORTED in t-routes.test.ts describes.
-    expect(mockPush).toHaveBeenCalledWith('/paywall');
+    // Pins BOTH that the premium gate survived the copy AND that it pitches the
+    // TEMPLATE's paywall. '/paywall' would still have "worked" — it is a real
+    // screen — by showing the player the Erudite one.
+    expect(mockPush).toHaveBeenCalledWith('/t/paywall');
     expect(screen.queryByTestId('timed-count-10')).toBeNull();
   });
 

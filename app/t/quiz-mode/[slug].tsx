@@ -13,9 +13,11 @@
  *  3. the crown's `#ffd23a` is now `colors.gold`, and the badge pill's
  *     `#00000066` is now the named TILE_BADGE_SCRIM — the two live colour
  *     literals the original carried;
- *  4. starting a run pushes '/t/quiz' rather than '/quiz', which is the whole
- *     point of the port: without it the template's mode picker would launch the
- *     ERUDITE quiz loop;
+ *  4. both destinations stay inside the subtree — starting a run pushes
+ *     '/t/quiz' rather than '/quiz', and the premium gate pushes '/t/paywall'
+ *     rather than '/paywall'. That is the whole point of the port: without it
+ *     the template's mode picker would launch the ERUDITE quiz loop and pitch
+ *     the ERUDITE paywall;
  *  5. each ModeCard takes a REQUIRED `testID`, so a sixth card cannot ship
  *     unaddressable to the suite;
  *  6. twelve dead style keys are gone: `cardTall`, and the eleven-key chip
@@ -26,11 +28,7 @@
  *     `c.accent`/`c.onAccent`; the keys left behind here were unreachable and
  *     carried nine of this file's eleven hexes. The Erudite original keeps them.
  *
- * TWO THINGS THAT LOOK LIKE PORT DAMAGE AND ARE NOT:
- *  - `router.push('/paywall')` stays ABSOLUTE. The paywall is not ported yet;
- *    __tests__/app/t-routes.test.ts tolerates it via NOT_YET_PORTED and asserts
- *    it is STILL reached, so the entry demands its own deletion the day the
- *    paywall lands.
+ * ONE THING THAT LOOKS LIKE PORT DAMAGE AND IS NOT:
  *  - `phase === 'error'` renders nothing — no spinner, no message, the screen
  *    just goes blank below the header. That is inherited from the original, not
  *    introduced here; the category screen's 😕 branch has no counterpart.
@@ -290,10 +288,7 @@ function ModeCard({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   function handlePress() {
     if (premiumLocked) {
-      // Absolute on purpose — the paywall is not ported yet. NOT_YET_PORTED in
-      // __tests__/app/t-routes.test.ts tolerates this route AND asserts it is
-      // still reached, so re-point it in the commit that ports the paywall.
-      router.push('/paywall');
+      router.push('/t/paywall');
       return;
     }
     onPress();

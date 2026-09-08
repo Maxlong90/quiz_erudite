@@ -101,15 +101,21 @@ export default function TTemplateOnboarding() {
    * Leave onboarding for good.
    *
    * markSeen() is awaited BEFORE navigating on every path, the paywall included,
-   * and that ordering is load-bearing rather than tidy. app/paywall.tsx exits via
-   * `router.replace('/')`, and on a template build `/` redirects to `/t/splash` —
-   * so a player who opened the paywall from here and closed it would come back
-   * through the splash, still unmarked, and be pushed straight into onboarding
-   * again. Marking first turns that loop into a normal return home.
+   * and that ordering is deliberate rather than tidy. The paywall is PUSHED, not
+   * replaced, so this screen stays mounted underneath it — and a player who
+   * dismisses the paywall lands on /t, which is a fresh navigation rather than a
+   * pop back to here. Marking first is what makes that a normal return home
+   * instead of a second trip through onboarding: the flag is already written by
+   * the time any of those transitions can run, whatever order they arrive in.
+   *
+   * (Until app/t/paywall.tsx existed this ordering also papered over a harder
+   * bug — the Erudite paywall exits via `router.replace('/')`, which on a
+   * template build redirects to /t/splash and sent the player back through the
+   * splash. The ported paywall exits to '/t' directly, so that hazard is gone.)
    */
-  async function leave(to: '/t' | '/paywall') {
+  async function leave(to: '/t' | '/t/paywall') {
     await markSeen();
-    if (to === '/paywall') {
+    if (to === '/t/paywall') {
       router.push(to);
       return;
     }
@@ -118,7 +124,7 @@ export default function TTemplateOnboarding() {
 
   async function onPrimaryPress() {
     if (isPremiumSlide) {
-      await leave(offersPremium ? '/paywall' : '/t');
+      await leave(offersPremium ? '/t/paywall' : '/t');
       return;
     }
     const next = page + 1;

@@ -3,8 +3,8 @@
  *
  * __tests__/app/t-home.test.tsx proves the screen calls router.push with the
  * right path — but it MOCKS expo-router, so every destination it asserts is a
- * string, not a screen. Delete app/t/tokens.tsx or move app/paywall.tsx and that
- * suite stays green while the running app dead-ends on a blank route.
+ * string, not a screen. Delete app/t/tokens.tsx or move app/t/paywall.tsx and
+ * that suite stays green while the running app dead-ends on a blank route.
  *
  * This file closes that gap the same way __tests__/app/app-templates.test.tsx
  * does for the per-app splashes: by checking on disk that every destination the
@@ -12,8 +12,8 @@
  *
  * It matters more here than on the Erudite home. app/index.tsx redirects away on
  * a template build, so /t is the only route that reaches the quiz loop, the
- * browse path and /paywall on the configurable build — nothing else would notice
- * if one of them moved out from under it.
+ * browse path and the paywall on the configurable build — nothing else would
+ * notice if one of them moved out from under it.
  */
 import fs from 'fs';
 import path from 'path';
@@ -48,9 +48,9 @@ const TEMPLATE_DESTINATIONS: { route: string; file: string; why: string }[] = [
     why: 'tapping a subcategory tile on the category screen',
   },
   {
-    route: '/paywall',
-    file: 'paywall.tsx',
-    why: 'a premium-locked tile on the home OR on the mode picker — not ported yet',
+    route: '/t/paywall',
+    file: 't/paywall.tsx',
+    why: 'a premium-locked tile on the home OR on the mode picker, and the onboarding pitch',
   },
 ];
 
@@ -151,25 +151,21 @@ function codeOf(relativePath: string): string {
 const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
 
 /**
- * Destinations that legitimately leave /t because their screens are not ported
- * yet. Each entry is asserted BOTH to be tolerated by the check above AND to
- * still be PRESENT somewhere under app/t — so the day the screen lands and the
- * last caller is re-pointed, the second assertion goes red asking for the entry
- * to be deleted. A temporary list that deletes itself, the same idiom the
- * literals guard used for its AHEAD_OF_THE_WALK list.
+ * There is deliberately NO tolerance list here any more.
  *
- * `until` is a CONDITION rather than a subtask letter, because the letter is
- * exactly what rotted: the '/category/' entry that used to sit here was labelled
- * Э7-D and landed in Э7-C. A condition cannot go stale the way a queue position
- * can, and it is what the reader actually needs to know.
+ * One used to sit at this spot — NOT_YET_PORTED, a self-deleting register of
+ * destinations that legitimately left /t because their screens had not been
+ * copied yet. Its last entry was '/paywall', and app/t/paywall.tsx retired it:
+ * every route the template reaches is now inside the subtree, so the escape
+ * check below is unconditional. If a future port needs the mechanism back,
+ * resurrect it from this file's history rather than adding a bare exemption —
+ * the value was in the assertions that made an entry demand its own deletion,
+ * not in the list itself.
+ *
+ * Note also what its `until` field was: a CONDITION, never a subtask letter. The
+ * letter is exactly what rotted — the '/category/' entry it once carried was
+ * labelled Э7-D and landed in Э7-C. Do not reintroduce one.
  */
-const NOT_YET_PORTED: { prefix: string; until: string; why: string }[] = [
-  {
-    prefix: '/paywall',
-    until: 'the paywall is ported',
-    why: 'THREE files reach it — app/t/index.tsx (1 site), app/t/quiz-mode/[slug].tsx (1) and app/t/onboarding.tsx (3) — so re-point ALL FIVE in the commit that deletes this entry. Miss one and the assertion below stays green off the survivor while the escape check fires on the files you did re-point',
-  },
-];
 
 function routeLiteralsIn(relativePath: string): { route: string; line: number }[] {
   return codeOf(relativePath)
@@ -198,38 +194,9 @@ describe('every route the template navigates to stays inside /t', () => {
 
   it.each(templateSources)('%s navigates only to /t routes', (file) => {
     const escaping = routeLiteralsIn(file).filter(
-      ({ route }) =>
-        route !== '/t' &&
-        !route.startsWith('/t/') &&
-        !NOT_YET_PORTED.some((pending) => route.startsWith(pending.prefix)),
+      ({ route }) => route !== '/t' && !route.startsWith('/t/'),
     );
     expect({ file, escaping }).toEqual({ file, escaping: [] });
-  });
-
-  it.each(NOT_YET_PORTED)(
-    '$prefix is still reached from app/t — once $until, delete the entry ($why)',
-    ({ prefix }) => {
-      const callers = templateSources.filter((file) =>
-        routeLiteralsIn(file).some(({ route }) => route.startsWith(prefix)),
-      );
-      expect({ prefix, callers: callers.length > 0 }).toEqual({ prefix, callers: true });
-    },
-  );
-
-  it.each(NOT_YET_PORTED)('$prefix is reached from exactly the files its `why` names', ({ prefix }) => {
-    // The `why` above tells the next porter WHICH files to re-point, and a
-    // count in prose is exactly the kind of thing that rots — this entry's
-    // first draft named two files when three reach /paywall. Pinning the set
-    // makes the instruction self-checking: add a caller and this goes red
-    // asking for the prose to be updated, rather than letting the next porter
-    // re-point four of five sites and leave the fifth escaping.
-    const callers = templateSources.filter((file) =>
-      routeLiteralsIn(file).some(({ route }) => route.startsWith(prefix)),
-    );
-    expect({ prefix, callers: callers.sort() }).toEqual({
-      prefix,
-      callers: ['t/index.tsx', 't/onboarding.tsx', 't/quiz-mode/[slug].tsx'],
-    });
   });
 
   it('really does reach into the quiz loop', () => {
@@ -248,6 +215,29 @@ describe('every route the template navigates to stays inside /t', () => {
     expect(routeLiteralsIn('t/quiz-mode/[slug].tsx').map(({ route }) => route)).toContain('/t/quiz');
     expect(routeLiteralsIn('t/quiz.tsx').map(({ route }) => route)).toContain('/t/results');
     expect(routeLiteralsIn('t/results.tsx').map(({ route }) => route)).toContain('/t');
+  });
+
+  it('really does reach the paywall, from all three of its entry points', () => {
+    // This is what the deleted NOT_YET_PORTED set-assertion used to pin, kept
+    // for the reason that assertion existed: the paywall is reached from three
+    // separate files, and the port had to re-point FIVE literals across them.
+    // Re-point four and the escape check above catches it — but only while the
+    // route is spelled '/paywall'. Naming the three callers here keeps the
+    // five-site edit pinned now that the tolerance list is gone, so a later
+    // change that quietly drops one entry point goes red rather than silent.
+    for (const file of ['t/index.tsx', 't/quiz-mode/[slug].tsx', 't/onboarding.tsx']) {
+      expect({ file, routes: routeLiteralsIn(file).map(({ route }) => route) }).toEqual({
+        file,
+        routes: expect.arrayContaining(['/t/paywall']),
+      });
+    }
+    // The exits. All five of the paywall's own router.replace calls go to '/t'
+    // rather than to '/' — on a template build app/index.tsx redirects '/' to
+    // '/t/splash', so a missed one bounces the player through the splash on the
+    // way home instead of dead-ending, which is only visible on a device.
+    const paywall = routeLiteralsIn('t/paywall.tsx').map(({ route }) => route);
+    expect(paywall).toContain('/t');
+    expect(paywall.filter((route) => route === '/t')).toHaveLength(5);
   });
 
   it.each([
