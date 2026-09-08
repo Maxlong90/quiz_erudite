@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/football-quiz/app-background';
 import { goldGlow } from '@/components/football-quiz/ui';
 import { FQColors, FQRadius, FQ_GOLD_GRADIENT } from '@/constants/football-quiz/theme';
-import { useFQLabels } from '@/constants/football-quiz/labels';
+import { useFQLabels, useFQModeLines } from '@/constants/football-quiz/labels';
 
 /**
  * Football Quiz home.
@@ -18,25 +18,34 @@ import { useFQLabels } from '@/constants/football-quiz/labels';
  * No coin counter here — coins live in the shop and in the quiz, where they are
  * actually spent.
  *
- * TYPE SIZES ARE MEASURED, NOT GUESSED. Both mode cards share ONE font size, and
- * that size is capped by the longest unbreakable word — Russian "Классический"
- * (12 characters, no hyphenation). Measured against Roboto Black at the real
- * card width (390 screen - 32 margins - 10 gap = 174 per card, minus 10 padding
- * a side = 154 usable): "Классический" fits at 22 dp with 8 dp to spare, 23 dp
- * is already flush. Same exercise for the service row, where "Настройки" is the
- * limiter next to its icon: 21 dp. Both pairs keep adjustsFontSizeToFit as a
- * safety net for locales we have not measured.
+ * TYPE SIZES AND THE BREAK ARE MEASURED, NOT GUESSED.
+ *
+ * A mode name is too long for one line at half screen width, so it is split
+ * into its words BY DATA (see useFQModeLines) and each word gets its own <Text>.
+ * That is deliberate: letting the layout wrap it is what produced
+ * "Классическ / ий" on device — adjustsFontSizeToFit together with
+ * numberOfLines={2} makes RN break the word rather than shrink the type.
+ *
+ * With the break by word, the cap is set by the longest WORD rather than the
+ * whole phrase. Measured against Roboto Black at the real line width (390 screen
+ * - 32 margins - 10 gap = 174 per card, minus 10 padding a side = 154): Russian
+ * "Классический" fits at 23 dp with only 1 dp to spare, so 22 dp is used instead
+ * — 8 dp of slack absorbs any difference between these metrics and the device's.
+ * All four locales clear 22 dp. The service row is capped by "Настройки": 21 dp.
  */
 const MODE_FONT = 22;
+const MODE_LINE = 25;
 const SERVICE_FONT = 21;
+/** Card height, tightened from 140 → 100 dp so no dead space sits above the icon. */
+const CARD_H = 100;
 
 function ModeCard({
   glyph,
-  label,
+  lines,
   onPress,
 }: {
   glyph: keyof typeof Ionicons.glyphMap;
-  label: string;
+  lines: [string, string];
   onPress: () => void;
 }) {
   return (
@@ -52,16 +61,13 @@ function ModeCard({
         colors={[FQColors.glassStrong, FQColors.glass]}
         style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.lg }]}
       />
-      <Ionicons name={glyph} size={40} color={FQColors.goldLight} />
-      <View style={styles.modeLabelBox}>
-        <Text
-          style={styles.modeLabel}
-          numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.8}
-        >
-          {label}
-        </Text>
+      <Ionicons name={glyph} size={32} color={FQColors.goldLight} />
+      <View>
+        {lines.map((line) => (
+          <Text key={line} style={styles.modeLabel} numberOfLines={1}>
+            {line}
+          </Text>
+        ))}
       </View>
     </Pressable>
   );
@@ -91,6 +97,7 @@ function ServicePill({
 
 export default function FootballQuizHome() {
   const t = useFQLabels();
+  const modes = useFQModeLines();
 
   return (
     <View style={styles.fill}>
@@ -113,8 +120,8 @@ export default function FootballQuizHome() {
 
         <View style={styles.deck}>
           <View style={styles.modes}>
-            <ModeCard glyph="football" label={t.modeClassic} onPress={() => router.push('/football-quiz/levels')} />
-            <ModeCard glyph="star" label={t.modeLegends} onPress={() => router.push('/football-quiz/levels')} />
+            <ModeCard glyph="football" lines={modes.classic} onPress={() => router.push('/football-quiz/levels')} />
+            <ModeCard glyph="star" lines={modes.legends} onPress={() => router.push('/football-quiz/levels')} />
           </View>
           <View style={styles.services}>
             <ServicePill glyph="cart" label={t.shop} onPress={() => router.push('/football-quiz/shop')} />
@@ -159,21 +166,19 @@ const styles = StyleSheet.create({
   modes: { flexDirection: 'row', gap: 10 },
   mode: {
     flex: 1,
+    height: CARD_H,
     borderRadius: FQRadius.lg,
     borderWidth: 2,
     borderColor: FQColors.glassBorder,
     overflow: 'hidden',
-    paddingVertical: 18,
     paddingHorizontal: 10,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 4,
   },
-  // Fixed two-line box so a one-line label ("Классический") and a two-line one
-  // ("Легенды футбола") produce cards of exactly the same height.
-  modeLabelBox: { height: 52, justifyContent: 'center' },
   modeLabel: {
     fontSize: MODE_FONT,
-    lineHeight: 25,
+    lineHeight: MODE_LINE,
     fontWeight: '900',
     color: FQColors.text,
     textAlign: 'center',
