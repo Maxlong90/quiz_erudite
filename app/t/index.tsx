@@ -176,7 +176,7 @@ export default function THomeScreen() {
     if ((category.total_questions_count ?? 0) === 0) {
       return;
     }
-    router.push(`/category/${category.slug}` as const);
+    router.push(`/t/category/${category.slug}` as const);
   }
 
   // Quick router helpers — kept inline so each mode tile reads as a

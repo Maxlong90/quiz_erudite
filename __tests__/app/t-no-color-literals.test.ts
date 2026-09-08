@@ -233,6 +233,10 @@ describe('the scan covers what it claims to', () => {
     ],
     ['components/ui/icon-symbol.ios.tsx', 'proves platform variants are picked up, not just the .tsx'],
     ['hooks/use-theme-colors.ts', 'the palette source itself, reached via hooks/t'],
+    [
+      'components/quiz-mode/timed-count-modal.tsx',
+      'the sheet app/t/quiz-mode/[slug].tsx opens for a timed run',
+    ],
   ])('the walk reaches %s (%s)', (file) => {
     expect({ file, reachedVia: reached.get(file) ?? null }).toEqual({
       file,
@@ -332,11 +336,18 @@ describe('the template reads its colours through one funnel', () => {
     expect(codeOf(file)).not.toContain('@/hooks/use-theme-colors');
   });
 
-  it('takes only the emoji from constants/category-visuals.ts', () => {
-    // That module IS reachable from app/t/index.tsx and holds Erudite tile
-    // gradients; only the constants/t/ prefix filter keeps it out of scope.
-    // Reachability is not usage — so pin the usage rather than assume it.
-    expect(codeOf('app/t/index.tsx')).not.toMatch(/\bvisual\.gradient\b/);
+  it.each([
+    ['app/t/index.tsx', 'the home category tiles'],
+    ['app/t/category/[slug].tsx', 'the header emoji and every subcategory tile fallback'],
+    ['app/t/quiz-mode/[slug].tsx', 'the header emoji when the subcategory has none'],
+  ])('%s takes only the emoji from constants/category-visuals.ts (%s)', (file) => {
+    // That module IS reachable from app/t and holds the Erudite tile gradients;
+    // only the constants/t/ prefix filter keeps it out of scope. Reachability is
+    // not usage — so pin the usage rather than assume it. The POSITIVE half is
+    // what stops this passing vacuously if a file stops reading `visual` at all.
+    const code = codeOf(file);
+    expect(code).toMatch(/\bvisual\.emoji\b/);
+    expect(code).not.toMatch(/\bvisual\.gradient\b/);
   });
 });
 

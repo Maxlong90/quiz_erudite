@@ -223,8 +223,9 @@ constants/{slug}/       Its labels and theme
 The configurable template uses the same shape under the short name `t`, but its
 colours come from the wire rather than from constants/t/theme.ts:
 
-app/t/                  Splash, onboarding, home, the quiz loop (quiz +
-                        results), and the live token gallery
+app/t/                  Splash, onboarding, home, the browse path (category +
+                        quiz-mode), the quiz loop (quiz + results), and the
+                        live token gallery
 hooks/t/                The colour funnel every t screen reads through, plus
                         tile-gradient lookups (no content or economy provider)
 constants/t/            The bundled tile spectrum, its ramps, and the image slots

@@ -11,17 +11,21 @@
  * template home can navigate to is backed by a real route file.
  *
  * It matters more here than on the Erudite home. app/index.tsx redirects away on
- * a template build, so /t is the only route that reaches /quiz, /category/… and
- * /paywall on the configurable build — nothing else would notice if one of them
- * moved out from under it.
+ * a template build, so /t is the only route that reaches the quiz loop, the
+ * browse path and /paywall on the configurable build — nothing else would notice
+ * if one of them moved out from under it.
  */
 import fs from 'fs';
 import path from 'path';
 
 const APP_DIR = path.join(__dirname, '..', '..', 'app');
 
-/** Route paths app/t/index.tsx pushes, and the file expo-router resolves each to. */
-const HOME_DESTINATIONS: { route: string; file: string; why: string }[] = [
+/**
+ * Every route the template's own screens push, and the file expo-router
+ * resolves each to. Named for the home because that is where the tree starts;
+ * it covers the whole /t subtree, not one screen's push list.
+ */
+const TEMPLATE_DESTINATIONS: { route: string; file: string; why: string }[] = [
   {
     route: '/t/tokens',
     file: 't/tokens.tsx',
@@ -34,14 +38,19 @@ const HOME_DESTINATIONS: { route: string; file: string; why: string }[] = [
     why: 'where every finished run lands, and the only way back to /t',
   },
   {
-    route: '/category/[slug]',
-    file: 'category/[slug].tsx',
-    why: 'tapping a category tile with questions in it — not ported yet',
+    route: '/t/category/[slug]',
+    file: 't/category/[slug].tsx',
+    why: 'tapping a category tile with questions in it',
+  },
+  {
+    route: '/t/quiz-mode/[slug]',
+    file: 't/quiz-mode/[slug].tsx',
+    why: 'tapping a subcategory tile on the category screen',
   },
   {
     route: '/paywall',
     file: 'paywall.tsx',
-    why: 'tapping a premium-locked mode tile — not ported yet',
+    why: 'a premium-locked tile on the home OR on the mode picker — not ported yet',
   },
 ];
 
@@ -55,7 +64,7 @@ const BOTTOM_BAR_DESTINATIONS = [
 ];
 
 describe('every destination the template home navigates to exists', () => {
-  it.each(HOME_DESTINATIONS)('$route is a real screen ($why)', ({ route, file }) => {
+  it.each(TEMPLATE_DESTINATIONS)('$route is a real screen ($why)', ({ route, file }) => {
     const target = path.join(APP_DIR, file);
     expect({ route, file, exists: fs.existsSync(target) }).toEqual({
       route,
@@ -144,14 +153,22 @@ const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
 /**
  * Destinations that legitimately leave /t because their screens are not ported
  * yet. Each entry is asserted BOTH to be tolerated by the check above AND to
- * still be PRESENT somewhere under app/t — so the day its subtask lands and the
+ * still be PRESENT somewhere under app/t — so the day the screen lands and the
  * last caller is re-pointed, the second assertion goes red asking for the entry
  * to be deleted. A temporary list that deletes itself, the same idiom the
  * literals guard used for its AHEAD_OF_THE_WALK list.
+ *
+ * `until` is a CONDITION rather than a subtask letter, because the letter is
+ * exactly what rotted: the '/category/' entry that used to sit here was labelled
+ * Э7-D and landed in Э7-C. A condition cannot go stale the way a queue position
+ * can, and it is what the reader actually needs to know.
  */
-const NOT_YET_PORTED: { prefix: string; subtask: string; why: string }[] = [
-  { prefix: '/category/', subtask: 'Э7-D', why: 'the category screen is not copied yet' },
-  { prefix: '/paywall', subtask: 'Э7-E', why: 'the paywall is not copied yet' },
+const NOT_YET_PORTED: { prefix: string; until: string; why: string }[] = [
+  {
+    prefix: '/paywall',
+    until: 'the paywall is ported',
+    why: 'BOTH app/t/index.tsx and app/t/quiz-mode/[slug].tsx send a premium-locked tap there — re-point both in the commit that deletes this entry, or the assertion below stays green off the survivor while the escape check fires on the other',
+  },
 ];
 
 function routeLiteralsIn(relativePath: string): { route: string; line: number }[] {
@@ -190,7 +207,7 @@ describe('every route the template navigates to stays inside /t', () => {
   });
 
   it.each(NOT_YET_PORTED)(
-    '$prefix is still reached from app/t — once $subtask lands, delete the entry ($why)',
+    '$prefix is still reached from app/t — once $until, delete the entry ($why)',
     ({ prefix }) => {
       const callers = templateSources.filter((file) =>
         routeLiteralsIn(file).some(({ route }) => route.startsWith(prefix)),
@@ -204,13 +221,22 @@ describe('every route the template navigates to stays inside /t', () => {
     // silently matches nothing and every file trivially passes.
     const home = routeLiteralsIn('t/index.tsx').map(({ route }) => route);
     expect(home).toContain('/t/quiz');
+    // The browse chain: home -> category -> quiz-mode -> quiz. Prefix matches
+    // rather than equality, because two of the three are template literals.
+    expect(home.some((route) => route.startsWith('/t/category/'))).toBe(true);
+    expect(
+      routeLiteralsIn('t/category/[slug].tsx').some(({ route }) =>
+        route.startsWith('/t/quiz-mode/'),
+      ),
+    ).toBe(true);
+    expect(routeLiteralsIn('t/quiz-mode/[slug].tsx').map(({ route }) => route)).toContain('/t/quiz');
     expect(routeLiteralsIn('t/quiz.tsx').map(({ route }) => route)).toContain('/t/results');
     expect(routeLiteralsIn('t/results.tsx').map(({ route }) => route)).toContain('/t');
   });
 
   it.each([
     ["router.replace('/');", ['/']],
-    ['router.push(`/category/${slug}`);', ['/category/${slug}']],
+    ['router.push(`/t/category/${slug}`);', ['/t/category/${slug}']],
     ["const url = 'https://example.test/';", []],
     ["await AsyncStorage.getItem('quiz.seen.v1.');", []],
   ])('picks the route out of %s', (source, expected) => {

@@ -1,0 +1,336 @@
+/**
+ * The configurable template's category screen — a deliberate COPY of
+ * app/category/[slug].tsx, for the reasons app/t/quiz.tsx's docblock sets out: a
+ * screen owns a route, so each app gets its own; the leaf components it renders
+ * (ScreenBackground, IconSymbol) are shared, not duplicated.
+ *
+ * The diff against app/category/[slug].tsx is three things:
+ *  1. the palette arrives through hooks/t/use-template-theme.ts — at BOTH call
+ *     sites, the screen and SubcategoryTile;
+ *  2. the tile artwork comes from hooks/t/use-tile-gradients.ts instead of
+ *     constants/category-visuals.ts, so no colour reaches this file. Only the
+ *     EMOJI is still read from `visual`;
+ *  3. a subcategory tile pushes '/t/quiz-mode/…' rather than '/quiz-mode/…',
+ *     which is what keeps the browse path inside the template's own subtree.
+ *
+ * makeStyles keeps its EruditePalette signature: a TemplateTheme already
+ * satisfies it, and this screen needs none of the derived tier roles.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenBackground } from '@/components/screen-background';
+import { fetchCategories, type Category } from '@/api/categories';
+import { APP_SLUG } from '@/api/client';
+import { useLocale } from '@/hooks/use-locale';
+import { useTemplateTheme } from '@/hooks/t/use-template-theme';
+import { useCategoryTileGradient } from '@/hooks/t/use-tile-gradients';
+import { useTranslation } from '@/hooks/use-translation';
+import { CATEGORY_VISUALS, FALLBACK_VISUAL, SUBCATEGORY_EMOJI } from '@/constants/category-visuals';
+import type { EruditePalette } from '@/constants/theme';
+import { localizeCategoryName } from '@/i18n/categories';
+
+const DEFAULT_QUESTIONS = 10;
+
+export default function CategoryScreen() {
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { locale } = useLocale();
+  const { t } = useTranslation();
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [parent, setParent] = useState<Category | null>(null);
+  const [subs, setSubs] = useState<Category[]>([]);
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    setPhase('loading');
+
+    Promise.all([
+      fetchCategories(APP_SLUG),
+      fetchCategories(APP_SLUG, { parent: slug }),
+    ])
+      .then(([all, children]) => {
+        if (cancelled) return;
+        setParent(all.find((c) => c.slug === slug) ?? null);
+        setSubs(children);
+        setPhase('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPhase('error');
+        setErrorText(t('home.error.load'));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, t]);
+
+  // Only the GRADIENT is bypassed — the emoji is not a colour, and keeping one
+  // source for it means /t and the Erudite category screen still agree.
+  const visual = useMemo(
+    () => (slug && CATEGORY_VISUALS[slug]) || FALLBACK_VISUAL,
+    [slug],
+  );
+  // `?? ''` misses CATEGORY_RAMPS cleanly (it has a null prototype), so an
+  // un-parameterised route gets the same neutral dusk ramp FALLBACK_VISUAL
+  // carries. TILE_GRADIENTS.dusk === FALLBACK_VISUAL.gradient, pinned by
+  // __tests__/constants/t-tile-palette.test.ts, so this port is zero-pixel.
+  //
+  // The hook sits HERE rather than in SubcategoryTile because the ramp is a
+  // screen-level fact: every tile draws the PARENT's ramp. Moving it down would
+  // invite useCategoryTileGradient(sub.slug), and subcategory slugs are absent
+  // from CATEGORY_RAMPS — every tile would silently fall back to dusk.
+  const gradient = useCategoryTileGradient(slug ?? '');
+
+  function startQuiz(sub: Category) {
+    if ((sub.total_questions_count ?? 0) === 0 && (sub.total_flashcards_count ?? 0) === 0) {
+      return;
+    }
+    router.push(`/t/quiz-mode/${sub.slug}` as const);
+  }
+
+  return (
+    <ScreenBackground>
+      <SafeAreaView style={styles.flex}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+            accessibilityLabel="Back"
+          >
+            <IconSymbol
+              name="chevron.right"
+              size={24}
+              color={colors.text}
+              style={styles.backIcon}
+            />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerEmoji}>{visual.emoji}</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {parent ? localizeCategoryName(parent.slug, locale, parent.name) : ''}
+            </Text>
+          </View>
+          <View style={styles.iconButton} />
+        </View>
+
+        {phase === 'loading' && (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.text} size="large" />
+          </View>
+        )}
+
+        {phase === 'error' && (
+          <View style={styles.center}>
+            <Text style={styles.errorEmoji}>😕</Text>
+            <Text style={styles.errorText}>{errorText}</Text>
+          </View>
+        )}
+
+        {phase === 'ready' && (
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.grid}>
+              {subs.map((sub) => (
+                <SubcategoryTile
+                  key={sub.slug}
+                  parentGradient={gradient}
+                  parentEmoji={visual.emoji}
+                  subcategory={sub}
+                  displayName={localizeCategoryName(sub.slug, locale, sub.name)}
+                  onPress={() => startQuiz(sub)}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </ScreenBackground>
+  );
+}
+
+interface TileProps {
+  parentGradient: readonly [string, string];
+  parentEmoji: string;
+  subcategory: Category;
+  displayName: string;
+  onPress: () => void;
+}
+
+function SubcategoryTile({
+  parentGradient,
+  parentEmoji,
+  subcategory,
+  displayName,
+  onPress,
+}: TileProps) {
+  const { t } = useTranslation();
+  const colors = useTemplateTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const total = subcategory.total_questions_count ?? 0;
+  const isEmpty = total === 0;
+  const iconUrl = subcategory.icon_url ?? null;
+  const emoji = subcategory.icon_emoji
+    || SUBCATEGORY_EMOJI[subcategory.slug]
+    || parentEmoji;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={isEmpty}
+      style={({ pressed }) => [styles.tileWrap, pressed && !isEmpty && styles.tilePressed]}
+      testID={`subcategory-${subcategory.slug}`}
+    >
+      <LinearGradient
+        colors={parentGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.tile, isEmpty && styles.tileEmpty]}
+      >
+        {iconUrl ? (
+          <Image source={{ uri: iconUrl }} style={styles.tileIcon} resizeMode="contain" />
+        ) : (
+          <Text style={styles.tileEmoji}>{emoji}</Text>
+        )}
+        <View style={styles.tileFooter}>
+          <Text style={styles.tileName} numberOfLines={2}>
+            {displayName}
+          </Text>
+          <Text style={styles.tileMeta} numberOfLines={2}>
+            {isEmpty ? t('home.tile.soon') : t('home.tile.meta', { questions: total, topics: 0 }).replace(/ ·.*$/, '')}
+          </Text>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+const makeStyles = (c: EruditePalette) => StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  headerEmoji: {
+    fontSize: 22,
+  },
+  headerTitle: {
+    color: c.text,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconButtonPressed: {
+    opacity: 0.5,
+  },
+  backIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  errorEmoji: {
+    fontSize: 40,
+  },
+  errorText: {
+    color: c.textMuted,
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 16,
+  },
+  tileWrap: {
+    width: '48%',
+    aspectRatio: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  tilePressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.95,
+  },
+  tile: {
+    flex: 1,
+    padding: 16,
+  },
+  tileEmpty: {
+    opacity: 0.4,
+  },
+  tileFooter: {
+    marginTop: 'auto',
+    gap: 4,
+  },
+  tileEmoji: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
+  tileIcon: {
+    width: 48,
+    height: 48,
+  },
+  tileName: {
+    color: c.onAccent,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    lineHeight: 21,
+    minHeight: 42,
+  },
+  tileMeta: {
+    color: c.onAccent,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
+    minHeight: 32,
+  },
+});

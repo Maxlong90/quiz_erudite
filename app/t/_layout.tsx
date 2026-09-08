@@ -24,6 +24,11 @@ export default function TTemplateLayout() {
       <Stack.Screen name="index" options={{ animation: 'fade' }} />
       {/* The token gallery, pushed from a long-press on the home wordmark. */}
       <Stack.Screen name="tokens" options={{ animation: 'slide_from_right' }} />
+      {/* The browse path: a subject's subcategory grid, then the per-subcategory
+          mode picker. Both mirror the options app/_layout.tsx gives the Erudite
+          originals, so the push animation is unchanged by the port. */}
+      <Stack.Screen name="category/[slug]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="quiz-mode/[slug]" options={{ animation: 'slide_from_right' }} />
       {/* The quiz loop. Both mirror the options app/_layout.tsx gives the
           Erudite originals: the back gesture is disabled so a swipe cannot
           abandon a run mid-question or skip past the score — leaving a run is

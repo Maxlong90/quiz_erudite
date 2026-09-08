@@ -14,12 +14,16 @@ The slice is deliberately narrow. It themes **one screen end to end** rather tha
 | `t/onboarding` | Onboarding | First launch only; the template's only bundled artwork |
 | `t/index` | Home | Categories and Modes tabs, ported from the Erudite home |
 | `t/tokens` | Token gallery | Live diagnostics; reached by long-pressing the wordmark |
+| `t/category/[slug]` | Category | A subject's subcategory grid, reached from a category tile |
+| `t/quiz-mode/[slug]` | Mode picker | Per-subcategory mode cards; where a run is configured |
 | `t/quiz` | Quiz | The game loop; every mode tile starts here |
 | `t/results` | Results | Score, achievement unlocks, and the way back to `t/index` |
 
 The quiz loop closed the largest hole in that list. Before it, a mode tile started `app/quiz`, which finished on `app/results`, which went home with `router.replace('/')` — and on a template build `/` redirects to `/t/splash`, so every finished run bounced the player through the splash screen on the way back. The two ported screens are deliberate copies of the Erudite originals along the line this project already draws: a **screen owns a route**, so each app gets its own (there are six sibling `app/<slug>/quiz.tsx` files besides this one); a **leaf component owns none**, so every app shares one. Nothing under `components/` was duplicated to do it.
 
-Two destinations still leave the subtree, and each is tracked by name in `__tests__/app/t-routes.test.ts`: a category tile pushes into `app/category/[slug].tsx`, and a premium-locked tile routes to `app/paywall`. Those screens read the palette through the same `useThemeColors` hook, so they *do* pick up the operator's colours — but they still carry hardcoded literals in places, so their theming is partial. That test asserts each pending destination is BOTH tolerated AND still reachable from `app/t`, so the day its screen is ported the entry goes red asking to be deleted rather than lingering as a permanent exemption.
+The browse path closed the next one. A category tile used to push into `app/category/[slug].tsx` — a shared *Erudite* screen — and from there `app/quiz-mode/[slug].tsx` started the run on `/quiz`, the Erudite quiz loop rather than the template's own. Both are now copied into `app/t/`, so the whole chain (home → category → mode picker → quiz → results) stays inside the subtree. The copies take their tile artwork from `hooks/t/use-tile-gradients.ts` instead of `constants/category-visuals.ts`; the ramps are pinned equal to the Erudite gradients, so the port is zero-pixel and a tile cannot change colour mid-navigation.
+
+**One** destination still leaves the subtree, and it is tracked by name in `__tests__/app/t-routes.test.ts`: a premium-locked tile routes to `app/paywall` — now from *two* screens, the home and the mode picker, so both must be re-pointed in the commit that ports it. That screen reads the palette through the same `useThemeColors` hook, so it *does* pick up the operator's colours, but it still carries hardcoded literals in places, so its theming is partial. That test asserts the pending destination is BOTH tolerated AND still reachable from `app/t`, so the day it is ported the entry goes red asking to be deleted rather than lingering as a permanent exemption. Its `until` field is a condition rather than a subtask letter, because the letter is what rotted last time.
 
 The template also has no economy or content of its own. It draws categories and questions from the ordinary content cache and reuses the lives, hints, premium, and locale providers unchanged.
 
