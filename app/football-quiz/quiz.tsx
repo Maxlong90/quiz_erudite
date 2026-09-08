@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/football-quiz/app-background';
+import { AutoFitText, FittedGroup } from '@/components/football-quiz/auto-fit-text';
 import { FQReportSheet } from '@/components/football-quiz/report-sheet';
 import { CoinPill, FQIconButton, GoldCta } from '@/components/football-quiz/ui';
 import { FQColors, FQRadius } from '@/constants/football-quiz/theme';
@@ -81,6 +82,9 @@ export default function FootballQuizQuiz() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.prompt}>{question.question}</Text>
 
+          {/* One group: all four answers share a size, so no option looks
+              louder than another just because its text is shorter. */}
+          <FittedGroup>
           <View style={styles.options}>
             {question.options.map((option) => {
               const isAnswer = option === question.correctAnswer;
@@ -95,14 +99,15 @@ export default function FootballQuizQuiz() {
                     onPress={() => setPicked(option)}
                     style={({ pressed }) => [styles.option, tone, pressed && !revealed && { transform: [{ scale: 0.98 }] }]}
                   >
-                    <Text style={styles.optionText} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.7}>
+                    <AutoFitText maxFontSize={16} style={styles.optionText}>
                       {option}
-                    </Text>
+                    </AutoFitText>
                   </Pressable>
                 </View>
               );
             })}
           </View>
+          </FittedGroup>
 
           {revealed && !!question.explanation && (
             <View style={styles.revealArea}>
@@ -117,11 +122,13 @@ export default function FootballQuizQuiz() {
         <View style={styles.bottom}>
           <View style={styles.navRow}>
             {!revealed ? (
-              <GoldCta label={`${t.skip} · ${SKIP_COST}`} onPress={goNext} style={styles.navPrimary} />
+              <GoldCta label={`${t.skip} · ${SKIP_COST}`} onPress={goNext} style={styles.navPrimary} fitLabel />
             ) : (
               <>
-                {index > 0 && <GoldCta label={t.back} icon="arrow-back" onPress={goPrev} style={styles.navPrimary} />}
-                <GoldCta label={t.next} icon="arrow-forward" iconRight onPress={goNext} style={styles.navPrimary} />
+                {index > 0 && (
+                  <GoldCta label={t.back} icon="arrow-back" onPress={goPrev} style={styles.navPrimary} fitLabel />
+                )}
+                <GoldCta label={t.next} icon="arrow-forward" iconRight onPress={goNext} style={styles.navPrimary} fitLabel />
               </>
             )}
           </View>

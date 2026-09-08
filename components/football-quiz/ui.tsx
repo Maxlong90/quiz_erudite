@@ -3,6 +3,7 @@ import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-n
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { AutoFitText } from '@/components/football-quiz/auto-fit-text';
 import {
   FQColors,
   FQRadius,
@@ -178,9 +179,13 @@ export function FQPillRow({
         style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.pill }]}
       />
       {icon}
-      <Text style={styles.pillRowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-        {label}
-      </Text>
+      {/* Measured, not adjustsFontSizeToFit: the latter breaks words and gives
+          every row its own size. See components/football-quiz/auto-fit-text. */}
+      <View style={styles.pillRowLabel}>
+        <AutoFitText maxFontSize={20} style={styles.pillRowText}>
+          {label}
+        </AutoFitText>
+      </View>
     </Pressable>
   );
 }
@@ -211,6 +216,7 @@ export function GoldCta({
   icon,
   iconRight,
   style,
+  fitLabel = false,
 }: {
   label: string;
   onPress: () => void;
@@ -218,6 +224,13 @@ export function GoldCta({
   icon?: IoniconName;
   iconRight?: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Shrink the label to fit. Only for buttons whose width comes from the layout
+   * (a flex:1 nav button). A button sized BY its label — a price chip — must not
+   * use this: its box would be as wide as the text, so there is nothing to fit
+   * against and the measurement would chase itself.
+   */
+  fitLabel?: boolean;
 }) {
   return (
     <Pressable
@@ -231,7 +244,17 @@ export function GoldCta({
     >
       <LinearGradient colors={FQ_GOLD_GRADIENT} style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.pill }]} />
       {icon && !iconRight && <Ionicons name={icon} size={22} color={FQColors.ink} />}
-      <Text style={styles.ctaText}>{label}</Text>
+      {fitLabel ? (
+        <View style={styles.ctaLabel}>
+          <AutoFitText maxFontSize={18} style={styles.ctaText}>
+            {label}
+          </AutoFitText>
+        </View>
+      ) : (
+        <Text style={[styles.ctaText, { fontSize: 18 }]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
       {icon && iconRight && <Ionicons name={icon} size={22} color={FQColors.ink} />}
     </Pressable>
   );
@@ -306,7 +329,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: 10,
   },
-  pillRowText: { color: FQColors.text, fontWeight: '900', fontSize: 20 },
+  pillRowLabel: { flex: 1 },
+  pillRowText: { color: FQColors.text, fontWeight: '900', textAlign: 'center' },
 
   screenTitle: {
     color: FQColors.goldLight,
@@ -351,7 +375,8 @@ const styles = StyleSheet.create({
     gap: 8,
     overflow: 'hidden',
   },
-  ctaText: { color: FQColors.ink, fontWeight: '900', fontSize: 18 },
+  ctaLabel: { flex: 1 },
+  ctaText: { color: FQColors.ink, fontWeight: '900', textAlign: 'center' },
 
   modalCard: {
     width: '100%',
