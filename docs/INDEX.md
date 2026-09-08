@@ -39,7 +39,7 @@ The same tree also builds five sibling apps, each selected by a build-time slug 
 | Backend | quiz-erudit-backend.turbosuslik.online |
 | App slug | erudite-quiz |
 | Sibling slugs | logo-quiz, flags-quiz, coat-of-arms, sport-quiz, italy-history-and-geography-quiz |
-| Configurable template | configurable-quiz (`app/t/`) -- palette comes from the backend, not from code |
+| Configurable template | test-quiz (`app/t/`) -- palette comes from the backend, not from code |
 | Languages | English, Russian, Spanish, French |
 
 ## See Also

@@ -2,7 +2,7 @@
 
 Every sibling app in this tree costs a code fork. A new quiz means a new palette file, a new screen folder, a new build profile, and a store submission for any colour change. The configurable template exists to break that link: its palette is **operator data**, authored in the backend admin and delivered over the wire, so one binary can become one app per preset. This document explains the vertical slice that proves the idea — what the template renders today, how a colour travels from the admin form to a native gradient, and which decisions were made deliberately so later stages do not undo them.
 
-The template is a seventh build of the same tree, selected by the build-time slug `configurable-quiz`. It does not replace the five sibling apps and does not touch them. See [Architecture](architecture.md#key-design-decisions) for the family as a whole.
+The template is a seventh build of the same tree, selected by the build-time slug `test-quiz` and shown as "Test App". It does not replace the five sibling apps and does not touch them. See [Architecture](architecture.md#key-design-decisions) for the family as a whole.
 
 ## What the Slice Covers
 
@@ -20,7 +20,7 @@ The template also has no economy or content of its own. It draws categories and 
 
 ## Selecting the Build
 
-`configurable-quiz` is registered in `APP_TEMPLATES` (`constants/app-templates.ts`) exactly like the five siblings, so the shared home route redirects a cold start to `/t/splash` and the root navigator paints the template's scaffold colour instead of the Erudite navy. Adding the entry there wires the redirect, the shared-splash guard, and the scaffold colour at once.
+`test-quiz` is registered in `APP_TEMPLATES` (`constants/app-templates.ts`) exactly like the five siblings, so the shared home route redirects a cold start to `/t/splash` and the root navigator paints the template's scaffold colour instead of the Erudite navy. Adding the entry there wires the redirect, the shared-splash guard, and the scaffold colour at once.
 
 The scaffold colour is pinned to the **bundled** dark `bgSolid`. That is the tier the app paints with before any theme data arrives, so the cold-start hand-off has nothing to flash against.
 

@@ -112,7 +112,7 @@ The navigator itself must repaint too. `app/_layout.tsx` splits into an outer `R
 
 ### Remote theme (bundled → cache → network)
 
-One build is the exception to everything above: the **configurable template** (`app/t/`, build slug `configurable-quiz`), whose palette is *data* rather than code. It resolves colours in three tiers — the bundled `EruditeColors`, then the last theme this device cached, then a conditional `GET /apps/{slug}/theme` — and each tier only ever *overlays* ten of `EruditePalette`'s roughly thirty tokens onto the one below. The engine lives in `lib/theme/` behind `AppThemeProvider` (`hooks/app-theme-provider.ts`); `hooks/use-app-theme.ts` holds only the context and is deliberately I/O-free, because `useThemeColors` sits on it and is pulled into essentially every screen.
+One build is the exception to everything above: the **configurable template** (`app/t/`, build slug `test-quiz`), whose palette is *data* rather than code. It resolves colours in three tiers — the bundled `EruditeColors`, then the last theme this device cached, then a conditional `GET /apps/{slug}/theme` — and each tier only ever *overlays* ten of `EruditePalette`'s roughly thirty tokens onto the one below. The engine lives in `lib/theme/` behind `AppThemeProvider` (`hooks/app-theme-provider.ts`); `hooks/use-app-theme.ts` holds only the context and is deliberately I/O-free, because `useThemeColors` sits on it and is pulled into essentially every screen.
 
 Two properties are load-bearing. **Fail-open:** a malformed payload, an unknown schema version, a timeout or an offline device each leave the app on the best palette it already had, and nothing in the chain throws or leaves the splash stranded. **Inert everywhere else:** the engine is gated on the build-time allow-list `T_TEMPLATE_SLUGS` in `constants/app-templates.ts`, so every shipped build gets a frozen constant whose palettes *are* `EruditeColors` by reference — no request, no storage read, and no re-render. That gate is deliberately a checked-in list rather than runtime data parity, because parity would let an operator re-skin a store-published app by saving a form in Nova.
 
@@ -142,7 +142,7 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) — heraldry | `/coat-of-arms/splash` | None |
 | `sport-quiz` | [Sport Quiz](sport-quiz.md) — sports | `/sport-quiz/splash` | Coins only |
 | `italy-history-and-geography-quiz` | [Italy Quiz](italy-quiz.md) — Italian history and geography | `/italy-quiz/splash` | None |
-| `configurable-quiz` | [Configurable Template](configurable-template.md) — an operator-themed quiz | `/t/splash` | Lives, hints, premium (inherited) |
+| `test-quiz` | [Configurable Template](configurable-template.md) — an operator-themed quiz | `/t/splash` | Lives, hints, premium (inherited) |
 
 The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, and Sport Quiz adapts Logo Quiz's level and wheel model. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
 

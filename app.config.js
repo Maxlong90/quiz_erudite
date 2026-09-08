@@ -151,6 +151,49 @@ const buildConfig = ({ config } = {}) => {
     };
   }
 
+  // Test App (the configurable template, backend app id 28, slug `test-quiz`).
+  // Unlike the siblings above this build has no store listing — it exists to be
+  // installed on a device next to another build so the remote theme engine can
+  // be verified against a real operator preset (a release APK with an embedded
+  // bundle, so no Metro is involved).
+  //
+  // Its identity therefore does NOT fall back to the erudite one. Every sibling
+  // branch defaults `package` to `base.android.package`; here that would make an
+  // unset env var build the SAME package as the installed Erudite build and
+  // replace it on the device instead of installing alongside it. The literals
+  // below are the fallback, and the env vars only override them.
+  if (appSlug === 'test-quiz') {
+    return {
+      ...base,
+      name: 'Test App',
+      slug: 'test-quiz',
+      // Its own scheme: two installed apps both claiming `quizerudit` make every
+      // `quizerudit://` deep link ambiguous, and the emulator already carries a
+      // build that answers to it.
+      scheme: 'testquiz',
+      // Any distinguishable mark will do — this build is never published, the
+      // icon only has to be told apart from Erudite's in the launcher.
+      icon: './assets/images/icon.png',
+      ios: {
+        ...base.ios,
+        bundleIdentifier: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID || 'com.turbosuslik.testquiz',
+        // iPhone-only, like every other sibling — no tablet layout exists.
+        supportsTablet: false,
+      },
+      android: {
+        ...base.android,
+        package: process.env.EXPO_PUBLIC_ANDROID_PACKAGE || 'com.turbosuslik.testquiz',
+        adaptiveIcon: {
+          ...base.android?.adaptiveIcon,
+          foregroundImage: './assets/images/icon.png',
+          // The bundled dark bgSolid, which is also this template's scaffold
+          // colour in APP_TEMPLATES — not the erudite base's purple (#5E63F5).
+          backgroundColor: '#1a1a47',
+        },
+      },
+    };
+  }
+
   // Italy Quiz variant (App Template: World, backend slug
   // `italy-history-and-geography-quiz`): its own Expo project identity (name +
   // slug) so it is a separate app in Expo Go and never shows another variant's
