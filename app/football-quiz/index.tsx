@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -6,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/football-quiz/app-background';
+import { useFittedFontSize } from '@/components/football-quiz/fitted-text';
 import { goldGlow } from '@/components/football-quiz/ui';
 import { FQColors, FQRadius, FQ_GOLD_GRADIENT } from '@/constants/football-quiz/theme';
 import { useFQLabels, useFQModeLines } from '@/constants/football-quiz/labels';
@@ -14,38 +16,45 @@ import { useFQLabels, useFQModeLines } from '@/constants/football-quiz/labels';
  * Football Quiz home.
  *
  * Layout: the wordmark centred at the top over the dark sky, then the two game
- * modes as equal glass cards, then Shop and Settings as a thin row underneath.
- * No coin counter here — coins live in the shop and in the quiz, where they are
- * actually spent.
+ * modes as equal glass cards, then Shop and Settings as a thin service row. No
+ * coin counter — coins live in the shop and the quiz, where they are spent.
  *
- * TYPE SIZES AND THE BREAK ARE MEASURED, NOT GUESSED.
+ * TEXT FITTING IS MEASURED ON THE DEVICE, NOT PRECOMPUTED.
  *
- * A mode name is too long for one line at half screen width, so it is split
- * into its words BY DATA (see useFQModeLines) and each word gets its own <Text>.
- * That is deliberate: letting the layout wrap it is what produced
- * "Классическ / ий" on device — adjustsFontSizeToFit together with
- * numberOfLines={2} makes RN break the word rather than shrink the type.
+ * Two earlier attempts failed for reasons worth recording:
+ *   1. adjustsFontSizeToFit + numberOfLines={2} — RN breaks the WORD instead of
+ *      shrinking the type, which produced "Классическ / ий".
+ *   2. a size computed here from Roboto Black's metrics — wrong font. On iOS
+ *      fontWeight '900' resolves to San Francisco Black, which is wider, so the
+ *      label overflowed and got ellipsised to "Классиче…". Screen width is not a
+ *      constant either, so the usable width per card cannot be assumed.
  *
- * With the break by word, the cap is set by the longest WORD rather than the
- * whole phrase. Measured against Roboto Black at the real line width (390 screen
- * - 32 margins - 10 gap = 174 per card, minus 10 padding a side = 154): Russian
- * "Классический" fits at 23 dp with only 1 dp to spare, so 22 dp is used instead
- * — 8 dp of slack absorbs any difference between these metrics and the device's.
- * All four locales clear 22 dp. The service row is capped by "Настройки": 21 dp.
+ * Now useFittedFontSize renders each candidate string off-screen at a reference
+ * size, reads its real width via onTextLayout, and derives ONE size that fits the
+ * widest of them. Both mode cards share that size, so they stay identical, and
+ * the same is done independently for the service row.
  */
-const MODE_FONT = 22;
-const MODE_LINE = 25;
-const SERVICE_FONT = 21;
-/** Card height, tightened from 140 → 100 dp so no dead space sits above the icon. */
+const SCREEN_PAD = 16;
+const CARD_GAP = 10;
+const CARD_PAD = 10;
 const CARD_H = 100;
+const MODE_ICON = 32;
+const SERVICE_ICON = 22;
+const SERVICE_PAD = 16;
+const SERVICE_GAP = 9;
+/** Upper bounds — the measurement only ever scales down from here. */
+const MODE_MAX = 24;
+const SERVICE_MAX = 22;
 
 function ModeCard({
   glyph,
   lines,
+  fontSize,
   onPress,
 }: {
   glyph: keyof typeof Ionicons.glyphMap;
   lines: [string, string];
+  fontSize: number | null;
   onPress: () => void;
 }) {
   return (
@@ -61,14 +70,22 @@ function ModeCard({
         colors={[FQColors.glassStrong, FQColors.glass]}
         style={[StyleSheet.absoluteFill, { borderRadius: FQRadius.lg }]}
       />
-      <Ionicons name={glyph} size={32} color={FQColors.goldLight} />
-      <View>
-        {lines.map((line) => (
-          <Text key={line} style={styles.modeLabel} numberOfLines={1}>
-            {line}
-          </Text>
-        ))}
-      </View>
+      <Ionicons name={glyph} size={MODE_ICON} color={FQColors.goldLight} />
+      {/* Held back for the one frame it takes to measure, so nothing is ever
+          shown clipped or at the wrong size. */}
+      {fontSize != null && (
+        <View>
+          {lines.map((line) => (
+            <Text
+              key={line}
+              style={[styles.modeLabel, { fontSize, lineHeight: Math.round(fontSize * 1.14) }]}
+              numberOfLines={1}
+            >
+              {line}
+            </Text>
+          ))}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -76,21 +93,22 @@ function ModeCard({
 function ServicePill({
   glyph,
   label,
+  fontSize,
   onPress,
 }: {
   glyph: keyof typeof Ionicons.glyphMap;
   label: string;
+  fontSize: number | null;
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.service, pressed && { opacity: 0.88 }]}
-    >
-      <Ionicons name={glyph} size={22} color={FQColors.goldLight} />
-      <Text style={styles.serviceLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-        {label}
-      </Text>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.service, pressed && { opacity: 0.88 }]}>
+      <Ionicons name={glyph} size={SERVICE_ICON} color={FQColors.goldLight} />
+      {fontSize != null && (
+        <Text style={[styles.serviceLabel, { fontSize }]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -98,18 +116,33 @@ function ServicePill({
 export default function FootballQuizHome() {
   const t = useFQLabels();
   const modes = useFQModeLines();
+  const { width } = useWindowDimensions();
+
+  const cardWidth = (width - SCREEN_PAD * 2 - CARD_GAP) / 2;
+  const modeAvail = cardWidth - CARD_PAD * 2;
+  const serviceAvail = cardWidth - SERVICE_PAD * 2 - SERVICE_ICON - SERVICE_GAP;
+
+  // Memoised so the candidate arrays keep their identity across renders — the
+  // measurement hook keys its cache off them.
+  const modeWords = useMemo(() => [...modes.classic, ...modes.legends], [modes]);
+  const serviceWords = useMemo(() => [t.shop, t.settings], [t.shop, t.settings]);
+
+  const mode = useFittedFontSize(modeWords, modeAvail, MODE_MAX);
+  const service = useFittedFontSize(serviceWords, serviceAvail, SERVICE_MAX);
 
   return (
     <View style={styles.fill}>
       <AppBackground variant="home" />
       <StatusBar style="light" />
 
+      {mode.probes}
+      {service.probes}
+
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* Wordmark. The gold bar is horizontal here and sits BETWEEN the two
-            lines, so the mark has a real vertical axis. QUIZ carries a negative
-            right margin equal to its tracking: letter-spacing also applies after
-            the LAST glyph, which would otherwise push the word left of centre by
-            exactly that much. */}
+        {/* Wordmark. The gold bar is horizontal and sits BETWEEN the two lines,
+            so the mark has a real vertical axis. QUIZ carries a negative right
+            margin equal to its tracking: letter-spacing applies after the LAST
+            glyph too, which would otherwise push the word left of centre. */}
         <View style={styles.logo}>
           <Text style={styles.logoTop}>FOOTBALL</Text>
           <LinearGradient colors={FQ_GOLD_GRADIENT} style={styles.logoRule} />
@@ -120,12 +153,32 @@ export default function FootballQuizHome() {
 
         <View style={styles.deck}>
           <View style={styles.modes}>
-            <ModeCard glyph="football" lines={modes.classic} onPress={() => router.push('/football-quiz/levels')} />
-            <ModeCard glyph="star" lines={modes.legends} onPress={() => router.push('/football-quiz/levels')} />
+            <ModeCard
+              glyph="football"
+              lines={modes.classic}
+              fontSize={mode.size}
+              onPress={() => router.push('/football-quiz/levels')}
+            />
+            <ModeCard
+              glyph="star"
+              lines={modes.legends}
+              fontSize={mode.size}
+              onPress={() => router.push('/football-quiz/levels')}
+            />
           </View>
           <View style={styles.services}>
-            <ServicePill glyph="cart" label={t.shop} onPress={() => router.push('/football-quiz/shop')} />
-            <ServicePill glyph="settings" label={t.settings} onPress={() => router.push('/football-quiz/settings')} />
+            <ServicePill
+              glyph="cart"
+              label={t.shop}
+              fontSize={service.size}
+              onPress={() => router.push('/football-quiz/shop')}
+            />
+            <ServicePill
+              glyph="settings"
+              label={t.settings}
+              fontSize={service.size}
+              onPress={() => router.push('/football-quiz/settings')}
+            />
           </View>
         </View>
       </SafeAreaView>
@@ -155,15 +208,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: FQColors.gold,
     letterSpacing: 12.7,
-    // Cancels the trailing letter-space so the word is optically centred.
     marginRight: -12.7,
     textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowRadius: 14,
     textShadowOffset: { width: 0, height: 2 },
   },
 
-  deck: { paddingHorizontal: 16, paddingBottom: 26, gap: 10 },
-  modes: { flexDirection: 'row', gap: 10 },
+  deck: { paddingHorizontal: SCREEN_PAD, paddingBottom: 26, gap: CARD_GAP },
+  modes: { flexDirection: 'row', gap: CARD_GAP },
   mode: {
     flex: 1,
     height: CARD_H,
@@ -171,33 +223,31 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: FQColors.glassBorder,
     overflow: 'hidden',
-    paddingHorizontal: 10,
+    paddingHorizontal: CARD_PAD,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
   modeLabel: {
-    fontSize: MODE_FONT,
-    lineHeight: MODE_LINE,
     fontWeight: '900',
     color: FQColors.text,
     textAlign: 'center',
     letterSpacing: 0.2,
   },
 
-  services: { flexDirection: 'row', gap: 10 },
+  services: { flexDirection: 'row', gap: CARD_GAP },
   service: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: SERVICE_GAP,
     paddingVertical: 13,
-    paddingHorizontal: 16,
+    paddingHorizontal: SERVICE_PAD,
     borderRadius: FQRadius.pill,
     backgroundColor: 'rgba(12,14,16,0.70)',
     borderWidth: 1.5,
     borderColor: FQColors.glassBorderDim,
   },
-  serviceLabel: { fontSize: SERVICE_FONT, fontWeight: '900', color: FQColors.text },
+  serviceLabel: { fontWeight: '900', color: FQColors.text },
 });
