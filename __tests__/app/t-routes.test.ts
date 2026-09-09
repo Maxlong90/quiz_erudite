@@ -228,6 +228,26 @@ describe('the template stack', () => {
     expect(screenNames).toEqual(expect.arrayContaining(['splash', 'index', 'tokens']));
   });
 
+  it('keeps onboarding to exactly one route', () => {
+    /**
+     * Onboarding switches shape on a backend-supplied `onboarding_type`, and the
+     * obvious-looking way to do that — a file per shape, `onboarding-universal`
+     * beside `onboarding` — is the wrong one. expo-router is file-based, so each
+     * would be a real, deep-linkable route with NO HOST ABOVE IT: no markSeen()
+     * before navigating, no store-billing gate on the closing pitch, and a second
+     * entrance bypassing every invariant __tests__/app/t-onboarding.test.tsx
+     * exists to protect. The variants therefore live under
+     * components/t/onboarding/ and are chosen by a registry, not by a URL.
+     *
+     * The assertion above would already catch a stray file, but its remedy reads
+     * as "register the screen" — and registering it is the bug. This one names
+     * the rule so the next reader reaches for the registry instead.
+     */
+    expect(screenFilesUnder('').filter((file) => file.startsWith('onboarding'))).toEqual([
+      'onboarding',
+    ]);
+  });
+
   it('paints nothing behind the screens, so ScreenBackground owns the backdrop', () => {
     // The transparent card background is what lets each screen's themed
     // gradient be the only thing painted underneath.

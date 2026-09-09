@@ -221,19 +221,106 @@ describe('the staged copy in assets/t', () => {
 
 describe('the requires and the manifests are the same set', () => {
   /**
-   * Sources allowed to require staged artwork. Centralised in asset-slots.ts by
-   * design (see its docblock); the screens are listed so a stray direct require
-   * is caught rather than silently tolerated.
+   * Sources ALLOWED to require staged artwork — a permission, not an inventory.
+   * Centralised in asset-slots.ts by design (see its docblock); the screens are
+   * listed so a stray direct require is caught rather than silently tolerated.
+   *
+   * Written with `/` separators rather than join(), because these entries are
+   * compared as KEYS against the scan below, which builds `/`-separated paths.
+   * join() yields `\` on Windows and the comparison would then silently never
+   * match — a guard that passes by failing to look.
    */
   const SOURCES = [
-    join('constants', 't', 'asset-slots.ts'),
-    join('app', 't', 'splash.tsx'),
-    join('app', 't', 'onboarding.tsx'),
-    join('app', 't', 'tokens.tsx'),
+    'constants/t/asset-slots.ts',
+    'app/t/splash.tsx',
+    'app/t/onboarding.tsx',
+    'app/t/tokens.tsx',
   ];
 
+  /**
+   * WHY THE ALLOWLIST IS NOT ALSO THE SCAN LIST
+   * -------------------------------------------
+   * Until this scan existed, SOURCES was both — so a `require('@/assets/t/…')`
+   * written in any file NOT on the list contributed nothing to `required` and
+   * was invisible to every assertion here. That is precisely one of the two
+   * failure modes this file's header claims to catch ("a require pointing at a
+   * path no pack supplies"), shipping green and failing on a device as a blank
+   * image. The template's component tree gained a directory of its own with the
+   * onboarding host/variant split, which is the first plausible home for such a
+   * require, so the list had to stop being the input.
+   *
+   * `__tests__` is deliberately excluded: this very file contains the literal
+   * `require('@/assets/t/` inside a template literal in the assertion below, and
+   * the extractor would dutifully report a slot named `${slot}` — a self-inflicted
+   * failure with nothing behind it. `scripts/` is out for the mirror-image reason:
+   * scripts/apply-asset-pack.mjs handles these paths as data and never bundles one.
+   */
+  const SCAN_ROOTS = ['app', 'components', 'constants', 'hooks', 'lib'];
+
+  /**
+   * Lagging per-root floors, so a scan that silently stopped finding files
+   * cannot make the subset check below vacuously true. One combined floor would
+   * not do: `app` alone would clear it on `components`' behalf, and `components`
+   * is exactly where the next stray require would land.
+   */
+  const SCAN_FLOORS: Record<string, number> = {
+    app: 40,
+    components: 40,
+    constants: 10,
+    hooks: 10,
+    lib: 10,
+  };
+
+  /** Every `.ts`/`.tsx` file under a scan root, as a repo-relative `/` path. */
+  function sourceFilesIn(root: string): string[] {
+    return filesUnder(join(ROOT, root))
+      .filter((rel) => /\.tsx?$/.test(rel))
+      .map((rel) => `${root}/${rel}`);
+  }
+
+  const SCANNED = SCAN_ROOTS.flatMap(sourceFilesIn);
+  /** Files that actually hold a staged require, wherever they live. */
+  const DISCOVERED = SCANNED.filter((rel) => stagedRequiresIn(rel).length > 0).sort();
+
+  it.each(SCAN_ROOTS)('%s is a real directory holding real source', (root) => {
+    expect({ root, files: sourceFilesIn(root).length >= SCAN_FLOORS[root] }).toEqual({
+      root,
+      files: true,
+    });
+  });
+
+  it('never scans its own test tree', () => {
+    // See the note above: this file would report itself as a slot named `${slot}`.
+    expect(SCANNED.filter((rel) => rel.startsWith('__tests__'))).toEqual([]);
+  });
+
+  it('finds the requires that are known to exist', () => {
+    // Anti-vacuity. If the extractor or the walk breaks, DISCOVERED goes empty
+    // and the subset check below passes for the wrong reason.
+    expect(DISCOVERED).toEqual(
+      expect.arrayContaining(['constants/t/asset-slots.ts', 'app/t/tokens.tsx']),
+    );
+  });
+
+  it('only allowlisted sources require staged artwork', () => {
+    // SUBSET, never equality: app/t/splash.tsx and app/t/onboarding.tsx are
+    // permitted to require artwork but do not — they go through T_ASSET_SLOTS,
+    // which is the arrangement asset-slots.ts asks for. Demanding equality would
+    // punish exactly the behaviour this guard wants.
+    expect(DISCOVERED.filter((rel) => !SOURCES.includes(rel))).toEqual([]);
+  });
+
+  it.each(SOURCES)('%s is on the allowlist and on disk', (rel) => {
+    // A renamed or deleted screen must not linger here as a permission granted
+    // to a path that no longer exists.
+    expect({ file: rel, exists: statSync(join(ROOT, rel)).isFile() }).toEqual({
+      file: rel,
+      exists: true,
+    });
+  });
+
   it('every slot in the manifest is required by real code, and vice versa', () => {
-    const required = SOURCES.flatMap(stagedRequiresIn)
+    const required = DISCOVERED.flatMap(stagedRequiresIn)
       // manifest.json is required by the token gallery as a debug label, not as
       // a slot. Excluded by extension rather than by name so a future JSON
       // sidecar does not need a second special case.

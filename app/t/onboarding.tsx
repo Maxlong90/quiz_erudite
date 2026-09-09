@@ -1,35 +1,30 @@
-import { useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
 import { router } from 'expo-router';
 
 import { ScreenBackground } from '@/components/screen-background';
-import { T_ASSET_SLOTS, type TAssetSlot } from '@/constants/t/asset-slots';
+import { T_ONBOARDING_VARIANTS } from '@/components/t/onboarding';
+import type { TOnboardingStep } from '@/components/t/onboarding/contract';
 import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import { useTemplateTheme } from '@/hooks/t/use-template-theme';
-import { useTranslation } from '@/hooks/use-translation';
-import type { EruditePalette } from '@/constants/theme';
-import type { StringKey } from '@/i18n/strings';
+import { useOnboardingType } from '@/hooks/t/use-onboarding-type';
+import { useTemplateCopy } from '@/hooks/t/use-template-copy';
+import { T_ONBOARDING_DEFAULT } from '@/lib/onboarding/onboarding-type';
 
 /**
- * The configurable template's onboarding, and the first real consumer of the
- * bundled image slots (constants/t/asset-slots.ts).
+ * The configurable template's onboarding HOST.
  *
- * It exists as much for the artwork as for the flow. Before it, nothing under
- * `app/t` rendered a single bundled picture — every image on the home screen is
- * a remote `icon_url` — so the pack mechanism would have had slots with no
- * reader: a contract that compiles, ships, and means nothing. Four of the five
- * slots are drawn here.
+ * It draws nothing. What lives here is everything with a consequence: the slide
+ * list, which page the player is on, marking onboarding seen, the store-billing
+ * gate, both route literals and the button's label. The pixels belong to a
+ * variant under components/t/onboarding/, chosen by the backend-supplied
+ * `onboarding_type` — see that directory's contract.ts for the ownership rule.
+ *
+ * That division is not filing. Keeping navigation up here is what keeps
+ * __tests__/app/t-routes.test.ts's paywall-entry-point assertion pointed at a
+ * file that really holds the literal, and keeps
+ * __tests__/app/t-onboarding.test.tsx's markSeen()-before-navigate proof binding
+ * on every variant that will ever exist, rather than on the one that happened to
+ * be written first.
  *
  * MODELLED ON app/onboarding.tsx, NOT SHARED WITH IT
  * --------------------------------------------------
@@ -39,24 +34,18 @@ import type { StringKey } from '@/i18n/strings';
  * content-snapshot wait, the per-platform forced-paywall gate — none of which
  * belong to a template whose whole point is that an operator configures it.
  * Extracting a shared component would mean editing a file five live apps render
- * in order to add a sixth caller. The structure is copied; the code is not.
- *
- * Colours come exclusively from useTemplateTheme(), like everywhere in `/t`
- * (__tests__/app/t-no-color-literals.test.ts and an eslint rule both enforce it).
+ * in order to add a sixth caller. The structure is copied; the code is not. The
+ * host/variant split above is INTERNAL to the template and changes none of that.
  */
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-interface SlideDef {
-  slot: TAssetSlot;
-  titleKey: StringKey;
-  subtitleKey: StringKey;
-}
 
 /**
  * The three intro slides. Keys are the existing `onboarding.*` set, which is
  * already complete in all four locales — the template introduces no new copy.
+ *
+ * They live here rather than in a variant because they are content: every
+ * variant shows these three steps, and only disagrees about how.
  */
-const SLIDES: SlideDef[] = [
+const SLIDES: TOnboardingStep[] = [
   {
     slot: 'onboarding/step1.png',
     titleKey: 'onboarding.page1.title',
@@ -78,12 +67,25 @@ const SLIDES: SlideDef[] = [
 const SLIDE_COUNT = SLIDES.length + 1;
 
 export default function TTemplateOnboarding() {
-  const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const { markSeen } = useOnboarding();
-  const { t } = useTranslation();
-  const colors = useTemplateTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { t } = useTemplateCopy();
+
+  // Already frozen at first render inside the hook, which is where that
+  // decision is documented — swapping the variant mid-flow would remount the
+  // screen and reset the page the player was on.
+  const type = useOnboardingType();
+  /**
+   * Structural selection, never a name comparison — and the `??` is load-bearing
+   * rather than defensive dressing. Э2/Э3 will repoint useOnboardingType() at a
+   * different transport with different parsing guarantees, and `classic` is an
+   * unconfirmed enum string besides (the backend may well omit the key for the
+   * base shape rather than naming it), so a rename has to stay a one-constant
+   * change. Never throw here: docs/configurable-template.md records the rule as
+   * `reject a set you cannot half-apply; degrade a scalar you can`, and a
+   * scalar naming a screen degrades to the screen that ships.
+   */
+  const Variant = T_ONBOARDING_VARIANTS[type] ?? T_ONBOARDING_VARIANTS[T_ONBOARDING_DEFAULT];
 
   const isPremiumSlide = page === SLIDE_COUNT - 1;
   // The closing slide only sells anything where a store can actually charge.
@@ -91,11 +93,6 @@ export default function TTemplateOnboarding() {
   // capability-driven gating the Erudite flow uses — a build that cannot take
   // money must never show a pitch a reviewer would then be unable to complete.
   const offersPremium = isPremiumSlide && revenueCatEnabled;
-
-  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (next !== page) setPage(next);
-  }
 
   /**
    * Leave onboarding for good.
@@ -127,9 +124,9 @@ export default function TTemplateOnboarding() {
       await leave(offersPremium ? '/t/paywall' : '/t');
       return;
     }
-    const next = page + 1;
-    scrollRef.current?.scrollTo({ x: next * SCREEN_WIDTH, animated: true });
-    setPage(next);
+    // Advancing the page is all the host does; moving the pixels to match is the
+    // variant's job, and how it does that is its own business.
+    setPage(page + 1);
   }
 
   const primaryLabel = offersPremium
@@ -140,124 +137,24 @@ export default function TTemplateOnboarding() {
 
   return (
     <ScreenBackground>
-      <Pressable onPress={() => leave('/t')} style={styles.skip} hitSlop={10} testID="t-onboarding-skip">
-        <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
-      </Pressable>
-
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {SLIDES.map((slide) => (
-          <View key={slide.slot} style={[styles.page, { width: SCREEN_WIDTH }]}>
-            <Image
-              source={T_ASSET_SLOTS[slide.slot]}
-              style={styles.slideArt}
-              resizeMode="contain"
-              testID={`t-onboarding-art-${slide.slot}`}
-            />
-            <View style={styles.copy}>
-              <Text style={styles.title}>{t(slide.titleKey)}</Text>
-              <Text style={styles.subtitle}>{t(slide.subtitleKey)}</Text>
-            </View>
-          </View>
-        ))}
-
-        <View style={[styles.page, { width: SCREEN_WIDTH }]}>
-          <Image
-            source={T_ASSET_SLOTS['paywall/hero.png']}
-            style={styles.heroArt}
-            resizeMode="contain"
-            testID="t-onboarding-art-paywall/hero.png"
-          />
-          {/* Brand-neutral copy on purpose. `paywall.title` reads "Quizzzes
-              Premium" in every locale, and this template ships under whatever
-              name an operator gives it — so the pitch borrows the two existing
-              keys that name a benefit rather than a brand. No new strings. */}
-          <View style={styles.copy}>
-            <Text style={styles.title}>{t('paywall.subtitle')}</Text>
-            <Text style={styles.subtitle}>{t('paywall.feature.unlimited')}</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomSlot} pointerEvents="box-none">
-        <View style={styles.dots}>
-          {Array.from({ length: SLIDE_COUNT }, (_, i) => (
-            <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
-          ))}
-        </View>
-
-        <View style={styles.buttonWrap}>
-          <Pressable
-            onPress={onPrimaryPress}
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            testID="t-onboarding-primary"
-          >
-            <Text style={styles.buttonText}>{primaryLabel}</Text>
-          </Pressable>
-        </View>
-      </View>
+      <Variant
+        steps={SLIDES}
+        premiumSlot="paywall/hero.png"
+        // Brand-neutral copy on purpose. `paywall.title` reads "Quizzzes
+        // Premium" in every locale, and this template ships under whatever name
+        // an operator gives it — so the pitch borrows the two existing keys that
+        // name a benefit rather than a brand. No new strings.
+        premiumTitleKey="paywall.subtitle"
+        premiumSubtitleKey="paywall.feature.unlimited"
+        page={page}
+        pageCount={SLIDE_COUNT}
+        primaryLabel={primaryLabel}
+        skipLabel={t('onboarding.skip')}
+        t={t}
+        onPrimaryPress={onPrimaryPress}
+        onSkip={() => leave('/t')}
+        onPageChange={setPage}
+      />
     </ScreenBackground>
   );
 }
-
-const makeStyles = (c: EruditePalette) =>
-  StyleSheet.create({
-    skip: {
-      position: 'absolute',
-      top: 60,
-      right: 20,
-      zIndex: 10,
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-    },
-    skipText: { color: c.textFaint, fontSize: 14, fontWeight: '500' },
-    scroll: { flex: 1 },
-    scrollContent: { flexGrow: 1 },
-    page: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: 60,
-      paddingBottom: 220,
-      paddingHorizontal: 32,
-      gap: 28,
-    },
-    slideArt: { width: 200, height: 200 },
-    // The hero is authored 4:3 rather than square, so it gets its own box.
-    heroArt: { width: 280, height: 210 },
-    copy: { alignItems: 'center', gap: 12, maxWidth: 320 },
-    title: {
-      fontSize: 28,
-      fontWeight: '800',
-      color: c.text,
-      textAlign: 'center',
-      letterSpacing: 0.3,
-    },
-    subtitle: { fontSize: 15, color: c.textMuted, textAlign: 'center', lineHeight: 22 },
-    bottomSlot: { position: 'absolute', left: 0, right: 0, bottom: 40, gap: 24 },
-    dots: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.borderStrong },
-    dotActive: { backgroundColor: c.text, width: 24 },
-    buttonWrap: { paddingHorizontal: 24 },
-    button: {
-      backgroundColor: c.accent,
-      paddingVertical: 16,
-      borderRadius: 28,
-      alignItems: 'center',
-      shadowColor: c.accent,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.5,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    buttonPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-    buttonText: { color: c.onAccent, fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
-  });
