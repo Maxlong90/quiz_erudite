@@ -14,7 +14,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the seven apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
 
-**Remote token** — One of the ten semantic colours the backend serves to a configurable-template build (`bgGradient`, `accent`, the three `optIdle*`, and the rest). The other twenty palette tokens stay compiled into the binary, which is why a theme is always an overlay and never a whole palette. See [Configurable Template](configurable-template.md#the-wire-contract).
+**Remote token** — One of the forty-five semantic colours the backend serves to a configurable-template build (`bgGradient`, `accent`, the three `optIdle*`, and the paywall/progress/economy/splash groups added by the Э1 widening). Since schema v2 the served set IS the whole palette, so an untouched preset resolves to exactly the bundled colours and changes nothing. See [Configurable Template](configurable-template.md#the-wire-contract).
 
 **Inertness gate** — The checked-in list of slugs (`T_TEMPLATE_SLUGS`) that decides whether the theme engine runs at all. A build absent from it performs no theme fetch, no cache read, and no overlay, so no admin edit can re-skin a shipped app. See [Configurable Template](configurable-template.md#selecting-the-build).
 

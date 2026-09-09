@@ -295,11 +295,11 @@ describe('t paywall — the comparison panel is operator data', () => {
   });
 
   it('draws the premium column header in the palette gold, not a hardcoded hex', () => {
-    // `gold` is NOT in REMOTE_TOKEN_KEYS yet, so no wire payload can produce
-    // this palette today — it is hand-built precisely because the bundled gold
-    // (#ffd23a) is byte-identical to the literal that was deleted, and without
-    // moving it this assertion could not tell a token from a hardcoded hex.
-    // When Э1 widens the token set the column follows for free.
+    // `gold` is in REMOTE_TOKEN_KEYS since Э1 widened the token set, so a real
+    // operator preset produces exactly this palette. The hand-built fixture is
+    // still needed: the bundled gold (#ffd23a) is byte-identical to the literal
+    // that was deleted, and without moving it this assertion could not tell a
+    // token from a hardcoded hex.
     mockThemeValue = {
       palettes: { dark: { ...OVERRIDDEN_DARK, gold: '#00ff00' }, light: EruditeColors.light },
     };
@@ -346,11 +346,11 @@ describe('t paywall — the featured-card chips', () => {
 
   it('follows `text` when the palette moves it', () => {
     // The FOURTH deleted literal was the save chip's '#fff', and a plain
-    // not-equal check cannot retire it: the bundled dark `text` IS '#fff', so
-    // the token and the literal are byte-identical here and asserting "not
+    // not-equal check cannot retire it: the bundled dark `text` IS '#ffffff',
+    // so the token and the literal are byte-identical here and asserting "not
     // #fff" would fail on correct code. Moving the token is the only way to
     // tell them apart — the same reason the gold assertion above hand-builds a
-    // palette (`text` is not in REMOTE_TOKEN_KEYS either).
+    // palette. `text` is on the wire since Э1, so a real preset moves it too.
     mockThemeValue = {
       palettes: { dark: { ...OVERRIDDEN_DARK, text: '#00ff00' }, light: EruditeColors.light },
     };

@@ -51,14 +51,14 @@ import { T_ONBOARDING_DEFAULT, type TOnboardingType } from '@/lib/onboarding/onb
  *
  * WHY THIS EXISTS AT ALL
  * ----------------------
- * It is not a convenience. Today it is the ONLY way to see the second onboarding
- * screen — or the `none` skip — on hardware. The deployed backend serves
- * `schema_version: 2` on every
- * slug while CLIENT_THEME_SCHEMA_VERSION is still 1, so the client rejects the
- * whole envelope as `unsupported-schema` and never reads the `onboarding_type`
- * riding inside it — a pre-existing gap that belongs to the widened-token work,
- * not to this feature (docs/configurable-template.md records the live state).
- * Without this override the switch is unobservable outside Jest.
+ * It is a developer testing tool, not a necessity: the engine reads
+ * `onboarding_type` off the wire since the client accepts schema v2, so the
+ * switch is reachable on hardware without the pin. The pin still earns its keep
+ * as the ONLY way to exercise a variant the backend did not choose — and the
+ * only way to walk the `none` skip on a device without editing a preset. (For a
+ * while it was the sole path to the second screen at all: the pre-Э1 client
+ * pinned schema v1 and rejected the v2 envelope before reading the key. That
+ * gap is closed — the widened-token work landed — and the pin stayed.)
  *
  * Module state, never persisted. It survives router.replace() — which is what
  * makes the gallery -> dev-reset -> splash -> onboarding walk work — and dies

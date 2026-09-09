@@ -78,12 +78,12 @@ const HOME_SIZE = 32;
  * the general line: a leaf with no route is SHARED, a leaf that ENCODES routes
  * is copied.
  *
- * NO OPERATOR PRESET REPAINTS THIS BAR TODAY, and that is not an oversight. It
- * reads four tokens — gold, text, textDisabled and border — and none of them is
- * in REMOTE_TOKEN_KEYS (lib/theme/contract.ts), which today carries ten of the
- * palette's thirty. The bar still reads the funnel, so it repaints the moment
- * task Э1 widens that set; the suite asserts the four-out-of-scope fact rather
- * than assuming it, and goes red to ask for the real repaint assertion.
+ * THE BAR REPAINTS WITH AN OPERATOR PRESET. It reads four tokens — gold, text,
+ * textDisabled and border — and all four are on the wire since Э1 widened
+ * REMOTE_TOKEN_KEYS to the full palette. Before the widening none was settable,
+ * which is why the suite carried a tripwire instead of the repaint assertion
+ * every other /t suite has; the widening turned that tripwire into the real
+ * assertion it was asking for.
  */
 export function BottomBar({ current = null }: Props) {
   const { isPremium } = usePremium();

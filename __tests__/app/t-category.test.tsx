@@ -253,9 +253,11 @@ describe('t category — the tile does not change colour mid-navigation', () => 
 });
 
 describe('t category — the backdrop follows the operator palette', () => {
-  // ScreenBackground's bgGradient is the ONLY repaint this screen can be asserted
-  // on today: every other token it reads (text, textMuted, onAccent) is outside
-  // REMOTE_TOKEN_KEYS, so no wire payload can move them yet.
+  // ScreenBackground's bgGradient is the repaint this screen is asserted on:
+  // it is the one place the screen reads the palette through a component whose
+  // gradient the test can reach. The other tokens it reads (text, textMuted,
+  // onAccent) are on the wire since Э1 too, so an operator preset moves them as
+  // well — the backdrop assertion stays the single, cheapest proof.
   it('paints the bundled gradient by default', async () => {
     await renderReady();
 

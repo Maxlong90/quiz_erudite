@@ -158,6 +158,15 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
           // nothing behind it). The cost is one unconditional ~600-byte GET per
           // launch until the app updates, and then it applies on first launch.
           apply({ unsupportedSchemaVersion: result.schemaVersion });
+          // The one place the engine may log. contract.ts and theme-api.ts stay
+          // silent by their own rule, but a SILENT fallback here is exactly why
+          // the v1-vs-v2 breakage lived unnoticed: the app kept rendering the
+          // cached palette while the backend served a shape nobody could read.
+          // One warn per launch — the unconditional GET above fires on every
+          // launch — is cheap, visible in logcat, and silent on healthy builds.
+          console.warn(
+            `[theme] Backend serves schema v${result.schemaVersion}; this build understands v${CLIENT_THEME_SCHEMA_VERSION}. Keeping the last supported theme — update the app.`,
+          );
           break;
         }
         case 'failed': {
@@ -201,8 +210,9 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback((opts?: { force?: boolean }) => sync(opts?.force === true), [sync]);
 
-  // Resolve against the BUNDLED palettes, so the ~20 tokens the backend does not
-  // serve (surface, text, scrim, success, …) always keep their compiled values.
+  // Resolve against the BUNDLED palettes, so a v1 cache record's ten-token
+  // theme keeps every key it lacks at its compiled value for the one session it
+  // takes the engine to re-earn a full body.
   const palettes = useMemo(() => resolvePalettes(EruditeColors, state.theme), [state.theme]);
   const overridden = useMemo(() => overriddenKeys(state.theme), [state.theme]);
 

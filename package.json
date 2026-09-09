@@ -11,6 +11,7 @@
     "lint": "expo lint",
     "test": "jest",
     "check:store-config": "jest __tests__/lib/eas-profiles.test.ts",
+    "check:theme-contract": "jest --config jest.live.config.js",
     "asset-pack": "node ./scripts/apply-asset-pack.mjs"
   },
   "dependencies": {

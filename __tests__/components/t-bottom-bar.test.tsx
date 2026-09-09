@@ -88,7 +88,8 @@ jest.mock('@/components/ui/icon-symbol', () => {
 /* eslint-disable import/first -- the component must load AFTER its mocks */
 import { BottomBar } from '@/components/t/bottom-bar';
 import { EruditeColors } from '@/constants/theme';
-import { REMOTE_TOKEN_KEYS } from '@/lib/theme/contract';
+import { BUNDLED_THEME } from '@/lib/theme/bundled';
+import { resolvePalette } from '@/lib/theme/resolve';
 /* eslint-enable import/first */
 
 // --- helpers -----------------------------------------------------------------
@@ -355,15 +356,32 @@ describe('the copy preserved everything that was not supposed to move', () => {
 });
 
 describe('markers that delete themselves when the world changes', () => {
-  it('reads no token an operator can move — asserted, not assumed', () => {
-    // Goes RED when task Э1 widens REMOTE_TOKEN_KEYS, and at that point asks for
-    // the real preset-repaint assertion every other /t suite carries. Until then
-    // it is the standing justification for the scope note at the top of this file.
-    const barTokens = ['gold', 'text', 'textDisabled', 'border'];
-    const settable = barTokens.filter((token) =>
-      (REMOTE_TOKEN_KEYS as readonly string[]).includes(token),
-    );
-    expect(settable).toEqual([]);
+  it('repaints every token the bar reads, driven by a real operator preset', () => {
+    // The Э1 widening put gold, text, textDisabled and border on the wire, so the
+    // house fixture finally works here: resolvePalette copies a moved token
+    // instead of early-returning the base. This is the real preset-repaint
+    // assertion the pre-widening tripwire asked for — it asserted the four tokens
+    // were NOT settable, and went red the day that stopped being true.
+    mockThemeValue = {
+      palettes: {
+        dark: resolvePalette(EruditeColors.dark, {
+          ...BUNDLED_THEME.dark,
+          gold: '#00ff00',
+          text: '#111111',
+          textDisabled: '#222222',
+          border: '#333333',
+        }),
+        light: EruditeColors.light,
+      },
+    };
+    render(<BottomBar current="home" />);
+
+    // gold: the crown; text: the active slot; textDisabled: an idle slot;
+    // border: the hairline.
+    expect(tintOf('crown-button')).toBe('#00ff00');
+    expect(tintOf('home-button')).toBe('#111111');
+    expect(tintOf('shop-button')).toBe('#222222');
+    expect(flatStyle(screen.getByTestId('bottom-bar')).borderTopColor).toBe('#333333');
   });
 
   it('declares the same key union as the shared bar it was copied from', () => {

@@ -10,19 +10,20 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
  * imports '@/hooks/use-theme-colors' — so "where does the template get its
  * colours" is a one-file fact rather than a grep.
  *
- * What this adds is a SUPERSET: all thirty EruditePalette tokens unchanged, plus
- * the handful of derived roles the ported screens need and the bundled palette
- * has no name for. It never rewrites a token, so an operator preset still lands
- * on the screen exactly as the backend authored it.
+ * What this adds is a SUPERSET: all forty-five EruditePalette tokens unchanged,
+ * plus the handful of derived roles the ported screens need and the bundled
+ * palette has no name for. It never rewrites a token, so an operator preset
+ * still lands on the screen exactly as the backend authored it.
  *
  * WHY A SUPERSET RATHER THAN NEW PALETTE TOKENS
  * --------------------------------------------
  * constants/theme.ts and hooks/use-theme-colors.ts serve the live Erudite build
  * and five sibling apps. Adding a token there to satisfy one template screen
  * would push a template concern into every shipped app; wrapping costs nothing
- * and keeps the blast radius at app/t/. When task Э1 widens REMOTE_TOKEN_KEYS
- * these derived roles become real operator-settable tokens and this file
- * shrinks — the call sites do not move.
+ * and keeps the blast radius at app/t/. Э1 has since widened REMOTE_TOKEN_KEYS
+ * to the full palette, so the tokens these roles derive from (accent, success,
+ * danger) are operator-settable — the roles themselves stay here because they
+ * carry tier SEMANTICS the palette deliberately has no names for.
  *
  * WHAT EARNS A NAME HERE
  * ----------------------
@@ -45,11 +46,11 @@ import { useThemeColors } from '@/hooks/use-theme-colors';
  */
 
 export interface TemplateTheme extends EruditePalette {
-  /** Top band of the shared score/accuracy scale — the bundled `success` green. */
+  /** Top band of the shared score/accuracy scale — the `success` green. */
   tierHigh: string;
   /** Middle band. The brand accent, NOT an amber; see the note below. */
   tierMid: string;
-  /** Bottom band — the bundled `danger` red. */
+  /** Bottom band — the `danger` red. */
   tierLow: string;
 }
 
@@ -71,11 +72,11 @@ export interface TemplateTheme extends EruditePalette {
  *    artwork hue in a text role and muddy what that seam means.
  *
  * `accent` is legible on both appearances by construction (it is the CTA colour
- * in both) and is one of the ten operator-settable REMOTE_TOKEN_KEYS, so the
- * scale repaints with the preset — which is the whole point of the template. The
- * scale degrades from traffic-light to high/brand/low: still three legible
- * steps. When Э1 widens the token set it should add a `warning` token, and this
- * one line becomes `tierMid: palette.warning`.
+ * in both) and is operator-settable, so the scale repaints with the preset —
+ * which is the whole point of the template. The scale degrades from
+ * traffic-light to high/brand/low: still three legible steps. The v2 registry
+ * has no `warning` token; if one is ever added, this one line becomes
+ * `tierMid: palette.warning`.
  */
 function build(palette: EruditePalette): TemplateTheme {
   return Object.freeze({

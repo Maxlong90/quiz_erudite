@@ -11,11 +11,11 @@
  *     recoloured either would ship a guideline violation. A negative is easy to
  *     pass vacuously, so each reading pairs with a positive that proves the
  *     screen really did repaint around them.
- *  2. THE SCREEN REPAINTS WITH AN OPERATOR PRESET. The surface is small: of the
- *     tokens this screen touches (text, textFaint, surfaceSoft, borderStrong,
- *     onAccent, gold, accent, accentSoft), only `accent` and `accentSoft` are in
- *     REMOTE_TOKEN_KEYS today. That is the whole positive surface, which is
- *     exactly why the negative above carries the file.
+ *  2. THE SCREEN REPAINTS WITH AN OPERATOR PRESET. All eight tokens this screen
+ *     touches (text, textFaint, surfaceSoft, borderStrong, onAccent, gold,
+ *     accent, accentSoft) are in REMOTE_TOKEN_KEYS since Э1 widened the set.
+ *     The suite asserts the three the port visibly changed — accent, accentSoft
+ *     and, since the widening, the badge's gold.
  *  3. THE BEHAVIOUR THE COPY INHERITED, because nothing pinned it before and a
  *     port is when a `> 3` becomes a `>= 3` or a stray `disabled` lands on the
  *     wrong Pressable.
@@ -107,21 +107,25 @@ import { OAUTH_BRAND } from '@/constants/t/oauth-brand';
 import { EruditeColors } from '@/constants/theme';
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { resolvePalette } from '@/lib/theme/resolve';
+import { withAlpha } from '@/lib/theme/color';
 /* eslint-enable import/first */
 
 // --- fixtures and helpers ----------------------------------------------------
 
 /**
- * The two settable tokens this screen actually paints with, moved through the
- * REAL overlay rather than assembled by hand — a hand-built palette would prove
- * the test can build an object, not that the wire format reaches a pixel.
+ * The settable tokens this suite asserts on — accent, accentSoft and (since Э1
+ * put it on the wire) gold — moved through the REAL overlay rather than
+ * assembled by hand: a hand-built palette would prove the test can build an
+ * object, not that the wire format reaches a pixel.
  */
 const PRESET_ACCENT = '#ff0055';
 const PRESET_ACCENT_SOFT = '#00ff88';
+const PRESET_GOLD = '#00ff00';
 const OVERRIDDEN_DARK = resolvePalette(EruditeColors.dark, {
   ...BUNDLED_THEME.dark,
   accent: PRESET_ACCENT,
   accentSoft: PRESET_ACCENT_SOFT,
+  gold: PRESET_GOLD,
 });
 
 function usePreset() {
@@ -282,19 +286,21 @@ describe('the premium badge', () => {
     expect(colorOf('Premium active')).toBe(EruditeColors.dark.gold);
   });
 
-  it('does NOT move with the preset, because gold is not settable yet', () => {
-    // A deliberate asymmetry, pinned rather than left implicit: `gold` is absent
-    // from REMOTE_TOKEN_KEYS, so no operator can move this badge today even
-    // though it now reads a token. When the wire widens, this test turns red and
-    // the widening shows up as a deliberate edit here instead of a silent
-    // repaint. Same shape as the note in __tests__/app/t-stats.test.tsx.
+  it('moves with the preset, since gold is on the wire', () => {
+    // Pinned as an honest negative before Э1: `gold` was absent from
+    // REMOTE_TOKEN_KEYS, so the badge read a token no operator could move. The
+    // widening put gold on the wire and this became the repaint assertion
+    // app/t/account.tsx predicted — "the badge starts tracking the preset for
+    // free on the day the wire widens". withAlpha's ratios (0.133 / 0.4) are
+    // the same ones the "byte-for-byte" test above pins on the bundled gold.
     mockIsPremium = true;
     usePreset();
     render(<TAccountScreen />);
 
     const badge = backgroundBehind(screen.getByText('Premium active'));
-    expect(badge.backgroundColor).toBe('#ffd23a22');
-    expect(colorOf('Premium active')).toBe(EruditeColors.dark.gold);
+    expect(badge.backgroundColor).toBe(withAlpha(PRESET_GOLD, 0.133));
+    expect(badge.borderColor).toBe(withAlpha(PRESET_GOLD, 0.4));
+    expect(colorOf('Premium active')).toBe(PRESET_GOLD);
   });
 
   it('is absent for a free player', () => {

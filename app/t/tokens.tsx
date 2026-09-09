@@ -241,11 +241,10 @@ export default function TThemeTokensScreen() {
            * the engine and the badge declares the local mask over it.
            *
            * It sits directly ABOVE the unsupported-schema warning on purpose:
-           * today those two must be read together. The live backend serves schema
-           * 2 and this client understands 1, so the envelope carrying
-           * onboarding_type is rejected and this row reads `classic` for
-           * test-quiz even though the wire says `universal` — and the explanation
-           * is the very next line.
+           * when those two disagree the explanation is the very next line. Since
+           * this build accepts schema v2, the row reads the wire value
+           * (`universal` for test-quiz) — the pre-Э1 mismatch that made this row
+           * read `classic` against the wire's `universal` is closed.
            */}
           <Meta
             label="onboarding_type"
@@ -276,10 +275,10 @@ export default function TThemeTokensScreen() {
         </View>
 
         {/**
-         * The developer's manual pin, and today the ONLY way to see the second
-         * onboarding screen on hardware — the live backend serves schema 2, this
-         * client understands 1, so the `onboarding_type` inside that envelope is
-         * never read on a device (docs/configurable-template.md).
+         * The developer's manual pin. The wire path works on hardware — this
+         * build accepts the schema-v2 envelope and reads `onboarding_type` off
+         * it — so the pin's job is to exercise a variant the backend did NOT
+         * choose (or the `none` skip), not to stand in for a broken transport.
          *
          * It deliberately does NOT navigate. The splash only routes to
          * /t/onboarding when `hasSeen === false`, so a jump from here without

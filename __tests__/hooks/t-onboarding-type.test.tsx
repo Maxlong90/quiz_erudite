@@ -290,13 +290,12 @@ describe('freezing', () => {
 /**
  * The developer's manual pin.
  *
- * It exists because the backend-driven switch is currently UNREACHABLE on a
- * device: the deployed backend serves `schema_version: 2`, the client understands
- * 1, so the whole envelope is rejected as unsupported and the `onboarding_type`
- * inside it is never read. Until the widened-token work lands, this is the only
- * path to the second screen on hardware — which makes it worth as much test
- * weight as the wire path, and makes its INERTNESS in a release build the single
- * most important assertion in this file.
+ * The wire path works on hardware now — the client accepts the schema-v2
+ * envelope and reads `onboarding_type` off it — so the pin is a testing tool
+ * for variants the backend did not choose, rather than the only route to the
+ * second screen. Its INERTNESS in a release build remains the single most
+ * important assertion in this file: nothing a developer flips by hand can
+ * follow a build to a user.
  */
 describe('the dev force override', () => {
   it('shows a variant the engine never sent', () => {

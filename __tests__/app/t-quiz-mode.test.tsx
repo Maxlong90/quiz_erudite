@@ -295,11 +295,11 @@ describe('t quiz-mode — the crown reads a token, not the hex it replaced', () 
   });
 
   it('follows gold when the palette moves it', async () => {
-    // `gold` is NOT in REMOTE_TOKEN_KEYS yet, so no wire payload can produce
-    // this palette today — it is hand-built precisely because the bundled gold
-    // (#ffd23a) is byte-identical to the literal that was deleted, and without
-    // moving it this assertion could not tell a token from a hardcoded hex.
-    // When Э1 widens the token set the crown follows for free.
+    // `gold` is in REMOTE_TOKEN_KEYS since Э1 widened the token set, so a real
+    // operator preset produces exactly this palette. The hand-built fixture is
+    // still needed: the bundled gold (#ffd23a) is byte-identical to the literal
+    // that was deleted, and without moving it this assertion could not tell a
+    // token from a hardcoded hex.
     mockThemeValue = {
       palettes: { dark: { ...OVERRIDDEN_DARK, gold: '#00ff00' }, light: EruditeColors.light },
     };

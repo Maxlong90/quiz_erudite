@@ -137,10 +137,12 @@ describe('the spectrum has no dead weight', () => {
 });
 
 describe('contrast ratchet', () => {
-  // Tile labels are `onAccent` — white in BOTH appearances, and not one of
-  // REMOTE_TOKEN_KEYS, so no operator can darken them to compensate. The
-  // shipped worst case is `sun` (#ffd23a) at ~1.44:1. This test does not claim
-  // that is good; it claims nobody may quietly make it worse.
+  // Tile labels are `onAccent` — white in BOTH appearances. `onAccent` is on
+  // the wire since Э1 widened REMOTE_TOKEN_KEYS, so an operator CAN move the
+  // label colour now — a deliberate edit through the colour form, not a quiet
+  // regression. The ratchet below still guards the SHIPPED worst case: `sun`
+  // (#ffd23a) at ~1.44:1 under white. This test does not claim that is good;
+  // it claims the bundled palette stays no worse than shipped.
   const WORST_SHIPPED_RATIO = 1.44;
 
   it.each(Object.entries(TILE_SPECTRUM))(

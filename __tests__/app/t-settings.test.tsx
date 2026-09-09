@@ -12,14 +12,15 @@
  *     /t/splash on a template build — so the leak was invisible off-device, and
  *     nothing but an explicit assertion would have caught it. The suite pins
  *     both halves: that '/t/splash' is called AND that '/splash' is not.
- *  2. THE ROW ICON REPAINTS WITH AN OPERATOR PRESET. The settable surface here
- *     is exactly one prop. Of the tokens this screen touches — text, textFaint,
- *     surface, surfaceSoft, border, borderSoft, textDisabled, danger, onAccent —
- *     NONE is in REMOTE_TOKEN_KEYS; only the Row icon's `accentSoft` is. That
- *     single prop conveniently lives in the Row sub-component, so asserting it
- *     doubles as proof that call site was ported. The screen's other three
- *     funnel call sites (the screen body, SectionLabel, Divider) touch only
- *     unsettable tokens and are covered by the SOURCE scan in
+ *  2. THE ROW ICON REPAINTS WITH AN OPERATOR PRESET. Every token this screen
+ *     touches — text, textFaint, surface, surfaceSoft, border, borderSoft,
+ *     textDisabled, danger, onAccent, accentSoft — is in REMOTE_TOKEN_KEYS since
+ *     Э1 widened the set, so the whole screen is operator-repaintable now. The
+ *     suite asserts exactly the Row icon's `accentSoft`, the cheapest
+ *     single-prop proof, which conveniently lives in the Row sub-component so
+ *     the assertion doubles as proof that call site was ported. The screen's
+ *     other three funnel call sites (the screen body, SectionLabel, Divider)
+ *     are covered by the SOURCE scan in
  *     __tests__/app/t-no-color-literals.test.ts, not by any render here.
  *  3. THE BEHAVIOUR THE COPY INHERITED — the two modals and the outbound links —
  *     because nothing pinned it before and the modals are the ONLY growth this

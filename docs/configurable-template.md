@@ -80,7 +80,7 @@ The engine resolves colours in three tiers, each one better than the last and ea
 │   bundled.ts   │                  ↓
 └────────────────┘        ┌─────────────────────┐
 ┌────────────────┐        │  resolvePalettes    │  EruditePalette
-│ Cache tier     │ ──────→│  overlays 10 remote │ ───────────────→ screens
+│ Cache tier     │ ──────→│  overlays 45 remote │ ───────────────→ screens
 │ AsyncStorage   │ tokens │  tokens onto the    │   (dark + light)
 │ theme.remote.v1│        │  bundled palette    │
 └────────────────┘        └─────────────────────┘
@@ -91,9 +91,9 @@ The engine resolves colours in three tiers, each one better than the last and ea
 └────────────────┘
 ```
 
-The result is an **overlay, never a construction**. The backend serves ten of `EruditePalette`'s roughly thirty tokens; the other twenty (`surface`, `text`, `scrim`, `success`, and the rest) always keep their compiled values. That is what makes a partial or hostile payload survivable — there is always a complete palette underneath.
+The result is an **overlay, never a construction**. Since schema v2 (the Э1 widening) the backend serves **all forty-five** `EruditePalette` tokens, so an unedited preset overlays byte-identical values and resolves to the bundled palette **by reference** — nothing re-renders. The overlay shape still earns its keep: a v1 cache record holds only ten of the forty-five, and overlaying it keeps the other thirty-five at their compiled values for the one session it takes the engine to re-earn a full body. That is also what makes a partial or hostile payload survivable — there is always a complete palette underneath.
 
-The bundled tier is **derived** from `EruditeColors` rather than copied. A checked-in second literal map would be the third transcription of the same twenty hex values, and any drift would break the inertness argument at its root: the same binary would render differently depending on whether the engine happened to be switched on.
+The bundled tier is **derived** from `EruditeColors` rather than copied. A checked-in second literal map would be the third transcription of the same palette literals, and any drift would break the inertness argument at its root: the same binary would render differently depending on whether the engine happened to be switched on.
 
 ## The Wire Contract
 
@@ -101,7 +101,7 @@ The bundled tier is **derived** from `EruditeColors` rather than copied. A check
 
 That line is load-bearing. Derivation on the client would be a second, divergent engine, and an operator could not preview its output. When a new rule is wanted — hue rotation, contrast correction — it belongs in the backend registry beside the existing alpha and lightness operations.
 
-The ten remote tokens are `bgGradient`, `bgSolid`, `accent`, `accentSoft`, `accentBg`, `accentBgSoft`, `accentBorderSoft`, and the three `optIdle*` option-button tokens. `bgGradient` is a three-stop gradient; the rest are flat colours. Declaration order is part of the ETag contract, since the backend hashes the encoded bytes, and it is also the order the token gallery renders in.
+The forty-five remote tokens are the whole `EruditePalette`: the background family (`bgGradient`, `bgSolid`, the surfaces, `sheet`, `scrim`), the text and border families, the accent family (`accent`, `accentSoft`, the three accent tints, `onAccent`), the status colours (`success`, `danger`, `gold`), the option and explanation tokens, and the four groups the Э1 widening added — **paywall** (`subscribeBtnBg`, `subscribeBtnText`, `subscribeBtnBorder`, `subscribeHighlightBg`), **progress** (`progressTrack`, `progressFill`, `tabBg`, `tabActiveBg`, `tabActiveText`, `tabInactiveText`), **economy** (`coinColor`, `lifeColor`, `hintColor`) and **splash** (`splashBg`, `splashFg`). `bgGradient` is a three-stop gradient; the rest are flat colours. Declaration order is part of the ETag contract, since the backend hashes the encoded bytes, and it is also the order the token gallery renders in. The client transcription lives in `__tests__/fixtures/remote-theme-v2.ts` and is pinned against the backend registry by `__tests__/lib/theme-schema-parity.test.ts`.
 
 Four parsing rules carry design intent:
 
@@ -111,23 +111,23 @@ Four parsing rules carry design intent:
 
 - **Reject a set you cannot half-apply; degrade a scalar you can.** `onboarding_type` (below) deliberately does *not* follow the all-or-nothing rule, and the distinction is the point rather than an inconsistency. That rule is earned by two properties a switch discriminant does not have: colours come in contrast pairs, and every one of those strings is handed to a native style prop that throws on garbage. A lone scalar has no partner to contradict and never reaches a style prop, so rejecting the envelope over one bad value would discard the operator's entire palette to fix nothing.
 
-The parser also iterates the known token list rather than the payload's own keys, so an unknown eleventh token from a newer backend is dropped before it can reach a style prop. A payload whose `schema_version` is higher than the client understands is reported as `unsupported-schema` without judging its shape — by definition the client cannot know what a future body looks like.
+The parser also iterates the known token list rather than the payload's own keys, so an unknown token from a newer backend is dropped before it can reach a style prop. A payload whose `schema_version` is higher than the client understands is reported as `unsupported-schema` without judging its shape — by definition the client cannot know what a future body looks like.
 
 ### Sibling Keys, and When the Version Bumps
 
 Not everything in the body is a colour. The envelope carries `onboarding_type` — which onboarding variant the template renders — as a **sibling** of `theme`, never as a key inside it:
 
 ```json
-{ "schema_version": 1, "onboarding_type": "universal", "theme": { "name": "…", "supports_dark": true, "light": {…}, "dark": {…} } }
+{ "schema_version": 2, "onboarding_type": "universal", "theme": { "name": "…", "supports_dark": true, "light": {…}, "dark": {…} } }
 ```
 
 Inside `theme` it would break the one invariant that object has — that its keys mirror `ColorTokenRegistry` one for one — and the token walk would drop it anyway. It is read only *after* the theme parses, so a malformed theme still reports `malformed` and carries no resolved variant. `lib/onboarding/onboarding-type.ts` owns the union; the match is exact, with no case folding or trimming, because the client union has to equal the backend's admin enum byte for byte and a quiet coercion would hide a real mismatch behind a screen that happens to render.
 
-**An additive optional key must never bump `schema_version`.** The version bumps only for a change that would make an existing client render something *wrong* — a renamed or removed token, or a changed value domain. The asymmetry is one-directional and severe: a client that meets a version it does not understand takes the `unsupported-schema` branch, persists **nothing**, and falls back to bundled colours. Since store review means the client cannot be rolled out first to absorb it, bumping for a key that older clients would have safely ignored costs every installed device the operator's palette. Adding a key is safe by construction; announcing it in the version is not.
+**An additive optional key must never bump `schema_version`.** The version bumps only for a change that would make an existing client render something *wrong* — a renamed or removed token, or a changed value domain. The asymmetry is one-directional and severe: a client that meets a version it does not understand takes the `unsupported-schema` branch, persists **nothing**, falls back to bundled colours, and now **warns once per launch** (the provider's `console.warn` on the `unsupported` branch — the silent fallback is exactly why the v1-vs-v2 breakage below lived unnoticed). Since store review means the client cannot be rolled out first to absorb it, bumping for a key that older clients would have safely ignored costs every installed device the operator's palette. Adding a key is safe by construction; announcing it in the version is not.
 
-> **Live state, verified 2026-09-09.** The deployed backend currently serves **`schema_version: 2`** on every app slug, alongside `onboarding_type` and an `asset_pack` sibling. `CLIENT_THEME_SCHEMA_VERSION` is still `1`, so the client rejects the whole envelope as `unsupported-schema` today and the template renders bundled colours. This is **pre-existing and independent of the onboarding work** — it is the widened token set (the live body carries the full ~45-token palette, not ten) whose client-side counterpart has not landed. The consequence here is that `onboarding_type` **is already on the wire but cannot reach a device** until the client's schema version catches up; the transport described below is correct and inert until then. It is also the paragraph above playing out in production rather than in theory.
+> **History and live state.** The v1→v2 bump is this rule playing out by the letter: the Э1 widening grew the served set from ten tokens to the full forty-five, which would have made a v1 client render a palette it could only half-apply — a value-domain change, so the backend bumped and the clients rejected the envelope until this build caught up. The breakage shipped unnoticed for a while *because the fallback was silent*; the warn above and the live contract check below exist so the next bump cannot. Today the client and the backend agree on **`schema_version: 2`** (verified live, 2026-09-09), and `npm run check:theme-contract` re-verifies that agreement — plus token order, defaults, and parseability — against the real endpoint on demand.
 >
-> Only `test-quiz` carries the key (`"universal"`); all seven shipped slugs omit it, which is exactly the fail-open path — an absent key resolves to the default and nothing renders differently. `"universal"` is therefore **confirmed on the wire**; the string naming the base variant is **not**, because the backend omits the key rather than naming it. Confirm that spelling against the admin enum before Э8-B relies on it.
+> `onboarding_type` rides the envelope only for the configurable template: `test-quiz` carries `"universal"`, all seven shipped slugs omit the key, which is exactly the fail-open path — an absent key resolves to the default and nothing renders differently. `"universal"` is **confirmed on the wire**; the string naming the base variant is **not**, because the backend omits the key rather than naming it. `asset_pack` also rides along and is ignored by the client.
 
 ## Light and Dark
 
@@ -146,6 +146,8 @@ Which appearance renders is the player's own choice, read from `useThemePref` �
 The record carries its own format number, separate from the payload's schema version, so invalidating every device's stored blob implies nothing about the wire contract.
 
 **That number is expensive to bump, so an added field does not bump it.** `onboarding_type` is stored as an *optional* field: a record written before the client understood it is **incomplete, not wrong**, and it keeps its palette. Bumping the format instead would make every stored record unreadable and delete it — and on an offline device that means the operator's colours vanish for the entire session, the exact failure the three-tier design exists to prevent.
+
+The schema widening followed the same reasoning: a **v1 cache record** (schema version 1, ten-token theme) passes the version gate but fails the re-parse that `isUsable` runs through the same parser as the network, so it is dropped like any unreadable blob and the device falls back to the bundled tier for one session until the next fetch re-earns a full body. No format bump; `__tests__/lib/theme-cache.test.ts` pins the migration.
 
 The insurance a bump would have bought is bought in the provider instead, for one launch rather than forever: **a record that carries no opinion about the field drops its ETag once**, so the backend must answer with a body. This is self-limiting by construction — an unconditional request cannot come back `304`, the 200 writes a resolved value, and the next launch is a normal conditional request again. The whole upgrade costs one body, once. It also rescues the case in the next section, where a backend's ETag would otherwise never change.
 
@@ -212,7 +214,7 @@ It is also what makes it safe to switch the engine on for an existing app later:
 
 Screens under `app/t/` do not call `useThemeColors()`. They call `hooks/t/use-template-theme.ts`, and a test asserts that no file under `app/t/` imports the palette hook directly — so *where the template gets its colours* is a one-file fact rather than a grep.
 
-The hook returns a **superset**: all thirty `EruditePalette` tokens unchanged, plus the few derived roles the ported screens need and the bundled palette has no name for. It never rewrites a token, so an operator preset still lands on screen exactly as the backend authored it. A `TemplateTheme` is structurally an `EruditePalette`, so a screen's existing `makeStyles(c: EruditePalette)` keeps working untouched until that screen actually needs a derived role.
+The hook returns a **superset**: all forty-five `EruditePalette` tokens unchanged, plus the few derived roles the ported screens need and the bundled palette has no name for. It never rewrites a token, so an operator preset still lands on screen exactly as the backend authored it. A `TemplateTheme` is structurally an `EruditePalette`, so a screen's existing `makeStyles(c: EruditePalette)` keeps working untouched until that screen actually needs a derived role.
 
 Wrapping rather than widening `constants/theme.ts` keeps the blast radius at `app/t/`: that file and `useThemeColors` serve the live Erudite build and five sibling apps, and a token added there to satisfy one template screen would land in every shipped app. When the wire contract widens, these derived roles become real operator-settable tokens and the hook shrinks — the call sites do not move.
 
@@ -220,7 +222,7 @@ Wrapping rather than widening `constants/theme.ts` keeps the blast radius at `ap
 
 The one **intentional pixel change** is the middle tier. The results and stats screens share a hardcoded traffic-light scale — green, amber, red. The outer two map onto `success` and `danger` cleanly; the amber has no equivalent anywhere in the palette. `gold` is illegible against the light appearance's background, and the results screen paints this colour on a large score number and a ring drawn directly on that background rather than inside a card. `lib/theme/color.ts` deliberately ships no lighten/darken operation, since derive rules live in the backend registry and a second, divergent derivation engine on the client is what that split forbids. Borrowing a hue from the tile spectrum would put artwork in a text role. So the middle band is `accent`: legible on both appearances by construction, and one of the operator-settable tokens, so the scale repaints with the preset — which is the point. The scale degrades from traffic-light to high/brand/low, still three legible steps, and a later `warning` token restores the amber in one line.
 
-That change is now on screen rather than latent: `app/t/results.tsx` paints the score ring, the score number and the percentage from `tierHigh`/`tierMid`/`tierLow`, so a preset edit repaints all three. `__tests__/app/t-results.test.tsx` renders each band under an overridden accent and asserts the middle one moves with it — being literal-free was never the goal, repainting was, and a port that swapped three hexes for three tokens without checking the second thing would pass a grep and fail the feature. The same test pins that only the middle band moves: `success` and `danger` are not operator-settable yet, so the outer two stay bundled until the wire contract widens.
+That change is now on screen rather than latent: `app/t/results.tsx` paints the score ring, the score number and the percentage from `tierHigh`/`tierMid`/`tierLow`, so a preset edit repaints all three. `__tests__/app/t-results.test.tsx` renders each band under an overridden accent and asserts the middle one moves with it — being literal-free was never the goal, repainting was, and a port that swapped three hexes for three tokens without checking the second thing would pass a grep and fail the feature. Since the Э1 widening put `success` and `danger` on the wire, the same test now pins that the outer two bands move with them too — the pre-widening version pinned them as staying bundled, and the widening turned that pin into the full-scale repaint assertion.
 
 Reference identity carries over from `resolvePalette` and matters for the same reason. The widening is a pure function behind a **module-level `WeakMap` keyed on the palette object**, not a `useMemo` inside the hook: a per-component memo cell would hand two components rendering under one palette two different objects, and their stylesheet memos would stop agreeing. The map makes the identity global. It is weak rather than strong because palettes are per-appearance and per-fetch objects, and a superseded preset has to be collectable.
 
@@ -232,7 +234,7 @@ Every value is lifted byte for byte from the shipped Erudite tiles, and a test p
 
 The spectrum exists rather than a flat list of 17 gradients because the 17 tiles are really 10 pairs drawn from 15 hues, with 7 exact duplicates that are design statements rather than coincidences. It is also the cheap shape to remote later: 15 flat colour tokens and no new wire machinery, where a gradient map would need a two-stop gradient type on both sides.
 
-The spectrum is **deliberately not derived from `accent`**. Tile labels use `onAccent`, which is white in both appearances and is not one of the ten operator-settable tokens. The shipped worst-case hue already sits at roughly 1.44:1 against it; deriving every tile from one seed would put all 17 in that band at once for a pale accent, and fixing it would mean widening the wire. Derivation also collapses seven category identities into shades of one hue, in a grid that uses hue as its primary index. A contrast ratchet in the ramp test stops anyone quietly adding a paler hue.
+The spectrum is **deliberately not derived from `accent`**. Tile labels use `onAccent`, which is white in both appearances. It has been operator-settable since the Э1 widening put the whole palette on the wire, so an operator can move the label colour knowingly — the ratchet below still guards the shipped worst case (roughly 1.44:1 against white). Deriving every tile from one seed would put all 17 in that band at once for a pale accent, and derivation also collapses seven category identities into shades of one hue, in a grid that uses hue as its primary index. A contrast ratchet in the ramp test stops anyone quietly adding a paler hue.
 
 Mode assignments are exhaustive by construction — a mode without a ramp is a compile error rather than a silent fallback to grey. Category assignments are the opposite, because category slugs are backend data and an unknown one is an ordinary runtime case that resolves to the neutral fallback ramp. That lookup map is built on a **null prototype** on purpose: the key is untrusted operator data, and on a plain object a category slugged `constructor` or `toString` would inherit a function instead of missing. The fallback would never fire, an undefined gradient would reach a native `LinearGradient`, and Android would throw rather than render the neutral tile.
 
@@ -399,7 +401,7 @@ The `universal` key pointed at `classic` between Э8-A and Э8-B-2, because the 
 
 ### Seeing It On A Device
 
-The switch is currently **unreachable from the backend**. The live backend serves `schema_version: 2` while the client understands `1`, so the envelope carrying `onboarding_type` is rejected as `unsupported-schema` before anything reads it (see the live-state note under [Sibling Keys](#sibling-keys-and-when-the-version-bumps) — it is the widened-token work, not the onboarding work). Until that closes, the only way to reach the second screen on hardware is a manual pin.
+The switch is **reachable from the backend** since the client accepts the schema-v2 envelope and reads `onboarding_type` off it — an operator flip of the preset's `onboarding_type` reaches a device on the next launch. The manual pin in the token gallery remains as a testing tool: it is the only way to exercise a variant the backend did *not* choose (or the `none` skip) on hardware.
 
 `hooks/t/use-onboarding-type.ts` therefore carries a `__DEV__`-only override: a module variable, `setForcedOnboardingType()` to write it and `forcedOnboardingType()` to read it, consulted ahead of the engine inside the same hook. Nothing is persisted — it survives `router.replace()`, which is what makes the walk below work, and dies with the process. The gate is on the **read**, not the setter: that is the only consulting site, so gating there is total, and `__DEV__` is read at call time rather than captured in a module constant so the inertness is testable.
 
@@ -443,7 +445,7 @@ A token counts as "overridden" when it differs from the bundled value in **eithe
 
 Two rules govern what the forced-variant control may disturb, and they follow from the paragraph above. The `onboarding_type` **row** is always present, because it reports operator data like every other line in that card — and it reports the value **on the wire**, never the one being drawn: with a pin active the app renders `universal` while the backend said `classic`, so showing the resolved value would be wrong in both directions at once. A badge declares the local mask instead (`classic  [forced: universal]`). The **control**, which writes developer-only state, is `__DEV__`-gated and lives in its own action row rather than as a fourth child of the existing one — that row is a flex of `flex: 1` children, so sharing it would lay out as four quarters in a debug build and three thirds in the release build this screen is written for.
 
-The row sits directly above the unsupported-schema warning on purpose: today those two must be read together. The engine is on the rejected-envelope branch, so the row reads `classic` for `test-quiz` even though the wire says `universal` — and the explanation is the very next line.
+The row sits directly above the unsupported-schema warning on purpose: when those two disagree, the explanation is the very next line. With the client on schema v2 the row reads the wire value (`universal` for `test-quiz`) — the pre-Э1 mismatch that made it read `classic` against the wire's `universal` is closed.
 
 ## Verifying on a Device
 
@@ -486,7 +488,7 @@ Fail-open is the engine's central property. Every failure leaves the app on the 
 |-----------------|----------------------|
 | Offline, DNS failure, timeout, 5xx | The cached theme, or the bundled palette on a first launch |
 | Malformed body or a bad token | The last known-good theme; nothing is half-applied |
-| Schema version newer than the build | Bundled or cached colours; neither the payload nor its ETag is stored, so the next app update applies the theme on its first launch |
+| Schema version newer than the build | Bundled or cached colours; neither the payload nor its ETag is stored, so the next app update applies the theme on its first launch — and the provider warns once per launch, so a stale build is visible in logcat |
 | Corrupt or foreign cache record | Bundled colours, and the bad key is deleted |
 | Storage write fails | Correct colours this session, one extra fetch next launch |
 | Unknown or garbage `onboarding_type` | The default onboarding variant; the palette still applies normally |
@@ -495,13 +497,14 @@ Fail-open is the engine's central property. Every failure leaves the app on the 
 | Backend ETag that ignores `onboarding_type` | A variant flip never arrives, with no visible symptom — see the conditional request above |
 | Slow network on a first launch | The splash releases at its hard cap and the home screen paints bundled |
 
-The one case that is not silent is an unsupported schema version, which the gallery surfaces as a warning.
+One case is deliberately not silent: an unsupported schema version. The provider logs a `[theme] Backend serves schema v…` warning once per launch (visible in logcat), and the gallery surfaces the same fact as an in-app warning. That loudness is a fix, not a luxury — the v1-vs-v2 breakage lived unnoticed precisely because the fallback was silent.
 
 ## Keeping the Two Repositories in Step
 
 The client and the backend hold the same token list in two files, in two repositories, and the app crashes natively on a colour it cannot parse. Several guards keep that honest:
 
-- A **parity test** asserts the bundled token values against literals copied from the backend registry, so drift between the repos fails the suite rather than shipping.
+- A **parity test** asserts the bundled token values against literals copied from the backend registry, so drift between the repos fails the suite rather than shipping. The transcription lives in `__tests__/fixtures/remote-theme-v2.ts`; `__tests__/lib/theme-schema-parity.test.ts` additionally pins the schema version and the token list — names, order, and count — against it.
+- A **live contract check** (`npm run check:theme-contract`, opt-in and outside the offline default suite) re-verifies all of the above against the real endpoint: the served schema version, the parseability of both slugs' live envelopes, the presence of every remote token in both appearances, and the erudite slug's defaults byte-for-byte. This is the check that would have caught the v1-vs-v2 breakage before it shipped.
 - A **compile-time link** ties the remote token list to `EruditePalette`. Renaming or dropping a token in `constants/theme.ts` stops the build instead of silently resolving to `undefined` at runtime.
 - A **source scan** holds the no-colour-literal line across the template's own directories — `app/t/`, `components/t/`, `constants/t/`, `hooks/t/` — plus everything those files *transitively import*. It is a source scan and not a render assertion on purpose: a hex on a branch no test exercises is still a hex. The scope is **derived by walking the imports** rather than declared in a list, because the list it replaced had already rotted: a modal the template home opens rendered a picker nobody had added to the list, so that file was silently unguarded for as long as it existed. A walk cannot fail that way. Each failure prints the import chain that pulled the file into scope, because adding an import to a template screen now widens the rule on its own, and "why is this test looking at my file" has to be answerable from the failure alone.
 - An **ESLint rule** flags hex and `rgb()`/`hsl()` literals across those same four directories in the editor. The scan stays the authority: it catches forms an AST selector cannot see, and only the scan follows imports.
@@ -514,7 +517,7 @@ The template's home screen is a deliberate **copy** of the Erudite home rather t
 
 The copy differs from the original in three intentional ways. It is a plain screen rather than the entry gate, because reproducing the intro-gate logic would bounce the player into the *Erudite* splash and onboarding — the exact leak the template registry exists to prevent. Its mode definitions have no gradient field at all, only a mode id. And the wordmark glow is derived from the accent with an alpha helper rather than frozen, so an operator setting a red accent gets a red halo.
 
-That helper, `lib/theme/color.ts`, mirrors the backend's colour maths and copies its most important property: every function is **total**. An input it does not understand — a CSS `rgba()` literal, a blank, a named colour — is handed back unchanged rather than nulled, because the bundled palette really does mix forms and every value ends up in a style prop. Its alpha byte is rounded rather than truncated, which is load-bearing for parity: the palette's ratios land on exact half-byte boundaries often enough that truncation would silently shift real colours away from the backend's.
+That helper, `lib/theme/color.ts`, mirrors the backend's colour maths and copies its most important property: every function is **total**. An input it does not understand — a CSS `rgba()` literal, a blank, a named colour — is handed back unchanged rather than nulled, and every value ends up in a style prop. (The palette itself has been all-hex since Э1: `scrim` was normalised from its `rgba()` literal to the 8-digit form the wire serves.) Its alpha byte is rounded rather than truncated, which is load-bearing for parity: the palette's ratios land on exact half-byte boundaries often enough that truncation would silently shift real colours away from the backend's.
 
 ## See Also
 

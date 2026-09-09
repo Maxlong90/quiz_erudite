@@ -255,20 +255,30 @@ describe('hostile responses', () => {
     expect(cached?.theme.dark.accent).toBe('#00ff88');
   });
 
-  it('keeps the cached tier on a schema from the future and persists NOTHING', async () => {
-    await seedCache(editedTheme('#00ff88'));
-    mockGet.mockResolvedValueOnce(response(editedTheme('#ff0055'), NEW_ETAG, 2));
+  it('keeps the cached tier on a schema from the future, warns loudly, and persists NOTHING', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await seedCache(editedTheme('#00ff88'));
+      mockGet.mockResolvedValueOnce(response(editedTheme('#ff0055'), NEW_ETAG, 3));
 
-    const { result } = renderEngine();
-    await waitFor(() => expect(result.current?.unsupportedSchemaVersion).toBe(2));
+      const { result } = renderEngine();
+      await waitFor(() => expect(result.current?.unsupportedSchemaVersion).toBe(3));
 
-    expect(result.current?.source).toBe('cache');
-    expect(result.current?.palettes.dark.accent).toBe('#00ff88');
-    // Persisting the ETag alone would earn a 304 next launch with nothing behind
-    // it; persisting the body would store a shape this build cannot read.
-    const cached = await loadCachedTheme();
-    expect(cached?.etag).toBe(OLD_ETAG);
-    expect(cached?.schemaVersion).toBe(1);
+      expect(result.current?.source).toBe('cache');
+      expect(result.current?.palettes.dark.accent).toBe('#00ff88');
+      // The SILENT fallback is exactly why the v1-vs-v2 breakage shipped
+      // unnoticed — this pin keeps the next schema bump loud, once per launch.
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('[theme] Backend serves schema v3'),
+      );
+      // Persisting the ETag alone would earn a 304 next launch with nothing behind
+      // it; persisting the body would store a shape this build cannot read.
+      const cached = await loadCachedTheme();
+      expect(cached?.etag).toBe(OLD_ETAG);
+      expect(cached?.schemaVersion).toBe(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('reports the unsupported version while still settling the network gate', async () => {
@@ -385,7 +395,7 @@ describe('the onboarding discriminant', () => {
   it('keeps last-known-good when the network fails or serves a future schema', async () => {
     for (const failure of [
       () => mockGet.mockRejectedValueOnce(new Error('offline')),
-      () => mockGet.mockResolvedValueOnce(response(editedTheme(), NEW_ETAG, 2)),
+      () => mockGet.mockResolvedValueOnce(response(editedTheme(), NEW_ETAG, 3)),
     ]) {
       await AsyncStorage.clear();
       jest.clearAllMocks();

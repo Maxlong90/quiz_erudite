@@ -6,15 +6,16 @@
  * 1. TOTALITY. These helpers feed React Native style props, where an
  *    unparseable colour throws in native code on Android. Anything the module
  *    cannot take apart must come back unchanged, never null and never a throw.
- *    `EruditeColors.dark.scrim` is a real `rgba()` literal in the shipped
- *    palette, so this is not a hypothetical input.
+ *    `scrim` used to be an rgba() literal in the shipped palette; since Э1 it
+ *    is 8-digit hex (byte-identical colour), so the rgba case is pinned with a
+ *    plain literal below — the property itself still matters for any value
+ *    that slips past the parser.
  * 2. ROUNDING PARITY with the PHP. The cases below are transcribed from
  *    ColorMath::withAlpha's docblock — the ratios where truncation and
  *    round() disagree. If these drift, a colour derived on the client stops
  *    matching the same colour derived on the backend.
  */
 import { expandHex, isHexColor, withAlpha } from '@/lib/theme/color';
-import { EruditeColors } from '@/constants/theme';
 
 describe('isHexColor', () => {
   it.each(['#fff', '#fff4', '#ffffff', '#ffffff44', '#7C5CFF'])('accepts %s', (value) => {
@@ -97,10 +98,10 @@ describe('withAlpha', () => {
   });
 
   it('passes an rgba() literal straight through instead of mangling it', () => {
-    // The shipped dark palette really contains this value; an "Unable to parse
-    // color" crash on Android is the failure mode this guards.
-    expect(EruditeColors.dark.scrim).toBe('rgba(0,0,0,0.55)');
-    expect(withAlpha(EruditeColors.dark.scrim, 0.4)).toBe('rgba(0,0,0,0.55)');
+    // The shipped palette's scrim used to BE this literal; it is 8-digit hex
+    // now, so the pass-through is pinned on the literal itself. An "Unable to
+    // parse color" crash on Android is the failure mode this guards.
+    expect(withAlpha('rgba(0,0,0,0.55)', 0.4)).toBe('rgba(0,0,0,0.55)');
   });
 
   it.each(['transparent', '', 'papayawhip'])('passes %p through unchanged', (value) => {

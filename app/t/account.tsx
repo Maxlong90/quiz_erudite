@@ -12,15 +12,14 @@
  *     gold at 13.3% and 40%. Both are now withAlpha(c.gold, …), which is
  *     BYTE-EXACT in both appearances: `gold` is #ffd23a in dark and light alike
  *     (constants/theme.ts), and withAlpha rounds rather than truncates, so 0.133
- *     lands on 22 and 0.4 on 66 exactly. Note this does not repaint TODAY —
- *     `gold` is not in REMOTE_TOKEN_KEYS, so no operator can move it yet. Using
- *     the token anyway costs nothing, removes two literals without needing a
- *     seam, and the badge starts tracking the preset for free on the day the
- *     wire widens. The tints stay inline rather than earning a name in
- *     hooks/t/use-template-theme.ts: that hook's rule is that a derived role
- *     needs TWO OR MORE screens, and a premiumBadgeBg would have exactly one.
- *     (app/t/paywall.tsx already tints gold at four other ratios; naming each
- *     one is the dumping ground that rule exists to prevent.)
+ *     lands on 22 and 0.4 on 66 exactly. `gold` has been on the wire since Э1
+ *     widened REMOTE_TOKEN_KEYS, so the badge repaints with an operator preset —
+ *     the free tracking this token-swap was written to buy. The tints stay
+ *     inline rather than earning a name in hooks/t/use-template-theme.ts: that
+ *     hook's rule is that a derived role needs TWO OR MORE screens, and a
+ *     premiumBadgeBg would have exactly one. (app/t/paywall.tsx already tints
+ *     gold at four other ratios; naming each one is the dumping ground that
+ *     rule exists to prevent.)
  *  2. THE OAUTH BUTTONS' six hexes moved to constants/t/oauth-brand.ts and are
  *     read from there DIRECTLY rather than through `c`. They are not ours to
  *     choose — Apple's HIG allows black or white for Sign in with Apple, Google

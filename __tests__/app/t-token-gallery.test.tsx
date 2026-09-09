@@ -48,7 +48,7 @@ function themeValue(overrides: Record<string, unknown> = {}) {
   return {
     palettes: resolvePalettes(EruditeColors, theme),
     source: 'network',
-    schemaVersion: 1,
+    schemaVersion: 2,
     name: 'test-quiz 1',
     supportsDark: true,
     hydrated: true,
@@ -116,7 +116,7 @@ describe('token gallery', () => {
   it('shows the schema version', () => {
     renderGallery();
     expect(screen.getByText('schema_version')).toBeTruthy();
-    expect(screen.getByText('1')).toBeTruthy();
+    expect(screen.getByText('2')).toBeTruthy();
   });
 
   it('marks ONLY the tokens the operator changed', () => {
@@ -137,7 +137,9 @@ describe('token gallery', () => {
   });
 
   it('surfaces an unsupported schema version in the open', () => {
-    mockThemeValue = themeValue({ unsupportedSchemaVersion: 2 });
+    // 3 is what a future backend would serve a stale build — this build's own
+    // version is 2, so only a HIGHER one can trigger the warning.
+    mockThemeValue = themeValue({ unsupportedSchemaVersion: 3 });
     renderGallery();
     expect(screen.getByTestId('theme-unsupported')).toBeTruthy();
   });
@@ -194,11 +196,11 @@ describe('token gallery', () => {
  * The onboarding variant: what the backend chose, and what a developer pinned
  * over it by hand.
  *
- * The pin matters more than a debug toggle usually would. The deployed backend
- * serves schema_version 2 while this client understands 1, so the envelope that
- * carries `onboarding_type` is rejected before anything reads it — until that is
- * fixed, this control is the ONLY way to reach the second onboarding screen on a
- * device.
+ * The wire path works on a device — this build accepts the schema-v2 envelope
+ * and reads `onboarding_type` off it — so the pin is a testing tool for
+ * variants the backend did not choose (or the `none` skip), not the only route
+ * to the second screen. The row below still reports the WIRE value rather than
+ * the drawn one, so the pin's effect stays honest in both directions.
  */
 describe('the onboarding variant row', () => {
   it('names the variant the backend selected', () => {
