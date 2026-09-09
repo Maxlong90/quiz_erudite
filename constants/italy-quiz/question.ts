@@ -41,6 +41,13 @@ export interface ItalyQuestion {
   explanation: LocalizedText;
   /** Bundled image (require(...)). A question without one renders as plain text. */
   image?: ImageSourcePropType;
+  /**
+   * The one question a tour must open with — an easy one everybody gets right.
+   * A tour that opens on a miss reads as "this is not for me". The draw shuffles
+   * inside an act for replay variety, so the warm-up has to be marked rather than
+   * simply written first.
+   */
+  warmup?: boolean;
   /** Options are ordered ranges — answered on a notched slider. */
   estimate?: boolean;
   /**

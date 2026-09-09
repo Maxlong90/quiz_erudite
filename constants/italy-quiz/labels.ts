@@ -17,12 +17,21 @@ export interface ItalyLabels {
   // Place picker + tour intro
   /** Title of the place picker (Play → places). */
   whereTo: string;
+  /** Prompt under the map before any pin is selected. */
+  pickOnMap: string;
   /** Sublabel on a place that has no questions authored yet. */
   comingSoon: string;
   /** Starts the tour from the intro card. */
   startTour: string;
   /** Header of the ribbon reminding the player of an earlier question. */
   callbackThen: string;
+  // Stars
+  /** Nudges toward the next star band, by how many are already earned. */
+  starHint1: string;
+  starHint2: string;
+  starHint3: string;
+  /** Best result so far — `{stars}` and `{pct}` are substituted. */
+  bestResult: string;
   // Estimate questions (notched slider)
   /** Locks in the notch the player stopped on. */
   scaleConfirm: string;
@@ -66,9 +75,14 @@ const EN: ItalyLabels = {
   settings: 'Settings',
   categories: 'Categories',
   whereTo: 'Where to?',
+  pickOnMap: 'Tap a pin on the map',
   comingSoon: 'coming soon',
   startTour: "Let's go",
   callbackThen: 'BACK THEN',
+  starHint1: 'Half right earns your first star.',
+  starHint2: '80% earns a second star.',
+  starHint3: 'A clean run earns all three.',
+  bestResult: 'Best here: {stars}★ · {pct}%',
   scaleConfirm: 'Answer',
   axisEarlier: 'earlier',
   axisLater: 'later',
@@ -107,9 +121,14 @@ const RU: ItalyLabels = {
   settings: 'Настройки',
   categories: 'Категории',
   whereTo: 'Куда поедем?',
+  pickOnMap: 'Выберите точку на карте',
   comingSoon: 'скоро',
   startTour: 'Поехали',
   callbackThen: 'ТОГДА',
+  starHint1: 'Половина правильных — первая звезда.',
+  starHint2: '80% правильных — вторая звезда.',
+  starHint3: 'Без единой ошибки — все три.',
+  bestResult: 'Лучший результат: {stars}★ · {pct}%',
   scaleConfirm: 'Ответить',
   axisEarlier: 'раньше',
   axisLater: 'позже',
@@ -148,9 +167,14 @@ const ES: ItalyLabels = {
   settings: 'Ajustes',
   categories: 'Categorías',
   whereTo: '¿A dónde vamos?',
+  pickOnMap: 'Toca un punto del mapa',
   comingSoon: 'próximamente',
   startTour: 'Vamos',
   callbackThen: 'ENTONCES',
+  starHint1: 'La mitad acertada da la primera estrella.',
+  starHint2: 'El 80% da la segunda estrella.',
+  starHint3: 'Sin fallos, las tres.',
+  bestResult: 'Mejor aquí: {stars}★ · {pct}%',
   scaleConfirm: 'Responder',
   axisEarlier: 'antes',
   axisLater: 'después',
@@ -189,9 +213,14 @@ const FR: ItalyLabels = {
   settings: 'Réglages',
   categories: 'Catégories',
   whereTo: 'On va où ?',
+  pickOnMap: 'Touchez un point sur la carte',
   comingSoon: 'bientôt',
   startTour: 'C’est parti',
   callbackThen: 'À L’ÉPOQUE',
+  starHint1: 'La moitié donne la première étoile.',
+  starHint2: '80% donne la deuxième étoile.',
+  starHint3: 'Sans faute, les trois.',
+  bestResult: 'Meilleur ici : {stars}★ · {pct}%',
   scaleConfirm: 'Répondre',
   axisEarlier: 'plus tôt',
   axisLater: 'plus tard',

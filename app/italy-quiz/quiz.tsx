@@ -30,6 +30,7 @@ import { getPlace, pickText, useItalyPlace } from '@/constants/italy-quiz/places
 import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
 import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
 import { useTourProgress } from '@/hooks/italy-quiz/use-tour-progress';
+import { MAX_STARS, starsFor, usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 
@@ -100,7 +101,11 @@ export default function ItalyQuizGame() {
 
   const isRetry = !!(retryIds && retryIds.length > 0);
 
+  const { recordTour, recordFor } = usePlaceProgress();
+  const best = recordFor(placeId);
+
   const { hydrated, ids, pos, wrong, setPos, addWrong, clear } = useTourProgress({
+    placeId,
     key: isRetry || !placeId ? null : `italy.tour.${placeId}`,
     place: rawPlace,
     questions,
@@ -148,6 +153,19 @@ export default function ItalyQuizGame() {
     setDone(true);
     clear();
   }, [clear]);
+
+  // Recorded from an effect rather than inside finish(), because a miss on the
+  // LAST question calls addWrong and then finishes from a timer: finish()'s own
+  // closure still holds the pre-miss `wrong`, and the tour would be banked one
+  // point too generous. By the time `done` flips, the state has settled.
+  //
+  // A mistakes review is a sub-tour, not a tour — it would inflate the play count
+  // and could only ever lower the score, so it earns nothing and marks nothing.
+  useEffect(() => {
+    if (!done || isRetry || !placeId || ids.length === 0) return;
+    recordTour(placeId, ids, Math.max(0, ids.length - wrong.length), ids.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done]);
 
   const goNext = useCallback(() => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
@@ -325,6 +343,7 @@ export default function ItalyQuizGame() {
           : t.resultKeepGoing;
     // Snapshot the misses now — starting the review resets the live list.
     const misses = [...wrong];
+    const earned = isRetry ? 0 : starsFor(score, total);
 
     return (
       <View style={styles.fill}>
@@ -358,7 +377,29 @@ export default function ItalyQuizGame() {
               <Text style={styles.caption}>{t.resultCaption}</Text>
             </LinearGradient>
 
+            {/* Stars are the reason to come back: finishing is not the goal,
+                finishing clean is. A review earns none, so it shows none. */}
+            {!isRetry ? (
+              <View style={styles.starRow}>
+                {Array.from({ length: MAX_STARS }, (_, i) => (
+                  <Text key={i} style={[styles.star, i >= earned && styles.starEmpty]}>
+                    {i < earned ? '\u2605' : '\u2606'}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
             <Text style={styles.message}>{message}</Text>
+            {!isRetry && earned < MAX_STARS ? (
+              <Text style={styles.starHint}>
+                {earned < 1 ? t.starHint1 : earned < 2 ? t.starHint2 : t.starHint3}
+              </Text>
+            ) : null}
+            {!isRetry && best.stars > 0 ? (
+              <Text style={styles.bestLine}>
+                {t.bestResult.replace('{stars}', String(best.stars)).replace('{pct}', String(best.bestPct))}
+              </Text>
+            ) : null}
 
             <View style={styles.resultButtons}>
               {misses.length > 0 ? (
@@ -895,6 +936,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   resultButtons: { width: '100%', gap: 12, marginTop: 4 },
+  starRow: { flexDirection: 'row', gap: 10 },
+  star: {
+    fontSize: 40,
+    color: '#FFD54A',
+    textShadowColor: 'rgba(4, 16, 60, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  starEmpty: { color: 'rgba(255, 255, 255, 0.35)' },
+  starHint: {
+    color: '#FFD54A',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  bestLine: { color: '#C3CEF5', fontSize: 13, fontWeight: '700', textAlign: 'center' },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

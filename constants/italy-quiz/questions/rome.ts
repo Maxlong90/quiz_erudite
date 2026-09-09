@@ -31,6 +31,7 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 1,
     act: 'antiquity',
+    warmup: true,
     question: {
       ru: 'Какое сооружение Древнего Рима до сих пор стоит в центре города?',
       en: 'Which building of ancient Rome still stands in the city centre today?',
@@ -428,6 +429,243 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
     explanation: {
       ru: 'Derby della Capitale на Олимпийском стадионе — одно из самых горячих противостояний Европы. «Наполи» играет в Неаполе, «Фиорентина» во Флоренции, «Ювентус» в Турине.',
       en: 'The Derby della Capitale at the Stadio Olimpico is one of the fiercest in Europe. Napoli play in Naples, Fiorentina in Florence, Juventus in Turin.',
+    },
+  },
+  // ─── Запас: вопросы сверх тура, ради разных прохождений ───────────────────
+  {
+    id: 21,
+    act: 'antiquity',
+    question: {
+      ru: 'Что римляне строили, чтобы вода шла в город с гор за десятки километров?',
+      en: 'What did the Romans build to carry water into the city from mountains dozens of kilometres away?',
+    },
+    options: [
+      { ru: 'Акведуки', en: 'Aqueducts' },
+      { ru: 'Каналы', en: 'Canals' },
+      { ru: 'Колодцы', en: 'Wells' },
+      { ru: 'Водяные мельницы', en: 'Water mills' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Одиннадцать акведуков давали Риму больше воды на человека, чем во многих городах XX века. Часть из них работает до сих пор — фонтан Треви питается водой Аква Вирго, проложенной в 19 году до н.э.',
+      en: 'Eleven aqueducts gave Rome more water per person than many 20th-century cities had. Some still work: the Trevi fountain runs on the Aqua Virgo, laid in 19 BC.',
+    },
+  },
+  {
+    id: 22,
+    act: 'antiquity',
+    question: {
+      ru: 'Аппиева дорога — первая и главная римская магистраль. Куда она вела?',
+      en: 'The Appian Way was Rome’s first and greatest road. Where did it lead?',
+    },
+    options: [
+      { ru: 'На юг, к портам Адриатики', en: 'South, to the Adriatic ports' },
+      { ru: 'На север, в Галлию', en: 'North, into Gaul' },
+      { ru: 'На восток, к Византию', en: 'East, towards Byzantium' },
+      { ru: 'На запад, к Испании', en: 'West, towards Spain' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Аппиева дорога шла на юго-восток, к Бриндизи — оттуда корабли уходили в Грецию и на Восток. Её называли «царицей дорог», и по ней же распяли шесть тысяч сторонников Спартака.',
+      en: 'The Appian Way ran south-east to Brindisi, where ships left for Greece and the East. It was called the queen of roads — and six thousand of Spartacus’s followers were crucified along it.',
+    },
+  },
+  {
+    id: 23,
+    act: 'antiquity',
+    estimate: true,
+    axis: 'amount',
+    question: {
+      ru: 'Колизей вмещал 50 тысяч зрителей. А сколько вмещал Большой цирк, где гоняли колесницы?',
+      en: 'The Colosseum held fifty thousand. How many did the Circus Maximus, where the chariots raced, hold?',
+    },
+    options: [
+      { ru: 'Около 15 тысяч', en: 'About 15 thousand' },
+      { ru: 'Около 50 тысяч', en: 'About 50 thousand' },
+      { ru: 'Около 150 тысяч', en: 'About 150 thousand' },
+      { ru: 'Около 400 тысяч', en: 'About 400 thousand' },
+    ],
+    correct: 2,
+    explanation: {
+      ru: 'Около 150 тысяч — втрое больше Колизея и больше любого современного стадиона мира. Гонки колесниц, а не гладиаторы, были главным зрелищем Рима.',
+      en: 'Around 150,000 — three times the Colosseum and more than any stadium in the world today. Chariot racing, not gladiators, was Rome’s real mass spectacle.',
+    },
+  },
+  {
+    id: 24,
+    act: 'middle-ages',
+    question: {
+      ru: 'Что римские бароны сделали с античными руинами в Средневековье?',
+      en: 'What did Rome’s barons do with the ancient ruins in the Middle Ages?',
+    },
+    options: [
+      { ru: 'Превратили их в крепости', en: 'Turned them into fortresses' },
+      { ru: 'Обнесли оградой и охраняли', en: 'Fenced them off and guarded them' },
+      { ru: 'Засыпали землёй', en: 'Buried them under earth' },
+      { ru: 'Продали венецианцам', en: 'Sold them to the Venetians' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Знатные семьи воевали друг с другом прямо в городе и укреплялись в том, что было под рукой. Колизей стал замком семьи Франджипани, театр Марцелла — крепостью, а потом дворцом, в котором живут до сих пор.',
+      en: 'Noble families fought each other inside the city and fortified whatever was to hand. The Colosseum became the Frangipani family castle; the Theatre of Marcellus became a fortress, then a palace still lived in today.',
+    },
+  },
+  {
+    id: 25,
+    act: 'middle-ages',
+    question: {
+      ru: 'В 1527 году Рим пережил катастрофу, после которой Возрождение в городе оборвалось. Что случилось?',
+      en: 'In 1527 Rome suffered a catastrophe that broke off its Renaissance. What happened?',
+    },
+    options: [
+      { ru: 'Город разграбили войска императора', en: 'Imperial troops sacked the city' },
+      { ru: 'Тибр затопил центр', en: 'The Tiber flooded the centre' },
+      { ru: 'Землетрясение разрушило соборы', en: 'An earthquake destroyed the churches' },
+      { ru: 'Чума выкосила треть жителей', en: 'Plague killed a third of the people' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Sacco di Roma: неоплаченная армия Карла V взяла город и грабила его месяцами. Художники разбежались, папа отсиживался в Замке Святого Ангела, население упало вдвое.',
+      en: 'The Sacco di Roma: Charles V’s unpaid army took the city and looted it for months. Artists fled, the pope hid in Castel Sant’Angelo, and the population halved.',
+    },
+  },
+  {
+    id: 26,
+    act: 'middle-ages',
+    estimate: true,
+    axis: 'time',
+    question: {
+      ru: 'Когда папы вернулись в Рим из Авиньона окончательно?',
+      en: 'When did the popes finally return to Rome from Avignon?',
+    },
+    options: [
+      { ru: 'В XII веке', en: 'In the 12th century' },
+      { ru: 'В XIV веке', en: 'In the 14th century' },
+      { ru: 'В XVI веке', en: 'In the 16th century' },
+      { ru: 'В XVIII веке', en: 'In the 18th century' },
+    ],
+    correct: 1,
+    explanation: {
+      ru: '1377 год, конец XIV века. Правда, сразу после этого начался Великий раскол: пап стало двое, а на время даже трое.',
+      en: '1377, the end of the 14th century. Though what followed at once was the Great Schism, with two popes — and briefly three.',
+    },
+  },
+  {
+    id: 27,
+    act: 'renaissance',
+    question: {
+      ru: 'Кто спроектировал купол Собора Святого Петра — самый большой купол мира на тот момент?',
+      en: 'Who designed the dome of St Peter’s, the largest dome in the world at the time?',
+    },
+    options: [
+      { ru: 'Микеланджело', en: 'Michelangelo' },
+      { ru: 'Бернини', en: 'Bernini' },
+      { ru: 'Браманте', en: 'Bramante' },
+      { ru: 'Борромини', en: 'Borromini' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Микеланджело взялся за купол в 71 год и работал над ним до самой смерти, отказавшись от платы. Достроили купол уже без него, но по его чертежам.',
+      en: 'Michelangelo took on the dome at seventy-one and worked on it until he died, refusing payment. It was finished after his death, to his drawings.',
+    },
+  },
+  {
+    id: 28,
+    act: 'renaissance',
+    question: {
+      ru: 'Караваджо переписывал заказные картины, потому что заказчики их отвергали. Что их возмущало?',
+      en: 'Caravaggio had to repaint commissions because his clients rejected them. What offended them?',
+    },
+    options: [
+      { ru: 'Святых он писал с простых людей с улицы', en: 'He painted saints from ordinary people off the street' },
+      { ru: 'Он писал слишком мелко', en: 'He painted on too small a scale' },
+      { ru: 'Он использовал запрещённые краски', en: 'He used forbidden pigments' },
+      { ru: 'Он не подписывал работы', en: 'He never signed his work' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'У его апостолов грязные ступни, а Мадонна — с лицом знакомой римлянки. Заказчиков это оскорбляло, а живопись после него изменилась навсегда.',
+      en: 'His apostles have dirty feet and his Madonna wears the face of a Roman woman he knew. It offended the clients, and it changed painting for good.',
+    },
+  },
+  {
+    id: 29,
+    act: 'renaissance',
+    estimate: true,
+    axis: 'amount',
+    question: {
+      ru: 'Колоннада Бернини обнимает площадь Святого Петра. Сколько статуй святых стоит на её верху?',
+      en: 'Bernini’s colonnade embraces St Peter’s Square. How many statues of saints stand along its top?',
+    },
+    options: [
+      { ru: 'Около 20', en: 'About 20' },
+      { ru: 'Около 60', en: 'About 60' },
+      { ru: 'Около 140', en: 'About 140' },
+      { ru: 'Около 400', en: 'About 400' },
+    ],
+    correct: 2,
+    explanation: {
+      ru: '140 статуй, каждая около трёх метров. Бернини задумал колоннаду как «руки Церкви», обнимающие пришедших на площадь.',
+      en: '140 statues, each about three metres tall. Bernini meant the colonnade as the arms of the Church, embracing everyone who comes into the square.',
+    },
+  },
+  {
+    id: 30,
+    act: 'today',
+    question: {
+      ru: 'Что такое «Чинечитта» в Риме?',
+      en: 'What is Cinecittà in Rome?',
+    },
+    options: [
+      { ru: 'Киностудия', en: 'A film studio' },
+      { ru: 'Стадион', en: 'A stadium' },
+      { ru: 'Рынок', en: 'A market' },
+      { ru: 'Университет', en: 'A university' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Крупнейшая киностудия Европы, «римский Голливуд». Там снимали «Бен-Гура», «Клеопатру», «Сладкую жизнь» Феллини и «Банды Нью-Йорка».',
+      en: 'The largest film studio in Europe, Rome’s Hollywood. Ben-Hur, Cleopatra, Fellini’s La Dolce Vita and Gangs of New York were all shot there.',
+    },
+  },
+  {
+    id: 31,
+    act: 'today',
+    question: {
+      ru: 'По всему Риму стоят чугунные колонки, которые римляне зовут «насони» — «носищи». Что это?',
+      en: 'Cast-iron spouts stand all over Rome, and Romans call them nasoni — "big noses". What are they?',
+    },
+    options: [
+      { ru: 'Бесплатные питьевые фонтанчики', en: 'Free drinking fountains' },
+      { ru: 'Пожарные гидранты', en: 'Fire hydrants' },
+      { ru: 'Столбики для коновязи', en: 'Posts for tethering horses' },
+      { ru: 'Уличные почтовые ящики', en: 'Street postboxes' },
+    ],
+    correct: 0,
+    explanation: {
+      ru: 'Около двух с половиной тысяч колонок с бесплатной питьевой водой, льющейся круглые сутки. Вода идёт из тех же античных акведуков, и вода эта отличная.',
+      en: 'Some two and a half thousand spouts of free drinking water, running around the clock. It comes from the same ancient aqueducts, and it is excellent.',
+    },
+  },
+  {
+    id: 32,
+    act: 'today',
+    estimate: true,
+    axis: 'amount',
+    question: {
+      ru: 'Сколько человек живёт в Риме сегодня?',
+      en: 'How many people live in Rome today?',
+    },
+    options: [
+      { ru: 'Около 800 тысяч', en: 'About 800 thousand' },
+      { ru: 'Около 1,5 миллиона', en: 'About 1.5 million' },
+      { ru: 'Около 2,8 миллиона', en: 'About 2.8 million' },
+      { ru: 'Около 6 миллионов', en: 'About 6 million' },
+    ],
+    correct: 2,
+    explanation: {
+      ru: 'Около 2,8 миллиона — то есть Риму понадобилось почти две тысячи лет, чтобы вернуться к своему античному размеру и перерасти его.',
+      en: 'About 2.8 million — meaning it took Rome nearly two thousand years to climb back to its ancient size and pass it.',
     },
   },
 ];

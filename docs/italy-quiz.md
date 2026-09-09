@@ -1,6 +1,6 @@
 # Italy Quiz
 
-Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, and why four of its twenty questions ask for a range instead of a fact.
+Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, what makes a place worth entering twice, and why four of its twenty questions ask for a range instead of a fact.
 
 ## Why a Sixth App
 
@@ -24,9 +24,29 @@ The app used to have seven subject categories — Geography, History, Art & arch
 
 It was dropped because slicing by discipline also slices by who the player is. A subcategory called "Writers" is a wall of one subject: a player either studied it and sweeps the run, or did not and misses it fifty times in a row. Nothing in a subcategory gave anyone a foothold.
 
-The replacement has a **single level**. `app/italy-quiz/places.tsx` asks one question — where are we going — and lists places: Rome, Naples & Vesuvius, Venice, Florence & Tuscany, Milan & the North, Sicily. Tapping one starts its tour immediately. The disciplines that used to be categories are now mixed *inside* a tour, so the last act of Rome asks about Vatican statehood, the Trevi fountain's takings, carbonara and the Rome derby in a row. A player who knows no Renaissance painting still knows the football clubs.
+The replacement has a **single level**, and it is drawn as the **map of Italy**. `app/italy-quiz/places.tsx` asks one question — where are we going — and answers it with six pins placed at the cities' real coordinates: Rome, Naples & Vesuvius, Venice, Florence & Tuscany, Milan & the North, Sicily. Tapping a pin raises a card; the card starts the tour. Selecting and starting are two steps on purpose, because a pin is a small target and a stray tap should not throw a player into twenty questions.
 
-Places without authored questions render **locked rather than hidden**, so the shape of the finished app is visible from the first build. Only Rome has content today.
+The map earns its place by being the progress screen and the picker at once: stars accumulate on the pins, so the country visibly fills in as it is played. Its outline is a checked-in SVG path (`constants/italy-quiz/map-geometry.ts`) rather than a fetched or bundled picture — it must draw instantly and offline, and the shape of Italy is not going to change. The disciplines that used to be categories are now mixed *inside* a tour, so the last act of Rome asks about Vatican statehood, the Trevi fountain's takings, carbonara and the Rome derby in a row. A player who knows no Renaissance painting still knows the football clubs.
+
+Places without authored questions render **hollow rather than hidden**, so the shape of the finished app is visible from the first build. Only Rome has content today.
+
+## Why a Place Is Worth Entering Twice
+
+A tour that plays the same twenty questions in the same order is finished the moment it ends. Two mechanisms in `hooks/italy-quiz/use-place-progress.ts` make a place worth returning to, and they solve different halves of the problem.
+
+**Stars** give a reason to replay at all: 50% of a tour earns one, 80% earns two, and only a clean run earns three. They are kept at their BEST, so a lazy second attempt can never cost what was already won — the player is free to experiment. A mistakes review earns none: it is a sub-tour, it could only ever lower a score, and counting it would inflate the play count.
+
+**The seen set** makes that replay worth playing. Each place remembers which questions it has already asked, and the draw prefers ones it has not. Rome carries 32 questions and a tour takes 20, so a second visit is materially different rather than the same set reshuffled. Nothing resets when the pool is exhausted — the draw simply falls back to shuffling everything, which is correct: at that point the player has seen the place and repetition is the point.
+
+Both live under one storage key (`italy.progress.v1`) so a single read hydrates the whole map.
+
+### What the draw protects
+
+`orderTour` picks at random, so three things that used to be guaranteed by the authored order now have to be enforced, and each is covered by a test:
+
+- **Callback pairs come whole.** Half a pair is worse than none — the ribbon would point at a question the player never saw — so both halves are pulled in before any random pick. A pair authored in the wrong direction (the second half in an earlier act) is dropped rather than shown broken.
+- **The warm-up is pinned, not sorted.** An early version merely moved it to the front of whatever was drawn, which meant it was often not drawn at all and the tour opened on a hard question. It is now taken before the shuffle.
+- **Unseen before seen**, per act, as described above.
 
 ## A Tour Is Four Acts of Time
 
@@ -40,7 +60,7 @@ The acts are chronological on purpose: the player does not *choose* "Ancient Rom
 
 The Renaissance gets its own act rather than sitting inside a broader "centuries" bucket because it is the single thing Italy is best known for; folded into a wider act it disappeared.
 
-`orderTour` in `hooks/italy-quiz/use-tour-progress.ts` builds the order act by act, and inside an act it keeps the **authored order rather than shuffling**. Two reasons while the content is hand-written: the first question of a tour is a warm-up that has to land first — a tour opening with a miss reads as "this is not for me" — and a fixed order keeps callback pairs reading as written. Once a place holds more questions than a tour draws, a within-act shuffle belongs exactly there. The acts themselves must always stay in sequence; see below for why.
+`orderTour` in `hooks/italy-quiz/use-tour-progress.ts` builds the order act by act, shuffling inside each act — see [What the draw protects](#what-the-draw-protects) for the three guarantees that survive the shuffle. The acts themselves must always stay in sequence, because a callback pair is authored across them.
 
 ### Interludes carry the jump
 
