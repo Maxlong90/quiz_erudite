@@ -151,6 +151,14 @@ Build one like this:
 
 `npx expo run:android --variant release` collapses steps 2 to 4 into one command and is equivalent; the split form is worth knowing because it lets you inspect the generated identity before spending a build.
 
+#### The splash entry in `app.json` must always name an image
+
+Step 2 is where a splash config with no `image` bites, and it bites in a way that reads as a Gradle problem rather than a config one. `expo-splash-screen` writes `windowSplashScreenAnimatedIcon = @drawable/splashscreen_logo` into `values/styles.xml` **unconditionally**, but generates that drawable only when the plugin entry carries an `image` (or per-density keys, or an explicit `drawable`) — and it deletes any existing splash drawable first. Take the image away and prebuild emits a reference to a resource it never creates, so step 3 fails in aapt2 with `resource drawable/splashscreen_logo not found`. There is no icon-less mode: removing `image` does not remove the icon, it removes the file the icon still points at.
+
+This never breaks a real build, which is why it went unnoticed from 2026-08-29 to 2026-09-09. The build backend injects a per-app `image` into that same entry on every build (`ProcessBuildTask::injectAssets`), and now refuses the build outright if the result would dangle (`App\Services\Build\SplashConfigGuard`). Only a **bare** prebuild on this repo — exactly what step 2 is — sees the broken state.
+
+The committed `image` and `imageWidth` are the neutral base that bare prebuild falls back on. `imageWidth` is **not** injected, so it is the one value here that changes what all eight builds look like: it is the logo's width in dp on Android and in points on iOS, and dropping it silently applies the plugin's default of 100 rather than turning anything off. It must also stay at or below 288 — the icon is composited onto a `288 * density` canvas and centred, so a larger value gives a negative offset and clips the logo on every edge. `__tests__/app/splash-native-config.test.ts` pins all of this, including re-reading the 288 out of the plugin source so the bound cannot rot across an SDK bump.
+
 For the configurable template there is a step 0: choose the artwork. `npm run asset-pack <name>` (e.g. `base`, `neon`) copies `asset-packs/<name>.assets/` into `assets/t/`, which is where the template's static `require()` calls point. It must run **before** prebuild and bundling, because Metro reads whatever is on disk at that moment — on a real build the backend does this copy against its own clone. `base` is what is committed; staging anything else turns `__tests__/app/t-asset-packs.test.ts` red on purpose, so re-run it with `base` before committing. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
 
 ### Swapping a pack against a running dev build

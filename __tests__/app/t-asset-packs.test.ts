@@ -22,6 +22,8 @@ import { join } from 'path';
 
 import { T_ONBOARDING_RENDERED_TYPES } from '@/lib/onboarding/onboarding-type';
 
+import { pngSize } from '../helpers/png';
+
 const ROOT = join(__dirname, '..', '..');
 const PACKS_DIR = join(ROOT, 'asset-packs');
 const STAGING_DIR = join(ROOT, 'assets', 't');
@@ -88,21 +90,6 @@ function packNames(): string[] {
 
 function manifestOf(packDir: string): PackManifest {
   return JSON.parse(readFileSync(join(PACKS_DIR, packDir, 'manifest.json'), 'utf8'));
-}
-
-/**
- * Read a PNG's real dimensions straight out of its IHDR chunk — no dependency,
- * and it starts by proving the file IS a PNG, which is what makes a truncated
- * write or a renamed JPEG fail loudly here instead of on a device.
- */
-function pngSize(absolutePath: string): { w: number; h: number } {
-  const bytes = readFileSync(absolutePath);
-  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  expect({ file: absolutePath, png: bytes.subarray(0, 8).equals(signature) }).toEqual({
-    file: absolutePath,
-    png: true,
-  });
-  return { w: bytes.readUInt32BE(16), h: bytes.readUInt32BE(20) };
 }
 
 /** Every file under a directory, as paths relative to it, with `/` separators. */
