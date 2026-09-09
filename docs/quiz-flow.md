@@ -1,6 +1,6 @@
 # Quiz Flow
 
-This document describes the **Erudite** app's gameplay. The sibling apps built from the same tree run their own self-contained flows and share none of this engine — see [Logo Quiz](logo-quiz.md), [Flags Quiz](flags-quiz.md), [Coat of Arms](coat-of-arms-quiz.md), and [Sport Quiz](sport-quiz.md).
+This document describes the **Erudite** app's gameplay. The sibling apps built from the same tree run their own self-contained flows and share none of this engine — see [Logo Quiz](logo-quiz.md), [Flags Quiz](flags-quiz.md), [Coat of Arms](coat-of-arms-quiz.md), [Sport Quiz](sport-quiz.md), [Italy Quiz](italy-quiz.md), and [Football Quiz](football-quiz.md).
 
 A play session moves the player from the home hub, through an optional category and mode choice, into gameplay, and out to results. The home screen launches every mode; the quiz screen runs them all on one reducer-driven engine, varying its behavior by the parameters it receives. Navigation passes everything through URL query params, keeping screens stateless and deep-linkable.
 

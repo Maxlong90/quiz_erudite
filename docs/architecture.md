@@ -69,7 +69,7 @@ Five React context providers wrap the whole tree, in this order: `LocaleProvider
 
 - **`LocaleProvider`** (`hooks/use-locale.ts`) tracks the active language, whether the user has explicitly picked one, and the supported set (`en`, `ru`, `es`, `fr`). It seeds from the device locale and falls back to English.
 - **`ThemePrefProvider`** (`hooks/use-theme-pref.ts`) holds the app-selected appearance (`dark` or `light`), hydrated from storage and flipped by the Settings appearance switcher. Because the choice lives in React state above every screen, changing it repaints the whole app instantly. See [Theming and Appearance](#theming-and-appearance).
-- **`AppThemeProvider`** (`hooks/app-theme-provider.ts`) supplies the remote colour palette on a configurable-template build and a frozen inert value on every other build. It was **inserted** rather than slotted in, so no existing provider moved: reordering the others would change mount order and effect timing for the five shipped apps, which is exactly the class of change that makes an "inert" claim unverifiable. It sits above `ThemedRoot`, which consumes the palette. See [Configurable Template](configurable-template.md).
+- **`AppThemeProvider`** (`hooks/app-theme-provider.ts`) supplies the remote colour palette on a configurable-template build and a frozen inert value on every other build. It was **inserted** rather than slotted in, so no existing provider moved: reordering the others would change mount order and effect timing for every other build in the tree, which is exactly the class of change that makes an "inert" claim unverifiable. It sits above `ThemedRoot`, which consumes the palette. See [Configurable Template](configurable-template.md).
 - **`PremiumProvider`** (`hooks/use-premium.ts`) holds a single `isPremium` flag, hydrated from storage. Wherever store billing is enabled (any native platform with a RevenueCat key — Android today, iOS once its key is supplied) it also syncs (upgrade-only) from the live RevenueCat `premium` entitlement so returning subscribers stay premium without re-purchasing. Billing runs through RevenueCat (`lib/revenuecat.ts`, initialized via a side-effect import in `app/_layout.tsx` mirroring Sentry).
 - **`ContentCacheProvider`** (`hooks/use-content-cache.ts`) owns the offline snapshot — categories, subcategories, questions, and locally downloaded images — plus a sync status and 0..1 progress value. See [Content and Offline](content-and-offline.md).
 
@@ -134,7 +134,7 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
-**One tree, many apps.** The repository templates seven distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. The redirect targets live in one registry (`APP_TEMPLATES` in `constants/app-templates.ts`), so a new app is added there rather than by editing the home route. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
+**One tree, many apps.** The repository templates eight distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. The redirect targets live in one registry (`APP_TEMPLATES` in `constants/app-templates.ts`), so a new app is added there rather than by editing the home route. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
 
 | `APP_SLUG` | App | Entry route | Economy |
 |------------|-----|-------------|---------|
@@ -144,9 +144,10 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 | `coat-of-arms` | [Coat of Arms](coat-of-arms-quiz.md) — heraldry | `/coat-of-arms/splash` | None |
 | `sport-quiz` | [Sport Quiz](sport-quiz.md) — sports | `/sport-quiz/splash` | Coins only |
 | `italy-history-and-geography-quiz` | [Italy Quiz](italy-quiz.md) — Italian history and geography | `/italy-quiz/splash` | None |
+| `football-quiz` | [Football Quiz](football-quiz.md) — football, a fixture-driven prototype | `/football-quiz/splash` | Coins only (mocked) |
 | `test-quiz` | [Configurable Template](configurable-template.md) — an operator-themed quiz | `/t/splash` | Lives, hints, premium (inherited) |
 
-The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, and Sport Quiz adapts Logo Quiz's level and wheel model. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
+The sibling apps share the content-cache, localization, premium, and API infrastructure but keep their own screens, economy, and art. Reuse also runs *between* siblings: Coat of Arms is built almost entirely on Flags Quiz's question types, transforms, and UI kit, Sport Quiz adapts Logo Quiz's level and wheel model, and Football Quiz clones Sport Quiz outright — screens, labels, and economy numbers — so that only its palette is a new variable. A store build of a sibling also needs its own store identity, which `app.config.js` supplies per variant (see [Development](development.md#building-a-sibling-app-variant)).
 
 ### Italy Quiz: the variant with no content layer
 
@@ -157,6 +158,12 @@ Its taxonomy is **hardcoded, not fetched**, and so is its content. Places and th
 It is therefore the **only variant that reads no content snapshot at all**. Every other sibling runs a content provider because it fetches a slug that is not the build's own; Italy Quiz fetches nothing and runs entirely offline from bundled data. That is why there is no `lib/italy-quiz/` and `hooks/italy-quiz/` holds only tour state.
 
 One quirk of the variant is worth knowing before touching `app.config.js`. Its branch strips `runtimeVersion`, `updates`, and `extra.eas` from the base config, because a manifest that looks like an updates-enabled EAS app makes Expo Go demand an Expo-account sign-in that an offline dev server cannot satisfy. Italy Quiz has no EAS build yet, so dropping those fields yields a plain, Expo-Go-friendly dev manifest. They must be restored once the variant gets its own EAS project, or it will never receive an over-the-air update.
+
+### Football Quiz: a build registered before its content exists
+
+The `football-quiz` slug is the family's second answer to "the backend has nothing yet", and it differs from Italy Quiz's. Italy Quiz bundles hand-authored content and is genuinely playable offline. Football Quiz bundles **fixtures** in `lib/football-quiz/mock.ts` and is not playable at all — its five questions loop, its coins never move, and no provider sits above its screens. It exists so a visual language can be judged on a device while the backend app (id 4) still holds zero categories. [Football Quiz](football-quiz.md) documents it in full.
+
+The family-level fact is that a prototype is registered in `APP_TEMPLATES` like any other build, rather than being kept off to one side. Registration is what pulls it under the shared guards: `__tests__/app/app-templates.test.tsx` fails any app with its own splash that is missing from the registry, and `__tests__/hooks/use-app-theme-inert.test.tsx` asserts the theme engine stays inert for it. Football Quiz was in the first list and absent from the second for a while, which made it the one build whose inertness nothing checked — the cost of treating a prototype as a special case.
 
 **Premium as a soft gate.** Three modes are always free; the rest show a crown and route to the paywall when tapped without premium. Gating stays a client-side flag; wherever store billing is enabled it is backed by the live RevenueCat `premium` entitlement (synced upgrade-only on launch), while Expo Go / web keep the local flag as the source of truth. iOS uses the local flag today but joins the entitlement-backed path automatically once its RevenueCat key is supplied — see [iOS Monetization Parity](ios-monetization-parity.md).
 
@@ -219,6 +226,8 @@ constants/{slug}/       Its labels and theme
   sport-quiz/           Neon-on-navy kit, coins, puzzle plates, win screen
   italy-quiz/           Landmarks artwork, glossy navy tiles; hooks/ holds run
                         state only — no lib/, no content provider (see above)
+  football-quiz/        Gold-on-haze kit over three stadium backdrops; lib/
+                        holds fixtures, not rules — no hooks/, no provider
 
 The configurable template uses the same shape under the short name `t`, but its
 colours come from the wire rather than from constants/t/theme.ts:

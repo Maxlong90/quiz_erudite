@@ -147,6 +147,7 @@ Because the economy carries most of the app's rules, they are explained in-produ
 - [Architecture](architecture.md) -- Build-time app selection and module layout
 - [Content and Offline](content-and-offline.md) -- Snapshot cache and per-app namespacing
 - [Logo Quiz](logo-quiz.md) -- The sibling whose level and wheel model Sport Quiz adapts
+- [Football Quiz](football-quiz.md) -- The prototype that clones these screens, labels, and economy numbers
 - [Gamification](gamification.md) -- The lives-and-premium economy Sport Quiz deliberately does not use
 - [Development](development.md) -- Building a sibling app variant
 - [INDEX](INDEX.md) -- Documentation entry point

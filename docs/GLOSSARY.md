@@ -1,22 +1,26 @@
 # Glossary
 
-This tree builds seven apps that share infrastructure but not vocabulary. Several words mean different things depending on which app you are reading about — "level" and "run" most of all. This glossary fixes the meaning of each term and points at the document that explains it properly.
+This tree builds eight apps that share infrastructure but not vocabulary. Several words mean different things depending on which app you are reading about — "level" and "run" most of all. This glossary fixes the meaning of each term and points at the document that explains it properly.
 
 ## Build and App Family
 
-**App slug** — The build-time identifier in `EXPO_PUBLIC_APP_SLUG`, exposed in code as `APP_SLUG`. It does double duty: it is the path segment in every backend endpoint (`/apps/{slug}/…`) *and* the switch that decides which of the seven apps the build is. See [Architecture](architecture.md#key-design-decisions).
+**App slug** — The build-time identifier in `EXPO_PUBLIC_APP_SLUG`, exposed in code as `APP_SLUG`. It does double duty: it is the path segment in every backend endpoint (`/apps/{slug}/…`) *and* the switch that decides which of the eight apps the build is. See [Architecture](architecture.md#key-design-decisions).
 
-**Sibling app** — Any of the five non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz. Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch. The [configurable template](configurable-template.md) is a seventh build but not a sibling — its artwork is not checked in against its screens but staged from an interchangeable [asset pack](#artwork) at build time.
+**Sibling app** — Any of the six non-Erudite experiences built from this tree: Logo Quiz, Flags Quiz, Coat of Arms, Sport Quiz, Italy Quiz, [Football Quiz](football-quiz.md). Each has its own screens, artwork, and economy, and redirects away from the Erudite hub at launch. The [configurable template](configurable-template.md) is an eighth build but not a sibling — its artwork is not checked in against its screens but staged from an interchangeable [asset pack](#artwork) at build time.
+
+**Prototype build** — A registered build whose backend app holds no content, so its screens run on checked-in fixtures instead of a provider. Football Quiz is the current one, and its fixtures live in `lib/football-quiz/mock.ts`. Distinct from Italy Quiz, whose bundled content is real and playable. A prototype is registered in `APP_TEMPLATES` like any other build, so the family guards cover it. See [Football Quiz](football-quiz.md).
 
 **Erudite** — The default app and the one most of these docs describe by default: the seven-subject general-knowledge quiz with lives, hints, and premium modes.
 
 **Configurable template** — The build under the `test-quiz` slug and the `app/t/` route folder, whose colours arrive from the backend instead of a checked-in palette. One binary becomes one app per operator preset. It carries its own name ("Test App"), Android package, and URL scheme, so it installs beside another build of this tree rather than over it. See [Configurable Template](configurable-template.md).
 
-**Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the seven apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
+**Variant** — Overloaded, and worth disambiguating. A *build variant* is one of the eight apps. An *image variant* is `clean` or `original` — the two versions of a single question picture. Context always disambiguates, but never use the bare word in new prose.
 
 **Remote token** — One of the forty-five semantic colours the backend serves to a configurable-template build (`bgGradient`, `accent`, the three `optIdle*`, and the paywall/progress/economy/splash groups added by the Э1 widening). Since schema v2 the served set IS the whole palette, so an untouched preset resolves to exactly the bundled colours and changes nothing. See [Configurable Template](configurable-template.md#the-wire-contract).
 
 **Inertness gate** — The checked-in list of slugs (`T_TEMPLATE_SLUGS`) that decides whether the theme engine runs at all. A build absent from it performs no theme fetch, no cache read, and no overlay, so no admin edit can re-skin a shipped app. See [Configurable Template](configurable-template.md#selecting-the-build).
+
+**Onboarding type** — Operator data, carried on the theme envelope beside the colours, naming which first-run screen a configurable-template build shows. Exactly three values: `classic` (the pager that has always shipped), `universal` (one page at a time, with a tappable filmstrip), and `none` (no intro at all — the splash routes straight home). The client union must equal the backend's admin enum in order, since nothing checks the two repositories against each other; an unrecognized value falls back to `classic` rather than failing. Not every type draws a screen, which is why the *rendered* subset — the two that do — is derived separately and is what an asset pack may declare compatibility with. See [Configurable Template](configurable-template.md#sibling-keys-and-when-the-version-bumps).
 
 **Ramp / spectrum** — Tile artwork terms in the configurable template. The *spectrum* is the 15 named brand hues; a *ramp* is a named two-stop gradient built from two of them, and it is what a category or mode tile asks for. Neither is a palette token. See [Configurable Template](configurable-template.md#tile-artwork-a-bundled-spectrum).
 
@@ -24,7 +28,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 ## Artwork
 
-**Asset pack** — One complete set of the configurable template's bundled pictures, checked in under `asset-packs/<pack>.assets/`. The operator picks a pack, and the build service copies it into the staging directory before Metro runs; the app never sees more than one. Only the template has packs — the five sibling apps keep their artwork checked in against their screens. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
+**Asset pack** — One complete set of the configurable template's bundled pictures, checked in under `asset-packs/<pack>.assets/`. The operator picks a pack, and the build service copies it into the staging directory before Metro runs; the app never sees more than one. Only the template has packs — the six sibling apps keep their artwork checked in against their screens. See [Configurable Template](configurable-template.md#artwork-asset-packs-staged-at-build-time).
 
 **Slot** — One named picture position in the template, keyed by its relative path (`onboarding/step1.png`, `paywall/hero.png`). The slot list is a contract: every pack must supply exactly the same five, and `constants/t/asset-slots.ts` is the only place their paths are written down. Do not confuse a slot with a token — a token is a colour resolved at runtime, a slot is a file resolved at bundle time.
 
@@ -58,7 +62,7 @@ This tree builds seven apps that share infrastructure but not vocabulary. Severa
 
 **Reveal** — The animated transition after an answer. In Flags Quiz and Coat of Arms it means the correct option gliding to centre while the wrong ones unmount; in Coat of Arms it additionally means the original picture dissolving in over the clean one. In Erudite it just means all options turning green or red.
 
-**Estimate question** — An [Italy Quiz](italy-quiz.md#every-question-is-a-tap) question whose four options are RANGES rather than facts ("800–600 BC", "about 120 years"). It exists so a tour is not pure pass/fail on recall: nobody knows Rome's founding year exactly, but everyone can reason about the century. Its options are answered on a four-notch slider instead of the 2×2 grid — same options and same scoring, but slid along rather than tapped, because ranges are ordered. Options must be authored smallest-to-largest.
+**Estimate question** — An [Italy Quiz](italy-quiz.md#one-question-shape-two-ways-to-answer-it) question whose four options are RANGES rather than facts ("800–600 BC", "about 120 years"). It exists so a tour is not pure pass/fail on recall: nobody knows Rome's founding year exactly, but everyone can reason about the century. Its options are answered on a four-notch slider instead of the 2×2 grid — same options and same scoring, but slid along rather than tapped, because ranges are ordered. Options must be authored smallest-to-largest.
 
 **Plate** — One tile of the 4×5 grid covering an athlete's photo in Sport Quiz's Sports Legends mode. The player buys plates one at a time to uncover the picture. See [Sport Quiz](sport-quiz.md#sports-legends-and-the-puzzle-plates).
 

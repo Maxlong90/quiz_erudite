@@ -2,7 +2,7 @@
 
 Every sibling app in this tree costs a code fork. A new quiz means a new palette file, a new screen folder, a new build profile, and a store submission for any colour change. The configurable template exists to break that link: its palette is **operator data**, authored in the backend admin and delivered over the wire, so one binary can become one app per preset. This document explains the vertical slice that proves the idea — what the template renders today, how a colour travels from the admin form to a native gradient, and which decisions were made deliberately so later stages do not undo them.
 
-The template is a seventh build of the same tree, selected by the build-time slug `test-quiz` and shown as "Test App". It does not replace the five sibling apps and does not touch them. See [Architecture](architecture.md#key-design-decisions) for the family as a whole.
+The template is an eighth build of the same tree, selected by the build-time slug `test-quiz` and shown as "Test App". It does not replace the six sibling apps and does not touch them. See [Architecture](architecture.md#key-design-decisions) for the family as a whole.
 
 ## What the Slice Covers
 
@@ -42,7 +42,7 @@ The template also has no economy or content of its own. It draws categories and 
 
 ## Selecting the Build
 
-`test-quiz` is registered in `APP_TEMPLATES` (`constants/app-templates.ts`) exactly like the five siblings, so the shared home route redirects a cold start to `/t/splash` and the root navigator paints the template's scaffold colour instead of the Erudite navy. Adding the entry there wires the redirect, the shared-splash guard, and the scaffold colour at once.
+`test-quiz` is registered in `APP_TEMPLATES` (`constants/app-templates.ts`) exactly like the six siblings, so the shared home route redirects a cold start to `/t/splash` and the root navigator paints the template's scaffold colour instead of the Erudite navy. Adding the entry there wires the redirect, the shared-splash guard, and the scaffold colour at once.
 
 The scaffold colour is pinned to the **bundled** dark `bgSolid`. That is the tier the app paints with before any theme data arrives, so the cold-start hand-off has nothing to flash against.
 
@@ -216,7 +216,7 @@ Screens under `app/t/` do not call `useThemeColors()`. They call `hooks/t/use-te
 
 The hook returns a **superset**: all forty-five `EruditePalette` tokens unchanged, plus the few derived roles the ported screens need and the bundled palette has no name for. It never rewrites a token, so an operator preset still lands on screen exactly as the backend authored it. A `TemplateTheme` is structurally an `EruditePalette`, so a screen's existing `makeStyles(c: EruditePalette)` keeps working untouched until that screen actually needs a derived role.
 
-Wrapping rather than widening `constants/theme.ts` keeps the blast radius at `app/t/`: that file and `useThemeColors` serve the live Erudite build and five sibling apps, and a token added there to satisfy one template screen would land in every shipped app. When the wire contract widens, these derived roles become real operator-settable tokens and the hook shrinks — the call sites do not move.
+Wrapping rather than widening `constants/theme.ts` keeps the blast radius at `app/t/`: that file and `useThemeColors` serve the live Erudite build and six sibling apps, and a token added there to satisfy one template screen would land in every shipped app. When the wire contract widens, these derived roles become real operator-settable tokens and the hook shrinks — the call sites do not move.
 
 **A derived role earns a name here only if two or more screens use it.** The tier scale below qualifies; a tint used by exactly one screen stays an inline `withAlpha(...)` in that screen's own `makeStyles`. Without that rule the hook becomes the dumping ground the literals scan exists to prevent.
 
@@ -380,7 +380,7 @@ Because `onboarding_type` selects a *screen*, the screen is split in two. `app/t
 
 `index.ts` is keyed by `TOnboardingRenderedType` — the union minus `none` — rather than by the full union, so `none` is not merely unregistered but unregisterable. That keeps the map a *total* `Record` (the belt that makes widening the union without shipping a screen a compile error) while stating "this type draws nothing" in the type system instead of a comment. Adding `none: SomeEmptyScreen` here would not add support for it; it would silently *disable* the feature, because the host renders whatever it is handed and would overrule the intro gate's skip with a blank screen the player still has to dismiss.
 
-The division is not filing, and the two halves are enforced from opposite directions. Keeping navigation in the host is what keeps the paywall-entry-point assertion in `t-routes.test.ts` pointed at a file that really holds `'/t/paywall'`, and keeps the `markSeen()`-before-navigate proof in `t-onboarding.test.tsx` binding on every variant that will ever exist rather than on the one written first. But a source guard is needed too: that route assertion only checks the literal is *present*, so a variant that navigated on its own would leave it in the host as dead text and nothing would go red. `t-onboarding-variants.test.tsx` therefore forbids any file under `components/t/onboarding/` from importing `expo-router`, `@/hooks/use-onboarding` or `@/lib/revenuecat` at all.
+The division is not filing, and the two halves are enforced from opposite directions. Keeping navigation in the host is what keeps the paywall-entry-point assertion in `t-routes.test.ts` pointed at a file that really holds `'/t/paywall'`, and keeps the `markSeen()`-before-navigate proof in `t-onboarding.test.tsx` binding on every variant that will ever exist rather than on the one written first. But a source guard is needed too: that route assertion only checks the literal is *present*, so a variant that navigated on its own would leave it in the host as dead text and nothing would go red. `__tests__/components/t-onboarding-variants.test.tsx` therefore forbids any file under `components/t/onboarding/` from importing `expo-router`, `@/hooks/use-onboarding` or `@/lib/revenuecat` at all. Mind the directory: a second file of the same name lives under `__tests__/app/` and covers the *host's* selection of a variant, not the variants' own restraint. Each names the other in its opening docblock.
 
 **A variant is never a route.** The obvious-looking alternative — a file per shape, `app/t/onboarding-universal.tsx` beside `app/t/onboarding.tsx` — fails on how expo-router works: each file is a real, deep-linkable route with no host above it, so the second one is an entrance that bypasses `markSeen()`, the billing gate, and every invariant the flow test protects. `t-routes.test.ts` pins onboarding to exactly one route for that reason, and the remedy for a stray file is to move it under `components/`, never to register it.
 
