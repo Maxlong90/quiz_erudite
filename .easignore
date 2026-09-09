@@ -1,0 +1,84 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
+.ssh/
+CLAUDE.md
+/screenshots/*
+!/screenshots/.gitkeep
+AGENTS.md
+
+# Playwright MCP session logs
+.playwright-mcp/
+.expo-dev-auth
+# >>> suslik-managed skills (auto)
+/.claude/skills/deliver-file/
+# <<< suslik-managed skills
+
+# ===========================================================================
+# EAS ONLY. Everything ABOVE this banner is a verbatim copy of .gitignore.
+#
+# .easignore REPLACES .gitignore for eas-cli, it does not add to it. From the
+# moment this file exists no .gitignore anywhere in the tree is read; only
+# `.git` and `node_modules` stay hardcoded. A .easignore holding just the rule
+# below would therefore START uploading .env, android/, dist/, .expo/ and every
+# *.jks / *.p8 / *.p12 / *.mobileprovision to the EAS worker.
+#
+# Regenerate, never hand-edit the copied part:
+#   cp .gitignore .easignore
+# then re-append this block. __tests__/lib/easignore.test.ts fails on any drift
+# between the two files, and on any second rule appearing down here.
+#
+# NEVER add a rule matching anything under assets/. The build backend writes
+# assets/images/{icon,splash-icon}.png (ProcessBuildTask::injectAssets) and
+# assets/t/ (AssetPackStager) into its clone AFTER cloning and BEFORE
+# `eas build`. Excluding assets/images/ fails the worker ~20 minutes in with
+# `resource drawable/splashscreen_logo not found`; excluding assets/t/ breaks
+# Metro, because the rule is path-based and drops the artwork COMMITTED in the
+# repo alongside the staged pack, leaving the literal require('@/assets/t/...')
+# calls in constants/t/asset-slots.ts with nothing to resolve.
+#
+# Pack SOURCES, on the other hand, are pure build input: nothing requires them,
+# so they are bundled by nothing and only ever travelled to EAS as dead weight.
+# ===========================================================================
+asset-packs/

@@ -17,22 +17,22 @@
  * `require()` pointing at a path no pack supplies. Both ship green and fail on a
  * device, months later, as a blank image.
  */
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
 import { T_ONBOARDING_RENDERED_TYPES } from '@/lib/onboarding/onboarding-type';
 
+import {
+  DEFAULT_PACK,
+  PACKS_DIR,
+  PackManifest,
+  STAGING_DIR,
+  manifestOf,
+  packNames,
+  stagedRequiresIn,
+} from '../helpers/asset-packs';
 import { pngSize } from '../helpers/png';
-
-const ROOT = join(__dirname, '..', '..');
-const PACKS_DIR = join(ROOT, 'asset-packs');
-const STAGING_DIR = join(ROOT, 'assets', 't');
-
-/**
- * The pack whose artwork is committed in `assets/t/`, i.e. what every build
- * starts from before the build service stages anything else.
- */
-const DEFAULT_PACK = 'base';
+import { REPO_ROOT as ROOT, filesUnder } from '../helpers/repo-tree';
 
 /** The one legal staging destination. See the `target` note below. */
 const ALLOWED_TARGET = 'assets/t';
@@ -65,46 +65,6 @@ const ALLOWED_TARGET = 'assets/t';
  * setup and cannot drag a native mock in behind it.
  */
 const ALLOWED_ONBOARDING_TYPES: readonly string[] = T_ONBOARDING_RENDERED_TYPES;
-
-interface SlotSpec {
-  w: number;
-  h: number;
-  title: string;
-}
-
-interface PackManifest {
-  schema: number;
-  pack: string;
-  title: string;
-  onboarding_types: string[];
-  target: string;
-  slots: Record<string, SlotSpec>;
-}
-
-function packNames(): string[] {
-  return readdirSync(PACKS_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-}
-
-function manifestOf(packDir: string): PackManifest {
-  return JSON.parse(readFileSync(join(PACKS_DIR, packDir, 'manifest.json'), 'utf8'));
-}
-
-/** Every file under a directory, as paths relative to it, with `/` separators. */
-function filesUnder(dir: string, prefix = ''): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    return entry.isDirectory() ? filesUnder(join(dir, entry.name), rel) : [rel];
-  });
-}
-
-/** Every `require('@/assets/t/...')` argument in a source file. */
-function stagedRequiresIn(relativeSourcePath: string): string[] {
-  const source = readFileSync(join(ROOT, relativeSourcePath), 'utf8');
-  return [...source.matchAll(/require\('@\/assets\/t\/([^']+)'\)/g)].map((m) => m[1]);
-}
 
 const PACKS = packNames();
 

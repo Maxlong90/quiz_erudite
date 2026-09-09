@@ -11,6 +11,7 @@
     "lint": "expo lint",
     "test": "jest",
     "check:store-config": "jest __tests__/lib/eas-profiles.test.ts",
+    "check:eas-upload": "jest __tests__/lib/easignore.test.ts",
     "check:theme-contract": "jest --config jest.live.config.js",
     "asset-pack": "node ./scripts/apply-asset-pack.mjs"
   },
@@ -67,6 +68,7 @@
     "babel-plugin-dynamic-import-node": "^2.3.3",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "ignore": "^5.3.2",
     "jest": "~29.7.0",
     "jest-expo": "~57.0.0",
     "react-test-renderer": "^19.1.0",

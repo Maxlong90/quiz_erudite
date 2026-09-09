@@ -353,6 +353,12 @@ Adding a sixth slot is a three-place edit — `constants/t/asset-slots.ts`, the 
 
 Two packs are roughly 450 KB. That is fine, and it does not stay fine. At twenty packs this is multi-megabyte git history in a repository the build service clones on every build, and the answer at that point is a pack registry with artwork fetched at build time rather than committed — not a larger repository.
 
+### Not bundled is not the same as not uploaded
+
+Metro never walking into `asset-packs/` settles what reaches an APK. It says nothing about what reaches the EAS *worker*, and those are different questions: `eas build` tars the working copy and uploads it, so until `.easignore` existed the pack sources travelled to EAS on every build as dead weight — 410 KB against a ~28 MB archive, which is why nothing noticed. Verified in a shipped artifact rather than assumed: Android build #50's `resources.arsc` carries exactly `assets_t_splash_logo`, `assets_t_onboarding_step1..3` and `assets_t_paywall_hero`, and not one `asset-packs/` entry.
+
+The root `.easignore` drops them. It is a **verbatim copy of `.gitignore` plus the single rule `asset-packs/`**, and it has to be, because `.easignore` *replaces* `.gitignore` for eas-cli rather than extending it — a file containing only the pack rule would start uploading `.env`, `android/`, `dist/` and every keystore pattern. The standing prohibition is the mirror image: **no rule may match anything under `assets/`**. `assets/t/` looks generated and is, but by the backend *before* the upload, and the rule would be path-based — it would drop the artwork committed here alongside the staged pack, leaving the five literal requires in `constants/t/asset-slots.ts` with nothing to resolve. See [What `eas build` uploads](development.md#what-eas-build-uploads-and-why-easignore-is-a-copy-of-gitignore).
+
 ## Where the Slots Are Drawn
 
 `app/t/onboarding.tsx` exists as much for the artwork as for the flow. Before it, nothing under `app/t` rendered a single bundled picture — every image on the home screen is a remote `icon_url` — so the pack mechanism would have had slots with no reader: a contract that compiles, ships, and means nothing. It draws four of the five slots; the splash draws the fifth.
