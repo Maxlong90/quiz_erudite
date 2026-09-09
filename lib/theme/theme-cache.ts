@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { APP_SLUG } from '@/api/client';
+import { parseOnboardingType, type TOnboardingType } from '@/lib/onboarding/onboarding-type';
 
 import { CLIENT_THEME_SCHEMA_VERSION, parseRemoteTheme, type RemoteTheme } from './contract';
 
@@ -44,6 +45,18 @@ export interface CachedThemeRecord {
   appSlug: string;
   /** ms epoch of the last successful revalidation (200 or 304). */
   syncedAt: number;
+  /**
+   * OPTIONAL, and the absence is meaningful: a record written by a build that
+   * predates onboarding_type is INCOMPLETE, not WRONG. It keeps its palette (see
+   * isUsable), and the provider reads the missing field as "this record holds no
+   * opinion" and drops the validator once to earn a body that does.
+   *
+   * That is deliberately cheaper than bumping RECORD_FORMAT, which would reject
+   * every stored record and — on an OFFLINE device — vanish the operator's
+   * colours for a whole session, the exact failure the three-tier design exists
+   * to prevent.
+   */
+  onboardingType?: TOnboardingType;
 }
 
 function isUsable(record: unknown, appSlug: string): record is CachedThemeRecord {
@@ -58,6 +71,11 @@ function isUsable(record: unknown, appSlug: string): record is CachedThemeRecord
   if (candidate.etag !== null && typeof candidate.etag !== 'string') return false;
   // Re-validate the stored payload through the same parser the network uses: a
   // blob edited or truncated on disk must not reach a style prop either.
+  //
+  // `onboardingType` is deliberately NOT checked here. Usability is about the
+  // palette: rejecting the record over one bad scalar would delete the operator's
+  // colours to fix a screen choice that has a safe default. A corrupt value is
+  // normalised away on read instead — see loadCachedTheme.
   return parseRemoteTheme(candidate.theme) !== null;
 }
 
@@ -76,7 +94,11 @@ export async function loadCachedTheme(
       await AsyncStorage.removeItem(key).catch(() => {});
       return null;
     }
-    return parsed;
+    // Normalise the one field isUsable lets through unchecked. A value corrupted
+    // on disk, or one written by a build that shipped a variant this one dropped,
+    // becomes `undefined` — indistinguishable from a pre-Э8 record, and handled
+    // the same way — WITHOUT taking the theme down with it.
+    return { ...parsed, onboardingType: parseOnboardingType(parsed.onboardingType) ?? undefined };
   } catch {
     return null;
   }

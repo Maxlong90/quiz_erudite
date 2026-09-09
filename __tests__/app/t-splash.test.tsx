@@ -87,6 +87,19 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+// Э8 DEPENDS ON THE GATES PINNED BELOW.
+//
+// The onboarding variant (hooks/t/use-onboarding-type.ts) rides the theme
+// envelope precisely because this splash already blocks navigation on
+// `hydrated && networkSettled`. That is what guarantees the value is settled
+// before /t/onboarding mounts, which in turn is what makes freezing the hook at
+// first render safe.
+//
+// So the gates here are load-bearing for more than colour now. Reordering them —
+// or letting the cap fire before the theme settles as the normal path — would
+// silently make the onboarding switch read a stale default, with no visual
+// symptom on the splash itself. Nothing in this file needed to change for Э8;
+// this comment records why it must keep passing.
 describe('t splash', () => {
   it('honours the brand floor even when the theme is already settled', () => {
     mockThemeValue = { hydrated: true, networkSettled: true };

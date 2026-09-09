@@ -1,4 +1,5 @@
 import type { ErudGradient, EruditePalette } from '@/constants/theme';
+import { resolveOnboardingType, type TOnboardingType } from '@/lib/onboarding/onboarding-type';
 
 /**
  * The wire contract for the remote colour theme
@@ -12,6 +13,32 @@ import type { ErudGradient, EruditePalette } from '@/constants/theme';
  *
  * Nothing here throws and nothing here logs. Parsing hostile input is the whole
  * job of this module, so every failure is a value the caller must handle.
+ *
+ * WHEN schema_version BUMPS — AND WHY IT ALMOST NEVER SHOULD
+ * ----------------------------------------------------------
+ * It bumps ONLY for a change that would make a v1 client render something WRONG:
+ * a renamed or removed token, or a changed value domain. Purely ADDITIVE optional
+ * keys — `onboarding_type` is the first — never bump it.
+ *
+ * The asymmetry is brutal and one-directional. If the backend served
+ * `schema_version: 2`, every already-installed client would take the
+ * `unsupported-schema` branch below, the provider would persist NOTHING
+ * (hooks/app-theme-provider.ts), and every device in the field would lose the
+ * operator's palette. Store-review latency means the client cannot be rolled
+ * first. An unknown key, by contrast, costs a v1 client nothing: parseTokens
+ * already iterates REMOTE_TOKEN_KEYS rather than the payload's own keys, so
+ * anything it does not recognise is simply dropped.
+ *
+ * REJECT A SET YOU CANNOT HALF-APPLY; DEGRADE A SCALAR YOU CAN
+ * -----------------------------------------------------------
+ * parseRemoteTheme is all-or-nothing (see its docblock) while `onboarding_type`
+ * degrades to a default. That reads as an inconsistency and is not. Colours are a
+ * contrast SET — optIdleBg and optIdleText are a pair — so half-applying can
+ * render white-on-white, and every one of those strings is handed to a native
+ * style prop that throws on garbage. A single scalar switch discriminant has no
+ * partner and never reaches a style prop, so isColorValue's strictness has no
+ * analogue. Rejecting the envelope over one bad non-colour string would discard
+ * the operator's entire palette to fix nothing.
  */
 
 /** The payload shape this build understands. A higher one is not applied. */
@@ -65,7 +92,16 @@ export interface RemoteTheme {
 }
 
 export type ParseResult =
-  | { ok: true; schemaVersion: number; theme: RemoteTheme }
+  | {
+      ok: true;
+      schemaVersion: number;
+      theme: RemoteTheme;
+      /**
+       * Always resolved, never absent: an omitted or unusable `onboarding_type`
+       * degrades to T_ONBOARDING_DEFAULT rather than failing the envelope.
+       */
+      onboardingType: TOnboardingType;
+    }
   | {
       ok: false;
       reason: 'malformed' | 'unsupported-schema';
@@ -155,11 +191,16 @@ export function parseRemoteTheme(raw: unknown): RemoteTheme | null {
 }
 
 /**
- * The full response body: `{ schema_version, theme }`.
+ * The full response body: `{ schema_version, onboarding_type?, theme }`.
  *
  * The version is checked FIRST. If it is one we do not understand we report
  * `unsupported-schema` without judging the shape — by definition we cannot know
  * what a v2 body is supposed to look like.
+ *
+ * `onboarding_type` is a SIBLING of `theme`, not a key inside it: `theme`'s keys
+ * mirror the backend's ColorTokenRegistry one for one, and a screen-selection
+ * discriminant is not a colour token. It is read only AFTER the theme parses, so
+ * a malformed theme still reports `malformed` and carries no resolved type.
  */
 export function parseThemeEnvelope(raw: unknown): ParseResult {
   if (!isRecord(raw)) return { ok: false, reason: 'malformed', schemaVersion: null };
@@ -177,5 +218,10 @@ export function parseThemeEnvelope(raw: unknown): ParseResult {
   const theme = parseRemoteTheme(raw.theme);
   if (theme === null) return { ok: false, reason: 'malformed', schemaVersion: version };
 
-  return { ok: true, schemaVersion: version, theme };
+  return {
+    ok: true,
+    schemaVersion: version,
+    theme,
+    onboardingType: resolveOnboardingType(raw.onboarding_type),
+  };
 }

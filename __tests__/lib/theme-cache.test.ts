@@ -128,6 +128,61 @@ describe('loadCachedTheme / saveCachedTheme', () => {
   });
 });
 
+describe('the onboarding discriminant', () => {
+  it('round-trips when the record carries one', async () => {
+    await saveCachedTheme(record({ onboardingType: 'universal' }));
+    expect((await loadCachedTheme())?.onboardingType).toBe('universal');
+  });
+
+  it('still loads a pre-Э8 record that has no such field', async () => {
+    // THE anti-regression for the decision not to bump RECORD_FORMAT. A bump
+    // would make isUsable reject every stored record and loadCachedTheme delete
+    // it — on an OFFLINE device the operator's colours would vanish for the whole
+    // session, the exact failure the three-tier design exists to prevent. A v1
+    // record is not WRONG, it is INCOMPLETE.
+    const legacy = record();
+    delete (legacy as Partial<CachedThemeRecord>).onboardingType;
+    await AsyncStorage.setItem(BUILD_KEY, JSON.stringify(legacy));
+
+    const loaded = await loadCachedTheme();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.theme).toEqual(BUNDLED_THEME);
+    expect(loaded?.etag).toBe('"abc123"');
+    // Absent, not defaulted: the provider needs to tell "holds no opinion" from
+    // "chose classic" so it can drop the validator once and earn a real answer.
+    expect(loaded?.onboardingType).toBeUndefined();
+  });
+
+  it.each(['martian', 42, null, ''])(
+    'normalises a disk-corrupted %p to undefined WITHOUT dropping the theme',
+    async (corrupt) => {
+      // isUsable deliberately does not police this field. Rejecting the record
+      // over one bad scalar would delete the operator's palette to fix a screen
+      // choice that already has a safe default.
+      await AsyncStorage.setItem(
+        BUILD_KEY,
+        JSON.stringify({ ...record(), onboardingType: corrupt }),
+      );
+
+      const loaded = await loadCachedTheme();
+      expect(loaded).not.toBeNull();
+      expect(loaded?.theme).toEqual(BUNDLED_THEME);
+      expect(loaded?.onboardingType).toBeUndefined();
+      // And the record survives on disk — it is still the last known good palette.
+      expect(await AsyncStorage.getItem(BUILD_KEY)).not.toBeNull();
+    },
+  );
+
+  it('pins the record format at 1', () => {
+    // RECORD_FORMAT is not exported, so assert it through what gets written.
+    return saveCachedTheme(record({ onboardingType: 'universal' }))
+      .then(() => AsyncStorage.getItem(BUILD_KEY))
+      .then((raw) => {
+        expect(JSON.parse(raw as string).record).toBe(1);
+      });
+  });
+});
+
 describe('touchCachedTheme', () => {
   it('updates only the freshness stamp', async () => {
     await saveCachedTheme(record());
@@ -138,6 +193,18 @@ describe('touchCachedTheme', () => {
     expect(loaded?.etag).toBe('"abc123"');
     expect(loaded?.theme).toEqual(BUNDLED_THEME);
     expect(loaded?.schemaVersion).toBe(1);
+  });
+
+  it('preserves the onboarding discriminant across a 304', async () => {
+    // touchCachedTheme spreads the existing record, so the field survives. If it
+    // did not, every 304 would silently downgrade the record to a pre-Э8 one and
+    // the engine would drop its validator on every single launch.
+    await saveCachedTheme(record({ onboardingType: 'universal' }));
+    await touchCachedTheme('test-quiz', 1_800_000_000_000);
+
+    const loaded = await loadCachedTheme();
+    expect(loaded?.onboardingType).toBe('universal');
+    expect(loaded?.syncedAt).toBe(1_800_000_000_000);
   });
 
   it('does nothing when there is no record to touch', async () => {

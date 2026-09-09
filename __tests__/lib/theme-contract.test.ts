@@ -8,6 +8,10 @@
  * unknown ones, and never throw.
  */
 import {
+  T_ONBOARDING_DEFAULT,
+  T_ONBOARDING_TYPES,
+} from '@/lib/onboarding/onboarding-type';
+import {
   CLIENT_THEME_SCHEMA_VERSION,
   REMOTE_TOKEN_KEYS,
   asGradient,
@@ -217,8 +221,67 @@ describe('parseThemeEnvelope', () => {
     },
   );
 
-  it('pins the client schema version', () => {
+  it('pins the client schema version — an ADDITIVE key must never bump it', () => {
+    // This is a one-directional trap, which is why it is pinned rather than
+    // merely documented. If the backend ever served schema_version 2 for a purely
+    // additive key like onboarding_type, every ALREADY-INSTALLED client would take
+    // the unsupported-schema branch, the provider would persist nothing, and every
+    // device in the field would lose the operator's palette. Store-review latency
+    // means the client cannot be rolled out first to absorb it.
+    //
+    // The version bumps ONLY for a change that would make a v1 client render
+    // something WRONG: a renamed or removed token, or a changed value domain.
+    // Adding a key is safe by construction — parseTokens iterates
+    // REMOTE_TOKEN_KEYS rather than the payload's own keys, as pinned above by
+    // 'ignores an unknown eleventh token'.
     expect(CLIENT_THEME_SCHEMA_VERSION).toBe(1);
+  });
+});
+
+describe('onboarding_type', () => {
+  it("defaults when the key is absent — today's backend, unchanged", () => {
+    // The whole reason this subtask can ship BEFORE the backend does.
+    const result = parseThemeEnvelope(envelope());
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.onboardingType).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it.each(T_ONBOARDING_TYPES)('round-trips %s', (type) => {
+    const result = parseThemeEnvelope(envelope({ onboarding_type: type }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.onboardingType).toBe(type);
+  });
+
+  it('reads it as a SIBLING of theme, not a key inside it', () => {
+    // Inside `theme` it would break the invariant that theme's keys mirror the
+    // backend's ColorTokenRegistry one for one — and parseTokens would drop it.
+    const theme = { ...validTheme(), onboarding_type: 'universal' };
+    const result = parseThemeEnvelope(envelope({ theme }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.onboardingType).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it.each([42, '', null, [], {}, true, 'UNIVERSAL', ' classic ', 'martian'])(
+    'degrades %p to the default WITHOUT rejecting the envelope',
+    (value) => {
+      // Decision C: reject a set you cannot half-apply; degrade a scalar you can.
+      // Colours are a contrast pair and reach a native style prop that throws on
+      // garbage; a switch discriminant has neither property. Rejecting here would
+      // discard the operator's ENTIRE palette over one bad non-colour string.
+      const result = parseThemeEnvelope(envelope({ onboarding_type: value }));
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.onboardingType).toBe(T_ONBOARDING_DEFAULT);
+      // The claim that actually matters — the palette survived intact.
+      expect(result.theme.light.accent).toBe('#7c5cff');
+      expect(result.theme.dark.bgGradient).toEqual(['#1a1a47', '#2d1f5e', '#1a1a47']);
+    },
+  );
+
+  it('is not resolved onto a malformed envelope', () => {
+    // Read only AFTER the theme parses, so a failure branch carries no type.
+    const result = parseThemeEnvelope(envelope({ onboarding_type: 'universal', theme: 'nope' }));
+    expect(result).toEqual({ ok: false, reason: 'malformed', schemaVersion: 1 });
   });
 });
 

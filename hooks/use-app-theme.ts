@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
 import { EruditeColors, type EruditePalette } from '@/constants/theme';
+import { T_ONBOARDING_DEFAULT, type TOnboardingType } from '@/lib/onboarding/onboarding-type';
 import {
   CLIENT_THEME_SCHEMA_VERSION,
   REMOTE_TOKEN_KEYS,
@@ -37,6 +38,12 @@ export interface AppThemeValue {
   unsupportedSchemaVersion: number | null;
   etag: string | null;
   syncedAt: number | null;
+  /**
+   * Which onboarding variant the operator selected. Rides this value because the
+   * theme envelope is the only payload the template's splash already waits for —
+   * read it through hooks/t/use-onboarding-type.ts, never from here directly.
+   */
+  onboardingType: TOnboardingType;
   /** Which tokens the applied theme changes versus bundled. */
   overridden: Record<RemoteTokenKey, boolean>;
   /** Re-run the sync. `force` skips If-None-Match, so an edit shows immediately. */
@@ -72,6 +79,9 @@ const INERT: AppThemeValue = {
   unsupportedSchemaVersion: null,
   etag: null,
   syncedAt: null,
+  // A build that never fetches has no operator answer, so it renders the screen
+  // it always rendered.
+  onboardingType: T_ONBOARDING_DEFAULT,
   overridden: Object.freeze(noOverrides()),
   refresh: async () => {},
 };

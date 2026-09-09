@@ -38,8 +38,9 @@ import { AppThemeProvider } from '@/hooks/app-theme-provider';
 import { INERT_THEME_VALUE, useAppTheme } from '@/hooks/use-app-theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
+import { T_ONBOARDING_DEFAULT } from '@/lib/onboarding/onboarding-type';
 
-/** Every build this tree ships today. The task named five; six is stricter. */
+/** Every build this tree ships today. The task named five; seven is stricter. */
 const SHIPPED_BUILD_SLUGS = [
   'erudite-quiz',
   'logo-quiz',
@@ -47,6 +48,9 @@ const SHIPPED_BUILD_SLUGS = [
   'coat-of-arms',
   'sport-quiz',
   'italy-history-and-geography-quiz',
+  // Registered in APP_TEMPLATES but absent from this list until now, so it was
+  // the one shipped build whose inertness nothing checked.
+  'football-quiz',
 ] as const;
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -102,6 +106,14 @@ describe.each(SHIPPED_BUILD_SLUGS)('shipped build: %s', (slug) => {
     rerender({});
     rerender({});
     expect(result.current).toBe(first);
+  });
+
+  it(`renders the onboarding variant it always rendered (${slug})`, () => {
+    // A shipped build never fetches, so it has no operator answer to apply. The
+    // default names the screen that ships today — this is the assertion that
+    // makes "no pixel moves in any sibling app" a checked claim.
+    const { result } = renderHook(() => useAppTheme(), { wrapper });
+    expect(result.current?.onboardingType).toBe(T_ONBOARDING_DEFAULT);
   });
 });
 

@@ -80,6 +80,27 @@ describe('fetchAppTheme', () => {
       etag: ETAG,
       schemaVersion: 1,
       theme: BUNDLED_THEME,
+      // The body carries no onboarding_type, so the parser resolves the default.
+      onboardingType: 'classic',
+    });
+  });
+
+  it('forwards the onboarding discriminant the body carried', async () => {
+    mockGet.mockResolvedValueOnce(ok(body({ onboarding_type: 'universal' })));
+    const result = await fetchAppTheme('test-quiz', null);
+
+    expect(result).toMatchObject({ status: 'updated', onboardingType: 'universal' });
+  });
+
+  it('still applies the theme when the discriminant is garbage', async () => {
+    // A non-colour scalar must never cost the operator a palette.
+    mockGet.mockResolvedValueOnce(ok(body({ onboarding_type: 'martian' })));
+    const result = await fetchAppTheme('test-quiz', null);
+
+    expect(result).toMatchObject({
+      status: 'updated',
+      theme: BUNDLED_THEME,
+      onboardingType: 'classic',
     });
   });
 

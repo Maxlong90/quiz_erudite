@@ -103,13 +103,31 @@ That line is load-bearing. Derivation on the client would be a second, divergent
 
 The ten remote tokens are `bgGradient`, `bgSolid`, `accent`, `accentSoft`, `accentBg`, `accentBgSoft`, `accentBorderSoft`, and the three `optIdle*` option-button tokens. `bgGradient` is a three-stop gradient; the rest are flat colours. Declaration order is part of the ETag contract, since the backend hashes the encoded bytes, and it is also the order the token gallery renders in.
 
-Three parsing rules carry design intent:
+Four parsing rules carry design intent:
 
 - **Strict hex, and not for tidiness.** These strings go straight into React Native style props, where an unparseable colour throws in native code on Android. A theme engine that can hard-crash the app it themes is not fail-open, so `isColorValue` accepts only `#rgb`, `#rgba`, `#rrggbb`, and `#rrggbbaa`.
 - **Exactly three gradient stops.** A four-stop array is a schema change, not a rounding error. Silently truncating it would render a palette the operator never previewed.
 - **All or nothing.** `parseRemoteTheme` rejects the whole envelope on any bad token instead of falling back per token. Colours are a set, not a bag: `optIdleBg` and `optIdleText` are a contrast pair, and half-applying an operator's palette over half the bundled one can produce white-on-white text. That is strictly worse than not applying it at all.
 
+- **Reject a set you cannot half-apply; degrade a scalar you can.** `onboarding_type` (below) deliberately does *not* follow the all-or-nothing rule, and the distinction is the point rather than an inconsistency. That rule is earned by two properties a switch discriminant does not have: colours come in contrast pairs, and every one of those strings is handed to a native style prop that throws on garbage. A lone scalar has no partner to contradict and never reaches a style prop, so rejecting the envelope over one bad value would discard the operator's entire palette to fix nothing.
+
 The parser also iterates the known token list rather than the payload's own keys, so an unknown eleventh token from a newer backend is dropped before it can reach a style prop. A payload whose `schema_version` is higher than the client understands is reported as `unsupported-schema` without judging its shape — by definition the client cannot know what a future body looks like.
+
+### Sibling Keys, and When the Version Bumps
+
+Not everything in the body is a colour. The envelope carries `onboarding_type` — which onboarding variant the template renders — as a **sibling** of `theme`, never as a key inside it:
+
+```json
+{ "schema_version": 1, "onboarding_type": "universal", "theme": { "name": "…", "supports_dark": true, "light": {…}, "dark": {…} } }
+```
+
+Inside `theme` it would break the one invariant that object has — that its keys mirror `ColorTokenRegistry` one for one — and the token walk would drop it anyway. It is read only *after* the theme parses, so a malformed theme still reports `malformed` and carries no resolved variant. `lib/onboarding/onboarding-type.ts` owns the union; the match is exact, with no case folding or trimming, because the client union has to equal the backend's admin enum byte for byte and a quiet coercion would hide a real mismatch behind a screen that happens to render.
+
+**An additive optional key must never bump `schema_version`.** The version bumps only for a change that would make an existing client render something *wrong* — a renamed or removed token, or a changed value domain. The asymmetry is one-directional and severe: a client that meets a version it does not understand takes the `unsupported-schema` branch, persists **nothing**, and falls back to bundled colours. Since store review means the client cannot be rolled out first to absorb it, bumping for a key that older clients would have safely ignored costs every installed device the operator's palette. Adding a key is safe by construction; announcing it in the version is not.
+
+> **Live state, verified 2026-09-09.** The deployed backend currently serves **`schema_version: 2`** on every app slug, alongside `onboarding_type` and an `asset_pack` sibling. `CLIENT_THEME_SCHEMA_VERSION` is still `1`, so the client rejects the whole envelope as `unsupported-schema` today and the template renders bundled colours. This is **pre-existing and independent of the onboarding work** — it is the widened token set (the live body carries the full ~45-token palette, not ten) whose client-side counterpart has not landed. The consequence here is that `onboarding_type` **is already on the wire but cannot reach a device** until the client's schema version catches up; the transport described below is correct and inert until then. It is also the paragraph above playing out in production rather than in theory.
+>
+> Only `test-quiz` carries the key (`"universal"`); all seven shipped slugs omit it, which is exactly the fail-open path — an absent key resolves to the default and nothing renders differently. `"universal"` is therefore **confirmed on the wire**; the string naming the base variant is **not**, because the backend omits the key rather than naming it. Confirm that spelling against the admin enum before Э8-B relies on it.
 
 ## Light and Dark
 
@@ -127,17 +145,24 @@ Which appearance renders is the player's own choice, read from `useThemePref` �
 
 The record carries its own format number, separate from the payload's schema version, so invalidating every device's stored blob implies nothing about the wire contract.
 
+**That number is expensive to bump, so an added field does not bump it.** `onboarding_type` is stored as an *optional* field: a record written before the client understood it is **incomplete, not wrong**, and it keeps its palette. Bumping the format instead would make every stored record unreadable and delete it — and on an offline device that means the operator's colours vanish for the entire session, the exact failure the three-tier design exists to prevent.
+
+The insurance a bump would have bought is bought in the provider instead, for one launch rather than forever: **a record that carries no opinion about the field drops its ETag once**, so the backend must answer with a body. This is self-limiting by construction — an unconditional request cannot come back `304`, the 200 writes a resolved value, and the next launch is a normal conditional request again. The whole upgrade costs one body, once. It also rescues the case in the next section, where a backend's ETag would otherwise never change.
+
+A corrupt value for that field is normalised away on read rather than rejecting the record, for the same reason the parser degrades it on the wire: usability of the record is about the *palette*, and one bad scalar must not delete an operator's colours.
+
 Every read is fail-open. A corrupt, foreign, or future record resolves to "no cache", which simply drops the caller back to the bundled tier. A blob that is unreadable to this build is also **deleted** on the spot, so the same garbage is not re-parsed on every launch. The stored payload is re-validated through the same parser the network path uses, because a file edited on disk must not reach a style prop either. Writing is best-effort: the theme is already applied in memory, and a failed write only costs one refetch next launch.
 
 ## The Conditional Request
 
 `GET /apps/{slug}/theme` takes no query parameters — colours are locale-independent — and answers with a strong ETag hashed over the emitted bytes. The steady state is therefore an empty-bodied `304`, not a payload.
 
-Three details in `lib/theme/theme-api.ts` exist because of things that actually break:
+Four details exist because of things that actually break — three in `lib/theme/theme-api.ts`, one on the backend:
 
 - **The ETag is replayed verbatim, quotes included.** Stripping or re-adding them yields a validator the backend never matches, which turns every launch into a full download.
 - **Axios treats `304` as an error** because it is outside the 2xx range. Without a widened `validateStatus` the entire steady-state path lands in the catch block and the conditional request buys nothing.
 - **"Changed" is decided by the validator, not the status code.** React Native's HTTP layer caches on the app's behalf, so the platform may revalidate on its own and hand back a `200` carrying the previously cached body. Comparing the received ETag against the held one catches that.
+- **The backend must hash the WHOLE emitted body, `onboarding_type` included.** This one is a backend obligation the client cannot enforce, and it is the single most likely way the feature fails silently in production: if the ETag covers only the colour tokens, flipping the variant in the admin returns a `304`, the change never reaches a device, and there is **no client-side symptom** to debug — the app is behaving correctly on the validator it was given. The drop-the-validator-once rule in the previous section rescues only the first *upgrade*; every subsequent flip would be lost.
 
 The fetch timeout is 2500 ms, far below the API client's shared 15 s. A theme is optional; a splash budget is not.
 
@@ -394,6 +419,8 @@ Fail-open is the engine's central property. Every failure leaves the app on the 
 | Schema version newer than the build | Bundled or cached colours; neither the payload nor its ETag is stored, so the next app update applies the theme on its first launch |
 | Corrupt or foreign cache record | Bundled colours, and the bad key is deleted |
 | Storage write fails | Correct colours this session, one extra fetch next launch |
+| Unknown or garbage `onboarding_type` | The default onboarding variant; the palette still applies normally |
+| Backend ETag that ignores `onboarding_type` | A variant flip never arrives, with no visible symptom — see the conditional request above |
 | Slow network on a first launch | The splash releases at its hard cap and the home screen paints bundled |
 
 The one case that is not silent is an unsupported schema version, which the gallery surfaces as a warning.
@@ -407,6 +434,7 @@ The client and the backend hold the same token list in two files, in two reposit
 - A **source scan** holds the no-colour-literal line across the template's own directories — `app/t/`, `components/t/`, `constants/t/`, `hooks/t/` — plus everything those files *transitively import*. It is a source scan and not a render assertion on purpose: a hex on a branch no test exercises is still a hex. The scope is **derived by walking the imports** rather than declared in a list, because the list it replaced had already rotted: a modal the template home opens rendered a picker nobody had added to the list, so that file was silently unguarded for as long as it existed. A walk cannot fail that way. Each failure prints the import chain that pulled the file into scope, because adding an import to a template screen now widens the rule on its own, and "why is this test looking at my file" has to be answerable from the failure alone.
 - An **ESLint rule** flags hex and `rgb()`/`hsl()` literals across those same four directories in the editor. The scan stays the authority: it catches forms an AST selector cannot see, and only the scan follows imports.
 - A **slug test** fails the build if a shipped app slug appears in the inertness gate.
+- The **onboarding variant union** in `lib/onboarding/onboarding-type.ts` must equal the backend's admin enum, and equal the values an asset-pack manifest may declare in `onboarding_types`. Nothing can check this across repositories, which is exactly why the client parser matches exactly rather than normalising case: a drifted value surfaces as the default variant instead of silently resolving to a screen nobody chose. The union is the single source of truth on this side — the parser, the cache, the theme envelope, and the tests all derive from it, so correcting a string is a one-constant change.
 
 The template's home screen is a deliberate **copy** of the Erudite home rather than a shared component. The Erudite home is a live store build's screen with no test coverage, and extracting its tiles and stylesheet would be a large untested refactor of shipped code — bought to de-duplicate a screen that is *supposed* to diverge, since this template's mode list, ramps, and category set all become operator data later. The copy's blast radius on the Erudite build is zero files.
 

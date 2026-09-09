@@ -1,4 +1,5 @@
 import { apiClient } from '@/api/client';
+import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
 
 import { parseThemeEnvelope, type RemoteTheme } from './contract';
 
@@ -21,7 +22,14 @@ import { parseThemeEnvelope, type RemoteTheme } from './contract';
 export const THEME_FETCH_TIMEOUT_MS = 2500;
 
 export type ThemeFetchResult =
-  | { status: 'updated'; etag: string | null; schemaVersion: number; theme: RemoteTheme }
+  | {
+      status: 'updated';
+      etag: string | null;
+      schemaVersion: number;
+      theme: RemoteTheme;
+      /** Resolved by the parser, so a body that omits the key still yields one. */
+      onboardingType: TOnboardingType;
+    }
   | { status: 'unchanged' }
   | { status: 'unsupported'; schemaVersion: number }
   | { status: 'failed'; error: unknown };
@@ -97,6 +105,7 @@ export async function fetchAppTheme(
       etag: receivedEtag,
       schemaVersion: parsed.schemaVersion,
       theme: parsed.theme,
+      onboardingType: parsed.onboardingType,
     };
   } catch (error) {
     // Offline, DNS failure, 5xx, timeout — all the same to a caller whose only

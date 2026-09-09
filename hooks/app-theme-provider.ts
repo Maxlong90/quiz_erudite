@@ -12,6 +12,7 @@ import { APP_SLUG } from '@/api/client';
 import { isTTemplateBuild } from '@/constants/app-templates';
 import { EruditeColors } from '@/constants/theme';
 import { AppThemeContext, INERT_THEME_VALUE, type AppThemeValue, type ThemeSource } from '@/hooks/use-app-theme';
+import { T_ONBOARDING_DEFAULT, type TOnboardingType } from '@/lib/onboarding/onboarding-type';
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { CLIENT_THEME_SCHEMA_VERSION, type RemoteTheme } from '@/lib/theme/contract';
 import { overriddenKeys, resolvePalettes } from '@/lib/theme/resolve';
@@ -47,6 +48,11 @@ interface EngineState {
   hydrated: boolean;
   networkSettled: boolean;
   unsupportedSchemaVersion: number | null;
+  /**
+   * Non-optional here, unlike on the cache record: state always holds a variant a
+   * screen can draw. The cache's `undefined` is bridged on read.
+   */
+  onboardingType: TOnboardingType;
 }
 
 const INITIAL_STATE: EngineState = {
@@ -58,6 +64,7 @@ const INITIAL_STATE: EngineState = {
   hydrated: false,
   networkSettled: false,
   unsupportedSchemaVersion: null,
+  onboardingType: T_ONBOARDING_DEFAULT,
 };
 
 /**
@@ -85,6 +92,10 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
           etag: cached.etag,
           syncedAt: cached.syncedAt,
           hydrated: true,
+          // INITIAL_STATE already holds the default, so this bridge is a no-op in
+          // the common case. It is written anyway so the field can never
+          // desynchronise from the record after a cache clear and re-read.
+          onboardingType: cached.onboardingType ?? T_ONBOARDING_DEFAULT,
         });
       } else {
         apply({ hydrated: true });
@@ -92,7 +103,23 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
 
       // A forced refresh drops the validator, so the backend must answer with a
       // body — that is what makes a fresh Nova edit visible without a relaunch.
-      const result = await fetchAppTheme(APP_SLUG, force ? null : (cached?.etag ?? null));
+      //
+      // A record written before this build understood onboarding_type carries no
+      // opinion about it, so drop the validator ONCE for that case too. This is
+      // what buys the insurance a RECORD_FORMAT bump would have bought without
+      // its cost, and it also rescues a backend whose ETag spans only the `theme`
+      // sub-object and would otherwise answer 304 forever.
+      //
+      // Self-limiting by construction: an unconditional GET cannot come back 304,
+      // and theme-api's platform-cache shortcut is skipped when the sent etag is
+      // null, so the response is 'updated' (or 'failed' offline). The 200 writes a
+      // resolved type and the very next launch is back to a normal 304 — the whole
+      // upgrade costs exactly one ~600-byte body, once.
+      const knowsType = cached !== null && cached.onboardingType !== undefined;
+      const result = await fetchAppTheme(
+        APP_SLUG,
+        force || !knowsType ? null : (cached?.etag ?? null),
+      );
       const now = Date.now();
 
       switch (result.status) {
@@ -104,6 +131,7 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
             theme: result.theme,
             appSlug: APP_SLUG,
             syncedAt: now,
+            onboardingType: result.onboardingType,
           });
           apply({
             theme: result.theme,
@@ -112,11 +140,14 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
             etag: result.etag,
             syncedAt: now,
             unsupportedSchemaVersion: null,
+            onboardingType: result.onboardingType,
           });
           break;
         }
         case 'unchanged': {
-          // The cached palette is still current; only its freshness moves.
+          // The cached palette is still current; only its freshness moves. Like
+          // the palette, onboardingType is left alone here and on the two failure
+          // branches below — last-known-good is the rule for both.
           await touchCachedTheme(APP_SLUG, now);
           apply({ syncedAt: now, unsupportedSchemaVersion: null });
           break;
@@ -187,6 +218,7 @@ function RemoteThemeProvider({ children }: { children: ReactNode }) {
       unsupportedSchemaVersion: state.unsupportedSchemaVersion,
       etag: state.etag,
       syncedAt: state.syncedAt,
+      onboardingType: state.onboardingType,
       overridden,
       refresh,
     }),
