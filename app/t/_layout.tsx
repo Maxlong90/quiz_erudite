@@ -43,13 +43,15 @@ export default function TTemplateLayout() {
           queued answers first. */}
       <Stack.Screen name="quiz" options={{ gestureEnabled: false }} />
       <Stack.Screen name="results" options={{ gestureEnabled: false }} />
-      {/* Four of the bottom bar's five destinations — the fifth, paywall, is
-          registered above with its own options. All four mirror the options
+      {/* Four of the bottom bar's SIX destinations. The other two are registered
+          above with options of their own: `paywall` (the gold crown) and `index`
+          (the centre Home slot). Six from five slots because the leftmost one
+          forks — a crown to the paywall for a free player, a person to the
+          account once subscribed. All four below mirror the options
           app/_layout.tsx gives the Erudite originals, so the push animation is
-          unchanged by the port. The bar that reaches them is still the SHARED
-          components/bottom-bar.tsx, whose five slots point at the Erudite
-          routes; that stays true until components/t/bottom-bar.tsx exists and
-          every screen under app/t/ imports it instead. */}
+          unchanged by the port. The bar that reaches them is now
+          components/t/bottom-bar.tsx — every screen under app/t/ that mounts a
+          bar imports that one, and all six destinations are /t routes. */}
       <Stack.Screen name="stats" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="shop" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="account" options={{ animation: 'slide_from_right' }} />

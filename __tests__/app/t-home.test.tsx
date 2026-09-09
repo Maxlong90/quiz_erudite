@@ -420,9 +420,11 @@ describe('t home — the template plumbing', () => {
   });
 
   it('disables the bottom bar Home button, closing the redirect loop', async () => {
-    // BottomBar's Home button does router.replace('/'), which on a template
-    // build redirects back through /t/splash. `current="home"` disables it so
-    // the loop cannot start from this screen.
+    // The t-scoped BottomBar's Home button does router.replace('/t'), so the
+    // redirect loop it used to risk is gone at the source: the SHARED bar sent
+    // this to '/', which on a template build bounces back through /t/splash.
+    // `current="home"` disabling the slot is the second, independent guard, and
+    // still worth pinning — it is what stops a tap re-entering this screen.
     await renderHome();
 
     expect(screen.getByTestId('home-button').props.accessibilityState?.disabled).toBe(true);

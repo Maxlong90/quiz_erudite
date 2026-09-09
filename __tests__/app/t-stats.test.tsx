@@ -73,8 +73,8 @@ jest.mock('@/hooks/use-locale', () => ({ useLocale: () => ({ locale: 'en' }) }))
 // false is a non-zero quizzesTaken from the stats fixture below.
 jest.mock('@/hooks/use-content-cache', () => ({ useContentCache: () => ({ snapshot: null }) }));
 
-// The SHARED BottomBar this screen still renders calls usePremium(), and there is
-// no PremiumProvider in the test tree — without this every render throws.
+// The t-scoped BottomBar this screen renders calls usePremium(), and there is no
+// PremiumProvider in the test tree — without this every render throws.
 jest.mock('@/hooks/use-premium', () => ({
   usePremium: () => ({ isPremium: false, setPremium: jest.fn(), resetPremium: jest.fn() }),
 }));

@@ -16,16 +16,21 @@
  *     amber: an intentional pixel change already reasoned out in that hook's
  *     docblock and in docs/configurable-template.md, not re-decided here.
  *
- * KNOWN BOUNDARY, not an oversight: the <BottomBar current="stats" /> below is
- * still the SHARED components/bottom-bar.tsx, whose five slots point at the
- * ERUDITE /account, /paywall, /shop, / and /settings. The escape check in
- * __tests__/app/t-routes.test.ts only scans app/t/**, so it cannot see them.
- * components/t/bottom-bar.tsx closes this, in the subtask that also ports account
- * and settings — re-pointing one screen's bar now would leave the bar half-ported
- * across the subtree.
+ * THE BOTTOM-BAR BOUNDARY IS CLOSED: the <BottomBar current="stats" /> below is
+ * components/t/bottom-bar.tsx, and all six of its destinations are /t routes.
+ *
+ * It was the SHARED components/bottom-bar.tsx until the template got its own,
+ * pointing at the ERUDITE /account, /paywall, /shop, / and /settings. That never
+ * crashed — on a template build app/index.tsx redirects / to /t/splash — it just
+ * walked the player into another brand. All five screens that mount a bar were
+ * switched in one commit, because re-pointing one would have left the subtree
+ * half-ported. The escape check in __tests__/app/t-routes.test.ts now scans
+ * components/t/ as well as app/t/, so the bar's own routes are guarded rather
+ * than merely out of view.
  *
  * This screen has NO route literals of its own: it never imports `router`. The
- * only way out of it is the bar above.
+ * only way out of it is the t-scoped bar above, which is where all six of its
+ * outbound routes live and where t-routes.test.ts now scans for them.
  *
  * makeStyles keeps its EruditePalette signature: a TemplateTheme already
  * satisfies it, and the tier colour is applied inline through the Row `accent`
@@ -37,7 +42,7 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AchievementRow } from '@/components/achievements/achievement-row';
-import { BottomBar } from '@/components/bottom-bar';
+import { BottomBar } from '@/components/t/bottom-bar';
 import { ScreenBackground } from '@/components/screen-background';
 import { useContentCache } from '@/hooks/use-content-cache';
 import { useTemplateTheme } from '@/hooks/t/use-template-theme';

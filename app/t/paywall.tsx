@@ -59,13 +59,15 @@
  *  - COMPARE_ROWS is still shaped by `adsEnabled` at MODULE LOAD, not by state.
  *    Rewarded ads are a build capability, not a runtime one.
  *
- * KNOWN BOUNDARY, not an oversight: app/t/index.tsx renders the SHARED
- * components/bottom-bar.tsx, whose gold crown still pushes the ERUDITE
- * '/paywall' — along with its five other absolute routes (/account, /shop, /,
- * /stats, /settings). The escape check in __tests__/app/t-routes.test.ts only
- * scans app/t/**, so it cannot see any of them. Re-pointing just the crown would
- * leave the bar half-ported; a t-scoped bar belongs with the subtask that ports
- * stats / shop / account / settings, which needs one anyway.
+ * HOW THE BAR REACHES THIS SCREEN: app/t/index.tsx and the four other bar-
+ * mounting screens render components/t/bottom-bar.tsx, whose gold crown pushes
+ * '/t/paywall' — this file. It PUSHES where the bar's other five slots replace,
+ * so the paywall stays dismissible back onto whatever opened it.
+ *
+ * That was a KNOWN BOUNDARY until the template got its own bar: the crown, and
+ * the bar's five other slots, were the ERUDITE '/paywall', /account, /shop, /
+ * and /settings, and the escape check in __tests__/app/t-routes.test.ts scanned
+ * only app/t/** so it could not see any of them. It scans components/t/ now.
  *
  * makeStyles keeps its EruditePalette signature: a TemplateTheme IS an
  * EruditePalette, and this screen uses none of the tier roles, so widening the

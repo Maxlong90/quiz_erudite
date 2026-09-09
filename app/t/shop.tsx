@@ -13,8 +13,12 @@
  * reason it must be copied at all is route closure — a screen left at the root
  * route re-enters the Erudite graph through its own bar, and redirecting a shared
  * parent into a /t child would mean editing shipped code. The rule is written
- * down at docs/configurable-template.md:341: screens have routes, so they are
- * copied; leaf components have none, so they are reused.
+ * down under "What the Slice Covers" in docs/configurable-template.md (cited by
+ * section rather than by line, because the line number this comment used to
+ * carry had already drifted): what decides a copy is whether the file ENCODES
+ * ROUTES. Screens do, so they are copied; a leaf component normally does not, so
+ * it is reused — with components/t/bottom-bar.tsx the one leaf that does, and
+ * therefore the one that was copied too.
  *
  * TWO THINGS THAT LOOK LIKE PORT DAMAGE AND ARE NOT:
  *  - `showWatchAd` reads `adsEnabled && isPremium !== true`, NOT `&& !isPremium`.
@@ -26,13 +30,17 @@
  *    property of the binary, not runtime state, so it must not become one. Same
  *    rule app/t/paywall.tsx's COMPARE_ROWS records.
  *
- * KNOWN BOUNDARY, not an oversight: the <BottomBar current="shop" /> below is
- * still the SHARED components/bottom-bar.tsx, whose five slots point at the
- * ERUDITE /account, /paywall, /shop, / and /settings. The escape check in
- * __tests__/app/t-routes.test.ts only scans app/t/**, so it cannot see them.
- * components/t/bottom-bar.tsx closes this, in the subtask that also ports account
- * and settings — re-pointing one screen's bar now would leave the bar half-ported
- * across the subtree.
+ * THE BOTTOM-BAR BOUNDARY IS CLOSED: the <BottomBar current="shop" /> below is
+ * components/t/bottom-bar.tsx, and all six of its destinations are /t routes.
+ *
+ * It was the SHARED components/bottom-bar.tsx until the template got its own,
+ * pointing at the ERUDITE /account, /paywall, /shop, / and /settings. That never
+ * crashed — on a template build app/index.tsx redirects / to /t/splash — it just
+ * walked the player into another brand. All five screens that mount a bar were
+ * switched in one commit, because re-pointing one would have left the subtree
+ * half-ported. The escape check in __tests__/app/t-routes.test.ts now scans
+ * components/t/ as well as app/t/, so the bar's own routes are guarded rather
+ * than merely out of view.
  *
  * makeStyles keeps its EruditePalette signature: a TemplateTheme already
  * satisfies it, and this screen uses no derived tier role at all, so nothing here
@@ -42,7 +50,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BottomBar } from '@/components/bottom-bar';
+import { BottomBar } from '@/components/t/bottom-bar';
 import { ScreenBackground } from '@/components/screen-background';
 import { LivesInfoModal } from '@/components/lives/lives-info-modal';
 import { HintsInfoModal } from '@/components/shop/hints-info-modal';

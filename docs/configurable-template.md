@@ -32,7 +32,11 @@ The bottom bar's five destinations closed the rest. `app/t/` is now **route-clos
 
 Porting `settings` fixed a leak of that same family, one that had been shipping unnoticed: its dev reset ended with `router.replace('/splash')`, dropping a template player onto the **Erudite** splash. It never crashed, because on a template build `/` redirects to `/t/splash` anyway — so the player was silently bounced through another brand's screen, visible only on a device. The copy replaces it with `/t/splash`, which is also the *correct* destination and not merely the in-subtree one: the reset clears `onboarding.seen.v1`, the key `app/t/splash.tsx` branches on to route a first-launch player onward to `t/onboarding`.
 
-One boundary is still open and is deliberate: all five screens that render the bottom bar still render the **shared** `components/bottom-bar.tsx`, whose slots point at the Erudite `/account`, `/paywall`, `/shop`, `/` and `/settings`. The escape check only scans `app/t/**`, so it cannot see them. Re-pointing one screen at a time would leave the bar half-ported across the subtree, so `components/t/bottom-bar.tsx` replaces all five at once.
+That last boundary is now closed too. The five screens that render a bottom bar rendered the **shared** `components/bottom-bar.tsx` for the whole port, and its six slots pointed at the Erudite `/account`, `/paywall`, `/shop`, `/`, `/stats` and `/settings` — invisible to the escape check, which only scanned `app/t/**`. `components/t/bottom-bar.tsx` replaces it, and all five screens switched in one commit: re-pointing them one at a time would have left the bar half-ported across the subtree.
+
+The bar is also the first **leaf component** this project has copied, which refines the rule stated above rather than breaking it. The line is not screen-versus-leaf, it is whether the file *encodes routes*: a leaf with none is shared, a leaf that names its own destinations cannot be. The alternative — adding a `basePath` prop to the shared bar — was rejected because it changes the signature of a component five shipped Erudite screens render, turning an addition into a refactor of live code; and because the bar is exactly the sort of thing that becomes operator data later (an operator shipping no shop wants four slots), which would push a slot-list union into a component the shipped app depends on.
+
+Two things were needed to make the gap un-reopenable, and both are worth knowing before reading those suites. The escape check now scans `components/t/` alongside `app/t/`, so the bar's own routes are guarded rather than merely out of view; and the bar's destination list is *derived* from the component's source instead of hand-written. The hand-written one it replaced named five **Erudite** screen files, which ship in the live app and will exist forever — so it stayed green through the entire nine-screen port while every slot still navigated out of `/t`. Reachability alone could not have caught a partial switch either: the guard asserting the shared bar was still in the import closure stayed green with four of five screens switched, which is why `t-no-color-literals.test.ts` also carries a per-file rule that every `app/t` screen mounting a bar mounts the t-scoped one.
 
 The template also has no economy or content of its own. It draws categories and questions from the ordinary content cache and reuses the lives, hints, premium, and locale providers unchanged.
 
@@ -153,10 +157,19 @@ cold start
 ┌──────────────────┐  long-press wordmark   ┌───────────────┐
 │  /t  (home)      │ ─────────────────────→ │  /t/tokens    │
 └────────┬─────────┘                        └───────────────┘
-         │ category tile / mode tile
-         ↓
-   shared Erudite screens: /category/{slug} → /quiz → /results
+         │ category tile                    mode tile (skips the browse path)
+         ↓                                                    │
+   /t/category/{slug} → /t/quiz-mode/{slug} → /t/quiz ←────────┘
+                                                 │
+                                                 ↓
+                                            /t/results ──→ /t
+
+   bottom bar (components/t/bottom-bar.tsx), on the five screens that mount it:
+     crown → /t/paywall (push)   ·   person → /t/account   ·   /t/shop
+     home → /t          ·   /t/stats          ·   /t/settings
 ```
+
+Every arrow above stays inside `/t`. The crown is the one slot that *pushes* — the paywall is dismissible back onto whatever opened it — while every other slot replaces, which is what stops the bar growing the stack on each tap. The leftmost slot is two routes rather than one: a gold crown for a free player, a person once subscribed, so the bar keeps five slots either way.
 
 The splash holds for a brand floor and, within a hard cap, waits for the engine to settle both its cache read and its network call. That buys exactly one thing: on a first-ever launch the very first real screen already carries the operator's colours, instead of flashing the bundled palette and flipping a moment later. On every later launch the wait is free, because a `304` resolves well inside the floor.
 
@@ -347,7 +360,7 @@ That is harder for this build than for a sibling, and the difficulty is what its
 - **So the artifact is a release APK with the bundle embedded.** No dev server is involved, `EXPO_PUBLIC_APP_SLUG=test-quiz` is compiled in, and the app fetches its theme from the production backend exactly as an installed app would. [Development](development.md#building-a-variant-as-a-release-apk) has the build steps.
 - **And it must install beside the existing build, not over it.** Android replaces an app whose package matches, data and all. This is the one config branch whose `package` and `bundleIdentifier` are literals rather than fallbacks to the Erudite identity, so an unset env var cannot turn a verification build into a silent overwrite of the app it was meant to sit next to. Its own `scheme` (`testquiz`) keeps `quizerudit://` links unambiguous while both are installed.
 
-Five observations are worth making once the app is on the device, one per design property:
+These observations are worth making once the app is on the device, roughly one per design property:
 
 | What you look for | What it proves |
 |-------------------|----------------|
@@ -358,6 +371,7 @@ Five observations are worth making once the app is on the device, one per design
 | The splash and onboarding artwork stays legible after flipping the appearance, and the gallery's `asset_pack` row names the pack that was staged | The pack's plate treatment survives both themes, and the build really did bundle the staged bytes |
 | A mode tile runs to the results screen and **Home** returns to the template home — never the Erudite wordmark, and with no splash animation on the way | The quiz loop is closed inside `/t`. This is the one observation no test can make: a missed `router.replace('/')` does not crash or dead-end, it silently redirects through `/t/splash`, which only reads as wrong when you watch it |
 | The results score ring, number and percentage carry the preset's accent on a mid-band score | The derived tier scale is reaching a native style prop, not just a token name |
+| Every bottom-bar slot — crown, shop, home, stats, settings — lands on a template screen, never the Erudite wordmark, and the crown's paywall dismisses back to where it was opened | The nav is closed inside `/t`. Same class of observation as the quiz-loop row above and for the same reason: the shared bar's `router.replace('/')` redirected through `/t/splash` rather than failing, so only watching it reads as wrong |
 
 Verification writes into production data, so it carries an obligation: the preset override used to prove tier three must be reverted afterwards, and the endpoint's ETag returning to its previous value is the check that it was. Every shipped app's preset stores `NULL` tokens, and leaving a stray override behind would be indistinguishable from an operator's real edit.
 
@@ -366,6 +380,8 @@ The colour half is no longer open. A release APK was produced on this host and i
 The artwork half is still open, and the reason is a date rather than a doubt. That APK predates the asset-pack work, so its bundle carries no reference to `assets/t/` — grepping `assets/index.android.bundle` inside the APK for that prefix is the cheap way to tell whether a given binary is old enough to be irrelevant to a question about artwork. What has been shown is one step short of the device: `npm run asset-pack neon` changes all five files behind the unchanged `require()` paths, the byte-identity test goes red naming `base`, and restoring returns every checksum. Nothing here rests on having watched the neon artwork render.
 
 **The ported quiz loop is unobserved for the same reason.** It has not been walked on a device: the installed `com.turbosuslik.testquiz` is a release APK whose bundle predates these screens, and the dev-server route is closed by the constraint at the top of this section — the shared host's Metro runs one slug, and it is not `test-quiz`. Confirm which one before assuming otherwise: `readlink /proc/<pid>/cwd` and the process's `EXPO_PUBLIC_APP_SLUG` say what a given dev server is actually serving, and an absent variable means the default Erudite slug. Seeing the loop therefore needs a fresh release APK (`suslik-bg "cd android && ./gradlew assembleRelease"` — the build goes silent long enough to be killed in the foreground, and a killed run leaves no APK at all). Until then the loop rests on the suites: the two ported screens render, navigate only to `/t` routes, and repaint from a preset, and the source scan in `__tests__/app/t-routes.test.ts` covers the branches a render cannot reach.
+
+**The bottom bar is unobserved on a device too**, and its own row in the table above is the observation still owed. What the suites do carry: each of the six slots is pinned to its route *and its verb* (`__tests__/components/t-bottom-bar.test.tsx` presses every slot and asserts `push` versus `replace`, plus the inert active slot, the premium fork including its `null` loading state, and the tints under both appearances), and the source scan proves no file under `app/t/` or `components/t/` names a route outside the subtree. What only a device can show is the thing the shared bar got wrong for the whole port: a slot that navigates *somewhere real but foreign* reads as correct in every assertion and as obviously wrong the moment you watch it.
 
 ## Failure Modes
 

@@ -18,7 +18,59 @@
 import fs from 'fs';
 import path from 'path';
 
-const APP_DIR = path.join(__dirname, '..', '..', 'app');
+const ROOT = path.join(__dirname, '..', '..');
+const APP_DIR = path.join(ROOT, 'app');
+
+/**
+ * THE SOURCE SCANNERS, hoisted above every declaration that uses them.
+ *
+ * Their position is load-bearing rather than cosmetic. BOTTOM_BAR_DESTINATIONS
+ * below is DERIVED by calling routeLiteralsIn at module-evaluation time, and
+ * these four used to be declared halfway down the file. A `const` read before
+ * its initialiser runs throws `ReferenceError: Cannot access 'ROUTE_LITERAL'
+ * before initialization`, which reads like a broken test file rather than like
+ * the ordering mistake it is.
+ *
+ * They are ROOT-relative while the existsSync machinery below stays APP_DIR-
+ * relative, because the scan now spans TWO trees: app/t/ and components/t/. The
+ * template's bottom bar lives outside app/, and scanning only app/ is exactly
+ * the blind spot that let the SHARED bar's six Erudite destinations survive the
+ * entire nine-screen port unnoticed. Re-rooting the rest of the file would churn
+ * seven `why` strings for nothing.
+ */
+
+/**
+ * Strip comments before scanning source. The template home DOCUMENTS the traps
+ * it avoids ("Hence no Redirect, no intro-gate…"), so a naive text match would
+ * fire on the explanation rather than on code — the same false positive
+ * __tests__/app/t-no-color-literals.test.ts guards against.
+ */
+function codeOf(relativePath: string): string {
+  return fs
+    .readFileSync(path.join(ROOT, relativePath), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:"'`\\])\/\/.*$/gm, '$1');
+}
+
+/** Recursive, so a nested screen added later is covered without a change here. */
+function sourceFilesUnder(dir: string): string[] {
+  return fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
+    const relative = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) return sourceFilesUnder(relative);
+    return /\.tsx?$/.test(entry.name) ? [relative] : [];
+  });
+}
+
+/** A quoted string starting with `/`. The escape check below is built on it. */
+const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
+
+function routeLiteralsIn(relativePath: string): { route: string; line: number }[] {
+  return codeOf(relativePath)
+    .split('\n')
+    .flatMap((text, index) =>
+      [...text.matchAll(ROUTE_LITERAL)].map((match) => ({ route: match[2], line: index + 1 })),
+    );
+}
 
 /**
  * Every route the template's own screens push, and the file expo-router
@@ -59,14 +111,34 @@ const TEMPLATE_DESTINATIONS: { route: string; file: string; why: string }[] = [
   },
 ];
 
-/** Routes the BottomBar rendered by the template home can reach. */
-const BOTTOM_BAR_DESTINATIONS = [
-  'account.tsx',
-  'paywall.tsx',
-  'shop.tsx',
-  'stats.tsx',
-  'settings.tsx',
-];
+/**
+ * Where the template's own bottom bar can send the player — DERIVED from the
+ * component's source, not listed here.
+ *
+ * A hand list used to sit at this spot, and it is worth recording what it did:
+ * it named five ERUDITE screen files (app/account.tsx, app/shop.tsx and so on)
+ * under a test name claiming to check the TEMPLATE's nav. Those five files ship
+ * in the live app and will exist forever, so the assertion was unfalsifiable —
+ * it stayed green through the entire nine-screen port while every slot in the
+ * bar still navigated out of /t. Re-pointing it by hand at t/*.tsx would fix
+ * today's fact and keep the mechanism that produced the rot; reading the routes
+ * off the component means the list cannot disagree with the component.
+ */
+const BAR_SOURCE = 'components/t/bottom-bar.tsx';
+const BAR_ROUTES = routeLiteralsIn(BAR_SOURCE).map(({ route }) => route);
+const BOTTOM_BAR_DESTINATIONS = [...new Set(BAR_ROUTES)].sort();
+
+/**
+ * '/t' is the index route; every other slot is a flat file under app/t/.
+ *
+ * TOTAL on purpose: a route this cannot express yields a filename that does not
+ * exist and the test goes red, rather than being silently skipped. The bar has
+ * no dynamic route today — if one ever lands, that red is the correct signal to
+ * teach this function about [slug].
+ */
+function routeToScreenFile(route: string): string {
+  return route === '/t' ? 't/index.tsx' : `${route.slice(1)}.tsx`;
+}
 
 describe('every destination the template home navigates to exists', () => {
   it.each(TEMPLATE_DESTINATIONS)('$route is a real screen ($why)', ({ route, file }) => {
@@ -78,8 +150,23 @@ describe('every destination the template home navigates to exists', () => {
     });
   });
 
-  it.each(BOTTOM_BAR_DESTINATIONS)('the bottom bar can still reach %s', (file) => {
-    expect(fs.existsSync(path.join(APP_DIR, file))).toBe(true);
+  it('derives six destinations from the bar\'s five rendered slots', () => {
+    // An exact count rather than a floor: this is the anti-vacuity guard for a
+    // derived list, and a derived list that quietly resolved to nothing would
+    // make the it.each below run zero cases and pass.
+    //
+    // Six from five because the leftmost slot is two routes — a gold crown to
+    // /t/paywall for a free player, a person to /t/account once subscribed.
+    expect(BOTTOM_BAR_DESTINATIONS).toHaveLength(6);
+  });
+
+  it.each(BOTTOM_BAR_DESTINATIONS)('the bottom bar can still reach %s', (route) => {
+    const file = routeToScreenFile(route);
+    expect({ route, file, exists: fs.existsSync(path.join(APP_DIR, file)) }).toEqual({
+      route,
+      file,
+      exists: true,
+    });
   });
 });
 
@@ -127,20 +214,7 @@ describe('the template stack', () => {
 });
 
 /**
- * Strip comments before scanning source. The template home DOCUMENTS the traps
- * it avoids ("Hence no Redirect, no intro-gate…"), so a naive text match would
- * fire on the explanation rather than on code — the same false positive
- * __tests__/app/t-no-color-literals.test.ts guards against.
- */
-function codeOf(relativePath: string): string {
-  return fs
-    .readFileSync(path.join(APP_DIR, relativePath), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:"'`\\])\/\/.*$/gm, '$1');
-}
-
-/**
- * ESCAPE CHECK: no screen under app/t/ may navigate out of the /t subtree.
+ * ESCAPE CHECK: nothing in the /t surface may navigate out of the /t subtree.
  *
  * This is the single highest-frequency bug available in this port. Every screen
  * here is a copy of an Erudite screen, and those screens go home with
@@ -149,11 +223,14 @@ function codeOf(relativePath: string): string {
  * does not crash or dead-end — it silently bounces the player through the splash
  * screen on the way home, which only shows up on a device.
  *
+ * The surface is app/t/ AND components/t/: the last file to escape this check
+ * was not a screen at all but the bottom bar every screen mounts, which lived
+ * outside app/ and was therefore never scanned.
+ *
  * A source scan rather than a render assertion, for the same reason
  * t-no-color-literals.test.ts is one: a route on a branch no test exercises (an
  * error state, a modal's onClose) is still a route.
  */
-const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
 
 /**
  * There is deliberately NO tolerance list here any more.
@@ -172,29 +249,26 @@ const ROUTE_LITERAL = /(['"`])(\/[^'"`\n]*)\1/g;
  * labelled Э7-D and landed in Э7-C. Do not reintroduce one.
  */
 
-function routeLiteralsIn(relativePath: string): { route: string; line: number }[] {
-  return codeOf(relativePath)
-    .split('\n')
-    .flatMap((text, index) =>
-      [...text.matchAll(ROUTE_LITERAL)].map((match) => ({ route: match[2], line: index + 1 })),
-    );
-}
+/**
+ * The two trees the escape check scans, each with its OWN floor.
+ *
+ * One combined floor is what this used to be, and it could not survive the
+ * second tree: app/t/ alone supplies fourteen files, so `templateSources.length
+ * >= 6` would stay green with components/t/ deleted, empty, or never created —
+ * and the bottom bar going unscanned is precisely the gap this subtask closed.
+ * A floor that a sibling can satisfy on another's behalf is not a floor.
+ */
+const TEMPLATE_TREES: { dir: string; minFiles: number; why: string }[] = [
+  { dir: 'app/t', minFiles: 6, why: 'the template screens' },
+  { dir: 'components/t', minFiles: 1, why: 'the t-scoped bottom bar every screen mounts' },
+];
 
 describe('every route the template navigates to stays inside /t', () => {
-  // Recursive, so a nested screen added later is covered without a change here.
-  function sourceFilesUnder(dir: string): string[] {
-    return fs.readdirSync(path.join(APP_DIR, dir), { withFileTypes: true }).flatMap((entry) => {
-      const relative = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) return sourceFilesUnder(relative);
-      return /\.tsx?$/.test(entry.name) ? [relative] : [];
-    });
-  }
+  const templateSources = TEMPLATE_TREES.flatMap(({ dir }) => sourceFilesUnder(dir));
 
-  const templateSources = sourceFilesUnder('t');
-
-  it('scans a real set of files', () => {
-    // A silently empty list would make every assertion below vacuously true.
-    expect(templateSources.length).toBeGreaterThanOrEqual(6);
+  it.each(TEMPLATE_TREES)('$dir is a real tree with files in it ($why)', ({ dir, minFiles }) => {
+    // A silently empty tree would make every assertion below vacuously true.
+    expect(sourceFilesUnder(dir).length).toBeGreaterThanOrEqual(minFiles);
   });
 
   it.each(templateSources)('%s navigates only to /t routes', (file) => {
@@ -207,19 +281,37 @@ describe('every route the template navigates to stays inside /t', () => {
   it('really does reach into the quiz loop', () => {
     // Proves the scanner sees route literals at all, rather than that the regex
     // silently matches nothing and every file trivially passes.
-    const home = routeLiteralsIn('t/index.tsx').map(({ route }) => route);
+    const home = routeLiteralsIn('app/t/index.tsx').map(({ route }) => route);
     expect(home).toContain('/t/quiz');
     // The browse chain: home -> category -> quiz-mode -> quiz. Prefix matches
     // rather than equality, because two of the three are template literals.
     expect(home.some((route) => route.startsWith('/t/category/'))).toBe(true);
     expect(
-      routeLiteralsIn('t/category/[slug].tsx').some(({ route }) =>
+      routeLiteralsIn('app/t/category/[slug].tsx').some(({ route }) =>
         route.startsWith('/t/quiz-mode/'),
       ),
     ).toBe(true);
-    expect(routeLiteralsIn('t/quiz-mode/[slug].tsx').map(({ route }) => route)).toContain('/t/quiz');
-    expect(routeLiteralsIn('t/quiz.tsx').map(({ route }) => route)).toContain('/t/results');
-    expect(routeLiteralsIn('t/results.tsx').map(({ route }) => route)).toContain('/t');
+    expect(routeLiteralsIn('app/t/quiz-mode/[slug].tsx').map(({ route }) => route)).toContain('/t/quiz');
+    expect(routeLiteralsIn('app/t/quiz.tsx').map(({ route }) => route)).toContain('/t/results');
+    expect(routeLiteralsIn('app/t/results.tsx').map(({ route }) => route)).toContain('/t');
+  });
+
+  it('really does route the bottom bar, and all six slots land inside /t', () => {
+    // The escape check above is a NEGATIVE: it passes just as happily for a bar
+    // that navigates nowhere at all, which is what a botched port that dropped
+    // the onPress handlers looks like.
+    //
+    // Set EQUALITY rather than arrayContaining (unlike the quiz-loop test
+    // above): this is a six-route file entirely under our control, so equality
+    // also catches a duplicated slot and a seventh route nobody meant to add.
+    expect([...new Set(BAR_ROUTES)].sort()).toEqual([
+      '/t',
+      '/t/account',
+      '/t/paywall',
+      '/t/settings',
+      '/t/shop',
+      '/t/stats',
+    ]);
   });
 
   it('really does reach the paywall, from all three of its entry points', () => {
@@ -230,7 +322,7 @@ describe('every route the template navigates to stays inside /t', () => {
     // route is spelled '/paywall'. Naming the three callers here keeps the
     // five-site edit pinned now that the tolerance list is gone, so a later
     // change that quietly drops one entry point goes red rather than silent.
-    for (const file of ['t/index.tsx', 't/quiz-mode/[slug].tsx', 't/onboarding.tsx']) {
+    for (const file of ['app/t/index.tsx', 'app/t/quiz-mode/[slug].tsx', 'app/t/onboarding.tsx']) {
       expect({ file, routes: routeLiteralsIn(file).map(({ route }) => route) }).toEqual({
         file,
         routes: expect.arrayContaining(['/t/paywall']),
@@ -240,7 +332,7 @@ describe('every route the template navigates to stays inside /t', () => {
     // rather than to '/' — on a template build app/index.tsx redirects '/' to
     // '/t/splash', so a missed one bounces the player through the splash on the
     // way home instead of dead-ending, which is only visible on a device.
-    const paywall = routeLiteralsIn('t/paywall.tsx').map(({ route }) => route);
+    const paywall = routeLiteralsIn('app/t/paywall.tsx').map(({ route }) => route);
     expect(paywall).toContain('/t');
     expect(paywall.filter((route) => route === '/t')).toHaveLength(5);
   });
@@ -259,7 +351,7 @@ describe('every route the template navigates to stays inside /t', () => {
 });
 
 describe('the template home is a screen, not the erudite entry gate', () => {
-  const home = codeOf(path.join('t', 'index.tsx'));
+  const home = codeOf('app/t/index.tsx');
 
   /**
    * The single most damaging mistake available in this port. app/index.tsx's

@@ -3,9 +3,13 @@ const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
 
 /**
- * The whole configurable-template surface. `components/t/**` matches nothing
- * yet; a flat-config glob that matches no file is a no-op, so listing it now
- * means the directory arrives already covered instead of arriving unguarded.
+ * The whole configurable-template surface.
+ *
+ * `components/t/**` was listed here while it still matched nothing — a
+ * flat-config glob over an empty set is a no-op — precisely so the directory
+ * would arrive already covered rather than arriving unguarded. It has since
+ * arrived, holding the template's own bottom bar, and needed no rule change to
+ * be linted from its first commit. Keep the same habit for the next one.
  */
 const T_SURFACE = [
   'app/t/**/*.{ts,tsx}',

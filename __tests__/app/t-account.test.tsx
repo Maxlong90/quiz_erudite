@@ -50,7 +50,7 @@ let mockIsPremium: boolean | null = false;
 
 // --- module boundaries -------------------------------------------------------
 
-// A bare stub is enough: this screen never imports `router` — the shared
+// A bare stub is enough: this screen never imports `router` — the t-scoped
 // BottomBar it renders is the only thing that does.
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -69,8 +69,8 @@ jest.mock('@/hooks/use-theme-pref', () => ({
 }));
 jest.mock('@/hooks/use-locale', () => ({ useLocale: () => ({ locale: 'en' }) }));
 
-// Also what the SHARED BottomBar this screen still renders calls — without it
-// every render throws for want of a PremiumProvider.
+// Also what the t-scoped BottomBar this screen renders calls — without it every
+// render throws for want of a PremiumProvider.
 jest.mock('@/hooks/use-premium', () => ({
   usePremium: () => ({ isPremium: mockIsPremium, setPremium: jest.fn(), resetPremium: jest.fn() }),
 }));

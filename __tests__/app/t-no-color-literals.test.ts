@@ -64,6 +64,11 @@ const ROOT = join(__dirname, '..', '..');
  */
 const SCAN_ROOTS: { dir: string; minFiles: number; why: string }[] = [
   { dir: 'app/t', minFiles: 4, why: 'the template screens' },
+  // A ROOT rather than a reachability target, matching how hooks/t and
+  // constants/t are already treated: a file here is literal-scanned whether or
+  // not anything imports it yet, so a t-scoped component cannot land unguarded
+  // in the window before its consumers switch over.
+  { dir: 'components/t', minFiles: 1, why: 'template-only components — the bottom bar' },
   { dir: 'hooks/t', minFiles: 2, why: 'template-only hooks' },
   { dir: 'constants/t', minFiles: 2, why: 'template-only constants' },
 ];
@@ -237,7 +242,6 @@ describe('the scan covers what it claims to', () => {
 
   it.each([
     ['components/screen-background.tsx', 'the bgGradient consumer every /t screen renders'],
-    ['components/bottom-bar.tsx', 'the nav the template home mounts'],
     ['components/home/quiz-config-modal.tsx', 'a modal the home opens'],
     [
       'components/home/category-picker.tsx',
@@ -260,12 +264,40 @@ describe('the scan covers what it claims to', () => {
     });
   });
 
+  it('no longer reaches the shared erudite bar', () => {
+    // The inverse of the entry that used to sit in the list above, naming
+    // components/bottom-bar.tsx as "the nav the template home mounts". The
+    // template has its own bar now and nothing under /t imports the shared one,
+    // so it must have left the closure entirely.
+    expect({ reachedVia: reached.get('components/bottom-bar.tsx') ?? null }).toEqual({
+      reachedVia: null,
+    });
+  });
+
+  it('scans the t-scoped bar it was replaced with', () => {
+    // Spelled against `scanned` rather than `reached`, and that is not a style
+    // choice: walkFromRoots pre-seeds `visited` with the roots, so a file under
+    // a SCAN_ROOT is never in `reached`. components/t is a root, so
+    // `reached.get('components/t/bottom-bar.tsx')` would be null forever and an
+    // assertion built on it would fail for the wrong reason.
+    expect(scanned).toContain('components/t/bottom-bar.tsx');
+  });
+
   it('reaches a whole surface, not a handful of files', () => {
     // A FLOOR, never an exact count: an exact count fails on every unrelated
     // import added anywhere in the closure, which trains people to bump the
     // number without looking at what moved. Was 18; the ported quiz loop
     // (app/t/quiz.tsx and app/t/results.tsx) roughly doubled the closure to 36,
     // so this floor moved once and should keep lagging the real number.
+    //
+    // The t-scoped bottom bar then moved it by exactly -1, and the floor did NOT
+    // need to move — which is the point of one that lags. Dropping the shared
+    // components/bottom-bar.tsx cost only that node: everything it imported is
+    // reached independently (@/components/ui/icon-symbol and @/hooks/use-premium
+    // through six other app/t screens each, @/hooks/use-theme-colors through
+    // hooks/t/use-template-theme.ts, and @/constants/theme is filtered out by
+    // IN_SCOPE_PREFIXES). Nothing was gained: the replacement is a SCAN_ROOT, and
+    // walkFromRoots pre-seeds roots into `visited`, so it never enters `reached`.
     expect(reached.size).toBeGreaterThanOrEqual(30);
   });
 
@@ -343,13 +375,95 @@ describe('the /t surface holds no colour literals', () => {
   });
 });
 
+/**
+ * Both directories that RENDER. components/t joined app/t when the template got
+ * its own bottom bar.
+ *
+ * That component is also the clearest argument for the rule being a SOURCE scan.
+ * It reads the palette at two separate call sites, and a copy that switched only
+ * one of them is invisible at runtime: a TemplateTheme is a pure superset, so
+ * both hooks return identical values for every token the bar reads. Verified —
+ * reverting BarButton to useThemeColors() leaves every render assertion in
+ * __tests__/components/t-bottom-bar.test.tsx green, and fails only here.
+ *
+ * The half-switched version is not a bug today. It is a bug the day the funnel
+ * does something the raw hook does not, and by then nothing would point at it.
+ */
+const FUNNEL_DIRS = ['app/t', 'components/t'];
+const FUNNEL = 'hooks/t/use-template-theme.ts';
+
 describe('the template reads its colours through one funnel', () => {
-  it.each(sourceFilesUnder('app/t'))('%s does not reach past useTemplateTheme()', (file) => {
-    // hooks/t/use-template-theme.ts is the sole importer of the palette hook, so
-    // "where do the template's colours come from" is a one-file fact. The walk
-    // still reaches hooks/use-theme-colors.ts through hooks/t, so it stays
-    // scanned either way.
-    expect(codeOf(file)).not.toContain('@/hooks/use-theme-colors');
+  it.each(FUNNEL_DIRS.flatMap((dir) => sourceFilesUnder(dir)))(
+    '%s does not reach past useTemplateTheme()',
+    (file) => {
+      // hooks/t/use-template-theme.ts is the sole importer of the palette hook,
+      // so "where do the template's colours come from" is a one-file fact. The
+      // walk still reaches hooks/use-theme-colors.ts through hooks/t, so it
+      // stays scanned either way.
+      expect(codeOf(file)).not.toContain('@/hooks/use-theme-colors');
+    },
+  );
+
+  /**
+   * Every app/t screen that mounts a bar at all — DERIVED, because a hand list
+   * of five is exactly what rots when a sixth screen lands.
+   *
+   * codeOf strips comments, so app/t/_layout.tsx and app/t/paywall.tsx — which
+   * DISCUSS the bar in prose without mounting one — are correctly excluded.
+   */
+  const BAR_MOUNTERS = sourceFilesUnder('app/t').filter((file) => /\bBottomBar\b/.test(codeOf(file)));
+
+  it('finds the screens that mount a bar at all', () => {
+    // Anti-vacuity: a filter that matched nothing would make the rule below run
+    // zero cases and pass.
+    expect(BAR_MOUNTERS.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it.each(BAR_MOUNTERS)('%s mounts the t-scoped bar, never the shared one', (file) => {
+    // WHY THIS EXISTS ALONGSIDE THE REACHABILITY ASSERTION ABOVE.
+    //
+    // Reachability is a PREDICATE over the whole closure — one bit, with no file
+    // named. The direction it is phrased in decides whether it can see a partial
+    // port at all, and the ORIGINAL phrasing could not: this list used to carry
+    // a POSITIVE entry, `the walk reaches components/bottom-bar.tsx`, and with
+    // four of the five screens switched and app/t/stats.tsx left behind that
+    // suite stayed GREEN at 115 passed. Measured, not assumed. Five screens
+    // import the bar, so any subset keeps the positive true.
+    //
+    // The inverse above fixes that direction and does go red on a partial port
+    // (measured: 4-of-5 fails it). What it still cannot do is say WHICH screen,
+    // or notice a screen that mounts neither bar — a third local copy, or a new
+    // screen wired to something else entirely. That is this rule's job.
+    //
+    // BOTH halves are asserted. Negative-only passes for a screen that imports
+    // neither bar; positive-only passes for one that imports both.
+    //
+    // Quote-anchored deliberately: unanchored, '@/components/bottom-bar' is not
+    // a substring of '@/components/t/bottom-bar' because the `t/` intervenes —
+    // but relying on that is a coincidence rather than a design.
+    const code = codeOf(file);
+    expect({
+      file,
+      tScoped: code.includes("'@/components/t/bottom-bar'"),
+      shared: code.includes("'@/components/bottom-bar'"),
+    }).toEqual({ file, tScoped: true, shared: false });
+  });
+
+  it('the funnel is the one file on the whole /t surface allowed past it', () => {
+    // The POSITIVE half. The rule above is a negative and passes just as
+    // happily for a surface where NOTHING imports the palette hook — including
+    // one where the funnel itself stopped importing it and quietly returns
+    // something else.
+    //
+    // The second expectation closes hooks/t and constants/t, which the rule
+    // above does not scan. Without it a SECOND hook in hooks/t could reach the
+    // palette directly and "one funnel" would silently become two.
+    expect(codeOf(FUNNEL)).toContain('@/hooks/use-theme-colors');
+
+    const breakers = [...sourceFilesUnder('hooks/t'), ...sourceFilesUnder('constants/t')].filter(
+      (file) => file !== FUNNEL && codeOf(file).includes('@/hooks/use-theme-colors'),
+    );
+    expect(breakers).toEqual([]);
   });
 
   it.each([

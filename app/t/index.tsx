@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BottomBar } from '@/components/bottom-bar';
+import { BottomBar } from '@/components/t/bottom-bar';
 import { ScreenBackground } from '@/components/screen-background';
 import { useTemplateTheme } from '@/hooks/t/use-template-theme';
 import type { EruditePalette } from '@/constants/theme';
