@@ -403,6 +403,16 @@ The operator walk, and every step of it is load-bearing:
 
 Step 3 is not optional and the gallery deliberately does not shortcut it. The splash routes to `/t/onboarding` only when `hasSeen === false`, so a jump straight to the splash without wiping `onboarding.seen.v1` lands on `/t` seeing nothing — which reads as a broken override. The destructive wipe is already owned and tested at `/t/settings`; duplicating it in the gallery would mean two screens that can erase progress.
 
+> **Step 3 is not reliable on a warm device, verified on `emulator-5556` 2026-09-09.** The reset wipes the flag and `router.replace('/t/splash')`, but the splash navigates as soon as `capped || (floorDone && hydrated && networkSettled)` and picks its destination from `hasSeen === false`. On a device whose theme is already cached, those gates are open before `useOnboarding()`'s storage read resolves, so `hasSeen` is still `null` and the documented fail-open sends you to `/t`. Two consecutive resets both landed on the home screen. This is pre-existing behaviour in `app/t/splash.tsx` and `app/t/settings.tsx`, not something the override introduced, and it is *correct* for a real player — the comment at `app/t/splash.tsx:60-73` argues at length that a returning player must never be dropped back into onboarding because storage hiccuped.
+>
+> The reliable route for a developer is a deep link straight to the screen, which routes in place and therefore keeps the module-level pin (a full reload would clear it):
+>
+> ```bash
+> adb -s emulator-5556 shell am start -a android.intent.action.VIEW -d "quizerudit://t/onboarding"
+> ```
+>
+> Making step 3 dependable would mean turning `hasSeen` into a fourth splash gate, which is exactly the trade that file refuses. Left alone deliberately.
+
 The pin sits **inside** the hook's freeze, so flipping it never swaps the screen under a flow already running. The fresh mount comes from that dev reset. One consequence: `useOnboardingType()`'s two `??` fallbacks are now exercised from different places — a bad string like `martian` passes *through* the hook untouched and is caught by the host's registry lookup, while an absent value is caught by the hook itself.
 
 ## The Token Gallery
