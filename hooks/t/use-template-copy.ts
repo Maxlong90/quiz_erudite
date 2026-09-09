@@ -49,10 +49,19 @@ import type { StringKey } from '@/i18n/strings';
  *    length. useTranslation() already keys its useCallback on [locale], so today
  *    there is nothing to memoise.
  *  - `locale` is typed SupportedLocale but is `undefined` inside
- *    __tests__/app/t-onboarding.test.tsx, whose frozen mock returns `{ t }` and
- *    nothing else. Inert today because nothing reads it. The first consumer of
- *    `locale` must widen that mock in a NEW test file — that one may not be
- *    edited (Э8-B-2 parameterises it).
+ *    __tests__/app/t-onboarding.test.tsx, whose `useTranslation` mock returns
+ *    `{ t }` and nothing else. Inert today, and the reason is structural rather
+ *    than lucky: the HOST destructures only `{ t }`, and the variants under
+ *    components/t/onboarding/ receive `t` as a prop and never call this hook at
+ *    all (see the scope limit above). Nothing under /t reads `locale`.
+ *
+ *    Э8-B-2 parameterised that suite over T_ONBOARDING_TYPES, so it is no longer
+ *    frozen and the mock is editable in place. Widening it is one line — but the
+ *    cost is not the line. `useTranslation` is mocked in roughly twenty suites,
+ *    each returning the shape its screen happens to need, so the first consumer
+ *    of `locale` picks up every one of them that renders a /t screen. If a
+ *    VARIANT ever needs the locale, add it to TOnboardingVariantProps and let the
+ *    host supply it rather than reaching for this hook from the pixels.
  */
 export type TemplateCopy = (key: StringKey, vars?: Record<string, string | number>) => string;
 

@@ -7,7 +7,12 @@ import { ScreenBackground } from '@/components/screen-background';
 import { Fonts, type EruditePalette } from '@/constants/theme';
 import { INERT_THEME_VALUE, useAppTheme, type AppThemeValue } from '@/hooks/use-app-theme';
 import { useTemplateTheme } from '@/hooks/t/use-template-theme';
+import {
+  forcedOnboardingType,
+  setForcedOnboardingType,
+} from '@/hooks/t/use-onboarding-type';
 import { useThemePref } from '@/hooks/use-theme-pref';
+import { T_ONBOARDING_TYPES, type TOnboardingType } from '@/lib/onboarding/onboarding-type';
 import { REMOTE_TOKEN_KEYS, type RemoteTokenKey } from '@/lib/theme/contract';
 import { clearCachedTheme } from '@/lib/theme/theme-cache';
 
@@ -45,6 +50,21 @@ const STAGED_PACK: { pack: string; title: string } = require('@/assets/t/manifes
  * Gating it would delete it exactly where it is needed. It is already
  * build-gated by living under app/t/, and it exposes nothing but colours and a
  * refetch button.
+ *
+ * THE ONE THING HERE THAT *IS* __DEV__-GATED, AND WHY IT SITS IN ITS OWN ROW
+ * -------------------------------------------------------------------------
+ * The forced-variant control writes developer-only state that has no business
+ * existing in a build handed to an operator, so it is gated where the rest of
+ * this screen is not. That gate is exactly why it could not simply become a
+ * fourth child of the existing action row: `styles.actions` is a flex row of
+ * `flex: 1` children, so the same row would lay out as four quarters in a debug
+ * build and three thirds in the release build this screen is written for. A
+ * second row keeps the always-present chrome pixel-identical in both. `flex: 1`
+ * in a one-child row also gives a full-width button with no new style.
+ *
+ * The onboarding_type ROW, by contrast, is always present — it reports what the
+ * BACKEND sent, which is data an operator needs to read on a release build like
+ * every other line in that card.
  */
 
 const SOURCE_LABELS: Record<AppThemeValue['source'], string> = {
@@ -57,6 +77,17 @@ function sourceColor(source: AppThemeValue['source'], colors: EruditePalette): s
   if (source === 'network') return colors.success;
   if (source === 'cache') return colors.accent;
   return colors.textFaint;
+}
+
+/**
+ * auto -> classic -> universal -> auto, derived from the shipped union so a third
+ * variant needs no edit here. `null` IS a member: releasing the pin has to be one
+ * more press rather than a second control.
+ */
+const FORCE_CYCLE: readonly (TOnboardingType | null)[] = [...T_ONBOARDING_TYPES, null];
+
+function nextForced(current: TOnboardingType | null): TOnboardingType | null {
+  return FORCE_CYCLE[(FORCE_CYCLE.indexOf(current) + 1) % FORCE_CYCLE.length];
 }
 
 function relativeTime(syncedAt: number | null): string {
@@ -127,6 +158,19 @@ export default function TThemeTokensScreen() {
   // under a test harness) without an AppThemeProvider above it.
   const appTheme = useAppTheme() ?? INERT_THEME_VALUE;
   const [busy, setBusy] = useState(false);
+  /**
+   * A render trigger, NOT the source of truth — the module variable behind
+   * forcedOnboardingType() is, because useOnboardingType() reads it from a screen
+   * this one never renders. Seeded and declared unconditionally even where
+   * __DEV__ is false, so the hook order does not depend on the build type.
+   */
+  const [forced, setForced] = useState<TOnboardingType | null>(forcedOnboardingType());
+
+  const cycleForced = useCallback(() => {
+    const next = nextForced(forcedOnboardingType());
+    setForcedOnboardingType(next);
+    setForced(next);
+  }, []);
 
   const palette = appTheme.palettes[theme];
 
@@ -183,6 +227,30 @@ export default function TThemeTokensScreen() {
             value={`${STAGED_PACK.pack} (${STAGED_PACK.title})`}
             colors={colors}
           />
+          {/**
+           * THE VALUE IS THE ONE ON THE WIRE, NEVER THE ONE BEING DRAWN.
+           *
+           * Every other line in this card — schema_version, etag, synced,
+           * asset_pack — states what the build was GIVEN. Reporting the resolved
+           * variant here would be a lie in both directions: with a pin active the
+           * app renders `universal` while the backend said `classic`, and with no
+           * pin it would still read like a wire value. So the row keeps reporting
+           * the engine and the badge declares the local mask over it.
+           *
+           * It sits directly ABOVE the unsupported-schema warning on purpose:
+           * today those two must be read together. The live backend serves schema
+           * 2 and this client understands 1, so the envelope carrying
+           * onboarding_type is rejected and this row reads `classic` for
+           * test-quiz even though the wire says `universal` — and the explanation
+           * is the very next line.
+           */}
+          <Meta
+            label="onboarding_type"
+            value={appTheme.onboardingType}
+            colors={colors}
+            testID="theme-onboarding-type"
+            badge={forced ? { label: `forced: ${forced}`, testID: 'theme-onboarding-type-forced' } : null}
+          />
 
           {appTheme.unsupportedSchemaVersion !== null ? (
             <Text testID="theme-unsupported" style={[styles.warning, { color: colors.danger }]}>
@@ -204,6 +272,34 @@ export default function TThemeTokensScreen() {
           />
         </View>
 
+        {/**
+         * The developer's manual pin, and today the ONLY way to see the second
+         * onboarding screen on hardware — the live backend serves schema 2, this
+         * client understands 1, so the `onboarding_type` inside that envelope is
+         * never read on a device (docs/configurable-template.md).
+         *
+         * It deliberately does NOT navigate. The splash only routes to
+         * /t/onboarding when `hasSeen === false`, so a jump from here without
+         * wiping `onboarding.seen.v1` would land the developer on /t seeing
+         * nothing and reading it as a broken override. The destructive wipe is
+         * already owned and tested at /t/settings; the walk is: pin here, back,
+         * /t/settings -> dev reset, splash, onboarding.
+         *
+         * `disabled={false}` rather than `busy`: this is local state with nothing
+         * to do with an in-flight refetch.
+         */}
+        {__DEV__ && (
+          <View style={styles.actions}>
+            <Action
+              label={`force onboarding: ${forced ?? 'auto'}`}
+              onPress={cycleForced}
+              disabled={false}
+              colors={colors}
+              testID="theme-force-onboarding"
+            />
+          </View>
+        )}
+
         {REMOTE_TOKEN_KEYS.map((key) => (
           <TokenRow
             key={key}
@@ -218,11 +314,28 @@ export default function TThemeTokensScreen() {
   );
 }
 
-function Meta({ label, value, colors }: { label: string; value: string; colors: EruditePalette }) {
+function Meta({ label, value, colors, testID, badge }: {
+  label: string;
+  value: string;
+  colors: EruditePalette;
+  testID?: string;
+  /** A local mask over the reported value, drawn in the `overridden` shape. */
+  badge?: { label: string; testID: string } | null;
+}) {
   return (
     <View style={styles.metaRow}>
       <Text style={[styles.metaLabel, { color: colors.textFaint }]}>{label}</Text>
-      <Text style={[styles.metaValue, { color: colors.text }]}>{value}</Text>
+      <View style={styles.rowHeader}>
+        {badge ? (
+          <Text
+            testID={badge.testID}
+            style={[styles.badge, { color: colors.accent, borderColor: colors.accentBorderSoft, backgroundColor: colors.accentBgSoft }]}
+          >
+            {badge.label}
+          </Text>
+        ) : null}
+        <Text testID={testID} style={[styles.metaValue, { color: colors.text }]}>{value}</Text>
+      </View>
     </View>
   );
 }

@@ -20,6 +20,8 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
+import { T_ONBOARDING_TYPES } from '@/lib/onboarding/onboarding-type';
+
 const ROOT = join(__dirname, '..', '..');
 const PACKS_DIR = join(ROOT, 'asset-packs');
 const STAGING_DIR = join(ROOT, 'assets', 't');
@@ -37,8 +39,20 @@ const ALLOWED_TARGET = 'assets/t';
  * Onboarding shapes a pack's artwork is drawn for. An allowlist rather than free
  * text on purpose: an unvalidated string field is a field nobody maintains, and
  * the backend filters packs by it.
+ *
+ * DERIVED FROM THE SHIPPED UNION, NOT HAND-WRITTEN
+ * -----------------------------------------------
+ * It was a literal `['universal']` until Э8-B-2, and that is exactly the shape
+ * that rots: the union gained `classic` in Э8-A and this list did not, so for two
+ * tasks the manifests declared artwork for the one shape that had no screen while
+ * the shape that DID ship was not a legal value here. Deriving it means widening
+ * lib/onboarding/onboarding-type.ts widens this automatically.
+ *
+ * The import is safe at the top of a filesystem test: that module is I/O-free and
+ * imports nothing from React Native (its own docblock pins that), so it costs no
+ * setup and cannot drag a native mock in behind it.
  */
-const ALLOWED_ONBOARDING_TYPES = ['universal'];
+const ALLOWED_ONBOARDING_TYPES: readonly string[] = T_ONBOARDING_TYPES;
 
 interface SlotSpec {
   w: number;
@@ -123,6 +137,24 @@ describe('asset packs', () => {
     manifest.onboarding_types.forEach((type) => {
       expect(ALLOWED_ONBOARDING_TYPES).toContain(type);
     });
+  });
+
+  it('the allowlist is the shipped union, not a list of one', () => {
+    // Anti-vacuity, and it runs the OPPOSITE way to the usual: an empty derived
+    // list would make the per-type `toContain` above FAIL, not pass. What
+    // deriving really risks is silent WIDENING — a union that grew a shape
+    // nobody drew artwork for. Two is the floor at which the field means
+    // anything at all, because the backend's whole use for it is filtering.
+    expect(ALLOWED_ONBOARDING_TYPES.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('some pack is drawn for more than one shape', () => {
+    // Catches "widened the union and the allowlist, forgot the manifests" — the
+    // state this repo was actually in between Э8-A and Э8-B-2, where every pack
+    // claimed to serve only `universal` and the only screen that existed was the
+    // one now called `classic`.
+    const widest = Math.max(...PACKS.map((dir) => manifestOf(dir).onboarding_types.length));
+    expect(widest).toBeGreaterThanOrEqual(2);
   });
 
   it.each(PACKS)('%s stages only into the template directory', (dir) => {

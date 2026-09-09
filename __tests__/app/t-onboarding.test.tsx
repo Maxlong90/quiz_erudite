@@ -21,6 +21,14 @@
  * charge. Same rule the Erudite flow follows — a build that cannot take money
  * must never show a pitch, least of all to a store reviewer running with
  * billing off.
+ *
+ * BOTH ARE PROVEN AGAINST EVERY VARIANT THE UNION ADMITS. Э8-B-2 wrapped the
+ * cases in describe.each(T_ONBOARDING_TYPES): the flow is the host's, but it is
+ * only worth anything if it holds through whichever screen the backend selects,
+ * and a suite pinned to the default would have gone on passing while `universal`
+ * quietly failed to report a press. Which variant the registry PICKS is a
+ * different question, pinned next door in
+ * __tests__/app/t-onboarding-variants.test.tsx.
  */
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -67,9 +75,33 @@ jest.mock('@/hooks/use-theme-pref', () => ({
   useThemePref: () => ({ theme: 'dark', ready: true, setTheme: jest.fn() }),
 }));
 
+/**
+ * Which variant the host renders, per case.
+ *
+ * No getter wrapper here, unlike `revenueCatEnabled` above: that one is a VALUE
+ * read at import time, so it needs a property that re-reads. This is a FUNCTION,
+ * and the arrow closes over the mutable binding — every call sees the current
+ * assignment. The `mock` name prefix is what makes referencing it legal inside a
+ * hoisted jest factory.
+ *
+ * Mocking the hook is right HERE and wrong next door: this suite is about the
+ * flow given a variant, so pinning the variant is the point. The suite that asks
+ * whether the right variant gets picked mocks the theme engine instead, because
+ * the freeze it needs to observe lives in this hook's useRef.
+ */
+let mockOnboardingType: TOnboardingType = T_ONBOARDING_DEFAULT;
+jest.mock('@/hooks/t/use-onboarding-type', () => ({
+  useOnboardingType: () => mockOnboardingType,
+}));
+
 /* eslint-disable import/first -- screen under test loads AFTER its mocks */
 import TTemplateOnboarding from '@/app/t/onboarding';
-import { T_ASSET_SLOTS } from '@/constants/t/asset-slots';
+import { T_ASSET_SLOTS, type TAssetSlot } from '@/constants/t/asset-slots';
+import {
+  T_ONBOARDING_DEFAULT,
+  T_ONBOARDING_TYPES,
+  type TOnboardingType,
+} from '@/lib/onboarding/onboarding-type';
 
 beforeEach(() => {
   mockReplace.mockClear();
@@ -78,9 +110,18 @@ beforeEach(() => {
   markSeenCalls.length = 0;
   navigationCalls.length = 0;
   mockRevenueCatEnabled = true;
+  mockOnboardingType = T_ONBOARDING_DEFAULT;
   mockReplace.mockImplementation((to: string) => navigationCalls.push(to));
   mockPush.mockImplementation((to: string) => navigationCalls.push(to));
 });
+
+/** The four pages in order: the three intro steps, then the closing pitch. */
+const PAGE_SLOTS: readonly TAssetSlot[] = [
+  'onboarding/step1.png',
+  'onboarding/step2.png',
+  'onboarding/step3.png',
+  'paywall/hero.png',
+];
 
 /** Walk the primary button forward onto the closing premium slide. */
 function advanceToPremiumSlide(getByTestId: (id: string) => unknown) {
@@ -89,7 +130,11 @@ function advanceToPremiumSlide(getByTestId: (id: string) => unknown) {
   }
 }
 
-describe('t onboarding', () => {
+describe.each(T_ONBOARDING_TYPES)('t onboarding (%s)', (type) => {
+  beforeEach(() => {
+    mockOnboardingType = type;
+  });
+
   it('renders an image for every bundled slot the packs supply for it', () => {
     const { getByTestId } = render(<TTemplateOnboarding />);
     // The reason this screen exists at all: before it, nothing under app/t drew
@@ -100,15 +145,19 @@ describe('t onboarding', () => {
     // rewrites every image module to `1`, so all five slots are the same value
     // here. That artwork↔slot correspondence is checked structurally instead, by
     // __tests__/app/t-asset-packs.test.ts reading the requires out of the source.
-    (
-      ['onboarding/step1.png', 'onboarding/step2.png', 'onboarding/step3.png'] as const
-    ).forEach((slot) => {
+    //
+    // WALKED RATHER THAN CO-MOUNTED, AND THAT IS STRICTLY STRONGER. Э8-B-1's
+    // form asserted all three step arts at page 0, which only held because the
+    // classic pager mounts every page at once — an accident of one variant that
+    // contract.ts explicitly disclaims ("the artwork of the page CURRENTLY ON
+    // SCREEN"). Pairing each slot with `t-onboarding-page-${index}` recovers more
+    // than co-mounting ever asserted: the old shape would have stayed green for a
+    // variant that drew step3 on page 1.
+    PAGE_SLOTS.forEach((slot, index) => {
+      if (index > 0) fireEvent.press(getByTestId('t-onboarding-primary'));
       expect(getByTestId(`t-onboarding-art-${slot}`).props.source).toBe(T_ASSET_SLOTS[slot]);
+      expect(getByTestId(`t-onboarding-page-${index}`)).toBeTruthy();
     });
-    advanceToPremiumSlide(getByTestId);
-    expect(getByTestId('t-onboarding-art-paywall/hero.png').props.source).toBe(
-      T_ASSET_SLOTS['paywall/hero.png'],
-    );
   });
 
   it('skips straight home, marking onboarding seen first', async () => {

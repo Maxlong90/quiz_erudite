@@ -18,6 +18,7 @@
 import React from 'react';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
+import { Dimensions, ScrollView } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 
 // The variants read colours through useTemplateTheme -> useThemeColors, which
@@ -27,6 +28,8 @@ jest.mock('@/hooks/use-theme-pref', () => ({
 }));
 
 import { T_ONBOARDING_VARIANTS } from '@/components/t/onboarding';
+import { OnboardingClassic } from '@/components/t/onboarding/classic';
+import { OnboardingUniversal } from '@/components/t/onboarding/universal';
 import type {
   TOnboardingStep,
   TOnboardingVariantProps,
@@ -88,26 +91,6 @@ describe('the onboarding variant registry', () => {
     expect(typeof Variant).toBe('function');
   });
 
-  it('still aliases universal onto the classic screen', () => {
-    /**
-     * A TRIPWIRE FOR Э8-B-2, and the reason the root marker exists at all.
-     *
-     * Э8-A shipped the union — and a backend able to send `universal` — ahead of
-     * the second screen, so the registry points both keys at the classic one.
-     * While that holds, useOnboardingType() is observably INERT: both keys render
-     * the same tree, and no render assertion anywhere can tell them apart. This
-     * is the one assertion that CAN, and it is deliberately written to fail when
-     * the alias is removed rather than to tolerate either state — a guard that
-     * passed before and after would not be recording anything.
-     *
-     * Э8-B-2: delete this case, and let the per-variant marker case above
-     * (which already accepts any name from the union) carry it from there.
-     */
-    const Universal = T_ONBOARDING_VARIANTS.universal;
-    const { getByTestId } = render(<Universal {...props()} />);
-    expect(getByTestId('t-onboarding-variant-classic')).toBeTruthy();
-    expect(T_ONBOARDING_VARIANTS.universal).toBe(T_ONBOARDING_VARIANTS.classic);
-  });
 });
 
 describe.each(VARIANTS)('the %s variant', (type, Variant) => {
@@ -117,15 +100,14 @@ describe.each(VARIANTS)('the %s variant', (type, Variant) => {
     expect(getByTestId('t-onboarding-primary')).toBeTruthy();
   });
 
-  it('marks which variant rendered, by a name from the union', () => {
-    // The marker names the COMPONENT that drew the screen, not the registry key
-    // that reached it — and today those differ, because `universal` is aliased
-    // to the classic screen until Э8-B-2. Asserting `t-onboarding-variant-${type}`
-    // here would therefore be asserting the alias away rather than recording it;
-    // the alias gets its own case below, where it is visible.
+  it('marks itself with the registry key that reached it', () => {
+    // Each variant hardcodes exactly ONE marker, so this doubles as the proof
+    // that no two keys share a component — no `.not.toBe` needed. Э8-B-1's
+    // looser form matched any name from the union, which would have stayed green
+    // through a re-alias since both keys are union members; naming `type` is what
+    // makes the assertion bind.
     const { getByTestId } = render(<Variant {...props()} />);
-    const marker = getByTestId(new RegExp(`^t-onboarding-variant-(${T_ONBOARDING_TYPES.join('|')})$`));
-    expect(marker).toBeTruthy();
+    expect(getByTestId(`t-onboarding-variant-${type}`)).toBeTruthy();
   });
 
   it('shows the artwork of the page it was given', () => {
@@ -134,6 +116,18 @@ describe.each(VARIANTS)('the %s variant', (type, Variant) => {
       expect(getByTestId(`t-onboarding-art-${step.slot}`)).toBeTruthy();
       expect(getByTestId(`t-onboarding-page-${index}`)).toBeTruthy();
     });
+  });
+
+  it('addresses the ACTIVE progress indicator and no other', () => {
+    // The negative half is what gives the id its meaning. `classic` mounts every
+    // page at once, so no art testID says which page is visible and this is the
+    // only thing that does — and a variant that tagged all four indicators would
+    // make every per-page assertion in this repo (including the host suite's
+    // walk through the four slots) silently vacuous while staying green, because
+    // the index is part of the id and all four would still be unique.
+    const { queryByTestId } = render(<Variant {...props({ page: 1 })} />);
+    expect(queryByTestId('t-onboarding-page-1')).toBeTruthy();
+    [0, 2, 3].forEach((i) => expect(queryByTestId(`t-onboarding-page-${i}`)).toBeNull());
   });
 
   it('closes on the premium pitch', () => {
@@ -175,6 +169,154 @@ describe.each(VARIANTS)('the %s variant', (type, Variant) => {
     expect(onPageChange).not.toHaveBeenCalled();
 
     rerender(<Variant {...props({ page: 1, onPageChange })} />);
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Pinned against OnboardingClassic DIRECTLY rather than through describe.each,
+ * because this is not a contract every variant owes: `classic` is the only
+ * variant that mounts all four pages inside one pagingEnabled ScrollView, so it
+ * is the only one that has to reconcile a controlled `page` prop with a list
+ * that also moves under the player's finger. `universal` mounts one page at a
+ * time and has no ScrollView to fight with.
+ *
+ * The behaviour is a deliberate deviation from the obvious implementation and
+ * these four cases are the whole record of it — see the `settledPage` docblock
+ * in components/t/onboarding/classic.tsx. Replacing that ref with a bare
+ * `useEffect(scrollTo, [page])` fails the first and third case below while every
+ * other assertion in this repo stays green.
+ */
+describe('the classic pager scrolls on a press and on nothing else', () => {
+  // @react-native/jest-preset installs `scrollTo: jest.fn()` on the ScrollView
+  // PROTOTYPE (jest/mockComponent.js does Object.assign(Component.prototype,
+  // instanceMethods)), so the spy is shared by every instance and readable from
+  // out here without a ref of our own.
+  const scrollTo = (ScrollView.prototype as unknown as { scrollTo: jest.Mock }).scrollTo;
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+  beforeEach(() => {
+    scrollTo.mockClear();
+  });
+
+  /** Dispatch the scroll event a pagingEnabled list emits as it settles. */
+  function swipeTo(root: ReturnType<typeof render>, page: number) {
+    fireEvent.scroll(root.UNSAFE_getByType(ScrollView), {
+      nativeEvent: {
+        contentOffset: { x: page * SCREEN_WIDTH, y: 0 },
+        contentSize: { width: PAGE_COUNT * SCREEN_WIDTH, height: 100 },
+        layoutMeasurement: { width: SCREEN_WIDTH, height: 100 },
+      },
+    });
+  }
+
+  it('does not scroll on mount', () => {
+    // The naive effect fires here for a pointless animated scroll to x=0.
+    render(<OnboardingClassic {...props()} />);
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('scrolls when the host moves the page, as the button does', () => {
+    const root = render(<OnboardingClassic {...props()} />);
+    root.rerender(<OnboardingClassic {...props({ page: 1 })} />);
+
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({ x: SCREEN_WIDTH, animated: true });
+  });
+
+  it('reports a swipe without scrolling itself', () => {
+    const onPageChange = jest.fn();
+    const root = render(<OnboardingClassic {...props({ onPageChange })} />);
+
+    swipeTo(root, 1);
+    expect(onPageChange).toHaveBeenCalledWith(1);
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    // The host answers the report by re-rendering with the page it was told
+    // about. The list is ALREADY there; a programmatic animated scroll now would
+    // fight the player's finger and the pager's own momentum.
+    root.rerender(<OnboardingClassic {...props({ page: 1, onPageChange })} />);
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('ignores a drag that has not crossed a page boundary', () => {
+    const onPageChange = jest.fn();
+    const root = render(<OnboardingClassic {...props({ onPageChange })} />);
+
+    swipeTo(root, 0);
+    expect(onPageChange).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The mirror image of the pager block above, and imported directly for the same
+ * reason: the filmstrip is `universal`'s answer to a problem `classic` solves
+ * with a pagingEnabled ScrollView. `classic` gets backward navigation for free
+ * from the gesture; a one-page-at-a-time variant has to offer it explicitly, or
+ * the only way back through the intro is to finish it.
+ *
+ * So this is not a capability `universal` invents — it is the capability
+ * `classic` already has, made visible. Which is exactly why it is safe: the host
+ * holds one state cell (`page`) and recomputes isPremiumSlide, offersPremium and
+ * the button label inline from it on every render, with no memo and no
+ * high-water mark, so a backward onPageChange(0) is indistinguishable from any
+ * other value it could be handed.
+ */
+describe('the universal filmstrip offers the way back that a pager gets for free', () => {
+  it('draws a thumbnail per step and none for the closing pitch', () => {
+    // Bounded to the steps ON PURPOSE: a tap must never be able to jump to the
+    // premium page, which is reachable only through the primary button and the
+    // capability gate that computes its label.
+    const { getByTestId, queryByTestId } = render(
+      <OnboardingUniversal {...props({ page: PAGE_COUNT - 1 })} />,
+    );
+
+    STEPS.forEach((step) => expect(getByTestId(`t-onboarding-thumb-${step.slot}`)).toBeTruthy());
+    expect(queryByTestId('t-onboarding-thumb-paywall/hero.png')).toBeNull();
+  });
+
+  it('keeps the thumbnails addressable apart from the artwork', () => {
+    // The `thumb` prefix is mandatory rather than decorative: a thumbnail draws
+    // the same slot the stage does, and getByTestId throws on duplicates — so
+    // reusing `t-onboarding-art-` would take down the shared contract cases
+    // above rather than failing anything here.
+    const { getByTestId } = render(<OnboardingUniversal {...props({ page: 0 })} />);
+    expect(getByTestId('t-onboarding-art-onboarding/step1.png')).toBeTruthy();
+    expect(getByTestId('t-onboarding-thumb-onboarding/step1.png')).toBeTruthy();
+  });
+
+  it('reports a tap on another page as a gesture', () => {
+    const onPageChange = jest.fn();
+    const { getByTestId } = render(
+      <OnboardingUniversal {...props({ page: 2, onPageChange })} />,
+    );
+
+    fireEvent.press(getByTestId('t-onboarding-thumb-onboarding/step1.png'));
+    expect(onPageChange).toHaveBeenCalledWith(0);
+  });
+
+  it('never reports the page it is already on', () => {
+    // onPageChange means "the user reached a page BY GESTURE". Acknowledging a
+    // page the host already set is how a controlled list ends up talking to
+    // itself. Held twice over in the component — the active thumbnail is
+    // `disabled` and the handler re-checks the index — so that either half alone
+    // delivers the behaviour this asserts.
+    const onPageChange = jest.fn();
+    const { getByTestId } = render(
+      <OnboardingUniversal {...props({ page: 1, onPageChange })} />,
+    );
+
+    const active = getByTestId('t-onboarding-thumb-onboarding/step2.png');
+    // Pressable folds `disabled` into accessibilityState, so both facts — which
+    // one a screen reader announces as current, and which one it refuses to
+    // activate — are readable off the same prop.
+    expect(active.props.accessibilityState).toMatchObject({ selected: true, disabled: true });
+    expect(
+      getByTestId('t-onboarding-thumb-onboarding/step1.png').props.accessibilityState,
+    ).toMatchObject({ selected: false, disabled: false });
+
+    fireEvent.press(active);
     expect(onPageChange).not.toHaveBeenCalled();
   });
 });

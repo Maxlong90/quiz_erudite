@@ -306,7 +306,7 @@ Each pack ships a `manifest.json`, and it exists for the backend, not for the ap
   "schema": 1,
   "pack": "base",
   "title": "Базовый",
-  "onboarding_types": ["universal"],
+  "onboarding_types": ["classic", "universal"],
   "target": "assets/t",
   "slots": {
     "splash/logo.png": { "w": 256, "h": 256, "title": "Сплэш, логотип" }
@@ -321,6 +321,7 @@ Nothing in the app resolves a slot through it. `constants/t/asset-slots.ts` owns
 Three properties are worth not rediscovering:
 
 - **One `asset-packs/` directory, not the reference project's two-family split.** Exams encodes onboarding compatibility in the filesystem (`asset-packs/` versus `asset-packs-universal/`). That forces the backend to know a naming convention, and promoting a pack to universal becomes a git rename that breaks every reference to it. `onboarding_types` carries the same fact inside the file the backend already parses.
+- **`onboarding_types` lists every shape a pack is drawn for, and both shipped packs list both.** It read `["universal"]` until Э8-B-2, which was the field describing the one shape that did *not* yet exist while omitting the one that did — a hand-written list drifting from the shipped switch. The test's allowlist is now derived from `T_ONBOARDING_TYPES`, so widening the union widens it automatically, and the per-pack check stays a **subset** rather than an equality: the field's whole purpose is that the backend *filters* packs by it, so a future shape-specific pack must remain expressible. Since the same five slots serve both shapes today, adding a variant costs the manifests one string and no artwork.
 - **Every slot is a nested path**, including `splash/logo.png`, which the reference had as a bare `splash.png`. Uniform nesting leaves the safe-relative-path validation with no special case.
 - **One slot has a different aspect ratio.** `paywall/hero.png` is 1024×768 where the rest are 256×256. If all five were square, the manifest-versus-bytes assertion could never catch a transposed width and height or a slot copied from the wrong file.
 
@@ -375,17 +376,48 @@ The division is not filing, and the two halves are enforced from opposite direct
 
 Two smaller rules travel with the split. Variants receive `t` as a prop from the host's `useTemplateCopy()` seam rather than calling it themselves, so the operator-overridable-copy work stays a one-file edit. And a variant is **controlled**: it is told which page to show and reports gestures upward, which is subtler than it sounds. `classic.tsx` keeps a `settledPage` ref to track the page the *list* is on as distinct from the page the *host* believes, because the naive `useEffect(scrollTo, [page])` fires on mount and — worse — answers a gesture-driven change with a programmatic animated scroll fighting the player's own finger. Neither misbehaviour is visible from Jest, which never dispatches a scroll event.
 
-Until the universal screen lands, `index.ts` maps **both** union values onto `classic`. That is deliberate: `onboarding_type` shipped ahead of the second screen, so an operator selecting `universal` today gets the screen that exists rather than a crash. It does mean `useOnboardingType()` is observably inert — both keys render the same tree — which is why each variant carries a `t-onboarding-variant-<type>` root testID and the alias itself is pinned by a test written to fail when it is removed.
+### The Second Variant
+
+`universal.tsx` is the second shape, and it is not a restyle. `classic` mounts all four pages side by side in a `pagingEnabled` ScrollView and moves the viewport; `universal` mounts exactly the page it was given and lets React swap the subtree on a `key={page}`. Everything else follows from that one decision — there is no scroll offset to reconcile, so there is no `settledPage` bookkeeping, no ref, no effect and no state of any kind in the file. Visually: a round accent-tinted plate around the artwork instead of a bare centred picture, left-set copy under a numeric `01 / 04` eyebrow instead of centred copy, a segmented progress bar instead of dots, a radius-16 slab button instead of a radius-28 glowing pill, and skip as a centred footer link instead of a corner button.
+
+It needed **no new asset slots and no new strings**. Both variants draw the same five slots and the same six keys — an operator flipping `onboarding_type` gets a different *shape*, not different content. That is what makes the switch cheap: a new shape is one file plus one registry line, never a round of artwork in every pack and a translation pass in four locales.
+
+Two constraints shaped it, and both are worth not rediscovering:
+
+- **The animation may not gate a mount.** `key={page}` is what performs the swap — React reconciles the new subtree in the same commit, and `entering={FadeIn}` merely decorates a mount that already happened. So the page is on screen synchronously whether Reanimated runs, is mocked, or is disabled by a reduce-motion setting. There is deliberately no `exiting`: it would keep the outgoing page mounted and put two `t-onboarding-art-<slot>` nodes on screen at once **on device only**, since the repo's Reanimated test double ignores `exiting` entirely and every assertion would stay green.
+- **The filmstrip is the way back that a pager gets for free.** `classic` earns backward navigation from the swipe gesture; a one-page-at-a-time variant has to offer it explicitly or the only route back through the intro is to finish it. So the three step thumbnails are tappable — and bounded to the steps, never the closing pitch, so a tap can never reach the premium page, which stays behind the primary button and the capability gate that computes its label. They carry a `t-onboarding-thumb-<slot>` prefix rather than `t-onboarding-art-<slot>`, because they draw the same slots a second time and RNTL throws on a duplicate testID.
+
+The `universal` key pointed at `classic` between Э8-A and Э8-B-2, because the union shipped ahead of the screen. While that alias held, `useOnboardingType()` was observably **inert**: both keys rendered the same tree, so no render assertion could tell them apart and a forgotten repoint would have gone unnoticed. It was held by a deliberately intolerant tripwire — a test written to *fail* on the repoint rather than to accept either state — which the repointing commit deleted. What carries it now is the per-variant marker assertion, which names `t-onboarding-variant-${type}` for each registry **key**; since each variant hardcodes exactly one marker, distinct markers imply distinct components and a re-alias fails immediately.
+
+### Seeing It On A Device
+
+The switch is currently **unreachable from the backend**. The live backend serves `schema_version: 2` while the client understands `1`, so the envelope carrying `onboarding_type` is rejected as `unsupported-schema` before anything reads it (see the live-state note under [Sibling Keys](#sibling-keys-and-when-the-version-bumps) — it is the widened-token work, not the onboarding work). Until that closes, the only way to reach the second screen on hardware is a manual pin.
+
+`hooks/t/use-onboarding-type.ts` therefore carries a `__DEV__`-only override: a module variable, `setForcedOnboardingType()` to write it and `forcedOnboardingType()` to read it, consulted ahead of the engine inside the same hook. Nothing is persisted — it survives `router.replace()`, which is what makes the walk below work, and dies with the process. The gate is on the **read**, not the setter: that is the only consulting site, so gating there is total, and `__DEV__` is read at call time rather than captured in a module constant so the inertness is testable.
+
+The operator walk, and every step of it is load-bearing:
+
+1. `/t` → long-press the wordmark → the token gallery.
+2. Press **force onboarding** until it reads the variant you want. It cycles `auto → classic → universal → auto`, derived from the union, so a third variant needs no edit here.
+3. Back, then `/t/settings` → **dev reset**.
+
+Step 3 is not optional and the gallery deliberately does not shortcut it. The splash routes to `/t/onboarding` only when `hasSeen === false`, so a jump straight to the splash without wiping `onboarding.seen.v1` lands on `/t` seeing nothing — which reads as a broken override. The destructive wipe is already owned and tested at `/t/settings`; duplicating it in the gallery would mean two screens that can erase progress.
+
+The pin sits **inside** the hook's freeze, so flipping it never swaps the screen under a flow already running. The fresh mount comes from that dev reset. One consequence: `useOnboardingType()`'s two `??` fallbacks are now exercised from different places — a bad string like `martian` passes *through* the hook untouched and is caught by the host's registry lookup, while an absent value is caught by the hook itself.
 
 ## The Token Gallery
 
-`app/t/tokens.tsx` is the instrument for the whole engine. It reports which tier is applied, the held ETag, how long ago the last successful revalidation was, the schema version, `supports_dark`, and which tokens the operator has actually overridden. It offers three actions: refetch unconditionally, clear the cache and refetch, and flip the appearance.
+`app/t/tokens.tsx` is the instrument for the whole engine. It reports which tier is applied, the held ETag, how long ago the last successful revalidation was, the schema version, `supports_dark`, which asset pack the binary was built from, which `onboarding_type` arrived, and which tokens the operator has actually overridden. It offers three actions: refetch unconditionally, clear the cache and refetch, and flip the appearance — plus, on a debug build only, the forced-variant control described above.
 
 It doubles as the end-to-end proof, because it renders inside the **unmodified** `ScreenBackground` — the app's only consumer of `bgGradient`, which feeds it straight to a native gradient. A themed backdrop there means the remote token flowed through real production code with zero changes to it.
 
 Reaching it by long-pressing the home wordmark, and not gating that on `__DEV__`, is deliberate. The gallery exists to be read on a real device against a real operator preset, which means a preview or release build where `__DEV__` is false. Gating it would delete it exactly where it is needed. It is already build-gated by living under `app/t/`, and it exposes nothing but colours and a refetch button.
 
 A token counts as "overridden" when it differs from the bundled value in **either** appearance, so the marker answers "did the operator touch this token" and stays put when you flip the light/dark toggle.
+
+Two rules govern what the forced-variant control may disturb, and they follow from the paragraph above. The `onboarding_type` **row** is always present, because it reports operator data like every other line in that card — and it reports the value **on the wire**, never the one being drawn: with a pin active the app renders `universal` while the backend said `classic`, so showing the resolved value would be wrong in both directions at once. A badge declares the local mask instead (`classic  [forced: universal]`). The **control**, which writes developer-only state, is `__DEV__`-gated and lives in its own action row rather than as a fourth child of the existing one — that row is a flex of `flex: 1` children, so sharing it would lay out as four quarters in a debug build and three thirds in the release build this screen is written for.
+
+The row sits directly above the unsupported-schema warning on purpose: today those two must be read together. The engine is on the rejected-envelope branch, so the row reads `classic` for `test-quiz` even though the wire says `universal` — and the explanation is the very next line.
 
 ## Verifying on a Device
 

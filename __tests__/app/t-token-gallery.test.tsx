@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('@/api/client', () => ({
   APP_SLUG: 'test-quiz',
@@ -32,7 +33,12 @@ jest.mock('@/hooks/use-app-theme', () => ({
 /* eslint-disable import/first -- screen under test loads AFTER its mocks */
 import TThemeTokensScreen from '@/app/t/tokens';
 import { EruditeColors } from '@/constants/theme';
+import {
+  forcedOnboardingType,
+  setForcedOnboardingType,
+} from '@/hooks/t/use-onboarding-type';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
+import { T_ONBOARDING_DEFAULT } from '@/lib/onboarding/onboarding-type';
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { REMOTE_TOKEN_KEYS } from '@/lib/theme/contract';
 import { overriddenKeys, resolvePalettes } from '@/lib/theme/resolve';
@@ -48,6 +54,7 @@ function themeValue(overrides: Record<string, unknown> = {}) {
     hydrated: true,
     networkSettled: true,
     unsupportedSchemaVersion: null,
+    onboardingType: T_ONBOARDING_DEFAULT,
     etag: '"11511dfaed2703fa7de40fbbfac96552721edf14905494dc86e00397889afb4a"',
     syncedAt: Date.now(),
     overridden: overriddenKeys(theme),
@@ -64,11 +71,20 @@ function renderGallery() {
   );
 }
 
+/** The pin is module state and __DEV__ is a global; both leak between cases. */
+const REAL_DEV = __DEV__;
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockRefresh.mockResolvedValue(undefined);
   mockClearCachedTheme.mockResolvedValue(undefined);
   mockThemeValue = themeValue();
+  setForcedOnboardingType(null);
+});
+
+afterEach(() => {
+  (global as unknown as { __DEV__: boolean }).__DEV__ = REAL_DEV;
+  setForcedOnboardingType(null);
 });
 
 describe('token gallery', () => {
@@ -171,5 +187,88 @@ describe('token gallery', () => {
     mockThemeValue = null;
     expect(() => renderGallery()).not.toThrow();
     expect(screen.getByTestId('theme-source-badge')).toHaveTextContent('BUNDLED');
+  });
+});
+
+/**
+ * The onboarding variant: what the backend chose, and what a developer pinned
+ * over it by hand.
+ *
+ * The pin matters more than a debug toggle usually would. The deployed backend
+ * serves schema_version 2 while this client understands 1, so the envelope that
+ * carries `onboarding_type` is rejected before anything reads it — until that is
+ * fixed, this control is the ONLY way to reach the second onboarding screen on a
+ * device.
+ */
+describe('the onboarding variant row', () => {
+  it('names the variant the backend selected', () => {
+    mockThemeValue = themeValue({ onboardingType: 'universal' });
+    renderGallery();
+
+    expect(screen.getByText('onboarding_type')).toBeTruthy();
+    expect(screen.getByTestId('theme-onboarding-type')).toHaveTextContent('universal');
+  });
+
+  it('badges nothing while the engine is in charge', () => {
+    renderGallery();
+    expect(screen.queryByTestId('theme-onboarding-type-forced')).toBeNull();
+  });
+
+  it('cycles the pin through the whole union and back to auto', () => {
+    renderGallery();
+    const button = () => screen.getByTestId('theme-force-onboarding');
+    expect(button()).toHaveTextContent('force onboarding: auto');
+
+    fireEvent.press(button());
+    expect(button()).toHaveTextContent('force onboarding: classic');
+    expect(forcedOnboardingType()).toBe('classic');
+
+    fireEvent.press(button());
+    expect(button()).toHaveTextContent('force onboarding: universal');
+    expect(forcedOnboardingType()).toBe('universal');
+
+    // Releasing is one more press, not a second control.
+    fireEvent.press(button());
+    expect(button()).toHaveTextContent('force onboarding: auto');
+    expect(forcedOnboardingType()).toBeNull();
+  });
+
+  it('does not lie about the backend value while a pin is active', () => {
+    // THE case for reporting the wire rather than the resolution: with a pin the
+    // app draws `universal` while the backend really did say `classic`, and every
+    // other row in this card states what the build was GIVEN. Showing the
+    // resolved value would be wrong in both directions at once.
+    mockThemeValue = themeValue({ onboardingType: 'classic' });
+    renderGallery();
+    fireEvent.press(screen.getByTestId('theme-force-onboarding'));
+    fireEvent.press(screen.getByTestId('theme-force-onboarding'));
+
+    expect(screen.getByTestId('theme-onboarding-type')).toHaveTextContent('classic');
+    expect(screen.getByTestId('theme-onboarding-type-forced')).toHaveTextContent(
+      'forced: universal',
+    );
+  });
+
+  it('leaves nothing on the device', async () => {
+    // Module state, never storage: a pin must not survive a cold start, or a
+    // developer would hand a colleague a build stuck on a screen no backend chose.
+    const setItem = jest.spyOn(AsyncStorage, 'setItem');
+    renderGallery();
+    fireEvent.press(screen.getByTestId('theme-force-onboarding'));
+
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+
+  it('keeps the row but drops the control where __DEV__ is false', () => {
+    // The row reports operator data and belongs on a release build like every
+    // other line in the card. The control writes developer-only state and does
+    // not — which is also why it lives in its own action row rather than as a
+    // fourth child of one whose layout an operator sees.
+    (global as unknown as { __DEV__: boolean }).__DEV__ = false;
+    renderGallery();
+
+    expect(screen.getByTestId('theme-onboarding-type')).toBeTruthy();
+    expect(screen.queryByTestId('theme-force-onboarding')).toBeNull();
   });
 });

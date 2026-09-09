@@ -31,7 +31,11 @@ jest.mock('@/constants/app-templates', () => ({
 }));
 
 import { AppThemeProvider } from '@/hooks/app-theme-provider';
-import { useOnboardingType } from '@/hooks/t/use-onboarding-type';
+import {
+  forcedOnboardingType,
+  setForcedOnboardingType,
+  useOnboardingType,
+} from '@/hooks/t/use-onboarding-type';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
 import { T_ONBOARDING_DEFAULT } from '@/lib/onboarding/onboarding-type';
@@ -80,10 +84,26 @@ function gatedWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The dev pin is MODULE state, so it outlives a test the way it outlives a
+ * navigation. Released here rather than in the override block alone, so that a
+ * leaked pin cannot quietly answer for the eight fail-open cases below.
+ *
+ * jest.resetModules() would be the wrong tool: it would hand a screen test a
+ * different copy of this module than the component it is driving, and the pin
+ * would land in one of them.
+ */
+const REAL_DEV = __DEV__;
+
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
   mockIsTTemplateBuild = false;
+  setForcedOnboardingType(null);
+});
+
+afterEach(() => {
+  (global as unknown as { __DEV__: boolean }).__DEV__ = REAL_DEV;
 });
 
 describe('without a live engine', () => {
@@ -161,6 +181,19 @@ describe('freezing', () => {
     expect(result.current.type).toBe(T_ONBOARDING_DEFAULT);
   });
 
+  it('keeps the first value even when a pin arrives later', () => {
+    // The pin sits INSIDE the freeze, and that is the documented arrangement:
+    // flipping it from the gallery must not swap the screen under a flow that is
+    // already running. It takes effect on the next fresh mount, which the
+    // /t/settings dev reset supplies.
+    const { result, rerender } = renderHook(() => useOnboardingType());
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+
+    setForcedOnboardingType('universal');
+    rerender({});
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+  });
+
   it('picks up the new value on a genuinely fresh mount', async () => {
     // The freeze is per-mount, not per-process: the next cold start reads the
     // value the previous run persisted.
@@ -173,5 +206,80 @@ describe('freezing', () => {
 
     const second = renderHook(() => useOnboardingType(), { wrapper: gatedWrapper });
     await waitFor(() => expect(second.result.current).toBe('universal'));
+  });
+});
+
+/**
+ * The developer's manual pin.
+ *
+ * It exists because the backend-driven switch is currently UNREACHABLE on a
+ * device: the deployed backend serves `schema_version: 2`, the client understands
+ * 1, so the whole envelope is rejected as unsupported and the `onboarding_type`
+ * inside it is never read. Until the widened-token work lands, this is the only
+ * path to the second screen on hardware — which makes it worth as much test
+ * weight as the wire path, and makes its INERTNESS in a release build the single
+ * most important assertion in this file.
+ */
+describe('the dev force override', () => {
+  it('shows a variant the engine never sent', () => {
+    // No provider at all, so useAppTheme() is null and the fail-open default is
+    // the only thing this hook could otherwise return.
+    setForcedOnboardingType('universal');
+    const { result } = renderHook(() => useOnboardingType());
+    expect(result.current).toBe('universal');
+  });
+
+  it('outranks a variant the backend really did send', async () => {
+    // Not merely filling a blank: the engine has a live, different answer here,
+    // and the pin has to win over it rather than beside it.
+    mockIsTTemplateBuild = true;
+    mockGet.mockResolvedValueOnce(themeResponse('universal'));
+    setForcedOnboardingType('classic');
+
+    const { result } = renderHook(
+      () => ({ type: useOnboardingType(), theme: useAppTheme() }),
+      { wrapper: gatedWrapper },
+    );
+
+    await waitFor(() => expect(result.current?.theme?.onboardingType).toBe('universal'));
+    expect(result.current.type).toBe('classic');
+  });
+
+  it('hands the decision back to the engine when released', async () => {
+    setForcedOnboardingType('universal');
+    expect(forcedOnboardingType()).toBe('universal');
+
+    setForcedOnboardingType(null);
+    expect(forcedOnboardingType()).toBeNull();
+
+    const { result } = renderHook(() => useOnboardingType());
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it('is inert where __DEV__ is false', () => {
+    // THE assertion that matters. Metro constant-folds __DEV__ in a release
+    // bundle, so this branch is dead code there — but the gate is written on the
+    // READ rather than on the setter precisely so that a call site slipping into
+    // shipped code cannot reopen the path. Flippable under Jest because
+    // @react-native/jest-preset defines __DEV__ writable and babel-preset-expo
+    // does not inline it.
+    setForcedOnboardingType('universal');
+    (global as unknown as { __DEV__: boolean }).__DEV__ = false;
+
+    expect(forcedOnboardingType()).toBeNull();
+    const { result } = renderHook(() => useOnboardingType());
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it('leaves nothing behind on the device', async () => {
+    // Module state, never storage. A pin must not survive a cold start, or a
+    // developer would hand a colleague a build stuck on a screen the backend
+    // never selected.
+    const setItem = jest.spyOn(AsyncStorage, 'setItem');
+    setForcedOnboardingType('universal');
+    renderHook(() => useOnboardingType());
+
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
   });
 });

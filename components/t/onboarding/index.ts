@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import { OnboardingClassic } from '@/components/t/onboarding/classic';
+import { OnboardingUniversal } from '@/components/t/onboarding/universal';
 import type { TOnboardingVariantProps } from '@/components/t/onboarding/contract';
 import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
 
@@ -23,27 +24,28 @@ import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
  * __tests__/components/t-onboarding-variants.test.tsx, which iterates
  * T_ONBOARDING_TYPES against this object's keys at runtime.
  *
- * WHY `universal` POINTS AT THE CLASSIC SCREEN
- * -------------------------------------------
- * Deliberate and temporary. Э8-A shipped the union — and with it a backend able
- * to send `universal` — AHEAD of the second screen, so this map has to answer
- * for a value that has no artwork yet. Pointing it at the screen that does ship
- * means an operator selecting `universal` today gets the classic onboarding
- * rather than a crash or a blank; repointing this one line IS the landing of
- * Э8-B-2.
+ * THE `universal` ALIAS IS RETIRED (Э8-B-2)
+ * ----------------------------------------
+ * Between Э8-A and Э8-B-2 both keys pointed at OnboardingClassic, because the
+ * union — and a backend able to send `universal` — shipped ahead of the second
+ * screen. That alias made useOnboardingType() observably INERT: both keys
+ * rendered the same tree, so no render assertion anywhere could tell them apart
+ * and nothing would have gone red had the repoint been forgotten. It was held in
+ * place by a deliberately intolerant tripwire in
+ * __tests__/components/t-onboarding-variants.test.tsx, written to FAIL on the
+ * repoint rather than to accept either state, and deleted by the same commit
+ * that repointed the entry below.
  *
- * Note what that costs in the meantime: useOnboardingType() is observably INERT.
- * Both keys resolve to the same component, so no render assertion can tell the
- * two apart and nothing goes red if the repoint is forgotten. That is exactly
- * why OnboardingClassic carries a `t-onboarding-variant-classic` root testID —
- * the assertion that catches a forgotten repoint costs one line the moment there
- * is a second id to assert against.
+ * What carries it now is the per-variant marker case in that same file, which
+ * asserts `t-onboarding-variant-${type}` for each registry KEY. Each variant
+ * hardcodes exactly one marker, so distinct markers imply distinct components —
+ * a re-alias fails immediately, which the older union-regex form would not have
+ * caught. That is what the root testIDs are for.
  */
 export const T_ONBOARDING_VARIANTS: Record<
   TOnboardingType,
   ComponentType<TOnboardingVariantProps>
 > = {
   classic: OnboardingClassic,
-  // TEMPORARY: Э8-B-2 replaces this with the universal variant. See above.
-  universal: OnboardingClassic,
+  universal: OnboardingUniversal,
 };

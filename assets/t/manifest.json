@@ -2,7 +2,7 @@
   "schema": 1,
   "pack": "base",
   "title": "Базовый",
-  "onboarding_types": ["universal"],
+  "onboarding_types": ["classic", "universal"],
   "target": "assets/t",
   "slots": {
     "splash/logo.png": { "w": 256, "h": 256, "title": "Сплэш, логотип" },
