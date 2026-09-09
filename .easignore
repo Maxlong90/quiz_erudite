@@ -61,8 +61,12 @@ AGENTS.md
 # .easignore REPLACES .gitignore for eas-cli, it does not add to it. From the
 # moment this file exists no .gitignore anywhere in the tree is read; only
 # `.git` and `node_modules` stay hardcoded. A .easignore holding just the rule
-# below would therefore START uploading .env, android/, dist/, .expo/ and every
-# *.jks / *.p8 / *.p12 / *.mobileprovision to the EAS worker.
+# below would therefore stop applying every protective rule above it: .env,
+# android/, dist/, .expo/ and the *.jks / *.p8 / *.p12 / *.mobileprovision
+# patterns. On the default GitClient path the archive is a clone of the TRACKED
+# tree, so an untracked .env could not leak that way -- but under EAS_NO_VCS=1
+# (or a non-git checkout) eas-cli walks the WORKING COPY filtered by this file
+# alone, and then it would.
 #
 # Regenerate, never hand-edit the copied part:
 #   cp .gitignore .easignore

@@ -11,13 +11,32 @@
  * file and add additional files you want to ignore"
  * (https://docs.expo.dev/build-reference/easignore/), which is precisely the
  * shape asserted below. So the obvious way to add one rule — a `.easignore`
- * whose entire content is `asset-packs/` — silently starts uploading everything
+ * whose entire content is `asset-packs/` — silently stops applying everything
  * `.gitignore` was hiding: `.env`, `android/` (2.9 GB of local prebuild output),
  * `dist/`, `.expo/`, and the `*.jks` / `*.p8` / `*.p12` / `*.mobileprovision`
  * patterns that exist precisely to keep signing material off other people's
- * machines. The build backend clones fresh so IT would not carry `android/`, but
- * a developer running `eas build` from a working checkout would ship `.env` to
- * the worker and get a green build for it.
+ * machines.
+ *
+ * HOW BAD THAT IS DEPENDS ON WHICH VCS CLIENT RUNS, AND BOTH EXIST
+ * ---------------------------------------------------------------
+ * Measured against eas-cli's own clients rather than assumed, because the
+ * difference decides whether the paragraph above is a leak or a mess:
+ *
+ *   - `GitClient` (the DEFAULT, and what this repo gets): the archive is a
+ *     `git clone --depth 1`, i.e. the TRACKED tree, and `.easignore` is then
+ *     applied by deleting the files that
+ *     `git ls-files --exclude-from <.easignore> --ignored --cached` reports.
+ *     An untracked `.env` is never in the clone to begin with, so the naive
+ *     one-liner cannot leak it here.
+ *   - `NoVcsClient` (`EAS_NO_VCS=1`, or a non-git checkout): the archive is a
+ *     walk of the WORKING COPY filtered by `.easignore` alone
+ *     (`local.js::makeShallowCopyAsync`). This is where the naive one-liner
+ *     really does upload `.env`, `android/` and `dist/`.
+ *
+ * So the rules asserted below are what stands between the second path and a
+ * leak, and they are also the only thing the backend's tripwire can read. The
+ * assertions are about the RULES for that reason, plus one that drives the git
+ * path's real command directly.
  *
  * The committed file is therefore `.gitignore` verbatim plus one appended rule,
  * and the two are a PAIR from now on. Drift is the failure mode, not the missing
@@ -279,6 +298,30 @@ describe('what eas build would upload', () => {
     const universe = [...PACK_FILES, ...ASSET_FILES, ...UNIQUE_BACKEND_WRITTEN, ...MUST_NOT_UPLOAD];
     const flipped = universe.filter((path) => before.ignores(path) !== filter.ignores(path)).sort();
     expect(flipped).toEqual([...PACK_FILES].sort());
+  });
+
+  it('deletes exactly the pack sources from the real git clone', () => {
+    // The one assertion here that is not a model. On the default GitClient path
+    // the archive is a `git clone --depth 1` of the tracked tree, and .easignore
+    // is applied by deleting whatever THIS command reports — so running it is
+    // running eas-cli's own step, not a re-implementation of it.
+    //
+    // The stale .playwright-mcp log is tracked but matched by a rule the copied
+    // .gitignore already carried, so it leaves the upload too. Pinned rather than
+    // filtered out: it is the only file besides the packs whose upload status
+    // this change alters, and it should be noticed if that ever stops being true.
+    const deleted = execFileSync(
+      'git',
+      ['ls-files', '--exclude-from=.easignore', '--ignored', '--cached'],
+      { cwd: REPO_ROOT, encoding: 'utf8' },
+    )
+      .split('\n')
+      .filter(Boolean)
+      .sort();
+
+    expect(deleted).toEqual(
+      [...PACK_FILES, '.playwright-mcp/console-2026-03-23T14-28-53-640Z.log'].sort(),
+    );
   });
 
   it('drops no file the app bundles', () => {

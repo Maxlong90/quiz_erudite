@@ -37,6 +37,16 @@
  *     extra layer that only ever excludes MORE. If eas-cli ever dropped the
  *     defaults, this model would be conservative rather than wrong.
  *
+ * WHAT THIS MODELS, AND WHAT IT DOES NOT
+ * --------------------------------------
+ * eas-cli has two archive paths and this is the rule engine behind both, not a
+ * model of either one's packaging. `NoVcsClient` (`EAS_NO_VCS=1`) walks the
+ * working copy through exactly this filter. `GitClient` — the default — clones
+ * the tracked tree and then applies the same `.easignore` via
+ * `git ls-files --exclude-from`, so the RULES are shared but the candidate set
+ * is narrower. `__tests__/lib/easignore.test.ts` drives that git command
+ * directly for the delta, and uses this module for the per-path verdicts.
+ *
  * Paths handed to `ignores()` must be repo-relative, `/`-separated and non-empty
  * (`ignore@5` throws on an absolute path), and must be FILE paths: a `foo/` rule
  * does not match the bare string `foo`, only `foo/something`. That is also what
