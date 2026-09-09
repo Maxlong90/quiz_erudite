@@ -9,9 +9,12 @@
  */
 import {
   T_ONBOARDING_DEFAULT,
+  T_ONBOARDING_RENDERED_TYPES,
   T_ONBOARDING_TYPES,
   parseOnboardingType,
   resolveOnboardingType,
+  showsOnboarding,
+  type TOnboardingType,
 } from '@/lib/onboarding/onboarding-type';
 
 /**
@@ -61,6 +64,75 @@ describe('the union', () => {
 
   it('holds no duplicates', () => {
     expect(new Set(T_ONBOARDING_TYPES).size).toBe(T_ONBOARDING_TYPES.length);
+  });
+
+  it('matches the backend enum, IN ORDER', () => {
+    // The counterpart lives in the other repository:
+    // /var/www/quiz-erudit-backend/tests/Unit/OnboardingTypeEnumTest.php
+    //   ::test_the_enum_holds_the_three_documented_cases
+    // which asserts the same three values in the same order against
+    // OnboardingTypeEnum::cases().
+    //
+    // ORDER, not merely membership. Nothing runs the two suites together and
+    // nothing can — they are different languages in different repositories — so
+    // the only mechanism keeping them aligned is that both spell out one literal
+    // list that a human can read side by side. A set comparison would leave the
+    // two free to drift into different orders, and the backend's assertSame is
+    // order-sensitive, so the drift would surface there as a mystery failure
+    // rather than here as an obvious one.
+    expect([...T_ONBOARDING_TYPES]).toEqual(['classic', 'universal', 'none']);
+  });
+});
+
+describe('showsOnboarding', () => {
+  it.each(T_ONBOARDING_RENDERED_TYPES)('says %s draws a screen', (type) => {
+    expect(showsOnboarding(type)).toBe(true);
+  });
+
+  it('says none draws nothing', () => {
+    expect(showsOnboarding('none')).toBe(false);
+  });
+
+  it('treats none as the ONLY non-drawing type', () => {
+    // Anti-vacuity in both directions. Too permissive and the intro gate would
+    // skip onboarding for a type that has a screen; too strict and `none` would
+    // render one. Deriving the expectation from `filter` rather than restating
+    // the union is safe here because the assertion is about the PREDICATE's
+    // partition of the union, not about the union's contents.
+    expect(T_ONBOARDING_TYPES.filter((type) => !showsOnboarding(type))).toEqual(['none']);
+  });
+
+  it('agrees that the fail-open default draws something', () => {
+    // Load-bearing for every `?? T_ONBOARDING_VARIANTS[T_ONBOARDING_DEFAULT]` in
+    // the tree: a default that drew nothing would make each of them undefined.
+    expect(showsOnboarding(T_ONBOARDING_DEFAULT)).toBe(true);
+  });
+
+  it('does not parse — it answers about union members only', () => {
+    // A value smuggled past the union reads as DRAWING, which is the fail-open
+    // direction: the host's registry lookup then misses and falls back to the
+    // shipped screen. The alternative (an allow-list) would answer `false` and
+    // skip onboarding entirely for a typo. Parsing belongs to
+    // parseOnboardingType, and duplicating it here would create a second,
+    // weaker parser reachable around the first.
+    expect(showsOnboarding('NONE' as TOnboardingType)).toBe(true);
+    expect(showsOnboarding('martian' as TOnboardingType)).toBe(true);
+  });
+});
+
+describe('the rendered subset', () => {
+  it('is the union minus the types that draw nothing', () => {
+    expect([...T_ONBOARDING_RENDERED_TYPES]).toEqual(['classic', 'universal']);
+  });
+
+  it('excludes none', () => {
+    expect(T_ONBOARDING_RENDERED_TYPES).not.toContain('none');
+  });
+
+  it('is a subset of the union', () => {
+    T_ONBOARDING_RENDERED_TYPES.forEach((type) => {
+      expect(T_ONBOARDING_TYPES).toContain(type);
+    });
   });
 });
 

@@ -22,11 +22,12 @@ jest.mock('@/api/client', () => ({
 
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { THEME_FETCH_TIMEOUT_MS, fetchAppTheme } from '@/lib/theme/theme-api';
+import { SCHEMA_VERSION_V2 } from '@/__tests__/fixtures/remote-theme-v2';
 
 const ETAG = '"11511dfaed2703fa7de40fbbfac96552721edf14905494dc86e00397889afb4a"';
 
 function body(overrides: Record<string, unknown> = {}) {
-  return { schema_version: 1, theme: BUNDLED_THEME, ...overrides };
+  return { schema_version: SCHEMA_VERSION_V2, theme: BUNDLED_THEME, ...overrides };
 }
 
 function ok(data: unknown, etag: string | null = ETAG) {
@@ -78,7 +79,7 @@ describe('fetchAppTheme', () => {
     expect(result).toEqual({
       status: 'updated',
       etag: ETAG,
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION_V2,
       theme: BUNDLED_THEME,
       // The body carries no onboarding_type, so the parser resolves the default.
       onboardingType: 'classic',
@@ -172,10 +173,10 @@ describe('fetchAppTheme', () => {
   });
 
   it('reports a newer schema as unsupported', async () => {
-    mockGet.mockResolvedValueOnce(ok(body({ schema_version: 2 })));
+    mockGet.mockResolvedValueOnce(ok(body({ schema_version: 3 })));
     await expect(fetchAppTheme('test-quiz', null)).resolves.toEqual({
       status: 'unsupported',
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
   });
 

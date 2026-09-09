@@ -12,34 +12,10 @@ import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { REMOTE_TOKEN_KEYS, type RemoteTokens } from '@/lib/theme/contract';
 import { overriddenKeys, resolvePalette, resolvePalettes } from '@/lib/theme/resolve';
 
-/** The ten tokens exactly as bundled — i.e. an operator preset nobody edited. */
+/** The tokens exactly as bundled — i.e. an operator preset nobody edited. */
 function unchangedTokens(appearance: 'light' | 'dark'): RemoteTokens {
   return { ...BUNDLED_THEME[appearance] };
 }
-
-/** Tokens the backend does NOT serve; they must survive every resolve. */
-const UNTOUCHED_KEYS = [
-  'surface',
-  'surfaceSoft',
-  'surfaceSunken',
-  'sheet',
-  'scrim',
-  'text',
-  'textMuted',
-  'textFaint',
-  'textDisabled',
-  'border',
-  'borderStrong',
-  'borderSoft',
-  'onAccent',
-  'success',
-  'danger',
-  'gold',
-  'optCorrectBg',
-  'optWrongBg',
-  'explanationBg',
-  'explanationText',
-] as const;
 
 describe('resolvePalette', () => {
   it('returns the base palette itself when there are no tokens', () => {
@@ -69,31 +45,29 @@ describe('resolvePalette', () => {
     expect(resolvePalette(EruditeColors.dark, tokens)).not.toBe(EruditeColors.dark);
   });
 
-  it('lands all ten tokens over the base', () => {
-    const tokens: RemoteTokens = {
-      bgGradient: ['#000001', '#000002', '#000003'],
-      bgSolid: '#000004',
-      accent: '#000005',
-      accentSoft: '#000006',
-      accentBg: '#000007',
-      accentBgSoft: '#000008',
-      accentBorderSoft: '#000009',
-      optIdleBg: '#00000a',
-      optIdleBorder: '#00000b',
-      optIdleText: '#00000c',
-    };
+  it('lands every remote token over the base', () => {
+    // Since schema v2 the backend serves the whole forty-five-token palette, so
+    // the overlay copy loop must cover every key — one missed key would silently
+    // keep the bundled value under an operator preset.
+    const tokens: RemoteTokens = { ...unchangedTokens('dark'), accent: '#ff0000', success: '#0000ff' };
     const resolved = resolvePalette(EruditeColors.dark, tokens);
     for (const key of REMOTE_TOKEN_KEYS) {
       expect(resolved[key]).toEqual(tokens[key]);
     }
   });
 
-  it('leaves the twenty tokens the backend does not serve at their bundled values', () => {
-    const tokens = { ...unchangedTokens('dark'), accent: '#ff0000' };
+  it('never copies a key the parser does not know about', () => {
+    // resolvePalette iterates REMOTE_TOKEN_KEYS rather than spreading the tokens
+    // object, so an unknown key that somehow survived parsing cannot reach a
+    // style prop through the resolved palette either.
+    const tokens = {
+      ...unchangedTokens('dark'),
+      accent: '#ff0000',
+      someFutureToken: '#123456',
+    } as RemoteTokens;
     const resolved = resolvePalette(EruditeColors.dark, tokens);
-    for (const key of UNTOUCHED_KEYS) {
-      expect(resolved[key]).toBe(EruditeColors.dark[key]);
-    }
+    expect(resolved).not.toHaveProperty('someFutureToken');
+    expect(Object.keys(resolved).sort()).toEqual(Object.keys(EruditeColors.dark).sort());
   });
 
   it('keeps bgGradient a real three-stop tuple LinearGradient can consume', () => {

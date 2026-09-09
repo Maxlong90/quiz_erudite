@@ -26,11 +26,25 @@ jest.mock('@/api/client', () => ({
 
 // The two gates under test, driven directly rather than through the real engine:
 // this test is about the TIMING contract, not about how the tiers resolve.
-let mockThemeValue: { hydrated: boolean; networkSettled: boolean } | null = {
+//
+// `onboardingType` rides along because the intro gate reads it off this same
+// value through useLiveOnboardingType(). It is OPTIONAL, so every timing case
+// above continues to omit it and gets the fail-open default via the hook's `??`.
+//
+// NOTE what is deliberately NOT mocked: @/hooks/t/use-onboarding-type. That hook
+// is the seam this feature turns on — specifically the live/frozen distinction —
+// and mocking it would erase exactly the difference under test. The variant suite
+// next door leaves it real for the same reason.
+let mockThemeValue: {
+  hydrated: boolean;
+  networkSettled: boolean;
+  onboardingType?: TOnboardingType;
+} | null = {
   hydrated: false,
   networkSettled: false,
 };
 jest.mock('@/hooks/use-app-theme', () => ({
+  ...jest.requireActual('@/hooks/use-app-theme'),
   useAppTheme: () => mockThemeValue,
 }));
 
@@ -42,13 +56,20 @@ jest.mock('@/hooks/use-app-theme', () => ({
 // this entire suite to /t/onboarding, on a promise whose flush order relative to
 // the fake timers is not something these tests should have to reason about.
 let mockHasSeen: boolean | null = true;
+// Named rather than inline, so the "skipping writes nothing" case can assert on it.
+const mockMarkSeen = jest.fn();
 jest.mock('@/hooks/use-onboarding', () => ({
-  useOnboarding: () => ({ hasSeen: mockHasSeen, markSeen: jest.fn() }),
+  useOnboarding: () => ({ hasSeen: mockHasSeen, markSeen: mockMarkSeen }),
 }));
 
 /* eslint-disable import/first -- screen under test loads AFTER its mocks */
 import TTemplateSplash from '@/app/t/splash';
+import { setForcedOnboardingType } from '@/hooks/t/use-onboarding-type';
 import { ThemePrefProvider } from '@/hooks/use-theme-pref';
+import {
+  T_ONBOARDING_RENDERED_TYPES,
+  type TOnboardingType,
+} from '@/lib/onboarding/onboarding-type';
 
 const FLOOR_MS = 1500;
 const CAP_MS = 3500;
@@ -69,8 +90,11 @@ function advance(ms: number) {
 }
 
 /** Flip the engine gates and re-render, the way a real state update would. */
-function settle(rerender: (ui: React.ReactElement) => void) {
-  mockThemeValue = { hydrated: true, networkSettled: true };
+function settle(
+  rerender: (ui: React.ReactElement) => void,
+  onboardingType?: TOnboardingType,
+) {
+  mockThemeValue = { hydrated: true, networkSettled: true, onboardingType };
   act(() => {
     rerender(<Splash />);
   });
@@ -79,12 +103,16 @@ function settle(rerender: (ui: React.ReactElement) => void) {
 beforeEach(() => {
   jest.useFakeTimers();
   mockReplace.mockClear();
+  mockMarkSeen.mockClear();
   mockThemeValue = { hydrated: false, networkSettled: false };
   mockHasSeen = true;
 });
 
 afterEach(() => {
   jest.useRealTimers();
+  // The dev pin is module state and outlives a test the way it outlives a
+  // navigation, so a leaked pin could quietly answer for the cases above.
+  setForcedOnboardingType(null);
 });
 
 // Э8 DEPENDS ON THE GATES PINNED BELOW.
@@ -206,6 +234,115 @@ describe('t splash destination', () => {
 
     advance(FLOOR_MS);
     expect(mockReplace).toHaveBeenCalledWith('/t/onboarding');
+  });
+
+  it.each(T_ONBOARDING_RENDERED_TYPES)(
+    'sends a first-ever launch to onboarding on a %s build',
+    (type) => {
+      mockHasSeen = false;
+      mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: type };
+      render(<Splash />);
+
+      advance(FLOOR_MS);
+      expect(mockReplace).toHaveBeenCalledWith('/t/onboarding');
+    },
+  );
+
+  it('skips onboarding entirely when the operator selected none', () => {
+    // There is no empty onboarding screen to pass through: the stack is never
+    // entered. `none` has no entry in T_ONBOARDING_VARIANTS for that reason.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: 'none' };
+    render(<Splash />);
+
+    advance(FLOOR_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t');
+    expect(mockReplace).not.toHaveBeenCalledWith('/t/onboarding');
+  });
+
+  it('reads the value the engine SETTLED on, not the one present at mount', () => {
+    // THE regression guard for this feature. The splash is mounted before the
+    // engine settles by construction, so a FROZEN read here would capture the
+    // pre-network default on every launch and make `none` unreachable forever,
+    // with no symptom anywhere: the token gallery would show the `none` that
+    // arrived while the gate kept routing into the intro.
+    //
+    // Swap useLiveOnboardingType() for useOnboardingType() in app/t/splash.tsx
+    // and this case goes red while every other case in this file stays green.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: false, networkSettled: false };
+    const { rerender } = render(<Splash />);
+
+    advance(FLOOR_MS + 100);
+    expect(mockReplace).not.toHaveBeenCalled();
+
+    settle(rerender, 'none');
+    expect(mockReplace).toHaveBeenCalledWith('/t');
+  });
+
+  it('shows the intro when the cap fired before the engine could say none', () => {
+    // Fail-open, the same bargain the palette makes: a `none` build shows the
+    // intro for exactly one launch rather than holding the splash open to be
+    // sure. The cache is warm by the next start.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: false, networkSettled: false };
+    render(<Splash />);
+
+    advance(CAP_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t/onboarding');
+  });
+
+  it('does not become a fourth gate when the intro is skipped', () => {
+    // `none` refines the DESTINATION only. The splash must leave at the very
+    // same moment it would have otherwise.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: 'none' };
+    render(<Splash />);
+
+    advance(FLOOR_MS - 1);
+    expect(mockReplace).not.toHaveBeenCalled();
+
+    advance(1);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT record the intro as seen when it skips it', () => {
+    // Writing the flag here would record a lie — this player has not seen the
+    // intro — and would make a later operator flip from `none` back to `classic`
+    // permanently invisible on every device that had already launched once.
+    // Recomputing each launch is what lets that flip reach installed devices.
+    // app/t/onboarding.tsx stays the only writer of the flag.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: 'none' };
+    render(<Splash />);
+
+    advance(FLOOR_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t');
+    expect(mockMarkSeen).not.toHaveBeenCalled();
+  });
+
+  it('honours a dev pin of none over what the backend sent', () => {
+    // With schema_version 2 rejected client-side, the pin is the only way to
+    // reach this path on hardware — so the gate has to consult it. Reading
+    // useAppTheme()?.onboardingType directly in the splash would lose it.
+    mockHasSeen = false;
+    mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: 'classic' };
+    setForcedOnboardingType('none');
+    render(<Splash />);
+
+    advance(FLOOR_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t');
+  });
+
+  it('leaves a returning player home whatever the type says', () => {
+    // The two conditions are ANDed, not ORed: a rendered type must not drag a
+    // player who has already seen the intro back through it.
+    mockHasSeen = true;
+    mockThemeValue = { hydrated: true, networkSettled: true, onboardingType: 'universal' };
+    render(<Splash />);
+
+    advance(FLOOR_MS);
+    expect(mockReplace).toHaveBeenCalledWith('/t');
   });
 
   it('goes home when the storage read has not resolved by the cap', () => {

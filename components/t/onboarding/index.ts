@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { OnboardingClassic } from '@/components/t/onboarding/classic';
 import { OnboardingUniversal } from '@/components/t/onboarding/universal';
 import type { TOnboardingVariantProps } from '@/components/t/onboarding/contract';
-import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
+import type { TOnboardingRenderedType } from '@/lib/onboarding/onboarding-type';
 
 /**
  * Which component renders which `onboarding_type`.
@@ -15,14 +15,28 @@ import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
  *
  * A FULL Record, NEVER Partial
  * ----------------------------
- * `Record<TOnboardingType, …>` cannot be satisfied with a missing key, so
- * widening the union in lib/onboarding/onboarding-type.ts without shipping the
+ * `Record<TOnboardingRenderedType, …>` cannot be satisfied with a missing key,
+ * so widening the union in lib/onboarding/onboarding-type.ts without shipping the
  * screen is a compile error here. That belt is looser than it sounds — there is
  * no `tsc` npm script in this repo (only `npx tsc --noEmit` by hand, which
  * already fails on this branch for unrelated reasons), so the assertion that
  * really holds the line is the registry-completeness case in
  * __tests__/components/t-onboarding-variants.test.tsx, which iterates
  * T_ONBOARDING_TYPES against this object's keys at runtime.
+ *
+ * `none` IS DELIBERATELY ABSENT, AND ITS ABSENCE IS THE FEATURE
+ * ------------------------------------------------------------
+ * The key is typed as TOnboardingRenderedType, not the full union, so `none` is
+ * not merely unregistered — it is unregisterABLE. That keeps the Record total
+ * (the belt above survives intact) while stating "this type draws nothing" in the
+ * type system rather than in a comment.
+ *
+ * Adding `none: SomeEmptyScreen` here would not "add support for none"; it would
+ * SILENTLY DISABLE it. The skip lives one screen earlier, in the intro gate at
+ * app/t/splash.tsx, which asks showsOnboarding() and routes home so the stack is
+ * never entered. An entry here would give the host something to render, and the
+ * host renders whatever it is handed — so the gate's decision would be overruled
+ * by a blank screen the player still has to dismiss.
  *
  * THE `universal` ALIAS IS RETIRED (Э8-B-2)
  * ----------------------------------------
@@ -43,7 +57,7 @@ import type { TOnboardingType } from '@/lib/onboarding/onboarding-type';
  * caught. That is what the root testIDs are for.
  */
 export const T_ONBOARDING_VARIANTS: Record<
-  TOnboardingType,
+  TOnboardingRenderedType,
   ComponentType<TOnboardingVariantProps>
 > = {
   classic: OnboardingClassic,

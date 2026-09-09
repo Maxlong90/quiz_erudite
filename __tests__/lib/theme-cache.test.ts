@@ -24,6 +24,7 @@ import {
   touchCachedTheme,
   type CachedThemeRecord,
 } from '@/lib/theme/theme-cache';
+import { SCHEMA_VERSION_V2 } from '@/__tests__/fixtures/remote-theme-v2';
 
 const BUILD_KEY = 'theme.remote.v1';
 
@@ -31,11 +32,36 @@ function record(overrides: Partial<CachedThemeRecord> = {}): CachedThemeRecord {
   return {
     record: 1,
     etag: '"abc123"',
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION_V2,
     theme: BUNDLED_THEME,
     appSlug: 'test-quiz',
     syncedAt: 1_700_000_000_000,
     ...overrides,
+  };
+}
+
+/** The ten keys a schema-v1 build understood — the whole of its record's theme. */
+const V1_TOKEN_KEYS = [
+  'bgGradient',
+  'bgSolid',
+  'accent',
+  'accentSoft',
+  'accentBg',
+  'accentBgSoft',
+  'accentBorderSoft',
+  'optIdleBg',
+  'optIdleBorder',
+  'optIdleText',
+] as const;
+
+function v1Theme(): CachedThemeRecord['theme'] {
+  const tokens: Record<string, unknown> = {};
+  for (const key of V1_TOKEN_KEYS) tokens[key] = BUNDLED_THEME.dark[key];
+  return {
+    name: null,
+    supports_dark: true,
+    light: tokens as CachedThemeRecord['theme']['light'],
+    dark: tokens as CachedThemeRecord['theme']['dark'],
   };
 }
 
@@ -96,8 +122,25 @@ describe('loadCachedTheme / saveCachedTheme', () => {
   });
 
   it('rejects a record from a build that understood a newer schema', async () => {
-    await AsyncStorage.setItem(BUILD_KEY, JSON.stringify(record({ schemaVersion: 2 })));
+    await AsyncStorage.setItem(BUILD_KEY, JSON.stringify(record({ schemaVersion: 3 })));
     expect(await loadCachedTheme()).toBeNull();
+  });
+
+  it('drops (and deletes) a schema-v1 ten-token record written by an older build', async () => {
+    // THE migration pin for the v1 -> v2 widening. An old build's record passes
+    // the version gate (1 <= 2) but its ten-token theme fails the re-parse for
+    // the thirty-five keys it lacks, so it is dropped like any unreadable blob —
+    // the device falls back to the bundled tier for one session and the next
+    // fetch re-earns a full body. This is the self-healing path chosen instead
+    // of a RECORD_FORMAT bump, which would also nuke an OFFLINE device's palette
+    // (see the onboarding-discriminant note below).
+    await AsyncStorage.setItem(
+      BUILD_KEY,
+      JSON.stringify(record({ schemaVersion: 1, theme: v1Theme() })),
+    );
+    expect(await loadCachedTheme()).toBeNull();
+    // Reclaimed, so we do not re-parse the same garbage on every launch.
+    expect(await AsyncStorage.getItem(BUILD_KEY)).toBeNull();
   });
 
   it('rejects a stored payload that no longer parses', async () => {
@@ -192,7 +235,7 @@ describe('touchCachedTheme', () => {
     expect(loaded?.syncedAt).toBe(1_800_000_000_000);
     expect(loaded?.etag).toBe('"abc123"');
     expect(loaded?.theme).toEqual(BUNDLED_THEME);
-    expect(loaded?.schemaVersion).toBe(1);
+    expect(loaded?.schemaVersion).toBe(SCHEMA_VERSION_V2);
   });
 
   it('preserves the onboarding discriminant across a 304', async () => {

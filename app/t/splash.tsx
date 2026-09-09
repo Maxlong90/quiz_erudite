@@ -6,10 +6,14 @@ import { ScreenBackground } from '@/components/screen-background';
 import { T_ASSET_SLOTS } from '@/constants/t/asset-slots';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { useLiveOnboardingType } from '@/hooks/t/use-onboarding-type';
 import { useTemplateTheme } from '@/hooks/t/use-template-theme';
+import { showsOnboarding } from '@/lib/onboarding/onboarding-type';
 
 /**
- * Splash for the configurable template, and the engine's NETWORK WINDOW.
+ * Splash for the configurable template, the engine's NETWORK WINDOW, and the
+ * INTRO GATE — the one place that decides whether the onboarding stack is
+ * entered at all.
  *
  * It holds for a brand floor and, within a hard cap, waits for the theme engine
  * to settle its cache read and its conditional GET. What that buys is one thing:
@@ -37,6 +41,13 @@ export default function TTemplateSplash() {
   const colors = useTemplateTheme();
   const appTheme = useAppTheme();
   const { hasSeen } = useOnboarding();
+  /**
+   * LIVE, never the frozen hook. This screen is mounted before the engine
+   * settles — that wait is its entire job — so a frozen read here would capture
+   * INITIAL_STATE's default on every launch and make `none` unreachable without
+   * a single visible symptom. hooks/t/use-onboarding-type.ts documents the split.
+   */
+  const onboardingType = useLiveOnboardingType();
 
   // Rendered without the provider (or on a build where the engine is inert)
   // there is nothing to wait for, so both gates read as already settled.
@@ -70,8 +81,26 @@ export default function TTemplateSplash() {
     // explicit `=== false`: `null` means the read has not resolved (or threw),
     // and the safe direction is home — a returning player must never be dropped
     // back into onboarding because storage hiccuped.
-    router.replace(hasSeen === false ? '/t/onboarding' : '/t');
-  }, [floorDone, capped, hydrated, networkSettled, hasSeen]);
+    //
+    // `onboarding_type: none` REFINES THE SAME DESTINATION, and is likewise not
+    // a gate: the splash leaves at the identical moment either way. There is no
+    // empty onboarding screen and no stack to skip through — the stack is simply
+    // never entered, which is why `none` has no entry in T_ONBOARDING_VARIANTS.
+    //
+    // NOTHING IS PERSISTED WHEN THE INTRO IS SKIPPED. markSeen() stays the sole
+    // business of app/t/onboarding.tsx. Writing the flag here would record a lie
+    // (this player has NOT seen the intro) and, worse, would make a later
+    // operator flip from `none` back to `classic` permanently invisible on every
+    // device that had already launched once. Recomputing each launch is what lets
+    // that flip reach installed devices on their next start.
+    //
+    // Fail-open, exactly as the palette is: if the hard cap fired before the
+    // engine settled, this reads T_ONBOARDING_DEFAULT and a `none` build shows
+    // the intro for one launch, with the cache warm by the next. Holding the
+    // splash open to be certain about the intro is the worse trade.
+    const toOnboarding = hasSeen === false && showsOnboarding(onboardingType);
+    router.replace(toOnboarding ? '/t/onboarding' : '/t');
+  }, [floorDone, capped, hydrated, networkSettled, hasSeen, onboardingType]);
 
   return (
     <ScreenBackground>

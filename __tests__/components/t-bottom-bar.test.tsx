@@ -10,35 +10,24 @@
  *     REPLACES (so the bar cannot grow the stack). __tests__/app/t-routes.test.ts
  *     proves the six literals are /t routes backed by real files; this proves
  *     which SLOT each one is wired to, which a source scan cannot see.
- *  2. THE PALETTE IS LIVE. See the scope note below — this is narrower than in
- *     the other /t suites, and deliberately so.
+ *  2. THE PALETTE IS LIVE. The bar reads four tokens — gold, text, textDisabled
+ *     and border — and since Э1 widened REMOTE_TOKEN_KEYS all four are on the
+ *     wire, so the suite carries the same "moves with the operator preset"
+ *     assertion every other /t suite does, alongside the appearance-flip checks.
  *
- * WHY THERE IS NO "MOVES WITH THE OPERATOR PRESET" TEST HERE
- * ---------------------------------------------------------
- * Every other /t suite proves its screen repaints by moving a REMOTE_TOKEN_KEY
- * through resolvePalette() and reading it back off a rendered style. This bar
- * reads four tokens — gold, text, textDisabled, border — and NONE of them is in
- * REMOTE_TOKEN_KEYS, so that assertion cannot be written honestly here.
+ * BEFORE THE Э1 WIDENING this file could not write that assertion honestly:
+ * none of the four tokens was in REMOTE_TOKEN_KEYS, so the house fixture
+ * `resolvePalette(EruditeColors.dark, {...BUNDLED_THEME.dark, gold: '…'})`
+ * returned EruditeColors.dark BY REFERENCE and asserted the bundled value
+ * against the bundled value. The weaker true thing it proved instead — the
+ * palette is resolved LIVE at render, via the APPEARANCE FLIP — is kept below,
+ * because text, textDisabled and border all differ between dark and light.
  *
- * The house fixture would not merely fail to prove it, it would PASS while
- * proving nothing. `resolvePalette(EruditeColors.dark, {...BUNDLED_THEME.dark,
- * gold: '…'})` returns EruditeColors.dark BY REFERENCE: lib/theme/resolve.ts:40
- * early-returns the base when all ten remote keys match (they do — the spread is
- * the bundled theme), and even past that gate line 45 copies only
- * REMOTE_TOKEN_KEYS, so a non-remote override never lands. The suite would then
- * assert the bundled value against the bundled value and read like proof.
- *
- * So this file proves the weaker true thing instead — that the palette is
- * resolved LIVE at render rather than frozen at module load — via the APPEARANCE
- * FLIP, since text, textDisabled and border all differ between dark and light.
- * __tests__/app/t-account.test.tsx and t-stats.test.tsx carry the same shape of
- * honest negative for `gold`, `success` and `danger`.
- *
- * Note what that flip does NOT prove: that the bar reads the funnel at all. A
- * TemplateTheme is a pure superset of the palette, so useTemplateTheme() and
- * useThemeColors() return identical values for all four of these tokens and no
- * render assertion can separate them. The funnel is pinned as SOURCE, in
- * __tests__/app/t-no-color-literals.test.ts.
+ * Note what neither kind of render assertion CAN prove: that the bar reads the
+ * funnel at all. A TemplateTheme is a pure superset of the palette, so
+ * useTemplateTheme() and useThemeColors() return identical values for all four
+ * of these tokens and no render assertion can separate them. The funnel is
+ * pinned as SOURCE, in __tests__/app/t-no-color-literals.test.ts.
  */
 import React from 'react';
 import { readFileSync } from 'fs';

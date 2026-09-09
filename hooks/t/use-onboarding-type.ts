@@ -14,10 +14,24 @@ import { T_ONBOARDING_DEFAULT, type TOnboardingType } from '@/lib/onboarding/onb
  * value is guaranteed settled before /t/onboarding can mount — no new request, no
  * new gate, and no screen that swaps out mid-scroll when a second fetch lands.
  *
- * When task Э2/Э3 introduces /apps/{slug}/config, ONLY THIS FUNCTION'S BODY
- * MOVES. The union, the parser, the switch and both screens stay exactly where
- * they are. That is the entire point of routing every consumer through one hook
+ * When task Э2/Э3 introduces /apps/{slug}/config, ONLY THE BODY OF
+ * useLiveOnboardingType() MOVES — the frozen hook is a wrapper around it, and
+ * the union, the parser, the switch and both screens stay exactly where they
+ * are. That is the entire point of routing every consumer through these hooks
  * rather than letting screens read useAppTheme().onboardingType themselves.
+ *
+ * TWO HOOKS, BECAUSE THE SPLASH IS NOT A FLOW
+ * -------------------------------------------
+ * useOnboardingType() is for MOUNTED FLOWS and freezes (below). The intro gate in
+ * app/t/splash.tsx cannot use it: the splash exists precisely to be mounted
+ * BEFORE the engine settles, so its first render always sees INITIAL_STATE's
+ * T_ONBOARDING_DEFAULT and a frozen read there would pin `classic` on every
+ * launch — making `onboarding_type: none` unreachable, silently, with the token
+ * gallery cheerfully displaying the `none` that came over the wire.
+ *
+ * Reading live is safe there for the reason the freeze exists at all: there is no
+ * mounted screen underneath the splash for a late change to swap out. It samples
+ * the value once, inside its navigation effect, at the instant it leaves.
  *
  * WHY IT IS FROZEN AT FIRST RENDER
  * --------------------------------
@@ -38,7 +52,8 @@ import { T_ONBOARDING_DEFAULT, type TOnboardingType } from '@/lib/onboarding/onb
  * WHY THIS EXISTS AT ALL
  * ----------------------
  * It is not a convenience. Today it is the ONLY way to see the second onboarding
- * screen on hardware. The deployed backend serves `schema_version: 2` on every
+ * screen — or the `none` skip — on hardware. The deployed backend serves
+ * `schema_version: 2` on every
  * slug while CLIENT_THEME_SCHEMA_VERSION is still 1, so the client rejects the
  * whole envelope as `unsupported-schema` and never reads the `onboarding_type`
  * riding inside it — a pre-existing gap that belongs to the widened-token work,
@@ -75,7 +90,15 @@ export function forcedOnboardingType(): TOnboardingType | null {
   return __DEV__ ? forcedType : null;
 }
 
-export function useOnboardingType(): TOnboardingType {
+/**
+ * The value AS IT STANDS RIGHT NOW, tracking the engine instead of freezing.
+ *
+ * Its one consumer is the intro gate in app/t/splash.tsx, which runs BEFORE
+ * settlement by construction and would otherwise capture the pre-network default
+ * forever. Anything that renders an onboarding screen wants useOnboardingType()
+ * below instead.
+ */
+export function useLiveOnboardingType(): TOnboardingType {
   /**
    * The engine read is bound UNCONDITIONALLY, on its own line, BEFORE the `??`
    * chain below. Do not fold it back into one expression.
@@ -84,16 +107,20 @@ export function useOnboardingType(): TOnboardingType {
    * short-circuits the EVALUATION of its right operand — so
    * `forcedOnboardingType() ?? useAppTheme()?.onboardingType` skips a hook call
    * on exactly the renders where a pin is set. That changes the hook count
-   * between renders of the same component instance and shifts the useRef below
+   * between renders of the same component instance and shifts every hook after
    * it: "Rendered fewer hooks than expected", or silent garbage. The `?.` AFTER
    * the call is fine — it guards the property access, not the call.
    */
   const fromEngine = useAppTheme()?.onboardingType;
+  return forcedOnboardingType() ?? fromEngine ?? T_ONBOARDING_DEFAULT;
+}
+
+export function useOnboardingType(): TOnboardingType {
   // The pin sits INSIDE the freeze, deliberately. Forcing a variant does not
   // swap the screen under a mounted flow; it takes effect on the next fresh
   // mount, which the /t/settings dev reset provides by wiping the seen flag and
   // sending the developer back through the splash.
-  const live = forcedOnboardingType() ?? fromEngine ?? T_ONBOARDING_DEFAULT;
+  const live = useLiveOnboardingType();
   const frozen = useRef(live);
   return frozen.current;
 }

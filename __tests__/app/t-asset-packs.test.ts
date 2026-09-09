@@ -20,7 +20,7 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
-import { T_ONBOARDING_TYPES } from '@/lib/onboarding/onboarding-type';
+import { T_ONBOARDING_RENDERED_TYPES } from '@/lib/onboarding/onboarding-type';
 
 const ROOT = join(__dirname, '..', '..');
 const PACKS_DIR = join(ROOT, 'asset-packs');
@@ -48,11 +48,21 @@ const ALLOWED_TARGET = 'assets/t';
  * the shape that DID ship was not a legal value here. Deriving it means widening
  * lib/onboarding/onboarding-type.ts widens this automatically.
  *
+ * THE RENDERED SUBSET, NOT THE WHOLE UNION
+ * ----------------------------------------
+ * `none` is a legitimate operator choice that names the ABSENCE of a screen, so
+ * no pack can be drawn for it and `"onboarding_types": ["none"]` must stay
+ * illegal — deriving from the full union would have quietly legalised it. This
+ * mirrors the backend exactly, where OnboardingTypeEnum::constrainsPacks() answers
+ * `None => false`: the field means "packs that can render THIS onboarding", and a
+ * type with no screens constrains nothing. Filtering `none` against packs that
+ * declare classic/universal would empty the operator's pack picker outright.
+ *
  * The import is safe at the top of a filesystem test: that module is I/O-free and
  * imports nothing from React Native (its own docblock pins that), so it costs no
  * setup and cannot drag a native mock in behind it.
  */
-const ALLOWED_ONBOARDING_TYPES: readonly string[] = T_ONBOARDING_TYPES;
+const ALLOWED_ONBOARDING_TYPES: readonly string[] = T_ONBOARDING_RENDERED_TYPES;
 
 interface SlotSpec {
   w: number;

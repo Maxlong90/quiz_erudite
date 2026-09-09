@@ -16,16 +16,27 @@ import { resolveOnboardingType, type TOnboardingType } from '@/lib/onboarding/on
  *
  * WHEN schema_version BUMPS — AND WHY IT ALMOST NEVER SHOULD
  * ----------------------------------------------------------
- * It bumps ONLY for a change that would make a v1 client render something WRONG:
- * a renamed or removed token, or a changed value domain. Purely ADDITIVE optional
- * keys — `onboarding_type` is the first — never bump it.
+ * The rule: it bumps ONLY for a change that would make an old client render
+ * something WRONG — a renamed or removed token, or a changed value domain.
+ * Purely ADDITIVE optional keys — `onboarding_type` was the first — never bump
+ * it on their own.
  *
- * The asymmetry is brutal and one-directional. If the backend served
- * `schema_version: 2`, every already-installed client would take the
- * `unsupported-schema` branch below, the provider would persist NOTHING
- * (hooks/app-theme-provider.ts), and every device in the field would lose the
- * operator's palette. Store-review latency means the client cannot be rolled
- * first. An unknown key, by contrast, costs a v1 client nothing: parseTokens
+ * HISTORY. v2 (Э1) widened the served token set from ten to the full forty-five.
+ * That is a value-domain change by the letter of the rule above — a v1 client
+ * parsing the widened envelope would keep only its ten recognised keys and
+ * silently render a palette the operator never previewed — so the backend bumped
+ * the version, every already-installed client took the `unsupported-schema`
+ * branch, the provider persisted NOTHING (hooks/app-theme-provider.ts), and
+ * preset edits stopped reaching devices. The failure lived unnoticed because the
+ * fallback was silent; it is the reason the provider now warns (see the
+ * `unsupported` case there) and __tests__/lib/theme-contract-live.livetest.ts
+ * checks the real endpoint.
+ *
+ * The asymmetry is brutal and one-directional: store-review latency means the
+ * client cannot be rolled out first. If the backend someday serves
+ * `schema_version: 3`, every already-installed build degrades to its
+ * last-known-good theme and warns — loudly, once per launch — until it updates.
+ * An unknown key within a known version, by contrast, costs nothing: parseTokens
  * already iterates REMOTE_TOKEN_KEYS rather than the payload's own keys, so
  * anything it does not recognise is simply dropped.
  *
@@ -42,7 +53,7 @@ import { resolveOnboardingType, type TOnboardingType } from '@/lib/onboarding/on
  */
 
 /** The payload shape this build understands. A higher one is not applied. */
-export const CLIENT_THEME_SCHEMA_VERSION = 1;
+export const CLIENT_THEME_SCHEMA_VERSION = 2;
 
 /** bgGradient is a 3-stop gradient — exactly 3, see `asGradient`. */
 export const GRADIENT_STOPS = 3;
@@ -53,6 +64,10 @@ export const GRADIENT_STOPS = 3;
  * bytes, so reordering changes the validator without changing a colour), and it
  * is the order the token gallery renders in.
  *
+ * Widened to the full forty-five-token registry by Э1 (schema v2): the four new
+ * groups — paywall, progress, economy, splash — join the thirty palette tokens
+ * the bundled theme already carried.
+ *
  * `satisfies readonly (keyof EruditePalette)[]` is the compile-time link to the
  * bundled palette: rename or drop one of these in constants/theme.ts and this
  * file stops building, instead of silently resolving to `undefined` at runtime.
@@ -60,14 +75,49 @@ export const GRADIENT_STOPS = 3;
 export const REMOTE_TOKEN_KEYS = [
   'bgGradient',
   'bgSolid',
+  'surface',
+  'surfaceSoft',
+  'surfaceSunken',
+  'sheet',
+  'scrim',
+  'text',
+  'textMuted',
+  'textFaint',
+  'textDisabled',
+  'border',
+  'borderStrong',
+  'borderSoft',
   'accent',
   'accentSoft',
   'accentBg',
   'accentBgSoft',
   'accentBorderSoft',
+  'onAccent',
+  'success',
+  'danger',
+  'gold',
   'optIdleBg',
   'optIdleBorder',
   'optIdleText',
+  'optCorrectBg',
+  'optWrongBg',
+  'explanationBg',
+  'explanationText',
+  'subscribeBtnBg',
+  'subscribeBtnText',
+  'subscribeBtnBorder',
+  'subscribeHighlightBg',
+  'progressTrack',
+  'progressFill',
+  'tabBg',
+  'tabActiveBg',
+  'tabActiveText',
+  'tabInactiveText',
+  'coinColor',
+  'lifeColor',
+  'hintColor',
+  'splashBg',
+  'splashFg',
 ] as const satisfies readonly (keyof EruditePalette)[];
 
 export type RemoteTokenKey = (typeof REMOTE_TOKEN_KEYS)[number];
@@ -144,8 +194,8 @@ export function asGradient(value: unknown): ErudGradient | null {
 
 /**
  * One appearance map. Iterates REMOTE_TOKEN_KEYS rather than the payload's own
- * keys, so an unknown eleventh token from a forward-compatible backend is
- * dropped here and can never reach a style prop.
+ * keys, so an unknown token from a forward-compatible backend is dropped here
+ * and can never reach a style prop.
  */
 function parseTokens(raw: unknown): RemoteTokens | null {
   if (!isRecord(raw)) return null;
@@ -172,9 +222,9 @@ function parseTokens(raw: unknown): RemoteTokens | null {
  * Colours are a set, not a bag: optIdleBg and optIdleText are a contrast pair,
  * bgGradient and bgSolid must agree. Half-applying an operator's palette over
  * half the bundled one can produce white-on-white text, which is strictly worse
- * than not applying it at all. And since the backend guarantees all ten keys in
- * both maps, a missing key means the contract is already broken — the right
- * response is to keep the last-known-good theme, not to improvise a hybrid.
+ * than not applying it at all. And since the backend guarantees all forty-five
+ * keys in both maps, a missing key means the contract is already broken — the
+ * right response is to keep the last-known-good theme, not to improvise a hybrid.
  */
 export function parseRemoteTheme(raw: unknown): RemoteTheme | null {
   if (!isRecord(raw)) return null;

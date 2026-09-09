@@ -8,7 +8,7 @@ import { REMOTE_TOKEN_KEYS, type RemoteTheme, type RemoteTokens } from './contra
  * no cache, no network, first launch, airplane mode.
  *
  * DERIVED from EruditeColors, deliberately NOT a checked-in second literal map.
- * A copy here would be the THIRD transcription of the same twenty hex literals
+ * A copy here would be the THIRD transcription of the same palette literals
  * (constants/theme.ts, ColorTokenRegistry::TOKENS, and it), and any drift would
  * destroy the inertness argument at its root: the same binary would render
  * differently depending on whether the engine happened to be switched on for it.

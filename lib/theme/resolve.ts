@@ -4,11 +4,14 @@ import { BUNDLED_THEME } from './bundled';
 import { REMOTE_TOKEN_KEYS, type RemoteTheme, type RemoteTokenKey, type RemoteTokens } from './contract';
 
 /**
- * Overlays the ten remote tokens onto a full bundled palette.
+ * Overlays the remote tokens onto a full bundled palette.
  *
- * The backend serves ten of EruditePalette's ~thirty tokens; the other twenty
- * (surface, text, scrim, success, explanationBg, …) stay bundled. That is why
- * this is an overlay onto a base palette and not a construction from the payload.
+ * Since schema v2 the backend serves ALL forty-five EruditePalette tokens, so an
+ * overlay and a construction from the payload now cover the same keys. The
+ * overlay shape still earns its keep: a v1 cache record holds only ten of the
+ * forty-five, and overlaying it onto the bundled palette keeps the other
+ * thirty-five at their compiled values for the one session it takes the engine
+ * to re-earn a full body.
  */
 
 /** bgGradient is an array; everything else is a plain string. */

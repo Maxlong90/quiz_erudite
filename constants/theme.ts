@@ -95,6 +95,42 @@ export interface EruditePalette {
   optWrongBg: string;
   explanationBg: string;
   explanationText: string;
+  // The paywall group — added by the backend's Э1 widening (schema v2). The
+  // four subscribe tokens below derive from accent/onAccent there; here they
+  // are literals, byte-identical to what a preset-less app is served.
+  /** Solid CTA background on the paywall — the accent in both appearances. */
+  subscribeBtnBg: string;
+  /** CTA label — white on the accent in both appearances. */
+  subscribeBtnText: string;
+  /** CTA border — the accent at 40%. */
+  subscribeBtnBorder: string;
+  /** Featured-plan highlight wash — accentBg's ratio, per appearance. */
+  subscribeHighlightBg: string;
+  // The progress group (progress bars and tabs).
+  /** Unfilled portion of a progress bar — accentBgSoft's ratio. */
+  progressTrack: string;
+  /** Filled portion of a progress bar — the accent. */
+  progressFill: string;
+  /** Tab strip well — surfaceSunken in both appearances. */
+  tabBg: string;
+  /** Selected tab background — the accent. */
+  tabActiveBg: string;
+  /** Selected tab label — onAccent. */
+  tabActiveText: string;
+  /** Unselected tab label — the ink at 80% in both appearances. */
+  tabInactiveText: string;
+  // The economy group (coins, lives, hints).
+  /** Coin icon colour — gold in both appearances. */
+  coinColor: string;
+  /** Life icon colour — danger, darkened in light for contrast. */
+  lifeColor: string;
+  /** Hint icon colour — the accent. */
+  hintColor: string;
+  // The splash group.
+  /** Splash backdrop — gradient stop 0. */
+  splashBg: string;
+  /** Splash wordmark — the accent. */
+  splashFg: string;
 }
 
 export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
@@ -105,8 +141,13 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     surfaceSoft: '#ffffff0d',
     surfaceSunken: '#0e0e2a',
     sheet: '#1f1949',
-    scrim: 'rgba(0,0,0,0.55)',
-    text: '#fff',
+    // #0000008c is rgba(0,0,0,0.55) as 8-digit hex — the backend registry's
+    // normalised form, byte-identical to what the wire serves. The hex form is
+    // what makes overriddenKeys see an untouched preset as untouched.
+    scrim: '#0000008c',
+    // '#ffffff' is the normalised form of the '#fff' the screens were seeded
+    // from; identical pixels, byte-identical to the wire.
+    text: '#ffffff',
     textMuted: '#ffffffcc',
     textFaint: '#ffffff99',
     textDisabled: '#ffffff66',
@@ -118,7 +159,7 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     accentBg: '#7c5cff33',
     accentBgSoft: '#7c5cff22',
     accentBorderSoft: '#7c5cff66',
-    onAccent: '#fff',
+    onAccent: '#ffffff',
     success: '#22c55e',
     danger: '#ef4444',
     gold: '#ffd23a',
@@ -131,6 +172,25 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     optWrongBg: QuizColors.wrongLight,
     explanationBg: '#0e1a3a',
     explanationText: '#ffffffd9',
+    // The paywall, progress, economy and splash groups (Э1, schema v2).
+    // Values are byte-for-byte what a preset-less app is served — see the
+    // backend's ColorTokenRegistry::TOKENS, whose defaults were transcribed
+    // from this file and which the parity test pins against it.
+    subscribeBtnBg: '#7c5cff',
+    subscribeBtnText: '#ffffff',
+    subscribeBtnBorder: '#7c5cff66',
+    subscribeHighlightBg: '#7c5cff33',
+    progressTrack: '#7c5cff22',
+    progressFill: '#7c5cff',
+    tabBg: '#0e0e2a',
+    tabActiveBg: '#7c5cff',
+    tabActiveText: '#ffffff',
+    tabInactiveText: '#ffffffcc',
+    coinColor: '#ffd23a',
+    lifeColor: '#ef4444',
+    hintColor: '#7c5cff',
+    splashBg: '#1a1a47',
+    splashFg: '#7c5cff',
   },
   light: {
     bgGradient: ['#f4f2fb', '#ece7fb', '#f4f2fb'],
@@ -139,7 +199,8 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     surfaceSoft: '#7c5cff0d',
     surfaceSunken: '#eae6f7',
     sheet: '#ffffff',
-    scrim: 'rgba(20,16,46,0.35)',
+    // #14102e59 is rgba(20,16,46,0.35) as 8-digit hex — see the dark entry.
+    scrim: '#14102e59',
     text: '#1c1740',
     textMuted: '#463f6b',
     textFaint: '#6b6390',
@@ -152,7 +213,7 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     accentBg: '#7c5cff1a',
     accentBgSoft: '#7c5cff14',
     accentBorderSoft: '#7c5cff66',
-    onAccent: '#fff',
+    onAccent: '#ffffff',
     success: '#16a34a',
     danger: '#dc2626',
     gold: '#ffd23a',
@@ -165,6 +226,22 @@ export const EruditeColors: { dark: EruditePalette; light: EruditePalette } = {
     optWrongBg: QuizColors.wrongLight,
     explanationBg: '#f0f9ff',
     explanationText: '#1e40af',
+    // The paywall, progress, economy and splash groups (Э1, schema v2).
+    subscribeBtnBg: '#7c5cff',
+    subscribeBtnText: '#ffffff',
+    subscribeBtnBorder: '#7c5cff66',
+    subscribeHighlightBg: '#7c5cff1a',
+    progressTrack: '#7c5cff14',
+    progressFill: '#7c5cff',
+    tabBg: '#eae6f7',
+    tabActiveBg: '#7c5cff',
+    tabActiveText: '#ffffff',
+    tabInactiveText: '#1c1740cc',
+    coinColor: '#ffd23a',
+    lifeColor: '#dc2626',
+    hintColor: '#7c5cff',
+    splashBg: '#f4f2fb',
+    splashFg: '#7c5cff',
   },
 };
 

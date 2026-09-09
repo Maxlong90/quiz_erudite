@@ -215,6 +215,11 @@ describe('the onboarding variant row', () => {
   });
 
   it('cycles the pin through the whole union and back to auto', () => {
+    // The expected sequence is SPELLED OUT rather than derived from
+    // T_ONBOARDING_TYPES on purpose. The implementation's FORCE_CYCLE is itself
+    // derived from that union, so an expectation built the same way would be a
+    // tautology — green for whatever order the implementation happened to
+    // produce, including one that skipped a member outright.
     renderGallery();
     const button = () => screen.getByTestId('theme-force-onboarding');
     expect(button()).toHaveTextContent('force onboarding: auto');
@@ -226,6 +231,12 @@ describe('the onboarding variant row', () => {
     fireEvent.press(button());
     expect(button()).toHaveTextContent('force onboarding: universal');
     expect(forcedOnboardingType()).toBe('universal');
+
+    // `none` draws no screen, so the gallery row is the only place a developer
+    // can confirm the pin took — hence it must be reachable from this control.
+    fireEvent.press(button());
+    expect(button()).toHaveTextContent('force onboarding: none');
+    expect(forcedOnboardingType()).toBe('none');
 
     // Releasing is one more press, not a second control.
     fireEvent.press(button());

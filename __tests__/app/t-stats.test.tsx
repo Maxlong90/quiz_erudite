@@ -127,11 +127,19 @@ import { resolvePalette } from '@/lib/theme/resolve';
 
 // --- fixtures ---------------------------------------------------------------
 
-/** An operator preset that moves the accent, built through the real overlay. */
+/**
+ * An operator preset that moves the whole tier scale — accent, success and
+ * danger — built through the real overlay. The three are all on the wire since
+ * Э1 widened REMOTE_TOKEN_KEYS, so one preset now moves every band.
+ */
 const PRESET_ACCENT = '#ff0055';
+const PRESET_SUCCESS = '#00aa00';
+const PRESET_DANGER = '#aa0000';
 const OVERRIDDEN_DARK = resolvePalette(EruditeColors.dark, {
   ...BUNDLED_THEME.dark,
   accent: PRESET_ACCENT,
+  success: PRESET_SUCCESS,
+  danger: PRESET_DANGER,
 });
 
 function preset() {
@@ -204,17 +212,17 @@ describe('the accuracy scale reads the template tier roles', () => {
     expect(colorOf(await renderReady('50%'), '50%')).toBe(PRESET_ACCENT);
   });
 
-  it('leaves the outer bands bundled, because success and danger are not settable yet', async () => {
-    // Only ten tokens are in REMOTE_TOKEN_KEYS today and success/danger are not
-    // among them, so a preset moves the middle band alone. The asymmetry is
-    // expected until Э1 widens the token set — pinned here so that widening shows
-    // up as a deliberate change to this test rather than a surprise.
+  it('moves the outer bands with an operator preset', async () => {
+    // Since Э1 widened REMOTE_TOKEN_KEYS, success and danger are on the wire and
+    // a preset moves the whole traffic-light scale — this used to be pinned as
+    // "the outer bands stay bundled", and the widening turned that pin into this
+    // repaint assertion.
     mockThemeValue = preset();
 
-    expect(colorOf(await renderReady('85%'), '85%')).toBe(EruditeColors.dark.success);
+    expect(colorOf(await renderReady('85%'), '85%')).toBe(PRESET_SUCCESS);
 
     mockStats = statsWith(20);
-    expect(colorOf(await renderReady('20%'), '20%')).toBe(EruditeColors.dark.danger);
+    expect(colorOf(await renderReady('20%'), '20%')).toBe(PRESET_DANGER);
   });
 
   it('follows the appearance preference', async () => {

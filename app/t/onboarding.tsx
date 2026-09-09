@@ -8,7 +8,7 @@ import { revenueCatEnabled } from '@/lib/revenuecat';
 import { useOnboarding } from '@/hooks/use-onboarding';
 import { useOnboardingType } from '@/hooks/t/use-onboarding-type';
 import { useTemplateCopy } from '@/hooks/t/use-template-copy';
-import { T_ONBOARDING_DEFAULT } from '@/lib/onboarding/onboarding-type';
+import { T_ONBOARDING_DEFAULT, showsOnboarding } from '@/lib/onboarding/onboarding-type';
 
 /**
  * The configurable template's onboarding HOST.
@@ -84,8 +84,20 @@ export default function TTemplateOnboarding() {
    * change. Never throw here: docs/configurable-template.md records the rule as
    * `reject a set you cannot half-apply; degrade a scalar you can`, and a
    * scalar naming a screen degrades to the screen that ships.
+   *
+   * showsOnboarding() NARROWS the lookup rather than redirecting. Reaching this
+   * screen at all on a `none` build means the intro gate was bypassed — a cold
+   * deep link straight to /t/onboarding is the only way — and on that very path
+   * useOnboardingType() is frozen at the pre-network default and returns
+   * `classic` anyway, so a redirect would be INERT in precisely the scenario it
+   * would be written for. It would also cost this screen the property that
+   * leave() is its only exit, which two assertions lean on: the three-entry-point
+   * pin for /t/paywall in __tests__/app/t-routes.test.ts and the "markSeen()
+   * before navigating" proof. Degrading in place is the same rule as above.
    */
-  const Variant = T_ONBOARDING_VARIANTS[type] ?? T_ONBOARDING_VARIANTS[T_ONBOARDING_DEFAULT];
+  const Variant = showsOnboarding(type)
+    ? (T_ONBOARDING_VARIANTS[type] ?? T_ONBOARDING_VARIANTS[T_ONBOARDING_DEFAULT])
+    : T_ONBOARDING_VARIANTS[T_ONBOARDING_DEFAULT];
 
   const isPremiumSlide = page === SLIDE_COUNT - 1;
   // The closing slide only sells anything where a store can actually charge.

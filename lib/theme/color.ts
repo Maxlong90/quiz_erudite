@@ -6,12 +6,13 @@
  * mirrors that file's most important property: everything here is TOTAL. An
  * input this module does not understand (a CSS function like
  * `rgba(0,0,0,0.55)`, an empty string, a named colour) is handed back
- * UNCHANGED rather than rejected or nulled. The bundled palette really does mix
- * forms — `scrim` is an `rgba()` literal while every other entry is hex — and
- * these values go straight into React Native style props, where an unparseable
- * colour THROWS IN NATIVE CODE on Android ("Unable to parse color"). A theme
- * helper that can hard-crash the app it themes is not fail-open. Callers that
- * need to branch on shape ask `isHexColor` first.
+ * UNCHANGED rather than rejected or nulled. Since Э1 the whole bundled palette
+ * is hex — `scrim` was normalised from its `rgba()` literal to the 8-digit form
+ * the wire serves — but totals keep the property alive for any value that slips
+ * past the parser. These strings go straight into React Native style props,
+ * where an unparseable colour THROWS IN NATIVE CODE on Android ("Unable to
+ * parse color"). A theme helper that can hard-crash the app it themes is not
+ * fail-open. Callers that need to branch on shape ask `isHexColor` first.
  *
  * Nothing here throws and nothing here logs.
  */

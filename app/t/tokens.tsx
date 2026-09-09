@@ -80,9 +80,12 @@ function sourceColor(source: AppThemeValue['source'], colors: EruditePalette): s
 }
 
 /**
- * auto -> classic -> universal -> auto, derived from the shipped union so a third
- * variant needs no edit here. `null` IS a member: releasing the pin has to be one
- * more press rather than a second control.
+ * auto -> classic -> universal -> none -> auto, derived from the shipped union so
+ * a further type needs no edit here. `null` IS a member: releasing the pin has to
+ * be one more press rather than a second control.
+ *
+ * `none` joined this cycle for FREE when the union grew — which is the property
+ * this comment claimed before it had ever been exercised, now demonstrated.
  */
 const FORCE_CYCLE: readonly (TOnboardingType | null)[] = [...T_ONBOARDING_TYPES, null];
 
@@ -284,6 +287,13 @@ export default function TThemeTokensScreen() {
          * nothing and reading it as a broken override. The destructive wipe is
          * already owned and tested at /t/settings; the walk is: pin here, back,
          * /t/settings -> dev reset, splash, onboarding.
+         *
+         * PINNING `none` IS ALSO HOW THE SKIP IS SEEN ON HARDWARE, and it reads
+         * as the opposite of the trap above: walk it and the splash lands on /t
+         * with NO intro, which is the CORRECT result rather than a dead override.
+         * Because the two outcomes look identical from /t, a `none` run only
+         * means something next to a `classic` control run that DID show the
+         * intro — the meta row below is the value actually worth reading.
          *
          * `disabled={false}` rather than `busy`: this is local state with nothing
          * to do with an in-flight refetch.

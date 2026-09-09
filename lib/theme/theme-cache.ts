@@ -72,6 +72,14 @@ function isUsable(record: unknown, appSlug: string): record is CachedThemeRecord
   // Re-validate the stored payload through the same parser the network uses: a
   // blob edited or truncated on disk must not reach a style prop either.
   //
+  // This is also the migration path for records written by builds that predate
+  // schema v2: a v1 record passes the version gate above (1 <= 2) but its
+  // ten-token theme fails the re-parse for the thirty-five keys it lacks, so the
+  // record is dropped and the device falls back to the bundled tier for one
+  // session — the same self-healing a RECORD_FORMAT bump would buy WITHOUT its
+  // offline cost (see CachedThemeRecord.onboardingType below). Deliberately not
+  // a format bump.
+  //
   // `onboardingType` is deliberately NOT checked here. Usability is about the
   // palette: rejecting the record over one bad scalar would delete the operator's
   // colours to fix a screen choice that has a safe default. A corrupt value is

@@ -34,7 +34,11 @@ import type {
   TOnboardingStep,
   TOnboardingVariantProps,
 } from '@/components/t/onboarding/contract';
-import { T_ONBOARDING_TYPES } from '@/lib/onboarding/onboarding-type';
+import {
+  T_ONBOARDING_RENDERED_TYPES,
+  T_ONBOARDING_TYPES,
+  showsOnboarding,
+} from '@/lib/onboarding/onboarding-type';
 
 const ROOT = join(__dirname, '..', '..');
 const VARIANT_DIR = join(ROOT, 'components', 't', 'onboarding');
@@ -80,11 +84,35 @@ function props(overrides: Partial<TOnboardingVariantProps> = {}): TOnboardingVar
 
 const VARIANTS = Object.entries(T_ONBOARDING_VARIANTS);
 
+/** The union members that draw nothing — `none` today, by construction. */
+const SKIPPING_TYPES = T_ONBOARDING_TYPES.filter((type) => !showsOnboarding(type));
+
 describe('the onboarding variant registry', () => {
-  it('answers for every onboarding type the union admits', () => {
+  it('answers for every onboarding type that draws a screen', () => {
     // A Record already makes a missing key a compile error, but there is no
     // `tsc` npm script in this repo, so this is the belt that actually runs.
-    expect(Object.keys(T_ONBOARDING_VARIANTS).sort()).toEqual([...T_ONBOARDING_TYPES].sort());
+    expect(Object.keys(T_ONBOARDING_VARIANTS).sort()).toEqual(
+      [...T_ONBOARDING_RENDERED_TYPES].sort(),
+    );
+  });
+
+  it('has no entry for a type that draws nothing', () => {
+    // An entry for `none` would not "add support" for it — it would hand the
+    // host something to render and thereby overrule the intro gate's skip.
+    expect(SKIPPING_TYPES).not.toHaveLength(0); // anti-vacuity
+    SKIPPING_TYPES.forEach((type) => {
+      expect(T_ONBOARDING_VARIANTS).not.toHaveProperty(type);
+    });
+  });
+
+  it('accounts for every union member exactly once, as drawn or as skipped', () => {
+    // THIS is what replaces the old whole-union equality. Comparing the keys
+    // against the rendered subset alone would stay green for a future type that
+    // is neither registered NOR marked as skipping — one that fell out of both
+    // halves and would reach the host's `??` with nobody noticing.
+    expect([...Object.keys(T_ONBOARDING_VARIANTS), ...SKIPPING_TYPES].sort()).toEqual(
+      [...T_ONBOARDING_TYPES].sort(),
+    );
   });
 
   it.each(VARIANTS)('%s resolves to a component', (_type, Variant) => {

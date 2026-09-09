@@ -34,6 +34,7 @@ import { AppThemeProvider } from '@/hooks/app-theme-provider';
 import {
   forcedOnboardingType,
   setForcedOnboardingType,
+  useLiveOnboardingType,
   useOnboardingType,
 } from '@/hooks/t/use-onboarding-type';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -153,6 +154,83 @@ describe('under the configurable template', () => {
     const { result } = renderHook(() => useOnboardingType(), { wrapper: gatedWrapper });
 
     await waitFor(() => expect(result.current).toBe(T_ONBOARDING_DEFAULT));
+  });
+
+  it('surfaces none when the backend selects it', async () => {
+    // `none` rides the wire like any other member of the union — the hook does
+    // not treat it specially. What acts on it is the intro gate.
+    mockGet.mockResolvedValueOnce(themeResponse('none'));
+    const { result } = renderHook(() => useOnboardingType(), { wrapper: gatedWrapper });
+
+    await waitFor(() => expect(result.current).toBe('none'));
+  });
+});
+
+/**
+ * The LIVE hook, and why it has to exist separately.
+ *
+ * app/t/splash.tsx is mounted BEFORE the engine settles — holding that window
+ * open is the screen's whole job — so it is the one consumer that cannot use the
+ * frozen hook. These cases are deliberately UNGATED (no SplashGate) because that
+ * ungated sequence is exactly what the splash performs.
+ */
+describe('the live hook', () => {
+  beforeEach(() => {
+    mockIsTTemplateBuild = true;
+  });
+
+  it('tracks the engine where the frozen hook does not', async () => {
+    // THE case this whole split exists for, and the reason both hooks are
+    // rendered side by side in ONE renderHook: they see an identical sequence of
+    // renders, so nothing but the freeze can explain a difference between them.
+    //
+    // Point the frozen hook at the splash and it captures the pre-network
+    // default on every launch — `none` would be unreachable forever, silently,
+    // with the token gallery happily displaying the `none` that arrived.
+    mockGet.mockResolvedValueOnce(themeResponse('none'));
+
+    const { result } = renderHook(
+      () => ({ live: useLiveOnboardingType(), frozen: useOnboardingType() }),
+      { wrapper },
+    );
+
+    // Both start on the pre-network default: this is the mount the splash does.
+    expect(result.current.live).toBe(T_ONBOARDING_DEFAULT);
+    expect(result.current.frozen).toBe(T_ONBOARDING_DEFAULT);
+
+    await waitFor(() => expect(result.current.live).toBe('none'));
+    expect(result.current.frozen).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it('falls back to the default before anything has settled', () => {
+    // Fail-open is unchanged by the split: the splash's hard cap can fire before
+    // the engine answers, and a `none` build then shows the intro for exactly one
+    // launch rather than stalling on the splash.
+    const { result } = renderHook(() => useLiveOnboardingType(), { wrapper });
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it('returns the default with NO provider at all', () => {
+    const { result } = renderHook(() => useLiveOnboardingType());
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
+  });
+
+  it('honours the dev pin, which is the only way to reach none on hardware', () => {
+    // The splash must see pins too. Reading useAppTheme()?.onboardingType
+    // directly there would be the obvious shortcut and would lose exactly this —
+    // and with schema_version 2 rejected client-side, the pin is currently the
+    // ONLY route to a non-default type on a device.
+    setForcedOnboardingType('none');
+    const { result } = renderHook(() => useLiveOnboardingType());
+    expect(result.current).toBe('none');
+  });
+
+  it('is inert where __DEV__ is false', () => {
+    setForcedOnboardingType('none');
+    (global as unknown as { __DEV__: boolean }).__DEV__ = false;
+
+    const { result } = renderHook(() => useLiveOnboardingType());
+    expect(result.current).toBe(T_ONBOARDING_DEFAULT);
   });
 });
 

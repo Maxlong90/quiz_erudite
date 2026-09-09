@@ -22,13 +22,21 @@
  * must never show a pitch, least of all to a store reviewer running with
  * billing off.
  *
- * BOTH ARE PROVEN AGAINST EVERY VARIANT THE UNION ADMITS. Э8-B-2 wrapped the
- * cases in describe.each(T_ONBOARDING_TYPES): the flow is the host's, but it is
+ * BOTH ARE PROVEN AGAINST EVERY VARIANT THAT DRAWS A SCREEN. Э8-B-2 wrapped the
+ * cases in a describe.each over the variants: the flow is the host's, but it is
  * only worth anything if it holds through whichever screen the backend selects,
  * and a suite pinned to the default would have gone on passing while `universal`
  * quietly failed to report a press. Which variant the registry PICKS is a
  * different question, pinned next door in
  * __tests__/app/t-onboarding-variants.test.tsx.
+ *
+ * THE SET IS T_ONBOARDING_RENDERED_TYPES, NOT THE WHOLE UNION. `none` names the
+ * ABSENCE of a screen and never reaches this host in production — the intro gate
+ * in app/t/splash.tsx routes home rather than entering the stack. Feeding it here
+ * would degrade to `classic` and yield green cases labelled `t onboarding (none)`
+ * that prove nothing about `none` while advertising that it is covered. What the
+ * host does when handed it anyway is a one-case concern, pinned next door with
+ * the other lookup branches.
  */
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -99,7 +107,7 @@ import TTemplateOnboarding from '@/app/t/onboarding';
 import { T_ASSET_SLOTS, type TAssetSlot } from '@/constants/t/asset-slots';
 import {
   T_ONBOARDING_DEFAULT,
-  T_ONBOARDING_TYPES,
+  T_ONBOARDING_RENDERED_TYPES,
   type TOnboardingType,
 } from '@/lib/onboarding/onboarding-type';
 
@@ -130,7 +138,7 @@ function advanceToPremiumSlide(getByTestId: (id: string) => unknown) {
   }
 }
 
-describe.each(T_ONBOARDING_TYPES)('t onboarding (%s)', (type) => {
+describe.each(T_ONBOARDING_RENDERED_TYPES)('t onboarding (%s)', (type) => {
   beforeEach(() => {
     mockOnboardingType = type;
   });

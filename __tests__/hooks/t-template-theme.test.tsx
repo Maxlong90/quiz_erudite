@@ -36,6 +36,7 @@ import { deriveTemplateTheme, useTemplateTheme } from '@/hooks/t/use-template-th
 import { ThemePrefProvider, useThemePref } from '@/hooks/use-theme-pref';
 import { BUNDLED_THEME } from '@/lib/theme/bundled';
 import { resolvePalette } from '@/lib/theme/resolve';
+import { SCHEMA_VERSION_V2 } from '@/__tests__/fixtures/remote-theme-v2';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -66,24 +67,25 @@ describe('the derived tier scale', () => {
 
   it('uses the accent for the middle band rather than gold', () => {
     // The ported scale was #22c55e / #f59e0b / #ef4444 and the palette has no
-    // amber. gold is illegible on the light backdrop and is not operator-
-    // settable; accent is both. Pinned so the choice is not quietly undone.
+    // amber. gold is illegible on the light backdrop; accent is legible on both.
+    // Pinned so the choice is not quietly undone.
     const light = deriveTemplateTheme(EruditeColors.light);
     expect(light.tierMid).toBe(EruditeColors.light.accent);
     expect(light.tierMid).not.toBe(EruditeColors.light.gold);
   });
 
-  it('leaves all thirty palette tokens exactly as they were', () => {
+  it('leaves every palette token exactly as it was', () => {
     const theme = deriveTemplateTheme(EruditeColors.dark);
     for (const key of Object.keys(EruditeColors.dark) as (keyof EruditePalette)[]) {
       expect({ key, value: theme[key] }).toEqual({ key, value: EruditeColors.dark[key] });
     }
   });
 
-  it('passes scrim through as the rgba() literal it is', () => {
-    // scrim is an rgba() string in BOTH appearances while every other token is
-    // hex. lib/theme/color.ts is total precisely so that mix is safe; nothing
-    // here may "normalise" it, since an unparseable colour throws in native code.
+  it('passes scrim through as the wire-normalised 8-digit hex', () => {
+    // scrim was an rgba() literal until Э1; it is now 8-digit hex in BOTH
+    // appearances, byte-identical to what the wire serves. Nothing here may
+    // rewrite it — an unparseable colour throws in native code, and the bundled
+    // value must equal the wire's so an untouched preset reads as untouched.
     expect(deriveTemplateTheme(EruditeColors.dark).scrim).toBe(EruditeColors.dark.scrim);
     expect(deriveTemplateTheme(EruditeColors.light).scrim).toBe(EruditeColors.light.scrim);
   });
@@ -158,16 +160,37 @@ describe('under an operator preset', () => {
       status: 200,
       headers: { etag: '"v1"' },
       data: {
-        schema_version: 1,
+        schema_version: SCHEMA_VERSION_V2,
         theme: { ...BUNDLED_THEME, dark: { ...BUNDLED_THEME.dark, accent: '#ff0055' } },
       },
     });
 
     const { result } = renderHook(() => useTemplateTheme(), { wrapper });
     await waitFor(() => expect(result.current.tierMid).toBe('#ff0055'));
-    // success and danger are not operator-settable yet, so the outer bands stay
-    // bundled — the asymmetry is expected until Э1 widens REMOTE_TOKEN_KEYS.
     expect(result.current.tierHigh).toBe(EruditeColors.dark.success);
     expect(result.current.tierLow).toBe(EruditeColors.dark.danger);
+  });
+
+  it('repaints the outer bands when the backend moves success and danger', async () => {
+    // The Э1 widening put success and danger on the wire, so a preset now moves
+    // the whole traffic-light scale, not just the middle band. This is the
+    // assertion the pre-widening suite pinned as "not settable yet".
+    mockIsTTemplateBuild = true;
+    mockGet.mockResolvedValueOnce({
+      status: 200,
+      headers: { etag: '"v1"' },
+      data: {
+        schema_version: SCHEMA_VERSION_V2,
+        theme: {
+          ...BUNDLED_THEME,
+          dark: { ...BUNDLED_THEME.dark, success: '#00aa00', danger: '#aa0000' },
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useTemplateTheme(), { wrapper });
+    await waitFor(() => expect(result.current.tierHigh).toBe('#00aa00'));
+    expect(result.current.tierLow).toBe('#aa0000');
+    expect(result.current.tierMid).toBe(EruditeColors.dark.accent);
   });
 });

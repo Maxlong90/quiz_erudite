@@ -19,35 +19,12 @@ import {
   parseRemoteTheme,
   parseThemeEnvelope,
 } from '@/lib/theme/contract';
-
-/** A byte-for-byte copy of what the live endpoint serves for test-quiz. */
-function validTokens(): Record<string, unknown> {
-  return {
-    bgGradient: ['#1a1a47', '#2d1f5e', '#1a1a47'],
-    bgSolid: '#1a1a47',
-    accent: '#7c5cff',
-    accentSoft: '#a78bff',
-    accentBg: '#7c5cff33',
-    accentBgSoft: '#7c5cff22',
-    accentBorderSoft: '#7c5cff66',
-    optIdleBg: '#e5e7eb',
-    optIdleBorder: '#d1d5db',
-    optIdleText: '#1c1740',
-  };
-}
-
-function validTheme(): Record<string, unknown> {
-  return {
-    name: 'test-quiz 1',
-    supports_dark: true,
-    light: validTokens(),
-    dark: validTokens(),
-  };
-}
-
-function envelope(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return { schema_version: 1, theme: validTheme(), ...overrides };
-}
+import {
+  SCHEMA_VERSION_V2,
+  envelopeV2 as envelope,
+  validThemeV2 as validTheme,
+  validTokensV2 as validTokens,
+} from '@/__tests__/fixtures/remote-theme-v2';
 
 describe('isColorValue', () => {
   it.each(['#fff', '#ffff', '#7c5cff', '#7c5cff33', '#FFFFFF'])('accepts %s', (value) => {
@@ -103,7 +80,7 @@ describe('parseThemeEnvelope', () => {
     const result = parseThemeEnvelope(envelope());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(SCHEMA_VERSION_V2);
     expect(result.theme.name).toBe('test-quiz 1');
     expect(result.theme.supports_dark).toBe(true);
     expect(result.theme.dark.bgGradient).toEqual(['#1a1a47', '#2d1f5e', '#1a1a47']);
@@ -128,9 +105,9 @@ describe('parseThemeEnvelope', () => {
     }
   });
 
-  it('ignores an unknown eleventh token instead of rejecting it', () => {
-    // Forward-compatible WITHIN schema 1: a token this build does not know about
-    // is dropped at the parser and can never reach a style prop.
+  it('ignores an unknown token instead of rejecting it', () => {
+    // Forward-compatible WITHIN a schema version: a token this build does not
+    // know about is dropped at the parser and can never reach a style prop.
     const light = { ...validTokens(), someFutureToken: '#abcdef' };
     const result = parseThemeEnvelope(envelope({ theme: { ...validTheme(), light } }));
     expect(result.ok).toBe(true);
@@ -146,7 +123,7 @@ describe('parseThemeEnvelope', () => {
     const light = validTokens();
     delete light[key];
     const result = parseThemeEnvelope(envelope({ theme: { ...validTheme(), light } }));
-    expect(result).toEqual({ ok: false, reason: 'malformed', schemaVersion: 1 });
+    expect(result).toEqual({ ok: false, reason: 'malformed', schemaVersion: SCHEMA_VERSION_V2 });
   });
 
   it('rejects a non-string token', () => {
@@ -177,10 +154,10 @@ describe('parseThemeEnvelope', () => {
   });
 
   it('reports a newer schema as unsupported, with the version', () => {
-    expect(parseThemeEnvelope(envelope({ schema_version: 2 }))).toEqual({
+    expect(parseThemeEnvelope(envelope({ schema_version: 3 }))).toEqual({
       ok: false,
       reason: 'unsupported-schema',
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
   });
 
@@ -221,20 +198,24 @@ describe('parseThemeEnvelope', () => {
     },
   );
 
-  it('pins the client schema version — an ADDITIVE key must never bump it', () => {
+  it('pins the client schema version against the backend registry', () => {
     // This is a one-directional trap, which is why it is pinned rather than
-    // merely documented. If the backend ever served schema_version 2 for a purely
-    // additive key like onboarding_type, every ALREADY-INSTALLED client would take
-    // the unsupported-schema branch, the provider would persist nothing, and every
-    // device in the field would lose the operator's palette. Store-review latency
-    // means the client cannot be rolled out first to absorb it.
+    // merely documented: if the backend serves a version this build does not
+    // understand, every ALREADY-INSTALLED client takes the unsupported-schema
+    // branch, the provider persists nothing, and every device in the field loses
+    // the operator's palette until the app updates. Store-review latency means
+    // the client cannot be rolled out first to absorb it.
     //
-    // The version bumps ONLY for a change that would make a v1 client render
-    // something WRONG: a renamed or removed token, or a changed value domain.
-    // Adding a key is safe by construction — parseTokens iterates
+    // v2 is the Э1 widening — the backend added the paywall/progress/economy/
+    // splash groups, which a ten-token client would have half-applied, so the
+    // bump was correct and this build was updated in step. The rule for v3
+    // stands: the version moves ONLY for a change that would make an installed
+    // client render something WRONG — a renamed or removed token, or a changed
+    // value domain. Adding a key is safe by construction — parseTokens iterates
     // REMOTE_TOKEN_KEYS rather than the payload's own keys, as pinned above by
-    // 'ignores an unknown eleventh token'.
-    expect(CLIENT_THEME_SCHEMA_VERSION).toBe(1);
+    // 'ignores an unknown token'. The live contract is re-checked on demand by
+    // __tests__/lib/theme-contract-live.livetest.ts.
+    expect(CLIENT_THEME_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V2);
   });
 });
 
@@ -281,7 +262,7 @@ describe('onboarding_type', () => {
   it('is not resolved onto a malformed envelope', () => {
     // Read only AFTER the theme parses, so a failure branch carries no type.
     const result = parseThemeEnvelope(envelope({ onboarding_type: 'universal', theme: 'nope' }));
-    expect(result).toEqual({ ok: false, reason: 'malformed', schemaVersion: 1 });
+    expect(result).toEqual({ ok: false, reason: 'malformed', schemaVersion: SCHEMA_VERSION_V2 });
   });
 });
 

@@ -88,11 +88,19 @@ import { resolvePalette } from '@/lib/theme/resolve';
 
 // --- fixtures ---------------------------------------------------------------
 
-/** An operator preset that moves the accent, built through the real overlay. */
+/**
+ * An operator preset that moves the whole tier scale — accent, success and
+ * danger — built through the real overlay. The three are all on the wire since
+ * Э1 widened REMOTE_TOKEN_KEYS, so one preset now moves every band.
+ */
 const PRESET_ACCENT = '#ff0055';
+const PRESET_SUCCESS = '#00aa00';
+const PRESET_DANGER = '#aa0000';
 const OVERRIDDEN_DARK = resolvePalette(EruditeColors.dark, {
   ...BUNDLED_THEME.dark,
   accent: PRESET_ACCENT,
+  success: PRESET_SUCCESS,
+  danger: PRESET_DANGER,
 });
 
 /** score/total pairs that land in each band: >=80, 40..79, <40. */
@@ -143,19 +151,19 @@ describe('the score scale reads the template tier roles', () => {
     expect(colorOf(screen, '5')).toBe(PRESET_ACCENT);
   });
 
-  it('leaves the outer bands bundled, because success and danger are not settable yet', () => {
-    // Only ten tokens are in REMOTE_TOKEN_KEYS today and success/danger are not
-    // among them, so a preset moves the middle band alone. The asymmetry is
-    // expected until Э1 widens the token set — pinned here so that widening
-    // shows up as a deliberate change to this test rather than a surprise.
+  it('moves the outer bands with an operator preset', () => {
+    // Since Э1 widened REMOTE_TOKEN_KEYS, success and danger are on the wire and
+    // a preset moves the whole traffic-light scale — this used to be pinned as
+    // "the outer bands stay bundled", and the widening turned that pin into this
+    // repaint assertion.
     mockThemeValue = { palettes: { dark: OVERRIDDEN_DARK, light: EruditeColors.light } };
 
     const high = render(<ResultsScreen />);
-    expect(colorOf(high, '90%')).toBe(EruditeColors.dark.success);
+    expect(colorOf(high, '90%')).toBe(PRESET_SUCCESS);
 
     mockParams = { ...mockParams, score: '2' };
     const low = render(<ResultsScreen />);
-    expect(colorOf(low, '20%')).toBe(EruditeColors.dark.danger);
+    expect(colorOf(low, '20%')).toBe(PRESET_DANGER);
   });
 
   it('follows the appearance preference', () => {

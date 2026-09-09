@@ -75,7 +75,7 @@ import TTemplateOnboarding from '@/app/t/onboarding';
 import { setForcedOnboardingType } from '@/hooks/t/use-onboarding-type';
 import {
   T_ONBOARDING_DEFAULT,
-  T_ONBOARDING_TYPES,
+  T_ONBOARDING_RENDERED_TYPES,
   type TOnboardingType,
 } from '@/lib/onboarding/onboarding-type';
 
@@ -93,24 +93,45 @@ function marker(type: TOnboardingType): string {
 
 describe('the host renders the variant the backend selected', () => {
   it('ships more than one variant to choose between', () => {
-    // Anti-vacuity, and it is the negative half below that needs it: with a
-    // union of one there is no "other" marker to be absent, and every case in
-    // this file would pass for a host that ignored the data entirely.
-    expect(T_ONBOARDING_TYPES.length).toBeGreaterThanOrEqual(2);
+    // Anti-vacuity, and it is the negative half below that needs it: with one
+    // DRAWING type there is no "other" marker to be absent, and every case in
+    // this file would pass for a host that ignored the data entirely. Counting
+    // the RENDERED subset rather than the whole union is what keeps that true —
+    // a union of ['classic', 'none'] satisfies `>= 2` while offering nothing to
+    // choose between.
+    expect(T_ONBOARDING_RENDERED_TYPES.length).toBeGreaterThanOrEqual(2);
   });
 
   // One %s only: it.each hands a single argument per row, and printf
   // substitution is positional — a second %s would print literally.
-  it.each(T_ONBOARDING_TYPES)('renders %s and no other variant', (type) => {
+  it.each(T_ONBOARDING_RENDERED_TYPES)('renders %s and no other variant', (type) => {
     mockThemeValue = { onboardingType: type };
     const { getByTestId, queryByTestId } = render(<TTemplateOnboarding />);
 
     expect(getByTestId(marker(type))).toBeTruthy();
     // The negative half is not decoration: a host that rendered BOTH variants
     // stacked would satisfy the positive assertion on every type in the union.
-    T_ONBOARDING_TYPES.filter((other) => other !== type).forEach((other) => {
+    T_ONBOARDING_RENDERED_TYPES.filter((other) => other !== type).forEach((other) => {
       expect(queryByTestId(marker(other))).toBeNull();
     });
+  });
+
+  it('degrades to the shipped screen when handed a type that draws nothing', () => {
+    // Reaching this host on a `none` build means the intro gate was bypassed
+    // (a cold deep link is the only route). The host must still paint something
+    // rather than throw or blank.
+    //
+    // This is the PREDICATE branch of the lookup, where the older `martian` case
+    // below is the `??` branch — two distinct paths to the same default, and
+    // neither one covers the other.
+    mockThemeValue = { onboardingType: 'none' };
+    let root: ReturnType<typeof render> | null = null;
+    expect(() => {
+      root = render(<TTemplateOnboarding />);
+    }).not.toThrow();
+    expect(root!.getByTestId(marker(T_ONBOARDING_DEFAULT))).toBeTruthy();
+    // There is no such component, so there must be no such marker.
+    expect(root!.queryByTestId(marker('none'))).toBeNull();
   });
 
   it('degrades to the shipped screen when the backend names one this build lacks', () => {
