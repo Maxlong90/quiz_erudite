@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Asset } from 'expo-asset';
 
 import { AppBackground } from '@/components/italy-quiz/app-background';
 import { ActInterlude } from '@/components/italy-quiz/act-interlude';
@@ -88,6 +89,7 @@ export default function ItalyQuizGame() {
   /** Notch the slider is resting on for an `estimate` question, null until touched. */
   const [notch, setNotch] = useState<number | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -106,6 +108,17 @@ export default function ItalyQuizGame() {
     epoch,
   });
 
+  // Warm EVERY picture of the tour at once, while the player is still reading the
+  // intro card. A bundled image is not free on first use — in a dev build it is
+  // fetched from Metro, and even in a release build it has to be decoded — so
+  // without this the first photo question stalls on a blank frame. Paying for all
+  // six during the intro means no question ever waits. Fails open: an image that
+  // will not warm simply loads late, as it did before.
+  useEffect(() => {
+    const pictures = questions.map((q) => q.image).filter(Boolean);
+    if (pictures.length > 0) Asset.loadAsync(pictures as number[]).catch(() => {});
+  }, [questions]);
+
   const question = ids[pos] != null ? byId.get(ids[pos]) : undefined;
   const prevQuestion = pos > 0 && ids[pos - 1] != null ? byId.get(ids[pos - 1]) : undefined;
   const act = rawPlace?.acts.find((a) => a.id === question?.act) ?? null;
@@ -114,6 +127,15 @@ export default function ItalyQuizGame() {
     setPicked(null);
     setNotch(null);
   }, [question?.id]);
+
+  // The explanation is rendered under the options, which on a photo question puts
+  // it below the fold — it was there all along but nobody scrolled to find it.
+  // Bring it into view as soon as it appears.
+  useEffect(() => {
+    if (picked === null || !question || picked !== question.correct) return;
+    const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+    return () => clearTimeout(id);
+  }, [picked, question]);
 
   // Resuming mid-tour drops the player straight back into the question.
   useEffect(() => {
@@ -461,7 +483,11 @@ export default function ItalyQuizGame() {
 
   return Shell(
     <>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.body}
+        showsVerticalScrollIndicator={false}
+      >
         {/* "Then" ribbon — the earlier question this one answers back to. */}
         {callbackQuestion ? (
           <View style={styles.callback}>
