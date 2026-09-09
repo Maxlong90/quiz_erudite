@@ -98,6 +98,8 @@ This tree builds eight apps that share infrastructure but not vocabulary. Severa
 
 **Prebuild** — Regenerating the native `android/` and `ios/` projects from the Expo config. Required after any native change, and slow enough to need backgrounding. See [Long-Running Operations](long-running-operations.md).
 
+**Native splash** — The launch screen the operating system paints before any JavaScript runs, generated at prebuild time from the single `expo-splash-screen` entry in `app.json` that all eight builds share. Distinct from the *JS splash* — the animated branded screen each app draws once React has mounted, which is what the rest of these docs mean by "splash". The build backend injects a per-app image into the native entry on every build, so the committed one only ever shows on a bare local prebuild; its `imageWidth` is not injected and sizes every app's launch icon at once. See [The splash entry in `app.json` must always name an image](development.md#the-splash-entry-in-appjson-must-always-name-an-image).
+
 ## See Also
 
 - [Architecture](architecture.md) -- System structure and the sibling-app family
