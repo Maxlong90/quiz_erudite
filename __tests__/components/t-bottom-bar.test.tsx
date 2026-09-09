@@ -43,6 +43,7 @@
 import React from 'react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 // --- controllable mock state -------------------------------------------------
@@ -127,6 +128,23 @@ function tintOf(testID: string): string {
 /** Collapse a node's (possibly nested, possibly conditional) style prop. */
 function flatStyle(node: { props: { style?: unknown } }): Record<string, unknown> {
   return Object.assign({}, ...[node.props.style].flat(Infinity).filter(Boolean));
+}
+
+/**
+ * The rendered IconSymbol beneath a slot, found the same way tintOf finds a
+ * colour: descend to the first node carrying a string `name`. The mock SPREADS
+ * its props onto a View, so `name` and `size` survive into the tree.
+ */
+function iconUnder(testID: string): { name: string; size: number } {
+  const stack: any[] = [screen.getByTestId(testID)];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (typeof node?.props?.name === 'string') {
+      return { name: node.props.name, size: node.props.size };
+    }
+    stack.push(...(node?.children ?? []).filter((child: unknown) => typeof child !== 'string'));
+  }
+  throw new Error(`no descendant of ${testID} carries an icon name`);
 }
 
 beforeEach(() => {
@@ -272,6 +290,78 @@ describe('the palette is resolved live, through the template funnel', () => {
     render(<BottomBar current={current} />);
 
     expect(tintOf('crown-button')).toBe(EruditeColors.dark.gold);
+  });
+});
+
+/**
+ * The port's contract was "two changes, everything else verbatim" — the routes
+ * and the palette funnel move, nothing else does. The suites above cover the two
+ * things that CHANGED. This block covers the far larger half that must NOT have:
+ * a copy that swapped two icons, dropped the centre slot's larger size, or lost
+ * an accessibility label passes every other assertion in this file.
+ */
+describe('the copy preserved everything that was not supposed to move', () => {
+  it.each([
+    ['crown-button', 'crown.fill', 'premium'],
+    ['shop-button', 'bag.fill', 'shop'],
+    ['home-button', 'house.fill', 'home'],
+    ['stats-button', 'chart.bar.fill', 'stats'],
+    ['settings-button', 'gearshape.fill', 'settings'],
+  ])('%s draws the %s glyph (the %s slot)', (testID, icon) => {
+    // Icon identity is pure presentation, so nothing else here can see it: swap
+    // the bag and the gear and every route, tint and inertness test still passes
+    // while the shipped bar is visibly wrong.
+    render(<BottomBar current={null} />);
+    expect({ testID, name: iconUnder(testID).name }).toEqual({ testID, name: icon });
+  });
+
+  it('draws the person glyph in the leftmost slot once subscribed', () => {
+    mockIsPremium = true;
+    render(<BottomBar current={null} />);
+    expect(iconUnder('account-button').name).toBe('person.fill');
+  });
+
+  it('renders Home larger than every other slot', () => {
+    // HOME_SIZE (32) against REGULAR_SIZE (24). Asserted as a RELATIONSHIP as
+    // well as by value: dropping `size={HOME_SIZE}` silently collapses the
+    // centre emphasis to the default, and the layout still renders fine.
+    render(<BottomBar current={null} />);
+
+    const home = iconUnder('home-button').size;
+    expect(home).toBe(32);
+    for (const testID of ['crown-button', 'shop-button', 'stats-button', 'settings-button']) {
+      expect({ testID, size: iconUnder(testID).size }).toEqual({ testID, size: 24 });
+      expect(home).toBeGreaterThan(iconUnder(testID).size);
+    }
+  });
+
+  it.each([
+    ['crown-button', 'Premium'],
+    ['shop-button', 'Shop'],
+    ['home-button', 'Home'],
+    ['stats-button', 'Stats'],
+    ['settings-button', 'Settings'],
+  ])('%s is labelled "%s" for a screen reader', (testID, label) => {
+    render(<BottomBar current={null} />);
+    expect(screen.getByTestId(testID).props.accessibilityLabel).toBe(label);
+  });
+
+  it('labels the leftmost slot Account once subscribed', () => {
+    mockIsPremium = true;
+    render(<BottomBar current={null} />);
+    expect(screen.getByTestId('account-button').props.accessibilityLabel).toBe('Account');
+  });
+
+  it('keeps the row a hairline-bordered horizontal strip', () => {
+    // The bar is the one place in the /t surface that draws a hairline. A copy
+    // that lost borderTopWidth would still paint borderTopColor and look almost
+    // right, so pin the width as well as the colour the palette test covers.
+    render(<BottomBar current={null} />);
+
+    const row = flatStyle(screen.getByTestId('bottom-bar'));
+    expect(row.flexDirection).toBe('row');
+    expect(row.borderTopWidth).toBe(StyleSheet.hairlineWidth);
+    expect(row.borderTopWidth).toBeGreaterThan(0);
   });
 });
 

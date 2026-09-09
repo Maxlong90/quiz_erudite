@@ -160,6 +160,28 @@ describe('every destination the template home navigates to exists', () => {
     expect(BOTTOM_BAR_DESTINATIONS).toHaveLength(6);
   });
 
+  it.each([
+    ['/t', 't/index.tsx', 'the index route is the one special case'],
+    ['/t/shop', 't/shop.tsx', 'a flat slot'],
+    ['/t/category/[slug]', 't/category/[slug].tsx', 'a nested route maps by path, no special case needed'],
+  ])('routeToScreenFile(%s) -> %s (%s)', (route, file) => {
+    // Pins the mapping the it.each below depends on. Without this the derived
+    // list could resolve every route to a wrong-but-existing file and the
+    // existence check would pass while proving nothing about the bar.
+    expect(routeToScreenFile(route)).toBe(file);
+  });
+
+  it('is TOTAL — an inexpressible route yields a missing file, never a silent skip', () => {
+    // The claim in routeToScreenFile's docblock, asserted rather than trusted.
+    // A template-literal route is the realistic case (app/t/index.tsx uses one
+    // for /t/category/${slug}). The point is that it produces a filename which
+    // does NOT exist, so the existence check goes red and asks to be taught
+    // about the new shape — rather than the route being quietly dropped.
+    const inexpressible = routeToScreenFile('/t/category/${slug}');
+    expect(inexpressible).toBe('t/category/${slug}.tsx');
+    expect(fs.existsSync(path.join(APP_DIR, inexpressible))).toBe(false);
+  });
+
   it.each(BOTTOM_BAR_DESTINATIONS)('the bottom bar can still reach %s', (route) => {
     const file = routeToScreenFile(route);
     expect({ route, file, exists: fs.existsSync(path.join(APP_DIR, file)) }).toEqual({
