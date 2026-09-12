@@ -53,4 +53,5 @@ AGENTS.md
 .expo-dev-auth
 # >>> suslik-managed skills (auto)
 /.claude/skills/deliver-file/
+/.claude/skills/subagents/
 # <<< suslik-managed skills
