@@ -22,6 +22,8 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
+import { IPAD_WINDOW, PHONE_WINDOW, pinWindow, unpinWindow } from '../helpers/window';
+
 const EGYPT_PLAYED = 'file:///local/egypt-played.png';
 const EGYPT_ORIGINAL = 'file:///local/egypt-original.webp';
 const MALI_PLAYED = 'file:///local/mali-played.png';
@@ -141,10 +143,15 @@ async function renderGame() {
 beforeEach(() => {
   jest.useFakeTimers();
   mockReplace.mockClear();
+  // The coat grid is sized from the live window now. RN's jest preset reports
+  // 750x1334, which is NOT a phone, so without pinning this suite would silently
+  // move onto the wide layout branch and stop covering the phone path.
+  pinWindow(PHONE_WINDOW.width, PHONE_WINDOW.height);
 });
 
 afterEach(() => {
   jest.useRealTimers();
+  unpinWindow();
 });
 
 describe('continent reveal — before answering', () => {
@@ -219,6 +226,46 @@ describe('continent reveal — correct answer', () => {
     const shared = screen.getByTestId('share-card').props.accessibilityLabel;
     expect(shared).toBe(mockPictureQuestions[0].optionImageUris.join('|'));
     expect(shared).not.toContain(EGYPT_ORIGINAL);
+  });
+});
+
+describe('continent reveal — in an iPad-sized window', () => {
+  // The window size App Review rejected the build on. The 2x2 grid must stay a
+  // 2x2 grid here, and the overlay must still register with the played coat.
+  beforeEach(() => {
+    pinWindow(IPAD_WINDOW.width, IPAD_WINDOW.height);
+  });
+
+  it('plays and reveals without crashing', async () => {
+    const screen = await renderGame();
+
+    expect(screen.getByTestId('coat-option-0')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('coat-option-3'));
+
+    const original = await waitFor(() => screen.getByTestId('coat-image-original'));
+    expect(original.props.source.uri).toBe(EGYPT_ORIGINAL);
+  });
+
+  it('still renders the original at exactly the played coat geometry', async () => {
+    const screen = await renderGame();
+
+    fireEvent.press(screen.getByTestId('coat-option-3'));
+    const original = await waitFor(() => screen.getByTestId('coat-image-original'));
+
+    const played = StyleSheet.flatten(screen.getByTestId('coat-option-3').props.style);
+    const overlay = StyleSheet.flatten(original.props.style);
+    expect(overlay.width).toBe(played.width);
+    expect(overlay.height).toBe(played.height);
+  });
+
+  it('grows the coat cells but keeps two of them fitting one row', async () => {
+    const screen = await renderGame();
+
+    const cell = StyleSheet.flatten(screen.getByTestId('coat-option-0').props.style);
+    expect(cell.width).toBeGreaterThan(140);
+    // Two cells + 32pt chrome each + 20pt grid padding either side + 8pt gutter
+    // must fit the 520pt content column, or Yoga wraps the grid to one column.
+    expect((cell.width + 32) * 2 + 20 * 2 + 8).toBeLessThanOrEqual(520);
   });
 });
 

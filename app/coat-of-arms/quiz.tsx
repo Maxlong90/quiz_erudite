@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Platform,
   Pressable,
   ScrollView,
@@ -24,6 +23,8 @@ import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
+import { useCoatQuizMetrics } from '@/hooks/coat-of-arms/use-coat-layout';
+import { CONTENT_MAX_W } from '@/hooks/use-responsive';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { wrapLabel } from '@/lib/flags-quiz/label';
@@ -32,13 +33,12 @@ import { getStoreLinks } from '@/lib/store-links';
 import { CoatShareCard } from '@/components/coat-of-arms/share-card';
 import { CoatHelpModal, useCoatHelp } from '@/components/coat-of-arms/help-modal';
 import { CoatOriginalReveal } from '@/components/coat-of-arms/original-reveal';
+import { FlexSpacer } from '@/components/coat-of-arms/flex-spacer';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 
 // A wrong pick flashes red this long before skipping to the next question.
 const REVEAL_MS = 900;
-// Fixed answer-button height.
-const OPTION_H = 68;
 // Persisted-progress key for the "All countries" coats run (resume on return).
 const PROGRESS_KEY = 'coat.progress.all.v1';
 
@@ -53,23 +53,19 @@ const UI_FADE_MS = 300;
 // (see CoatOriginalReveal). Only fires where the backend ships an original
 // (64 of 195 coats).
 const COAT_REVEAL_DELAY_MS = MOVE_MS;
-// The coat plate is square and CONTAINED; the reveal overlay stacks on exactly
-// this box so both variants register pixel-for-pixel.
-const COAT_SIZE = 190;
 
-// Font-fitting for the answer labels (identical to Flags Quiz).
-const SCREEN_W = Dimensions.get('window').width;
-const OPTION_TEXT_W = 0.48 * (SCREEN_W - 40) - 24;
+// Font-fitting for the answer labels (identical to Flags Quiz). The width the
+// label has to fit is NOT a module constant any more — see coatQuizMetrics.
 const OPTION_FONT_MAX = 23;
 const OPTION_FONT_MIN = 8;
 const CHAR_ADV = 0.72;
 
 type OptionState = 'idle' | 'correct' | 'wrong';
 
-function fitFontSize(lines: string[]): number {
+function fitFontSize(lines: string[], textWidth: number): number {
   const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
   if (longest === 0) return OPTION_FONT_MAX;
-  const fit = Math.floor(OPTION_TEXT_W / (longest * CHAR_ADV));
+  const fit = Math.floor(textWidth / (longest * CHAR_ADV));
   return Math.max(OPTION_FONT_MIN, Math.min(OPTION_FONT_MAX, fit));
 }
 
@@ -96,6 +92,10 @@ export default function CoatOfArmsGame() {
   const { locale } = useLocale();
   const { retry } = useLocalSearchParams<{ retry?: string }>();
   const { countryQuestions, status } = useCoatContent();
+  // Live window metrics. Called ABOVE the loader early-return below (Rules of
+  // Hooks), and re-evaluated as the window resizes — this screen has to survive
+  // being dragged to any size in an iPad window.
+  const m = useCoatQuizMetrics();
   const [reportOpen, setReportOpen] = useState(false);
   // Off-screen composition (coat + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
@@ -205,12 +205,14 @@ export default function CoatOfArmsGame() {
       <View style={styles.fill}>
         <GradientBackground />
         <StatusBar style="light" />
-        <SafeAreaView style={[styles.fill, styles.center]} edges={['top', 'bottom']}>
-          {status === 'error' ? (
-            <Text style={styles.loaderText}>{t.resultKeepGoing}</Text>
-          ) : (
-            <ActivityIndicator size="large" color="#FFFFFF" />
-          )}
+        <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+          <View style={[styles.fill, styles.center, m.column]}>
+            {status === 'error' ? (
+              <Text style={styles.loaderText}>{t.resultKeepGoing}</Text>
+            ) : (
+              <ActivityIndicator size="large" color="#FFFFFF" />
+            )}
+          </View>
         </SafeAreaView>
       </View>
     );
@@ -228,138 +230,176 @@ export default function CoatOfArmsGame() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        {/* Top bar: back (left) · report + share (right). */}
-        <View style={styles.hud}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="chevron-back" size={44} />
-          </Pressable>
-          <View style={styles.hudRight}>
-            <Pressable
-              onPress={() => setHelpOpen(true)}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}
-              testID="quiz-help-button"
-            >
-              <GlossyIconButton glyph="help" size={44} />
-            </Pressable>
-            <Pressable
-              onPress={() => setReportOpen(true)}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}
-              testID="quiz-report-button"
-            >
-              <GlossyIconButton glyph="flag" size={44} />
-            </Pressable>
-            <Pressable
-              onPress={onShare}
-              hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressed}
-              testID="quiz-share-button"
-            >
-              <GlossyIconButton glyph="share-social" size={44} />
-            </Pressable>
-          </View>
-        </View>
+        {/* Content column. On a phone `m.column` is null and this is just a
+            `flex: 1` pass-through — layout-identical to having no wrapper. On a
+            wide window it becomes a centred, fixed-width column so the buttons
+            stop stretching into full-bleed stripes and the HUD's space-between
+            tiles don't end up half a metre apart.
 
-        {/* Non-scrolling page: everything fixed EXCEPT the history note, which is
-            the one flexible region and scrolls INTERNALLY. This keeps the page
-            still on roomy screens (no drag/bounce) while guaranteeing the full
-            note is reachable on every screen size — and avoids the broken
-            ScrollView-inside-ScrollView nesting that stopped the note scrolling. */}
-        <View style={styles.page}>
-          {/* Coat block: progress right above the coat, then the coat, then the question. */}
-          <View style={styles.imageArea}>
-            <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
-            <View style={styles.imageFrame}>
-              {/* Stack sized to the picture box itself (NOT the padded frame), so
-                  the reveal overlay lines up with the base coat exactly. */}
-              <View style={styles.coatStack}>
-                {question.imageUri ? (
-                  <Image
-                    source={{ uri: question.imageUri }}
-                    style={styles.coatImg}
-                    contentFit="contain"
-                    transition={0}
-                    testID="coat-image"
-                  />
-                ) : (
-                  <View style={[styles.coatImg, styles.coatFallback]} />
-                )}
-                {/* Reward: the ORIGINAL coat (country name still on the banner)
-                    dissolves in ON TOP of the cleaned one after a correct answer.
-                    The clean coat deliberately stays at full opacity underneath —
-                    see the note in CoatOriginalReveal. Keyed by question so the
-                    entering animation re-fires on every question. */}
-                {revealing && question.originalImageUri ? (
-                  <CoatOriginalReveal
-                    key={`coat-reveal-${question.id}`}
-                    uri={question.originalImageUri}
-                    size={COAT_SIZE}
-                    delayMs={COAT_REVEAL_DELAY_MS}
-                  />
-                ) : null}
-              </View>
+            The `styles.fill` MUST be unconditional: without it the wrapper is
+            flex: 0, hugs its content, and collapses the page → reveal →
+            historyBox → ScrollView flex chain, dropping "Next" off-screen. */}
+        <View style={[styles.fill, m.column]}>
+          {/* Top bar: back (left) · report + share (right). */}
+          <View style={styles.hud}>
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="chevron-back" size={44} />
+            </Pressable>
+            <View style={styles.hudRight}>
+              <Pressable
+                onPress={() => setHelpOpen(true)}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}
+                testID="quiz-help-button"
+              >
+                <GlossyIconButton glyph="help" size={44} />
+              </Pressable>
+              <Pressable
+                onPress={() => setReportOpen(true)}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}
+                testID="quiz-report-button"
+              >
+                <GlossyIconButton glyph="flag" size={44} />
+              </Pressable>
+              <Pressable
+                onPress={onShare}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}
+                testID="quiz-share-button"
+              >
+                <GlossyIconButton glyph="share-social" size={44} />
+              </Pressable>
             </View>
-            {/* The prompt is hidden once answered — on reveal we show only the
-                coat, the correct answer and the (expanded) explanation. */}
-            {!revealing ? <Text style={styles.prompt}>{promptText}</Text> : null}
           </View>
 
-          {/* 2×2 answer grid. STATIC on question open — plain Views, no layout
-              animator, so nothing slides/reflows in. On a correct reveal the wrong
-              options unmount and ONLY the surviving correct answer floats up into
-              the centre (its key changes, so it remounts with an entering anim). */}
-          <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
-            {question.options.map((option, i) => {
-              if (revealing && i !== question.correctIndex) return null;
-              const btn = (
-                <OptionButton
-                  label={option}
-                  state={stateFor(i)}
-                  disabled={answered}
-                  onPress={() => onPick(i)}
-                />
-              );
-              return revealing ? (
-                <Animated.View
-                  key={`reveal-${question.id}-${i}`}
-                  entering={FadeInUp.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
-                  style={styles.optionWrap}
-                >
-                  {btn}
-                </Animated.View>
-              ) : (
-                <View key={`${question.id}-${i}`} style={styles.optionWrap}>
-                  {btn}
+          {/* Non-scrolling page: everything fixed EXCEPT the history note, which is
+              the one flexible region and scrolls INTERNALLY. This keeps the page
+              still on roomy screens (no drag/bounce) while guaranteeing the full
+              note is reachable on every screen size — and avoids the broken
+              ScrollView-inside-ScrollView nesting that stopped the note scrolling. */}
+          <View style={styles.page}>
+            {/* Coat block: progress right above the coat, then the coat, then the question. */}
+            <View style={styles.imageArea}>
+              <Text style={styles.progress}>{`${pos + 1}/${order.length}`}</Text>
+              <View style={styles.imageFrame}>
+                {/* Stack sized to the picture box itself (NOT the padded frame), so
+                    the reveal overlay lines up with the base coat exactly. The base
+                    image, its box and the overlay all read the SAME m.coatSize —
+                    recomputing it at any one of the three silently de-registers the
+                    reveal. */}
+                <View style={{ width: m.coatSize, height: m.coatSize }}>
+                  {question.imageUri ? (
+                    <Image
+                      source={{ uri: question.imageUri }}
+                      style={{ width: m.coatSize, height: m.coatSize }}
+                      contentFit="contain"
+                      transition={0}
+                      testID="coat-image"
+                    />
+                  ) : (
+                    <View
+                      style={[{ width: m.coatSize, height: m.coatSize }, styles.coatFallback]}
+                    />
+                  )}
+                  {/* Reward: the ORIGINAL coat (country name still on the banner)
+                      dissolves in ON TOP of the cleaned one after a correct answer.
+                      The clean coat deliberately stays at full opacity underneath —
+                      see the note in CoatOriginalReveal. Keyed by question (NEVER by
+                      size) so the entering animation re-fires per question but not
+                      on every frame of a window drag. */}
+                  {revealing && question.originalImageUri ? (
+                    <CoatOriginalReveal
+                      key={`coat-reveal-${question.id}`}
+                      uri={question.originalImageUri}
+                      size={m.coatSize}
+                      delayMs={COAT_REVEAL_DELAY_MS}
+                    />
+                  ) : null}
                 </View>
-              );
-            })}
-          </View>
-
-          {/* Reveal panel — the expanded note then a "Next" button. Fades in
-              once the answer glide lands. */}
-          {revealing ? (
-            <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
-              {historyText ? (
-                <View style={[styles.historyBox, FQShadow.card]}>
-                  <ScrollView
-                    style={styles.historyScroll}
-                    showsVerticalScrollIndicator
-                    nestedScrollEnabled
-                  >
-                    <Text style={styles.historyText}>{historyText}</Text>
-                  </ScrollView>
-                </View>
-              ) : null}
-              <View style={styles.nextWrap}>
-                <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
               </View>
-            </Animated.View>
-          ) : null}
+              {/* The prompt is hidden once answered — on reveal we show only the
+                  coat, the correct answer and the (expanded) explanation. */}
+              {!revealing ? (
+                <Text style={[styles.prompt, { fontSize: m.promptFont }]}>{promptText}</Text>
+              ) : null}
+            </View>
+
+            {/* Gap between the coat block and the answers. Fixed (exactly the
+                marginTop that shipped) on a phone or while revealing; on a tall
+                window it grows with the tail spacer below so the slack is shared
+                out instead of pooling at the bottom of the screen. */}
+            <FlexSpacer
+              flexible={m.isTall && !revealing}
+              height={revealing ? 32 : m.gapHeight}
+              grow={2}
+              minHeight={m.optionH}
+              maxHeight={m.optionH * 2.5}
+            />
+
+            {/* 2×2 answer grid. STATIC on question open — plain Views, no layout
+                animator, so nothing slides/reflows in. On a correct reveal the wrong
+                options unmount and ONLY the surviving correct answer floats up into
+                the centre (its key changes, so it remounts with an entering anim). */}
+            <View key={question.id} style={[styles.options, revealing && styles.optionsRevealing]}>
+              {question.options.map((option, i) => {
+                if (revealing && i !== question.correctIndex) return null;
+                const btn = (
+                  <OptionButton
+                    label={option}
+                    state={stateFor(i)}
+                    disabled={answered}
+                    onPress={() => onPick(i)}
+                    height={m.optionH}
+                    textWidth={m.optionTextW}
+                  />
+                );
+                return revealing ? (
+                  <Animated.View
+                    key={`reveal-${question.id}-${i}`}
+                    entering={FadeInUp.duration(MOVE_MS).easing(Easing.out(Easing.cubic))}
+                    style={styles.optionWrap}
+                  >
+                    {btn}
+                  </Animated.View>
+                ) : (
+                  <View key={`${question.id}-${i}`} style={styles.optionWrap}>
+                    {btn}
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Tail. Zero while revealing, because styles.reveal below is already
+                flex: 1 and a growing spacer would steal the history box's room and
+                shove "Next" down. */}
+            <FlexSpacer flexible={m.isTall && !revealing} height={0} grow={3} />
+
+            {/* Reveal panel — the expanded note then a "Next" button. Fades in
+                once the answer glide lands. */}
+            {revealing ? (
+              <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
+                {historyText ? (
+                  <View style={[styles.historyBox, FQShadow.card]}>
+                    <ScrollView
+                      style={styles.historyScroll}
+                      showsVerticalScrollIndicator
+                      nestedScrollEnabled
+                    >
+                      <Text style={styles.historyText}>{historyText}</Text>
+                    </ScrollView>
+                  </View>
+                ) : null}
+                <View style={styles.nextWrap}>
+                  <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
+                </View>
+              </Animated.View>
+            ) : null}
+          </View>
         </View>
       </SafeAreaView>
 
@@ -373,6 +413,10 @@ export default function CoatOfArmsGame() {
         initialView="report"
         primaryGradient={['#A6E1FF', '#3FA9F5']}
         sheetGradient={['#C2E4FF', '#7FBDF3']}
+        // The sheet is a Modal portal, so it lives OUTSIDE the content column and
+        // would otherwise span a 1024pt window edge to edge. Cap it to the same
+        // column width the screen behind it uses.
+        maxWidth={CONTENT_MAX_W}
       />
 
       {/* Help: explains the review-your-mistakes flow (opened from the "?" tile). */}
@@ -400,11 +444,17 @@ function OptionButton({
   state,
   onPress,
   disabled,
+  height,
+  textWidth,
 }: {
   label: string;
   state: OptionState;
   onPress: () => void;
   disabled: boolean;
+  /** Button height for the current window size. */
+  height: number;
+  /** Live text width the label font is fitted to — never a captured constant. */
+  textWidth: number;
 }) {
   const gradient =
     state === 'correct'
@@ -427,7 +477,7 @@ function OptionButton({
         colors={gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.option, { borderColor: rim }, FQShadow.card]}
+        style={[styles.option, { borderColor: rim, height }, FQShadow.card]}
       >
         <LinearGradient
           colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
@@ -435,7 +485,11 @@ function OptionButton({
           pointerEvents="none"
         />
         <Text
-          style={[styles.optionText, { color: textColor }, multiline ? { fontSize: fitFontSize(lines) } : null]}
+          style={[
+            styles.optionText,
+            { color: textColor },
+            multiline ? { fontSize: fitFontSize(lines, textWidth) } : null,
+          ]}
           numberOfLines={lines.length}
           adjustsFontSizeToFit={!multiline}
           minimumFontScale={0.5}
@@ -501,12 +555,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 10,
   },
-  coatStack: { width: COAT_SIZE, height: COAT_SIZE },
-  coatImg: { width: COAT_SIZE, height: COAT_SIZE },
+  // The coat plate and its image are sized INLINE from the live window metrics —
+  // see coatQuizMetrics. They are not in this sheet because a StyleSheet is frozen
+  // at module load, which is precisely the bug being fixed.
   coatFallback: { backgroundColor: 'rgba(11, 58, 135, 0.08)' },
   prompt: {
     color: '#FFFFFF',
-    fontSize: 26,
     fontWeight: '900',
     marginTop: 16,
     textAlign: 'center',
@@ -517,19 +571,20 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
 
+  // No marginTop here any more: the space above the grid is a real sibling
+  // FlexSpacer, so it can GROW on a tall window instead of leaving the slack
+  // pooled at the bottom of the page.
   options: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     rowGap: 14,
-    marginTop: OPTION_H * 1.0,
   },
-  optionsRevealing: { justifyContent: 'center', marginTop: 32 },
+  optionsRevealing: { justifyContent: 'center' },
   optionWrap: { width: '48%' },
   optionFill: { width: '100%' },
   option: {
-    height: OPTION_H,
     borderRadius: 18,
     borderWidth: 2,
     alignItems: 'center',

@@ -9,6 +9,7 @@ import { AppBackground, BG_BASE, useCoatBgReady } from '@/components/coat-of-arm
 import { GlossyIconButton } from '@/components/flags-quiz/glossy-icon-button';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
+import { useResponsive } from '@/hooks/use-responsive';
 
 // How far above dead-centre the Play button sits: 70% of its own height,
 // applied as a visual translate (doesn't affect layout). Measured via onLayout
@@ -29,6 +30,7 @@ export default function CoatOfArmsWelcome() {
   const t = useFQLabels();
   const [playH, setPlayH] = useState(0);
   const bgReady = useCoatBgReady();
+  const r = useResponsive();
 
   // Hold on a plain blue base until the coats artwork is cached, then reveal
   // background + buttons in the same frame.
@@ -42,45 +44,52 @@ export default function CoatOfArmsWelcome() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top']}>
-        {/* Top bar: Settings only, top-right corner. */}
-        <View style={styles.topRow}>
-          <Pressable
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-            onPress={() => router.push('/coat-of-arms/settings')}
-          >
-            <GlossyIconButton glyph="settings-sharp" />
-          </Pressable>
-        </View>
-
-        {/* Play — centred in the spiral's eye, then lifted up 70% of its height. */}
-        <View style={styles.center} pointerEvents="box-none">
-          <Pressable
-            onLayout={(e) => setPlayH(e.nativeEvent.layout.height)}
-            style={({ pressed }) => ({
-              transform: [
-                { translateY: -PLAY_LIFT_RATIO * playH },
-                { scale: pressed ? 0.98 : 1 },
-              ],
-              opacity: pressed ? 0.9 : 1,
-            })}
-            onPress={() => router.push('/coat-of-arms/play')}
-          >
-            <LinearGradient
-              colors={[FQColors.tileLight, FQColors.tileDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.playBtn, FQShadow.card]}
+        {/* Content column — null on a phone, a centred cap on a wide window so the
+            gear stays reachable at the corner of the CONTENT rather than being
+            flung to the far edge of a 1024pt window. The Play lift itself is
+            already relative (a fraction of the button's measured height), so it
+            needs no adjustment. */}
+        <View style={[styles.fill, r.column]}>
+          {/* Top bar: Settings only, top-right corner. */}
+          <View style={styles.topRow}>
+            <Pressable
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              onPress={() => router.push('/coat-of-arms/settings')}
             >
-              {/* Top gloss band, matching the icon tiles. */}
+              <GlossyIconButton glyph="settings-sharp" />
+            </Pressable>
+          </View>
+
+          {/* Play — centred in the spiral's eye, then lifted up 70% of its height. */}
+          <View style={styles.center} pointerEvents="box-none">
+            <Pressable
+              onLayout={(e) => setPlayH(e.nativeEvent.layout.height)}
+              style={({ pressed }) => ({
+                transform: [
+                  { translateY: -PLAY_LIFT_RATIO * playH },
+                  { scale: pressed ? 0.98 : 1 },
+                ],
+                opacity: pressed ? 0.9 : 1,
+              })}
+              onPress={() => router.push('/coat-of-arms/play')}
+            >
               <LinearGradient
-                colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
-                style={styles.playGloss}
-                pointerEvents="none"
-              />
-              <Text style={styles.playText}>{t.play}</Text>
-            </LinearGradient>
-          </Pressable>
+                colors={[FQColors.tileLight, FQColors.tileDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.playBtn, FQShadow.card]}
+              >
+                {/* Top gloss band, matching the icon tiles. */}
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+                  style={styles.playGloss}
+                  pointerEvents="none"
+                />
+                <Text style={styles.playText}>{t.play}</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     </View>

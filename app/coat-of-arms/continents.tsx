@@ -18,6 +18,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
+import { useResponsive } from '@/hooks/use-responsive';
 
 // Reuse the Flags Quiz continent-shape icons (same six continents).
 const CONTINENT_ICON: Record<ContinentKey, ImageSourcePropType> = {
@@ -69,9 +70,11 @@ export default function CoatOfArmsContinents() {
   const t = useFQLabels();
   const { countsByContinent } = useCoatContent();
   const iconsReady = useContinentIconsReady();
+  const r = useResponsive();
   // Measured height of a single continent button — the whole list is nudged down
   // by half of it (wider gap under the header; inter-button gap unchanged).
   const [btnH, setBtnH] = useState(0);
+  const contIconSize = Math.round(42 * r.scale);
 
   return (
     <View style={styles.fill}>
@@ -79,20 +82,31 @@ export default function CoatOfArmsContinents() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        {/* Top bar: back only (matches the coat gameplay HUD). */}
-        <View style={styles.hud}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="chevron-back" size={44} />
-          </Pressable>
+        {/* Top bar: back only (matches the coat gameplay HUD). Wrapped in the
+            content column so the back tile lines up with the buttons below it
+            instead of hugging the far edge of a wide window. */}
+        <View style={r.column}>
+          <View style={styles.hud}>
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="chevron-back" size={44} />
+            </Pressable>
+          </View>
         </View>
 
         {iconsReady ? (
+          // The column goes on the CONTENT CONTAINER, not the ScrollView: the
+          // scroll surface stays full-width (so a drag anywhere on a wide window
+          // still scrolls) while the buttons themselves stay a centred column.
           <ScrollView
-            contentContainerStyle={[styles.actions, btnH ? { paddingTop: 8 + btnH / 2 } : null]}
+            contentContainerStyle={[
+              styles.actions,
+              btnH ? { paddingTop: 8 + btnH / 2 } : null,
+              r.column,
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {CONTINENT_ORDER.map((key, i) => {
@@ -110,7 +124,7 @@ export default function CoatOfArmsContinents() {
                     icon={
                       <Image
                         source={CONTINENT_ICON[key]}
-                        style={styles.contIcon}
+                        style={[styles.contIcon, { width: contIconSize, height: contIconSize }]}
                         resizeMode="contain"
                         fadeDuration={0}
                       />

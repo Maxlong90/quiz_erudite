@@ -10,6 +10,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { CATEGORY_ICON, useCategoryIconsReady } from '@/constants/coat-of-arms/category-icons';
+import { useResponsive } from '@/hooks/use-responsive';
 
 // Soften the busy coats artwork behind the mode buttons so the glossy buttons
 // read clearly. A light blur (~15%) — tune this single number up/down to taste.
@@ -30,9 +31,16 @@ export default function CoatOfArmsPlay() {
   const c = useCoaLabels();
   const bgReady = useCoatBgReady();
   const iconsReady = useCategoryIconsReady();
+  // Live window metrics — this screen's five mode buttons were the worst offender
+  // in the iPad reject, stretching into full-width stripes on a wide window.
+  const r = useResponsive();
   // Measured height of a single mode button — the whole stack is nudged down by
   // half of it, widening ONLY the gap under the header (mirrors Flags Quiz).
   const [btnH, setBtnH] = useState(0);
+  // Safe to scale: the icon feeds the MEASURED button's height, which feeds a
+  // SIBLING's marginTop. The measured node's own height never depends on btnH,
+  // so there is no onLayout → setState → relayout loop.
+  const iconSize = Math.round(46 * r.scale);
 
   // While the (already home-warmed) coats artwork + category icons finish
   // caching, render the SAME coats background (over the blue base) rather than a
@@ -54,88 +62,95 @@ export default function CoatOfArmsPlay() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        {/* Header: back (left) + settings (right), same glossy tiles as Flags Quiz. */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="chevron-back" size={44} />
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/coat-of-arms/settings')}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="settings-sharp" size={44} />
-          </Pressable>
-        </View>
+        {/* Content column. Null on a phone (a plain flex:1 pass-through, so the
+            layout is unchanged); on a wide window it centres the content and caps
+            it, which is what stops the five mode buttons becoming full-bleed
+            stripes. `styles.fill` is unconditional — without it this wrapper is
+            flex: 0 and the `spacer` below stops pushing the bottom tile down. */}
+        <View style={[styles.fill, r.column]}>
+          {/* Header: back (left) + settings (right), same glossy tiles as Flags Quiz. */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="chevron-back" size={44} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/coat-of-arms/settings')}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="settings-sharp" size={44} />
+            </Pressable>
+          </View>
 
-        {/* Mode buttons — the stack sits half a button lower than the header. */}
-        <View style={[styles.actions, btnH ? { marginTop: btnH / 2 } : null]}>
-          <View onLayout={(e) => setBtnH(e.nativeEvent.layout.height)}>
+          {/* Mode buttons — the stack sits half a button lower than the header. */}
+          <View style={[styles.actions, btnH ? { marginTop: btnH / 2 } : null]}>
+            <View onLayout={(e) => setBtnH(e.nativeEvent.layout.height)}>
+              <GlossyButton
+                label={t.allCountries}
+                fontSize={24}
+                paddingVertical={22}
+                icon={<Image source={CATEGORY_ICON.allCountries} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
+                onPress={() => router.push('/coat-of-arms/quiz')}
+              />
+            </View>
             <GlossyButton
-              label={t.allCountries}
+              label={t.byContinents}
               fontSize={24}
               paddingVertical={22}
-              icon={<Image source={CATEGORY_ICON.allCountries} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-              onPress={() => router.push('/coat-of-arms/quiz')}
+              icon={<Image source={CATEGORY_ICON.byContinents} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
+              onPress={() => router.push('/coat-of-arms/continents')}
+            />
+            <GlossyButton
+              label={t.challenge}
+              sublabel={t.comingSoon}
+              fontSize={24}
+              paddingVertical={22}
+              locked
+              icon={<Image source={CATEGORY_ICON.challenge} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
+              onPress={() => {}}
+            />
+            <GlossyButton
+              label={c.cities}
+              sublabel={t.comingSoon}
+              fontSize={24}
+              paddingVertical={22}
+              locked
+              icon={<Image source={CATEGORY_ICON.cities} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
+              onPress={() => {}}
+            />
+            <GlossyButton
+              label={c.bonusLevel}
+              sublabel={t.comingSoon}
+              fontSize={24}
+              paddingVertical={22}
+              locked
+              icon={<Image source={CATEGORY_ICON.bonus} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
+              onPress={() => {}}
             />
           </View>
-          <GlossyButton
-            label={t.byContinents}
-            fontSize={24}
-            paddingVertical={22}
-            icon={<Image source={CATEGORY_ICON.byContinents} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => router.push('/coat-of-arms/continents')}
-          />
-          <GlossyButton
-            label={t.challenge}
-            sublabel={t.comingSoon}
-            fontSize={24}
-            paddingVertical={22}
-            locked
-            icon={<Image source={CATEGORY_ICON.challenge} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => {}}
-          />
-          <GlossyButton
-            label={c.cities}
-            sublabel={t.comingSoon}
-            fontSize={24}
-            paddingVertical={22}
-            locked
-            icon={<Image source={CATEGORY_ICON.cities} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => {}}
-          />
-          <GlossyButton
-            label={c.bonusLevel}
-            sublabel={t.comingSoon}
-            fontSize={24}
-            paddingVertical={22}
-            locked
-            icon={<Image source={CATEGORY_ICON.bonus} style={styles.icon} resizeMode="contain" fadeDuration={0} />}
-            onPress={() => {}}
-          />
-        </View>
 
-        <View style={styles.spacer} />
+          <View style={styles.spacer} />
 
-        {/* Bottom: "Other apps" phone tile, centred — same tile, label and link
-            as the Flags Quiz Play screen. */}
-        <View style={styles.bottom}>
-          <Pressable
-            hitSlop={8}
-            style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}
-            onPress={() => {
-              Linking.openURL(
-                'https://apps.apple.com/us/app/erudite-quiz-trivia-crac-daily/id6787385686',
-              ).catch(() => {});
-            }}
-          >
-            <GlossyIconButton glyph="phone-portrait" size={70} />
-            <Text style={styles.bottomLabel}>{t.otherApps}</Text>
-          </Pressable>
+          {/* Bottom: "Other apps" phone tile, centred — same tile, label and link
+              as the Flags Quiz Play screen. */}
+          <View style={styles.bottom}>
+            <Pressable
+              hitSlop={8}
+              style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}
+              onPress={() => {
+                Linking.openURL(
+                  'https://apps.apple.com/us/app/erudite-quiz-trivia-crac-daily/id6787385686',
+                ).catch(() => {});
+              }}
+            >
+              <GlossyIconButton glyph="phone-portrait" size={70} />
+              <Text style={styles.bottomLabel}>{t.otherApps}</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     </View>

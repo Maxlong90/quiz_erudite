@@ -15,6 +15,7 @@ import { FQColors } from '@/constants/flags-quiz/theme';
 import { useFQLabels, FQ_LANGUAGE_NAMES } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { useLocale, type SupportedLocale } from '@/hooks/use-locale';
+import { useResponsive } from '@/hooks/use-responsive';
 import { getStoreLinks } from '@/lib/store-links';
 
 // External URLs / support — mirror Flags Quiz so a real page is a one-line change
@@ -40,6 +41,7 @@ export default function CoatOfArmsSettings() {
   const { locale, changeLocale, supportedLocales } = useLocale();
   const [langOpen, setLangOpen] = useState(false);
   const bgReady = useCoatBgReady();
+  const r = useResponsive();
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {});
@@ -76,40 +78,46 @@ export default function CoatOfArmsSettings() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        {/* Header: back button only (no title). */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="chevron-back" size={44} />
-          </Pressable>
-        </View>
-
-        <View style={styles.actions}>
-          <GlossyButton
-            label={t.selectLanguage}
-            onPress={() => setLangOpen(true)}
-            icon={<Flag locale={locale} />}
-          />
-          <GlossyButton label={t.rateApp} onPress={onRate} />
-          <GlossyButton label={t.contactSupport} onPress={onSupport} />
-          <GlossyButton label={t.privacyPolicy} onPress={() => openUrl(PRIVACY_URL)} />
-          <GlossyButton label={t.termsOfUse} onPress={() => openUrl(TERMS_URL)} />
-        </View>
-
-        {/* App version pinned to the bottom of the screen. Sits on a translucent
-            navy plate so it stays readable even when a coat of arms is directly
-            behind it (plain text was invisible over a light emblem). */}
-        {APP_VERSION ? (
-          <View style={styles.versionWrap}>
-            {/* The shared Flags Quiz EN labels are missing `version` (it shows
-                "undefined" in English there); fall back to "Version" so Coat of
-                Arms never leaks that gap. ru/es/fr resolve normally. */}
-            <Text style={styles.version}>{`${c.version} ${APP_VERSION}`}</Text>
+        {/* Content column — null on a phone, a centred cap on a wide window so
+            the five link buttons don't stretch edge to edge. `styles.fill` is
+            unconditional: the version pill relies on this box filling the height
+            to stay pinned at the bottom. */}
+        <View style={[styles.fill, r.column]}>
+          {/* Header: back button only (no title). */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="chevron-back" size={44} />
+            </Pressable>
           </View>
-        ) : null}
+
+          <View style={styles.actions}>
+            <GlossyButton
+              label={t.selectLanguage}
+              onPress={() => setLangOpen(true)}
+              icon={<Flag locale={locale} />}
+            />
+            <GlossyButton label={t.rateApp} onPress={onRate} />
+            <GlossyButton label={t.contactSupport} onPress={onSupport} />
+            <GlossyButton label={t.privacyPolicy} onPress={() => openUrl(PRIVACY_URL)} />
+            <GlossyButton label={t.termsOfUse} onPress={() => openUrl(TERMS_URL)} />
+          </View>
+
+          {/* App version pinned to the bottom of the screen. Sits on a translucent
+              navy plate so it stays readable even when a coat of arms is directly
+              behind it (plain text was invisible over a light emblem). */}
+          {APP_VERSION ? (
+            <View style={styles.versionWrap}>
+              {/* The shared Flags Quiz EN labels are missing `version` (it shows
+                  "undefined" in English there); fall back to "Version" so Coat of
+                  Arms never leaks that gap. ru/es/fr resolve normally. */}
+              <Text style={styles.version}>{`${c.version} ${APP_VERSION}`}</Text>
+            </View>
+          ) : null}
+        </View>
       </SafeAreaView>
 
       {/* Language picker — each row shows the language's flag; a tap switches the

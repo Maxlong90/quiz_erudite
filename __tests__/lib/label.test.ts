@@ -73,6 +73,32 @@ describe('fitTitleFontSize', () => {
   });
 });
 
+// The optional width parameter was added for Coat of Arms, whose continent screen
+// must size its title from the LIVE window (it runs in a resizable iPad window).
+// Flags Quiz — the only other caller — deliberately keeps calling with one
+// argument, so the default has to remain the frozen import-time width. These two
+// tests are the regression guard for that sibling.
+describe('fitTitleFontSize — the optional textWidth parameter', () => {
+  it('defaults to the frozen module width, leaving one-arg callers untouched', () => {
+    for (const chars of [1, 4, 12, 20, 33, 50, 80]) {
+      const line = 'x'.repeat(chars);
+      expect(fitTitleFontSize([line])).toBe(fitTitleFontSize([line], TEXT_W));
+    }
+  });
+
+  it('sizes against the width it is given when one is passed', () => {
+    const line = 'x'.repeat(20);
+    // A narrower box must never produce a LARGER font than a wider one.
+    expect(fitTitleFontSize([line], 200)).toBeLessThanOrEqual(fitTitleFontSize([line], 600));
+    // ...and the band still holds whatever width it is handed.
+    for (const w of [80, 200, 346, 472, 1000]) {
+      const size = fitTitleFontSize([line], w);
+      expect(size).toBeGreaterThanOrEqual(FONT_MIN);
+      expect(size).toBeLessThanOrEqual(FONT_MAX);
+    }
+  });
+});
+
 describe('wrapLabel', () => {
   it('splits a two-word name at the space into two whole-word lines', () => {
     expect(wrapLabel('Доминиканская Республика')).toBe('Доминиканская\nРеспублика');

@@ -47,10 +47,16 @@ const TITLE_CHAR_ADV = 0.72;
  * Largest font size (within the min/max band) at which the LONGEST of these lines
  * still fits the title's available text width on one line — so whole words never
  * wrap mid-word. Feed it the lines produced by wrapLabel(title).split('\n').
+ *
+ * `textWidth` lets a caller that knows its own LIVE content width pass it in — a
+ * screen laid out for a resizable window (Coat of Arms) must not be sized from a
+ * width captured once at import. The default deliberately stays the frozen
+ * module-level TITLE_TEXT_W so every caller that does NOT pass it (Flags Quiz)
+ * keeps its exact shipped behaviour.
  */
-export function fitTitleFontSize(lines: string[]): number {
+export function fitTitleFontSize(lines: string[], textWidth: number = TITLE_TEXT_W): number {
   const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
   if (longest === 0) return TITLE_FONT_MAX;
-  const fit = Math.floor(TITLE_TEXT_W / (longest * TITLE_CHAR_ADV));
+  const fit = Math.floor(textWidth / (longest * TITLE_CHAR_ADV));
   return Math.max(TITLE_FONT_MIN, Math.min(TITLE_FONT_MAX, fit));
 }

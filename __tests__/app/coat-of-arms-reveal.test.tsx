@@ -10,13 +10,18 @@
  *  - a correct answer stacks the original OVER the clean coat (both render), so
  *    a failed original download degrades to "no visible change", not a blank;
  *  - the 131 coats with no original simply never reveal;
- *  - the Share card keeps the CLEAN coat, so sharing a question can't spoil it.
+ *  - the Share card keeps the CLEAN coat, so sharing a question can't spoil it;
+ *  - the overlay renders at EXACTLY the base coat's geometry.
  *
  * The run order is pinned via the `retry` param, which makes useRunProgress
- * replay the given indices verbatim with no shuffle and no persistence.
+ * replay the given indices verbatim with no shuffle and no persistence. The
+ * WINDOW is pinned too — see the note on pinWindow below.
  */
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+
+import { IPAD_WINDOW, PHONE_WINDOW, pinWindow, unpinWindow } from '../helpers/window';
 
 const CLEAN_URI = 'file:///local/angola-clean.png';
 const ORIGINAL_URI = 'file:///local/angola-original.webp';
@@ -125,10 +130,16 @@ async function renderQuiz() {
 beforeEach(() => {
   jest.useFakeTimers();
   mockReplace.mockClear();
+  // The screen is adaptive now, so the window size decides which layout branch
+  // runs. RN's jest preset reports 750x1334 — NOT a phone — so without this the
+  // whole suite would quietly exercise the wide branch and stop covering the
+  // phone path these tests exist to protect.
+  pinWindow(PHONE_WINDOW.width, PHONE_WINDOW.height);
 });
 
 afterEach(() => {
   jest.useRealTimers();
+  unpinWindow();
 });
 
 describe('coat reveal — before answering', () => {
@@ -165,6 +176,23 @@ describe('coat reveal — correct answer', () => {
     expect(screen.getByTestId('coat-image').props.source.uri).toBe(CLEAN_URI);
   });
 
+  it('renders the original at EXACTLY the clean coat geometry', async () => {
+    // Both sizes used to come from one module constant, so they could not drift.
+    // They are now derived per render from the live window, and nothing but this
+    // test ties them together. The failure mode is silent: an overlay a few points
+    // off still animates and still "works", it just stops registering with the
+    // coat underneath, so the banner text develops in visibly misaligned.
+    const screen = await renderQuiz();
+
+    fireEvent.press(screen.getByText('Angola'));
+    const original = await waitFor(() => screen.getByTestId('coat-image-original'));
+
+    const base = StyleSheet.flatten(screen.getByTestId('coat-image').props.style);
+    const overlay = StyleSheet.flatten(original.props.style);
+    expect(overlay.width).toBe(base.width);
+    expect(overlay.height).toBe(base.height);
+  });
+
   it('hands the Share card the CLEAN coat even while revealing', async () => {
     const screen = await renderQuiz();
 
@@ -191,5 +219,44 @@ describe('coat reveal — a coat with no original (131 of 195)', () => {
     // ...and answering it correctly still reveals nothing, because it has no original.
     fireEvent.press(screen.getByText('Mali'));
     expect(screen.queryByTestId('coat-image-original')).toBeNull();
+  });
+});
+
+describe('coat reveal — in an iPad-sized window', () => {
+  // The Guideline 4 reject was about an iPad Air 11-inch. The screen has to be
+  // playable at that size, and the reveal has to keep registering there too —
+  // the coat is a different size on this branch, so the overlay is the thing
+  // most likely to come adrift.
+  beforeEach(() => {
+    pinWindow(IPAD_WINDOW.width, IPAD_WINDOW.height);
+  });
+
+  it('plays and reveals without crashing', async () => {
+    const screen = await renderQuiz();
+
+    expect(screen.getByTestId('coat-image').props.source.uri).toBe(CLEAN_URI);
+    fireEvent.press(screen.getByText('Angola'));
+
+    const original = await waitFor(() => screen.getByTestId('coat-image-original'));
+    expect(original.props.source.uri).toBe(ORIGINAL_URI);
+  });
+
+  it('still renders the original at exactly the clean coat geometry', async () => {
+    const screen = await renderQuiz();
+
+    fireEvent.press(screen.getByText('Angola'));
+    const original = await waitFor(() => screen.getByTestId('coat-image-original'));
+
+    const base = StyleSheet.flatten(screen.getByTestId('coat-image').props.style);
+    const overlay = StyleSheet.flatten(original.props.style);
+    expect(overlay.width).toBe(base.width);
+    expect(overlay.height).toBe(base.height);
+  });
+
+  it('grows the coat beyond its phone size', async () => {
+    const screen = await renderQuiz();
+
+    const base = StyleSheet.flatten(screen.getByTestId('coat-image').props.style);
+    expect(base.width).toBeGreaterThan(190);
   });
 });

@@ -110,6 +110,17 @@ interface Props {
    * gradient instead of the flat pastel surface (host palette match).
    */
   sheetGradient?: readonly [string, string];
+  /**
+   * Caps the sheet's width and centres it. Leave unset (the default) for the
+   * shipped full-bleed bottom sheet.
+   *
+   * A bottom sheet that spans the whole window is right on a phone and wrong on a
+   * wide one: at 1024pt the report reasons become 1024pt-long stripes with a
+   * short label stranded at the left edge. Hosts that lay themselves out for a
+   * resizable window (Coat of Arms) pass their content-column cap here; every
+   * other host is untouched.
+   */
+  maxWidth?: number;
 }
 
 /**
@@ -130,9 +141,16 @@ export function QuizMenuModal({
   initialView = 'menu',
   primaryGradient,
   sheetGradient,
+  maxWidth,
 }: Props) {
   const t = useLQLabels();
   const { panHandlers, animatedStyle } = useSheetDrag(onClose, visible);
+
+  // `width: '100%'` is required alongside maxWidth: alignSelf 'center' drops the
+  // default `stretch`, so a maxWidth-only sheet would shrink to fit its text.
+  const sheetWidth = maxWidth
+    ? ({ width: '100%', maxWidth, alignSelf: 'center' } as const)
+    : null;
 
   const [view, setView] = useState<MenuView>(initialView);
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -199,7 +217,7 @@ export function QuizMenuModal({
       {view === 'menu' ? (
         <Pressable style={styles.backdrop} onPress={onClose}>
           <Animated.View
-            style={[styles.sheet, styles.sheetMenu, animatedStyle]}
+            style={[styles.sheet, styles.sheetMenu, sheetWidth, animatedStyle]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.handleArea} {...panHandlers}>
@@ -233,7 +251,7 @@ export function QuizMenuModal({
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-          <View style={[styles.sheet, sheetGradient && styles.sheetTransparent]}>
+          <View style={[styles.sheet, sheetGradient && styles.sheetTransparent, sheetWidth]}>
             {sheetGradient && (
               <LinearGradient
                 colors={sheetGradient}

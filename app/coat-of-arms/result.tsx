@@ -9,6 +9,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
+import { useResponsive } from '@/hooks/use-responsive';
 
 /**
  * Coat of Arms result screen. Shown once every question of a run has been
@@ -21,6 +22,12 @@ export default function CoatOfArmsResult() {
   const t = useFQLabels();
   const c = useCoaLabels();
   const bgReady = useCoatBgReady();
+  // This screen is a fixed vertical stack (emoji + title + 200pt medal + message
+  // + up to three buttons + gaps ≈ 618pt). In a SHORT window — 1024x568, entirely
+  // reachable on iPad — that overflows and the buttons go off-screen. `scale`
+  // shrinks below 1 there, which is what keeps the whole stack reachable.
+  const r = useResponsive();
+  const medal = Math.round(200 * r.scale);
   const { correct, total, wrong, mode, continent } = useLocalSearchParams<{
     correct?: string;
     total?: string;
@@ -90,16 +97,30 @@ export default function CoatOfArmsResult() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
-        <View style={styles.content}>
-          <Text style={styles.emoji}>{emoji}</Text>
-          <Text style={styles.title}>{t.resultTitle}</Text>
+        <View
+          style={[
+            styles.content,
+            { gap: Math.round(18 * r.scale) },
+            r.column,
+          ]}
+        >
+          <Text style={{ fontSize: Math.round(64 * r.scale), lineHeight: Math.round(76 * r.scale) }}>
+            {emoji}
+          </Text>
+          <Text style={[styles.title, { fontSize: Math.round(30 * r.scale) }]}>
+            {t.resultTitle}
+          </Text>
 
           {/* Big square score tile (Erudite-style stats in the FQ language). */}
           <LinearGradient
             colors={[FQColors.tileLight, FQColors.tileDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.square, { borderColor: tierColor }, FQShadow.card]}
+            style={[
+              styles.square,
+              { width: medal, height: medal, borderColor: tierColor },
+              FQShadow.card,
+            ]}
           >
             <LinearGradient
               colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
@@ -107,12 +128,14 @@ export default function CoatOfArmsResult() {
               pointerEvents="none"
             />
             <Text
-              style={[styles.score, { color: tierColor }]}
+              style={[styles.score, { color: tierColor, fontSize: Math.round(56 * r.scale) }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.4}
             >{`${score}/${outOf}`}</Text>
-            <Text style={[styles.percent, { color: tierColor }]}>{`${percentage}%`}</Text>
+            <Text
+              style={[styles.percent, { color: tierColor, fontSize: Math.round(26 * r.scale) }]}
+            >{`${percentage}%`}</Text>
             <Text style={styles.caption}>{t.resultCaption}</Text>
           </LinearGradient>
 
@@ -133,25 +156,22 @@ export default function CoatOfArmsResult() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: 'transparent' },
+  // gap, and the emoji/title/medal/score sizes below, are applied INLINE from the
+  // live window scale so the stack stays reachable in a short window.
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    gap: 18,
   },
-  emoji: { fontSize: 64, lineHeight: 76 },
   title: {
     color: '#FFFFFF',
-    fontSize: 30,
     fontWeight: '900',
     textShadowColor: 'rgba(4, 40, 96, 0.55)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
   square: {
-    width: 200,
-    height: 200,
     borderRadius: 28,
     borderWidth: 4,
     alignItems: 'center',
@@ -170,8 +190,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
-  score: { fontSize: 56, fontWeight: '900', fontVariant: ['tabular-nums'], textAlign: 'center', alignSelf: 'stretch' },
-  percent: { fontSize: 26, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  score: { fontWeight: '900', fontVariant: ['tabular-nums'], textAlign: 'center', alignSelf: 'stretch' },
+  percent: { fontWeight: '800', fontVariant: ['tabular-nums'] },
   caption: { color: FQColors.tileGlyph, fontSize: 14, fontWeight: '700', marginTop: 2 },
   message: {
     color: '#FFFFFF',

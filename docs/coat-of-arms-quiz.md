@@ -107,6 +107,36 @@ That review loop is the whole reason the app auto-opens a help sheet. With 195 q
 
 Report and share are borrowed wholesale. Reporting opens Logo Quiz's `QuizMenuModal` straight to its report view with the real backend question id, so coat questions flow through the same `/reports` pipeline as every other app. Share captures an off-screen `CoatShareCard` — the current question rendered neutral, with no option highlighted — to a PNG and shares it with a localized invite built from `getStoreLinks`.
 
+## Laying Out for a Window That Can Change Size
+
+Coat of Arms ships as an **iPhone-only** binary (`ios.supportsTablet: false`, and that stays false). That does not keep it off iPad: an iPhone app cannot be hidden there, App Review always tests it there, and on iPadOS 26 it runs in a **resizable window**. Version 1.0.1 was rejected under **Guideline 4 (Design)** for how it looked on an iPad Air 11-inch.
+
+The aesthetic complaint had a concrete bug underneath it. Every screen sized itself from `Dimensions.get('window')` read **once at module import** — `SCREEN_W` in both gameplay screens, `TITLE_TEXT_W` in `lib/flags-quiz/label.ts`. In a window the user drags, every value derived from that read stays frozen at whatever the window was when the JS bundle loaded. Answer labels kept fonts fitted to the launch width; the coat grid kept its launch packing.
+
+The fix is one gate, in `hooks/use-responsive.ts`:
+
+```
+computeResponsive(width, height)
+  → width <= 480 && height <= 960  ?  the shipped phone values, returned before any arithmetic
+                                   :  { contentWidth: min(width, 520), scale: clamp(height/860, 0.8, 1.45), column }
+```
+
+**`isCompact` is the load-bearing invariant.** The widest phone is 440 × 956, so every real phone takes the early return and gets `scale: 1`, `column: null`, `contentWidth: width` — literally the constants that shipped. That turns "phones are unchanged" from a review claim into one machine-checked table (`__tests__/hooks/use-responsive.test.ts` over every iPhone size, plus `__tests__/lib/coat-of-arms-layout.test.ts` pinning `coatSize: 190`, `optionH: 68`, and the original `OPT_W` packing). Any future scaling curve that starts touching phones fails those suites.
+
+Three things are easy to get wrong here, and all three are load-bearing:
+
+- **`CONTENT_MAX_W` is one number (520) for every screen.** Two different caps make the column visibly jump width when navigating play → quiz. 520 also sits above 440, which is what keeps `min(width, cap) === width` on phones.
+- **The column carries a definite pixel `width`, never a bare `maxWidth`.** `alignSelf: 'center'` removes the default `stretch`, so a `maxWidth`-only child shrinks to its content and the `width: '48%'` option cells stop resolving. For the same reason the wrapper must carry `flex: 1` **unconditionally** — write `style={isWide ? column : undefined}` and the page → reveal → historyBox → ScrollView chain collapses, dropping "Next" off-screen on phones.
+- **`scale` never touches the continent grid cell.** `optW` is a *packing* value: two cells plus 32pt of chrome each plus an 8pt gutter must fit the content box. Scale it and the row overflows, and Yoga silently collapses the 2×2 grid into one column. On that screen `scale` governs vertical rhythm only.
+
+The dead band at the bottom of both gameplay screens — visible even on a phone, about half the screen on an iPad — was a fixed `marginTop` on the answer grid with no flexible sibling anywhere, so all slack pooled below. It is now a pair of `FlexSpacer`s (gap + tail) that stay fixed at exactly the old margin on phones and only grow on a genuinely tall window. Both must grow: growing only the tail re-parks the band, growing only the gap leaves it at the bottom. They collapse to zero while revealing, because the reveal panel is already `flex: 1` and would otherwise lose its room.
+
+Two smaller notes. `CoatOriginalReveal` overlays the coat pixel-for-pixel, so the base image, its box and the overlay's `size` must all read the **same** variable — a drift renders an overlay that still animates but no longer registers, which is why both reveal suites now assert overlay geometry equals base geometry. And `QuizMenuModal` (shared with Logo Quiz and Sport Quiz) is a `Modal` portal living outside the column, so it gained an **optional** `maxWidth` prop; only the two coat screens pass it, and unset means today's full-bleed sheet for every other host.
+
+Deliberately unchanged: `supportsTablet` stays false, there is no iPad-specific layout, the share card stays a fixed 340pt (it is an unversioned user-visible artifact), and `splash.tsx` keeps its 320pt letter clipping because "fixing" it would change a phone. Tap targets were audited and already pass 44pt everywhere. Verify layout changes with `scripts/coa-responsive-shots.js`, which drives Expo web over CDP — `react-native-web` maps a viewport resize onto the same `Dimensions.change` an iPad divider drag produces, with no remount.
+
+One side-effect worth knowing: this tree also ships to Google Play, so Android foldables (Z Fold inner ≈ 674 dp) and tablets now take the adaptive branch too.
+
 ## What It Shares with Flags Quiz
 
 The reuse is deliberate and broad: the `FlagCountryQuestion` and `FlagPictureQuestion` types, `buildCountryQuestions`, `groupByContinent`, `continentCounts`, `useRunProgress`, the glossy button kit, the continent artwork and keys, the share-capture helper, and most UI strings via `useFQLabels`.
