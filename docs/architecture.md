@@ -134,6 +134,8 @@ Every sibling app keeps its own bespoke palette under `constants/{slug}/theme.ts
 
 **Reducer-based quiz session.** The single linear quiz is a `useReducer` machine rather than a state library — its transitions are few and well defined, so a reducer fits without extra dependencies.
 
+**One layout for any window size, not a tablet layout.** Every build here is iPhone-only, but an iPhone app still runs on iPad, and iPadOS 26 gives it a window the user can resize. Screens that captured `Dimensions.get('window')` at module import were therefore permanently wrong the moment that window changed — which is what cost Coat of Arms an App Review rejection. `hooks/use-responsive.ts` is the tree-level answer: it reads the *live* window size and, for any phone-sized window, returns the exact values that already shipped before doing any arithmetic. The alternative — a second, tablet-specific layout — was rejected deliberately, because it doubles the surface to design and review for a form factor no build targets. Coat of Arms is the first app converted; the others still use module-level captures and are correct only because nothing resizes them yet. See [Coat of Arms](coat-of-arms-quiz.md#laying-out-for-a-window-that-can-change-size).
+
 **One tree, many apps.** The repository templates eight distinct experiences from one build, selected by the build-time `APP_SLUG`. For any non-default slug the home route (`app/index.tsx`) redirects straight into that app's self-contained flow and the erudite intro, hub, and modes never render. The redirect targets live in one registry (`APP_TEMPLATES` in `constants/app-templates.ts`), so a new app is added there rather than by editing the home route. Because `APP_SLUG` is a build-time constant, every redirect branch is stable across renders and never disturbs hook order.
 
 | `APP_SLUG` | App | Entry route | Economy |
@@ -190,6 +192,7 @@ components/
   lives/  shop/         Claim, buy, and info modals
 hooks/                  Locale, premium, content cache, quiz session,
                         lives, hints, mistakes, achievements, translation
+  use-responsive.ts     Live window metrics + the phone-identity gate
   use-theme-pref.ts     App-selected appearance (dark/light), persisted
   use-theme-colors.ts   Resolves the active EruditePalette
   use-app-theme.ts      Remote-theme context (I/O-free) + the inert value

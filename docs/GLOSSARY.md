@@ -38,6 +38,14 @@ This tree builds eight apps that share infrastructure but not vocabulary. Severa
 
 **Pack manifest** — The `manifest.json` inside each pack. It is the build-time contract with the backend: which packs exist, which onboarding shapes they suit, and the human label and declared pixel size of every slot. The app resolves nothing through it; the copy that lands in `assets/t/` serves only as a record of which pack a binary was built from.
 
+## Window and Layout
+
+**Compact window** — A window no larger than 480 × 960 points, which is every real phone with headroom to spare. `computeResponsive` recognizes it and returns the layout values that already shipped, untouched. The term describes the *window*, not the device: an iPhone-only build in a small iPad window is compact too, and gets the phone layout on purpose. See [Coat of Arms](coat-of-arms-quiz.md#laying-out-for-a-window-that-can-change-size).
+
+**Adaptive branch** — What a non-compact window gets instead: content capped to a centred column, and vertical rhythm scaled from the window height. Reached on an iPad window, an Android foldable's inner screen, or a tablet — never on a phone. Not a tablet layout; there is no separate iPad design in this tree.
+
+**Content column** — The 520-point centred box that holds screen content on the adaptive branch. One cap for every screen of an app, so the column does not visibly change width while navigating. It carries a definite pixel width rather than a `maxWidth`, because a centred child with only a maximum shrinks to its content and breaks percentage-width grandchildren.
+
 ## Content
 
 **Snapshot** — The offline mirror of everything one app needs for one language: the app descriptor, every category with its subcategories, and the full question pool. Fetched once, cached for 24 hours, and served from disk thereafter. See [Content and Offline](content-and-offline.md#the-content-snapshot).

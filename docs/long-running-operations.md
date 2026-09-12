@@ -10,6 +10,7 @@ This file records which operations are dangerous to run in the foreground, how l
 - Full rebuild from scratch (uninstall → `npx expo prebuild` → Gradle → reinstall) — ~15-30 min, silent → SIGTERM. Safe: dashboard Mobile modal → «Пересобрать APK с нуля» (runs as a supervised background job).
 - `npm install` — several minutes, near-silent while resolving and linking an ~870 MB tree → SIGTERM risk. Safe: `suslik-bg "npm install"`.
 - `eas build --profile <name>` — 20-40 min queued on EAS servers, output is sparse polling → SIGTERM. Safe: `suslik-bg`, then poll the build URL in a later turn.
+- `npx expo start --web` (the dev server the responsive screenshot sweep drives) — never exits at all, so a foreground turn waits until the watchdog kills it. Safe: `suslik-bg "EXPO_PUBLIC_APP_SLUG=<slug> npx expo start --web --port 8091"`, then run the sweep in a later command.
 <!-- AGENT-SUMMARY:END -->
 
 ## Android Native Build
@@ -61,9 +62,21 @@ One failure here looks like the opposite of a long-running operation, and is wor
 
 Publishing an over-the-air update (`eas update --channel …`) is *not* in this category — it bundles JS only and finishes in a minute or two. See [Development](development.md#over-the-air-updates-eas-update).
 
+## The Web Dev Server Behind the Responsive Sweep
+
+Checking a layout at many window sizes needs Expo's **web** dev server running, because this host has no iOS or iPad simulator (see [Responsive-Layout Screenshots](development.md#responsive-layout-screenshots)). A dev server is not slow — it is *unbounded*. It never exits, so a turn that starts it in the foreground blocks until the silence watchdog kills the agent, and the screenshot step never runs. Start it detached and end the command:
+
+```
+suslik-bg "EXPO_PUBLIC_APP_SLUG=coat-of-arms npx expo start --web --port 8091"
+```
+
+The screenshot script itself is a different shape and safe to foreground. `node scripts/coa-responsive-shots.js` takes roughly **ten minutes** for its default `all` mode — an estimate from its own waits, not a log, since it keeps no log — but it prints a filename for every screenshot it writes, and its longest quiet stretch is the nine-second pause that lets a gameplay screen finish painting. That is well inside the watchdog window. A single mode (`sweep`, `identity`, `reveal`, `modals`, `resize`) finishes in one to six minutes.
+
+The first page load is the one part that can stall: a cold server bundles the whole web app on demand, and the script's per-command timeout is 30 seconds. Open one route in a browser (or `curl` it) once before starting a sweep against a freshly launched server.
+
 ## Not a Long-Running Operation: the Test Suite
 
-The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 91 test files (1463 tests) are pure logic, filesystem checks, and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — 14 seconds measured on 2026-09-09, wall clock, for the full suite. Run `npm test` in the foreground.
+The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 94 test files (1894 tests) are pure logic, filesystem checks, and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — 14 seconds measured on 2026-09-12, wall clock, for the full suite. Run `npm test` in the foreground.
 
 The one test that *does* reach the network is excluded from that default run by filename. `__tests__/lib/theme-contract-live.livetest.ts` verifies the theme wire contract against the live backend and runs only under `npm run check:theme-contract`, which points Jest at `jest.live.config.js`. It is a handful of HTTP requests against one endpoint, so it is fast when the backend answers — but unlike the offline suite it can hang on a network that neither answers nor refuses. Foreground it, and read a long silence as a network problem rather than a slow test.
 

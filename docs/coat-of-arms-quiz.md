@@ -61,7 +61,7 @@ Like Flags Quiz, the app runs two modes backed by two *different* question shape
 
 ### All countries — coat picture, text answers
 
-`app/coat-of-arms/quiz.tsx` shows one coat and four country names. These are ordinary snapshot `image_questions` from `GET /apps/coat-of-arms/snapshot`, transformed by Flags Quiz's own `buildCountryQuestions` — the shape is identical, so the transform is shared rather than duplicated. Only the artwork differs: a coat is portrait or square where a flag is wide, so the picture sits in a square 190-point frame on a white plate and is *contained*, never cropped, so a transparent crest still reads clearly.
+`app/coat-of-arms/quiz.tsx` shows one coat and four country names. These are ordinary snapshot `image_questions` from `GET /apps/coat-of-arms/snapshot`, transformed by Flags Quiz's own `buildCountryQuestions` — the shape is identical, so the transform is shared rather than duplicated. Only the artwork differs: a coat is portrait or square where a flag is wide, so the picture sits in a square frame on a white plate and is *contained*, never cropped, so a transparent crest still reads clearly. That frame is 190 points on any phone and grows with the window elsewhere — see [Laying Out for a Window That Can Change Size](#laying-out-for-a-window-that-can-change-size).
 
 Russian is the one locale that overrides the backend prompt. The single-line wrap of "Какой стране принадлежит этот герб?" looked wrong on a phone, so `constants/coat-of-arms/labels.ts` supplies a two-line `quizPrompt`; every other locale keeps the backend question, whose wrap is already fine.
 
@@ -109,33 +109,100 @@ Report and share are borrowed wholesale. Reporting opens Logo Quiz's `QuizMenuMo
 
 ## Laying Out for a Window That Can Change Size
 
-Coat of Arms ships as an **iPhone-only** binary (`ios.supportsTablet: false`, and that stays false). That does not keep it off iPad: an iPhone app cannot be hidden there, App Review always tests it there, and on iPadOS 26 it runs in a **resizable window**. Version 1.0.1 was rejected under **Guideline 4 (Design)** for how it looked on an iPad Air 11-inch.
+Coat of Arms ships as an **iPhone-only** binary (`ios.supportsTablet: false`, and that stays false). That does not keep it off iPad. An iPhone app cannot be hidden there, App Review always tests it there, and on iPadOS 26 it runs in a **resizable window**. Version 1.0.1 was rejected under **Guideline 4 (Design)** for how it looked on an iPad Air 11-inch.
 
-The aesthetic complaint had a concrete bug underneath it. Every screen sized itself from `Dimensions.get('window')` read **once at module import** — `SCREEN_W` in both gameplay screens, `TITLE_TEXT_W` in `lib/flags-quiz/label.ts`. In a window the user drags, every value derived from that read stays frozen at whatever the window was when the JS bundle loaded. Answer labels kept fonts fitted to the launch width; the coat grid kept its launch packing.
+The aesthetic complaint had a concrete bug underneath it. Every screen sized itself from `Dimensions.get('window')` read **once at module import** — `SCREEN_W` in both gameplay screens, `TITLE_TEXT_W` in `lib/flags-quiz/label.ts`. In a window the user drags, every value derived from that read stays frozen at whatever the window was when the JS bundle loaded. Answer labels kept fonts fitted to the launch width, and the coat grid kept its launch packing.
 
-The fix is one gate, in `hooks/use-responsive.ts`:
+### The compact gate
+
+The whole fix hangs off one branch, in `computeResponsive` (`hooks/use-responsive.ts`). A phone-sized window returns the values that already shipped, before any arithmetic runs at all:
 
 ```
-computeResponsive(width, height)
-  → width <= 480 && height <= 960  ?  the shipped phone values, returned before any arithmetic
-                                   :  { contentWidth: min(width, 520), scale: clamp(height/860, 0.8, 1.45), column }
+                     ┌───────────────────────────┐
+   live window  ───→ │  computeResponsive        │
+   size (width,      │  hooks/use-responsive.ts  │
+   height)           └─────────────┬─────────────┘
+                                   │
+              phone-sized window?  │  width ≤ 480 and height ≤ 960
+                  ┌────────────────┴────────────────┐
+                  │ yes                          no │
+                  ↓                                 ↓
+      ┌───────────────────────┐        ┌────────────────────────────┐
+      │ identity branch       │        │ adaptive branch            │
+      │  scale = 1            │        │  scale = height / 860,     │
+      │  column = null        │        │    clamped to 0.8 … 1.45   │
+      │  contentWidth = width │        │  contentWidth = min(width, │
+      │                       │        │    520)                    │
+      │  → the shipped phone  │        │  column = a centred 520pt  │
+      │    layout, exactly    │        │    box once width > 520    │
+      └───────────────────────┘        └────────────────────────────┘
 ```
 
-**`isCompact` is the load-bearing invariant.** The widest phone is 440 × 956, so every real phone takes the early return and gets `scale: 1`, `column: null`, `contentWidth: width` — literally the constants that shipped. That turns "phones are unchanged" from a review claim into one machine-checked table (`__tests__/hooks/use-responsive.test.ts` over every iPhone size, plus `__tests__/lib/coat-of-arms-layout.test.ts` pinning `coatSize: 190`, `optionH: 68`, and the original `OPT_W` packing). Any future scaling curve that starts touching phones fails those suites.
+**`isCompact` is the load-bearing invariant.** The widest phone is 440 × 956, so every real phone takes the identity branch. That turns "phones are unchanged" from a review claim into one machine-checked table: `__tests__/hooks/use-responsive.test.ts` walks every iPhone size, and `__tests__/lib/coat-of-arms-layout.test.ts` pins `coatSize: 190`, `optionH: 68`, and the original option-width packing. Any future scaling curve that starts touching phones fails those suites.
 
-Three things are easy to get wrong here, and all three are load-bearing:
+The hook deliberately exports no `isTablet` flag. There is no iPad layout here — there is one layout that survives any window size.
+
+### How a screen reads its metrics
+
+Screens never do the arithmetic themselves. The two gameplay screens read named metrics; the calmer screens read the raw window values.
+
+```
+┌───────────────────────────────┐   ┌──────────────────────────────┐
+│ gameplay screens              │   │ home · play · continents ·   │
+│  quiz.tsx                     │   │ result · settings            │
+│  continent-quiz.tsx           │   │                              │
+└───────────────┬───────────────┘   └──────────────┬───────────────┘
+                │ useCoatQuizMetrics /             │ useResponsive
+                │ useCoatContinentMetrics          │
+                ↓                                  │
+┌───────────────────────────────┐                  │
+│ coatQuizMetrics /             │                  │
+│ coatContinentMetrics          │                  │
+│ (lib/coat-of-arms/layout.ts)  │                  │
+└───────────────┬───────────────┘                  │
+                └──────────────┬───────────────────┘
+                               ↓
+                ┌──────────────────────────────┐
+                │ computeResponsive            │
+                │ (hooks/use-responsive.ts)    │
+                └──────────────────────────────┘
+```
+
+The split between `hooks/coat-of-arms/use-coat-layout.ts` and `lib/coat-of-arms/layout.ts` is not ceremony. The hooks are only the wire from the live window size (`useWindowDimensions`, which subscribes to `Dimensions.change`) to pure functions of width and height. Keeping the arithmetic pure is what lets the phone-identity table be a unit test with no renderer. It also respects an expo-router constraint: a route file may export only its screen component, so the numbers cannot live next to the screen that uses them. Call the hooks *above* either screen's content-loading early return, or the hook order breaks.
+
+Every size the layout functions return is rounded. Fractional widths make expo-image re-rasterise on each sub-pixel change, and a resize drag produces a great many of those.
+
+### Three rules that are easy to break
+
+All three are load-bearing:
 
 - **`CONTENT_MAX_W` is one number (520) for every screen.** Two different caps make the column visibly jump width when navigating play → quiz. 520 also sits above 440, which is what keeps `min(width, cap) === width` on phones.
 - **The column carries a definite pixel `width`, never a bare `maxWidth`.** `alignSelf: 'center'` removes the default `stretch`, so a `maxWidth`-only child shrinks to its content and the `width: '48%'` option cells stop resolving. For the same reason the wrapper must carry `flex: 1` **unconditionally** — write `style={isWide ? column : undefined}` and the page → reveal → historyBox → ScrollView chain collapses, dropping "Next" off-screen on phones.
 - **`scale` never touches the continent grid cell.** `optW` is a *packing* value: two cells plus 32pt of chrome each plus an 8pt gutter must fit the content box. Scale it and the row overflows, and Yoga silently collapses the 2×2 grid into one column. On that screen `scale` governs vertical rhythm only.
 
-The dead band at the bottom of both gameplay screens — visible even on a phone, about half the screen on an iPad — was a fixed `marginTop` on the answer grid with no flexible sibling anywhere, so all slack pooled below. It is now a pair of `FlexSpacer`s (gap + tail) that stay fixed at exactly the old margin on phones and only grow on a genuinely tall window. Both must grow: growing only the tail re-parks the band, growing only the gap leaves it at the bottom. They collapse to zero while revealing, because the reveal panel is already `flex: 1` and would otherwise lose its room.
+### Closing the dead band
 
-Two smaller notes. `CoatOriginalReveal` overlays the coat pixel-for-pixel, so the base image, its box and the overlay's `size` must all read the **same** variable — a drift renders an overlay that still animates but no longer registers, which is why both reveal suites now assert overlay geometry equals base geometry. And `QuizMenuModal` (shared with Logo Quiz and Sport Quiz) is a `Modal` portal living outside the column, so it gained an **optional** `maxWidth` prop; only the two coat screens pass it, and unset means today's full-bleed sheet for every other host.
+The dead band at the bottom of both gameplay screens was visible even on a phone and covered about half the screen on an iPad. Its cause was a fixed `marginTop` on the answer grid with no flexible sibling anywhere, so all leftover height pooled below the grid. It is now a pair of `FlexSpacer`s (`components/coat-of-arms/flex-spacer.tsx`) — one gap, one tail — that hold exactly the old margin on a phone and grow only on a genuinely tall window.
 
-Deliberately unchanged: `supportsTablet` stays false, there is no iPad-specific layout, the share card stays a fixed 340pt (it is an unversioned user-visible artifact), and `splash.tsx` keeps its 320pt letter clipping because "fixing" it would change a phone. Tap targets were audited and already pass 44pt everywhere. Verify layout changes with `scripts/coa-responsive-shots.js`, which drives Expo web over CDP — `react-native-web` maps a viewport resize onto the same `Dimensions.change` an iPad divider drag produces, with no remount.
+A sibling spacer of height N lays out identically to `marginTop: N`, because Yoga does not collapse margins. That equivalence is what keeps the phone case a no-op. Three details in that component are deliberate:
 
-One side-effect worth knowing: this tree also ships to Google Play, so Android foldables (Z Fold inner ≈ 674 dp) and tablets now take the adaptive branch too.
+- **Both spacers must grow.** Growing only the tail re-parks the band; growing only the gap leaves it at the bottom.
+- **The grown height is bounded.** An unbounded split puts roughly 280pt of air between the coat and the answers on a tall window, which reads worse than the bug it replaces.
+- **They collapse to zero during a reveal.** The reveal panel is already `flex: 1` and would otherwise lose its room.
+
+### Two shared surfaces that had to keep their old behaviour
+
+`CoatOriginalReveal` overlays the coat pixel-for-pixel, so the base image, its box, and the overlay's `size` must all read the **same** variable. A drift renders an overlay that still animates but no longer registers, which is why both reveal suites now assert that the overlay's geometry equals the base's.
+
+`QuizMenuModal` is shared with [Logo Quiz](logo-quiz.md#the-in-quiz-menu-report-and-share) and Sport Quiz, and it is a `Modal` portal that lives outside the content column. It therefore gained an **optional** `maxWidth` prop. Only the two coat screens pass it; unset means today's full-bleed sheet, so no other host's sheet moved.
+
+### What was deliberately left alone
+
+`supportsTablet` stays false, and there is no iPad-specific layout — no split view, no sidebar, no second column. The share card stays a fixed 340pt, because it is an unversioned artifact players have already posted. `splash.tsx` keeps its 320pt letter clipping, since "fixing" it would change a phone. Tap targets were audited against the 44pt minimum and already passed everywhere, so nothing needed a `hitSlop`.
+
+One side-effect is worth knowing: this tree also ships to Google Play, so Android foldables (a Z Fold's inner screen is about 674 dp) and tablets now take the adaptive branch too.
+
+Layout changes here are verified through Expo web rather than a simulator, because this host has no macOS and no iPad simulator. `scripts/coa-responsive-shots.js` drives the web build over the Chrome DevTools Protocol, and `react-native-web` maps a viewport resize onto the same `Dimensions.change` an iPad divider drag produces, with no remount. See [Responsive-Layout Screenshots](development.md#responsive-layout-screenshots).
 
 ## What It Shares with Flags Quiz
 

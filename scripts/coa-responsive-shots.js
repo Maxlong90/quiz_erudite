@@ -23,7 +23,12 @@
  *   node scripts/coa-responsive-shots.js [label] [mode]
  *
  *   label  filename prefix (default "after") — use "before"/"after" to diff a change
- *   mode   sweep | reveal | modals | resize | all   (default "all")
+ *   mode   sweep | reveal | modals | resize | identity | all   (default "all")
+ *
+ * `identity` is the one that answers "did phones change?". It pins the question
+ * order with the `retry` param (useRunProgress replays those indices verbatim —
+ * no shuffle, no persistence), so two runs are byte-comparable. Without it the
+ * gameplay screens draw a different country each run and every diff is noise.
  *
  * Output lands in screenshots/ (git-ignored).
  *
@@ -134,16 +139,41 @@ const centreOf = (selectorExpr) => `(() => {
 
 const clickTestId = (cdp, id) =>
   evalJs(cdp, centreOf(`document.querySelector('[data-testid="${id}"]')`)).then((b) => clickBox(cdp, b));
-const clickNth = (cdp, sel, n) =>
-  evalJs(cdp, centreOf(`[...document.querySelectorAll(${JSON.stringify(sel)})][${n}]`)).then((b) => clickBox(cdp, b));
 const hasNext = (cdp) => evalJs(cdp, `!!document.body.innerText.match(/\\bNext\\b/)`);
 
-/** Tap answer candidates until the reveal panel appears (a wrong tap just advances). */
+/**
+ * Centre of the Nth ANSWER option.
+ *
+ * Selecting `div[tabindex]` by raw index does not work: the first four focusable
+ * divs are the HUD tiles, so half the taps landed on Back and navigated out of
+ * the quiz entirely. The answers are the focusable divs that come AFTER the coat
+ * picture in document order — true on both gameplay screens, where the coat (or
+ * the first coat option) is always rendered above the answer grid.
+ */
+const nthOption = (n) => `(() => {
+  const anchor = document.querySelector('[data-testid="coat-image"]')
+              || document.querySelector('[data-testid^="coat-option-"]');
+  if (!anchor) return null;
+  const opts = [...document.querySelectorAll('div[tabindex]')].filter((el) =>
+    anchor.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
+    || anchor.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_CONTAINS);
+  const el = opts[${n}];
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  return JSON.stringify({x: r.x + r.width/2, y: r.y + r.height/2});
+})()`;
+
+/**
+ * Tap answers until the reveal panel appears. A wrong pick flashes red and
+ * auto-advances to a NEW question whose correct index is different, so this is a
+ * random walk rather than an enumeration — hence the generous attempt budget.
+ */
 async function reachReveal(cdp) {
-  for (let attempt = 0; attempt < 14; attempt++) {
+  for (let attempt = 0; attempt < 24; attempt++) {
     if (await hasNext(cdp)) return true;
-    await clickNth(cdp, 'div[tabindex]', attempt % 8);
-    await sleep(1600);
+    await clickBox(cdp, await evalJs(cdp, nthOption(attempt % 4)));
+    await sleep(1500);
   }
   return hasNext(cdp);
 }
@@ -192,6 +222,23 @@ async function main() {
           await cdp.send('Page.navigate', { url: BASE + route });
           await sleep(name.includes('quiz') ? WAIT_GAMEPLAY : WAIT_STATIC);
           await shot(`coa-${LABEL}-${name}-${w}x${h}`);
+        }
+      }
+    }
+
+    if (want('identity')) {
+      // Phone-identity check. The question order is PINNED via `retry` so the two
+      // gameplay screens draw the same country every run and the PNGs are
+      // byte-comparable between a "before" and an "after" capture.
+      for (const [w, h] of [[320, 568], [393, 852], [430, 932]]) {
+        await setViewport(cdp, w, h);
+        for (const [name, route] of [
+          ['quiz', '/coat-of-arms/quiz?retry=0,1,2'],
+          ['continent-quiz', '/coat-of-arms/continent-quiz?continent=africa&retry=0,1,2'],
+        ]) {
+          await cdp.send('Page.navigate', { url: BASE + route });
+          await sleep(WAIT_GAMEPLAY);
+          await shot(`coa-${LABEL}-identity-${name}-${w}x${h}`);
         }
       }
     }
