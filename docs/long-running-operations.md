@@ -76,7 +76,7 @@ The first page load is the one part that can stall: a cold server bundles the wh
 
 ## Not a Long-Running Operation: the Test Suite
 
-The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 94 test files (1894 tests) are pure logic, filesystem checks, and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — 14 seconds measured on 2026-09-12, wall clock, for the full suite. Run `npm test` in the foreground.
+The Jest suite is worth calling out precisely so nobody defensively backgrounds it. All 97 test files (1943 tests) are pure logic, filesystem checks, and mocked-dependency screen tests with no device, emulator, or backend involved, and the whole run finishes in **seconds, not minutes** — 12 seconds measured on 2026-09-13, wall clock, for the full suite. Run `npm test` in the foreground.
 
 The one test that *does* reach the network is excluded from that default run by filename. `__tests__/lib/theme-contract-live.livetest.ts` verifies the theme wire contract against the live backend and runs only under `npm run check:theme-contract`, which points Jest at `jest.live.config.js`. It is a handful of HTTP requests against one endpoint, so it is fast when the backend answers — but unlike the offline suite it can hang on a network that neither answers nor refuses. Foreground it, and read a long silence as a network problem rather than a slow test.
 

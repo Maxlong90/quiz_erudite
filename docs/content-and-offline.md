@@ -134,5 +134,5 @@ The daily question (`lib/today-question.ts`) picks one question ID and pins it f
 - [Flags Quiz](flags-quiz.md) -- A sibling that also caches a second content source outside the snapshot
 - [Coat of Arms](coat-of-arms-quiz.md) -- The app that consumes the second image variant
 - [Sport Quiz](sport-quiz.md) -- A sibling drawing its levels from the same snapshot
-- [Italy Quiz](italy-quiz.md) -- The one sibling that reads this cache through the main provider
+- [Italy Quiz](italy-quiz.md) -- The one sibling that reads no snapshot at all, playing from bundled questions
 - [Configurable Template](configurable-template.md) -- The separate, ETag-validated theme cache

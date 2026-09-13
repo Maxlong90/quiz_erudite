@@ -46,6 +46,19 @@ Freezing the set is what makes a replay legible. Under the old draw a second vis
 
 The map pin carries the **sum of the stars of every circle** of that place, 0..30.
 
+```
+ITALY_CHAIN:  rome ──clear circle 1──→ florence ──clear circle 1──→ venice
+
+  Place (rome)
+    ├── acts: antiquity → middle-ages → renaissance → today
+    ├── questions (bundled, 32 today — 8 per act)
+    └── circles 1..10        ← at most one per 5 unused questions per act
+          ├── Circle 1  ids[20] (frozen)  stars 0..3  bestPct  plays
+          ├── Circle 2  "soon" — no ids, cannot be drawn yet
+          └── …
+                 ↑ five ids drawn from each act, never reused by another circle
+```
+
 ### Two ways a circle can be shut
 
 The strip on the place card draws all ten slots, and the load-bearing distinction is between its two closed states:
@@ -152,7 +165,7 @@ Callbacks are why **acts may never be reordered**. A pair is authored across act
 
 A save resumes only when its stored ids are the **same set in the same order** as the circle being entered. Under the old model the check could only ask "are these ids known to this place", because the order was redrawn on every entry; now that it is fixed upstream the strict comparison is both possible and necessary, and it is what stops a blob left by another draw from resurrecting a half-finished tour under a different twenty.
 
-The score is derived rather than stored (`pos - wrong.length`): every answered question is either right or wrong, so a stored score would be a second source of truth that could disagree with the mistakes list. A mistakes-only retry tour is handed its ids directly and is **never persisted**, so a player who abandons a review returns to a clean slate.
+The score is derived rather than stored — answered questions minus missed ones: every answered question is either right or wrong, so a stored score would be a second source of truth that could disagree with the mistakes list. The count of answered questions is the subtle half. Mid-circle it is the position, but a finished circle has to count the whole set, because `pos` stops **on** the last question rather than moving past it; counting `pos` at the end displayed 19 of 20 for a clean run while banking 20. That gap was cosmetic until the result screen started stating the 10-of-20 gate — now the number shown and the number judged have to be the same, or the screen contradicts itself. A mistakes-only retry tour is handed its ids directly and is **never persisted**, so a player who abandons a review returns to a clean slate.
 
 ```
 circle tapped on the strip

@@ -60,11 +60,19 @@ This tree builds eight apps that share infrastructure but not vocabulary. Severa
 
 ## Gameplay
 
-**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz and Coat of Arms have no levels at all — they present a run instead, and Italy Quiz a [tour](#tour).
+**Level** — A numbered chunk of the catalogue, but sized and derived differently per app. In [Logo Quiz](logo-quiz.md#levels-and-the-premium-split) it comes from each question's persisted `order` field. In [Sport Quiz](sport-quiz.md#levels-and-ordering) it is a chunk of 20 (Classic) or 15 (Legends) computed from a deterministic id hash. Flags Quiz and Coat of Arms have no levels at all — they present a run instead, and Italy Quiz a [place](#place)'s ten [circles](#circle).
 
 **Run** — A single pass through a shuffled question order in Flags Quiz and Coat of Arms, persisted as `{ order, pos, wrong }` so an interrupted session resumes exactly where it stopped. A *retry run* replays only the previously missed questions and is deliberately never persisted. See [Flags Quiz](flags-quiz.md#resuming-a-run). Italy Quiz calls its equivalent a [tour](#tour).
 
-**Tour** — [Italy Quiz](italy-quiz.md#a-tour-is-four-acts-of-time)'s unit of play: twenty questions about one *place*, split into four [acts](#act) of time. It replaced the app's subject categories, so the disciplines that used to be separate subcategories are mixed inside a single tour instead of picked from a list.
+**Place** — Italy Quiz's only axis of choice: a city on the map of Italy (Rome, Florence, Venice, …), holding its own questions, its own ten [circles](#circle), and its own star count on the pin. It is what the app has instead of categories and instead of [levels](#level). See [Italy Quiz](italy-quiz.md#one-axis-place).
+
+**Tour** — [Italy Quiz](italy-quiz.md#a-tour-is-four-acts-of-time)'s unit of play: twenty questions about one *place*, split into four [acts](#act) of time. It replaced the app's subject categories, so the disciplines that used to be separate subcategories are mixed inside a single tour instead of picked from a list. Which twenty a tour asks is decided by its [circle](#circle), not redrawn per session.
+
+**Circle** — One of the ten fixed question sets a [place](#place) holds in [Italy Quiz](italy-quiz.md#circles-ten-fixed-sets-per-place). A circle is drawn once — five questions from each act, taken from what no earlier circle claimed — and then frozen, so replaying it asks the same twenty in the same order and new material only arrives on the next circle. Ten right of twenty clears it, which is also its first *star*. A circle the player has not unlocked yet shows a padlock; one the app cannot build for lack of authored questions shows as [soon](#soon), which no amount of play will open.
+
+**Soon** — Italy Quiz's state for a circle that cannot exist yet because fewer than five unused questions remain in some act of that place. It is drawn without a border or an icon, deliberately unlike the padlock: a padlock is a door the player can earn a key to, `soon` is content that has not been written. Today Rome's circles 2–10 are all `soon`.
+
+**Chain** — The order in which Italy Quiz's cities open: `rome → florence → venice`, declared once as `ITALY_CHAIN`. Clearing a city's FIRST [circle](#circle) puts the next city on the map. Places outside the chain (Naples, Milan, Sicily, All of Italy) are waiting for content and cannot be opened by play at all.
 
 **Act** — One of the four chronological fifths of an Italy Quiz tour — antiquity, middle ages, renaissance, today — always played in order. Between two acts an *interlude* card names the jump in time and waits for a tap. Acts may never be reordered, because a *callback* pair is authored across them.
 

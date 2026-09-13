@@ -153,11 +153,13 @@ The sibling apps share the content-cache, localization, premium, and API infrast
 
 ### Italy Quiz: the variant with no content layer
 
-The `italy-history-and-geography-quiz` slug builds a sixth variant that is playable end to end — splash, home, place picker, tour, and result — and is documented in full in [Italy Quiz](italy-quiz.md). Two of its structural choices are family-level facts rather than app details.
+The `italy-history-and-geography-quiz` slug builds a sixth variant that is playable end to end — splash, home, place picker, tour, and result — and is documented in full in [Italy Quiz](italy-quiz.md). Three of its structural choices are family-level facts rather than app details.
 
 Its taxonomy is **hardcoded, not fetched**, and so is its content. Places and their four acts live in `constants/italy-quiz/places.ts`; the questions themselves are hand-authored files under `constants/italy-quiz/questions/`, reached through the single seam in `constants/italy-quiz/tour-content.ts`. That is deliberate and temporary: the app is being reshaped as a frontend prototype while the backend is left untouched, so the game mechanic can be judged on a real screen before a content pipeline is built for it. `getTourQuestions` is the only function that has to change when real content arrives.
 
-It is therefore the **only variant that reads no content snapshot at all**. Every other sibling runs a content provider because it fetches a slug that is not the build's own; Italy Quiz fetches nothing and runs entirely offline from bundled data. That is why there is no `lib/italy-quiz/` and `hooks/italy-quiz/` holds only tour state.
+It is therefore the **only variant that reads no content snapshot at all**. Every other sibling runs a content provider because it fetches a slug that is not the build's own; Italy Quiz fetches nothing and runs entirely offline from bundled data. `lib/italy-quiz/` holds no API client for that reason — its single module, `circles.ts`, is pure progression logic, while `hooks/italy-quiz/` keeps only persistence and tour state.
+
+Progression is the variant's second family-level fact. It has no levels and no economy, so a place's **ten circles** — fixed sets of twenty questions, unlocked one by one, with the cities themselves opening in a chain — are the only thing carrying a player forward.
 
 One quirk of the variant is worth knowing before touching `app.config.js`. Its branch strips `runtimeVersion`, `updates`, and `extra.eas` from the base config, because a manifest that looks like an updates-enabled EAS app makes Expo Go demand an Expo-account sign-in that an offline dev server cannot satisfy. Italy Quiz has no EAS build yet, so dropping those fields yields a plain, Expo-Go-friendly dev manifest. They must be restored once the variant gets its own EAS project, or it will never receive an over-the-air update.
 
@@ -227,8 +229,8 @@ constants/{slug}/       Its labels and theme
   flags-quiz/           Glossy buttons and flag artwork; dual-source content
   coat-of-arms/         Reuses the flags-quiz types and UI kit; crest artwork
   sport-quiz/           Neon-on-navy kit, coins, puzzle plates, win screen
-  italy-quiz/           Landmarks artwork, glossy navy tiles; hooks/ holds run
-                        state only — no lib/, no content provider (see above)
+  italy-quiz/           Landmarks artwork, glossy navy tiles; lib/ holds circle
+                        progression only — no content provider (see above)
   football-quiz/        Gold-on-haze kit over three stadium backdrops; lib/
                         holds fixtures, not rules — no hooks/, no provider
 

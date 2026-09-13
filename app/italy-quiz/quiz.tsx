@@ -190,7 +190,13 @@ export default function ItalyQuizGame() {
     if (hydrated && pos > 0) setIntroDone(true);
   }, [hydrated, pos]);
 
-  const score = Math.max(0, pos - wrong.length);
+  // `pos` stops ON the last question rather than moving past it — finishing calls
+  // finish() instead of setPos — so a FINISHED circle has to count every id, not
+  // `pos`. Counting `pos` meant a clean run displayed 19/20 while banking 20/20,
+  // and now that the result screen also states the 10-of-20 gate, the two have to
+  // be the same number or the screen contradicts itself.
+  const answeredCount = done ? ids.length : pos;
+  const score = Math.max(0, answeredCount - wrong.length);
 
   const finish = useCallback(() => {
     setDone(true);
