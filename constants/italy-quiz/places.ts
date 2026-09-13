@@ -11,9 +11,14 @@
  * map, its emperors, its frescoes, its pasta and its football clubs. There is no
  * subcategory screen any more.
  *
- * The tour is divided into four ACTS by TIME, played in order: antiquity →
- * middle ages → renaissance → today. So the player does not pick "Ancient Rome",
- * they travel through it. Between acts an interlude card explains the jump — see
+ * The tour is divided into four ACTS played in order, and the acts belong to the
+ * PLACE rather than to a shared calendar. Rome runs antiquity → middle ages →
+ * renaissance → today, but that is one instance of the rule, not the rule:
+ * Florence opens on the commune, because its story starts when it starts minting
+ * money, and Venice opens on the lagoon, because in antiquity there was nothing
+ * there to open on. Four acts in order is fixed; which four is a question each
+ * place answers for itself. So the player does not pick "Ancient Rome", they
+ * travel through it. Between acts an interlude card explains the jump — see
  * `interlude` below.
  *
  * Question content lives in `constants/italy-quiz/questions/`, keyed by place id.
@@ -137,6 +142,116 @@ const ROME_ACTS: ItalyAct[] = [
 ];
 
 /**
+ * Florence's acts are NOT Rome's with different copy. Rome's four are cut where
+ * the empire, the papacy and the tourists take over; Florence's are cut where
+ * its money changes hands — the guilds, then one banking family, then a
+ * six-year accident of statehood. The third act is the surprise the tour is
+ * built around: for six years Florence, not Rome, was the capital of Italy.
+ */
+const FLORENCE_ACTS: ItalyAct[] = [
+  {
+    id: 'commune',
+    icon: '🏦',
+    label: { ru: 'Коммуна и банкиры', en: 'The commune and the bankers' },
+    interlude: null,
+  },
+  {
+    id: 'medici',
+    icon: '🎨',
+    label: { ru: 'Медичи и Возрождение', en: 'The Medici and the Renaissance' },
+    interlude: {
+      headline: { ru: 'Прошло 300 лет', en: '300 years pass' },
+      body: {
+        ru: 'Шерсть и золотой флорин сделали Флоренцию богаче Лондона, а потом пришла чума 1348 года и убрала больше половины горожан. Из десятков банкирских семей наверх выбралась одна — и на следующие триста лет город стал мастерской Медичи.',
+        en: 'Wool and the gold florin made Florence richer than London — and then the plague of 1348 took more than half its people. Out of dozens of banking families one climbed to the top, and for the next three hundred years the city was the Medici workshop.',
+      },
+      cta: { ru: 'К Медичи', en: 'To the Medici' },
+    },
+  },
+  {
+    id: 'capital',
+    icon: '🇮🇹',
+    label: { ru: 'Шесть лет столицей', en: 'Six years as the capital' },
+    interlude: {
+      headline: { ru: 'Прошло ещё 250 лет', en: '250 more years pass' },
+      body: {
+        ru: 'Последняя из рода Медичи умерла в 1743 году и завещала городу всё собрание — с условием, что ни одна картина никогда не покинет Флоренцию. Через сто с лишним лет город, живший музеем, вдруг получил другую работу: столицы новой Италии. На шесть лет.',
+        en: 'The last of the Medici died in 1743 and willed the whole collection to the city, on the condition that not one painting ever leave Florence. A century later the town that lived as a museum was handed a different job: capital of a brand-new Italy. For six years.',
+      },
+      cta: { ru: 'В столичные годы', en: 'To the capital years' },
+    },
+  },
+  {
+    id: 'today',
+    icon: '📸',
+    label: { ru: 'Сегодня', en: 'Today' },
+    interlude: {
+      headline: { ru: 'Прошло ещё 150 лет', en: '150 more years pass' },
+      body: {
+        ru: 'Столицу забрал Рим, а Флоренции остались долги и средневековый центр, снесённый ради широких проспектов. Потом было наводнение 1966 года — вода поднялась на шесть метров, — а теперь на 360 тысяч жителей приходится десять миллионов приезжих в год.',
+        en: 'Rome took the capital back, and Florence was left with the debts and a medieval centre pulled down to make way for boulevards. Then came the flood of 1966, when the water rose six metres — and now a city of 360 thousand takes ten million visitors a year.',
+      },
+      cta: { ru: 'В наши дни', en: 'To the present day' },
+    },
+  },
+];
+
+/**
+ * Venice has no antiquity act because Venice has no antiquity: there was no
+ * city here when Rome had a million people in it. The tour therefore opens on
+ * an empty lagoon, and the FIRST interlude is where that gets said out loud —
+ * a player arriving from Rome needs to be told why the clock just restarted in
+ * the fifth century rather than the first.
+ */
+const VENICE_ACTS: ItalyAct[] = [
+  {
+    id: 'lagoon',
+    icon: '🌊',
+    label: { ru: 'Рождение на воде', en: 'Born on the water' },
+    interlude: null,
+  },
+  {
+    id: 'empire',
+    icon: '⛵',
+    label: { ru: 'Морская империя', en: 'The sea empire' },
+    interlude: {
+      headline: { ru: 'Прошло 400 лет', en: '400 years pass' },
+      body: {
+        ru: 'Города на этих островах не было ни при Цезаре, ни при Августе — только вода, ил и птицы. За четыреста лет беглецы вбили в дно миллионы свай, выбрали первого дожа и обнаружили, что у них есть то, чего нет больше ни у кого в Италии: флот.',
+        en: 'There was no city on these islands under Caesar or Augustus — only water, mud and birds. In four hundred years the refugees drove millions of piles into the seabed, elected their first doge, and found they had the one thing nobody else in Italy had: a fleet.',
+      },
+      cta: { ru: 'К морской империи', en: 'To the sea empire' },
+    },
+  },
+  {
+    id: 'carnival',
+    icon: '🎭',
+    label: { ru: 'Карнавал и упадок', en: 'Carnival and decline' },
+    interlude: {
+      headline: { ru: 'Прошло ещё 500 лет', en: '500 more years pass' },
+      body: {
+        ru: 'Арсенал спускал на воду по галере в день, а венецианские фактории стояли от Крита до Чёрного моря. Потом турки взяли Константинополь, португальцы обошли Африку — и торговля ушла в Атлантику. Республика, потерявшая рынки, начала торговать собой: карнавал растянулся на полгода.',
+        en: 'The Arsenal launched a galley a day and Venetian trading posts ran from Crete to the Black Sea. Then the Turks took Constantinople, the Portuguese sailed round Africa, and the trade went to the Atlantic. A republic that had lost its markets began selling itself: the carnival stretched to six months of the year.',
+      },
+      cta: { ru: 'К карнавалу', en: 'To the carnival' },
+    },
+  },
+  {
+    id: 'today',
+    icon: '📸',
+    label: { ru: 'Сегодня', en: 'Today' },
+    interlude: {
+      headline: { ru: 'Прошло ещё 200 лет', en: '200 more years pass' },
+      body: {
+        ru: 'В 1797 году Наполеон отменил республику, простоявшую тысячу лет, и последний дож снял шапку со словами, что она ему больше не понадобится. С тех пор город теряет по тысяче жителей в год: в историческом центре осталось меньше пятидесяти тысяч — на двадцать миллионов туристов.',
+        en: 'In 1797 Napoleon abolished a republic that had stood for a thousand years, and the last doge took off his cap remarking that he would not be needing it again. The city has lost a thousand residents a year ever since: fewer than fifty thousand are left in the historic centre — against twenty million tourists.',
+      },
+      cta: { ru: 'В наши дни', en: 'To the present day' },
+    },
+  },
+];
+
+/**
  * The one tour that is not a city. Its acts run by THEME rather than by time,
  * because the material — food, football, cinema, the way Italians actually are —
  * has no chronology worth walking. It is the home for everything true of Italy
@@ -199,8 +314,10 @@ export const ITALY_PLACES: ItalyPlace[] = [
   },
   // Locked until their question sets are authored, EXCEPT the two that are in
   // ITALY_CHAIN — Florence and Venice open by play, and their circles show
-  // "soon" until their questions exist. They keep the same four-act shape; only
-  // the interlude copy changes per place.
+  // "soon" until their questions exist. They keep the four-act COUNT, which the
+  // twenty-question draw depends on, but not Rome's acts: ids, icons, labels and
+  // interludes are their own, because their centuries are their own. A place
+  // still pointing at ROME_ACTS below is a placeholder waiting for its own.
   {
     id: 'naples',
     label: { ru: 'Неаполь и Везувий', en: 'Naples & Vesuvius' },
@@ -212,13 +329,13 @@ export const ITALY_PLACES: ItalyPlace[] = [
     id: 'venice',
     label: { ru: 'Венеция', en: 'Venice' },
     tagline: { ru: 'Лагуна, Республика, карнавал', en: 'The lagoon, the Republic, the carnival' },
-    acts: ROME_ACTS,
+    acts: VENICE_ACTS,
   },
   {
     id: 'florence',
     label: { ru: 'Флоренция и Тоскана', en: 'Florence & Tuscany' },
     tagline: { ru: 'Этруски, Медичи, Кьянти', en: 'Etruscans, the Medici, Chianti' },
-    acts: ROME_ACTS,
+    acts: FLORENCE_ACTS,
   },
   {
     id: 'milan',

@@ -54,9 +54,11 @@ const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
 /**
  * Italy Quiz gameplay — one CIRCLE of one place (place picker → here).
  *
- * A circle is twenty questions split into four acts by time: antiquity → middle
- * ages → renaissance → today, five questions each, with an interlude card
- * between acts. Which twenty is decided ONCE, by the progress record, and frozen
+ * A circle is twenty questions split into the place's four acts, five questions
+ * each, with an interlude card between acts. The acts belong to the place, not to
+ * a shared calendar — Rome runs antiquity → middle ages → renaissance → today,
+ * Florence runs commune → Medici → capital → today, Venice has no antiquity at
+ * all. Which twenty is decided ONCE, by the progress record, and frozen
  * — replaying circle 3 asks the same twenty in the same order, and new material
  * is what the next circle is for. This screen never draws; it asks
  * `ensureCircle` for the set and walks it. Inside an act the disciplines are mixed on purpose, which is what

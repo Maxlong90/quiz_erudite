@@ -147,7 +147,7 @@ const EN: ItalyLabels = {
     'The map of Italy is a set of cities. Each city holds 10 circles, and each circle is one tour of 20 questions.',
   helpCirclesTitle: 'A circle is 20 questions',
   helpCirclesBody:
-    'A circle is twenty questions — five from each of the four acts: antiquity, the Middle Ages, the Renaissance and today. A circle’s set is fixed: however many times you replay it, it is the same twenty. New questions wait in the next circle.',
+    'A circle is twenty questions — five from each of the tour’s four acts. A circle’s set is fixed: however many times you replay it, it is the same twenty. New questions wait in the next circle.',
   helpStarsTitle: 'Stars and the pass mark',
   helpStarsBody:
     'Get ten of twenty right and the circle is cleared — that is your first star. Sixteen of twenty (80%) earns a second, a clean twenty earns a third. Stars are kept at your best, so a weak replay can never take away what you already won. On the map each city carries the sum of the stars of all its circles — thirty at most.',
@@ -216,7 +216,7 @@ const RU: ItalyLabels = {
     'Италия на карте — это города. В каждом городе 10 кругов, и каждый круг — это одна экскурсия на 20 вопросов.',
   helpCirclesTitle: 'Круг — это 20 вопросов',
   helpCirclesBody:
-    'Круг состоит из двадцати вопросов: по пять в каждом из четырёх актов — античность, Средние века, Возрождение и сегодня. Набор у круга постоянный: сколько бы раз вы его ни переиграли, это будут те же двадцать вопросов. Новые ждут в следующем круге.',
+    'Круг состоит из двадцати вопросов: по пять в каждом из четырёх актов экскурсии. Набор у круга постоянный: сколько бы раз вы его ни переиграли, это будут те же двадцать вопросов. Новые ждут в следующем круге.',
   helpStarsTitle: 'Звёзды и проходной балл',
   helpStarsBody:
     'Десять правильных из двадцати — круг пройден, это первая звезда. Шестнадцать из двадцати (80%) — вторая, все двадцать — третья. Звёзды сохраняются по лучшему результату, поэтому слабая переигровка никогда не отнимет заработанное. На карте у каждого города стоит сумма звёзд всех его кругов — максимум тридцать.',
@@ -282,7 +282,7 @@ const ES: ItalyLabels = {
     'El mapa de Italia son ciudades. Cada ciudad tiene 10 círculos, y cada círculo es un recorrido de 20 preguntas.',
   helpCirclesTitle: 'Un círculo son 20 preguntas',
   helpCirclesBody:
-    'Un círculo son veinte preguntas: cinco de cada uno de los cuatro actos — la Antigüedad, la Edad Media, el Renacimiento y hoy. El conjunto de un círculo es fijo: por muchas veces que lo repitas, serán las mismas veinte. Las preguntas nuevas te esperan en el círculo siguiente.',
+    'Un círculo son veinte preguntas: cinco de cada uno de los cuatro actos del recorrido. El conjunto de un círculo es fijo: por muchas veces que lo repitas, serán las mismas veinte. Las preguntas nuevas te esperan en el círculo siguiente.',
   helpStarsTitle: 'Estrellas y el aprobado',
   helpStarsBody:
     'Con diez aciertos de veinte el círculo queda superado: esa es la primera estrella. Dieciséis de veinte (80%) dan la segunda, y un veinte de veinte impecable da la tercera. Las estrellas se guardan por tu mejor resultado, así que una repetición floja nunca te quita lo ya ganado. En el mapa, cada ciudad lleva la suma de las estrellas de todos sus círculos: treinta como máximo.',
@@ -348,7 +348,7 @@ const FR: ItalyLabels = {
     'La carte d’Italie, ce sont des villes. Chaque ville compte 10 cercles, et chaque cercle est une visite de 20 questions.',
   helpCirclesTitle: 'Un cercle, c’est 20 questions',
   helpCirclesBody:
-    'Un cercle, ce sont vingt questions : cinq dans chacun des quatre actes — l’Antiquité, le Moyen Âge, la Renaissance et aujourd’hui. Le contenu d’un cercle est figé : peu importe combien de fois vous le rejouez, ce sont les mêmes vingt. Les nouvelles questions vous attendent au cercle suivant.',
+    'Un cercle, ce sont vingt questions : cinq dans chacun des quatre actes de la visite. Le contenu d’un cercle est figé : peu importe combien de fois vous le rejouez, ce sont les mêmes vingt. Les nouvelles questions vous attendent au cercle suivant.',
   helpStarsTitle: 'Les étoiles et la barre de réussite',
   helpStarsBody:
     'Dix bonnes réponses sur vingt et le cercle est réussi : c’est votre première étoile. Seize sur vingt (80 %) en donnent une deuxième, un sans-faute de vingt en donne une troisième. Les étoiles sont conservées à votre meilleur score : une reprise ratée ne vous enlèvera jamais ce qui est acquis. Sur la carte, chaque ville porte la somme des étoiles de tous ses cercles — trente au maximum.',
