@@ -65,12 +65,28 @@ export interface ItalyPlace {
   /** One line under the place name on the tour intro card. */
   tagline: LocalizedText;
   acts: ItalyAct[];
-  /** Places without content yet render greyed out and are not tappable. */
+  /**
+   * Places that are not on the schedule at all: no content, no place in
+   * `ITALY_CHAIN`, nothing the player can do to reach them. They render hollow
+   * and are not tappable. A place that IS in the chain is never marked here —
+   * its state is computed from the player's progress instead.
+   */
   locked?: boolean;
 }
 
-/** How many questions a tour draws from each act. Four acts × five = twenty. */
+/** How many questions a circle draws from each act. Four acts × five = twenty. */
 export const QUESTIONS_PER_ACT = 5;
+
+/**
+ * The order cities open in. Clearing a city's FIRST circle hands the key to the
+ * next one along.
+ *
+ * An ordered array rather than a `requires`/`unlocks` field on each place: the
+ * whole progression reads as one line, reordering it is a single edit, and a
+ * cycle is not expressible. A place that is not in here is never opened by play
+ * — it is waiting for content, which is a different kind of shut (see `locked`).
+ */
+export const ITALY_CHAIN: readonly string[] = ['rome', 'florence', 'venice'];
 
 const ROME_ACTS: ItalyAct[] = [
   {
@@ -181,8 +197,10 @@ export const ITALY_PLACES: ItalyPlace[] = [
     tagline: { ru: '2000 лет за 20 вопросов', en: '2000 years in 20 questions' },
     acts: ROME_ACTS,
   },
-  // Locked until their question sets are authored. They keep the same four-act
-  // shape — only the interlude copy changes per place.
+  // Locked until their question sets are authored, EXCEPT the two that are in
+  // ITALY_CHAIN — Florence and Venice open by play, and their circles show
+  // "soon" until their questions exist. They keep the same four-act shape; only
+  // the interlude copy changes per place.
   {
     id: 'naples',
     label: { ru: 'Неаполь и Везувий', en: 'Naples & Vesuvius' },
@@ -195,14 +213,12 @@ export const ITALY_PLACES: ItalyPlace[] = [
     label: { ru: 'Венеция', en: 'Venice' },
     tagline: { ru: 'Лагуна, Республика, карнавал', en: 'The lagoon, the Republic, the carnival' },
     acts: ROME_ACTS,
-    locked: true,
   },
   {
     id: 'florence',
     label: { ru: 'Флоренция и Тоскана', en: 'Florence & Tuscany' },
     tagline: { ru: 'Этруски, Медичи, Кьянти', en: 'Etruscans, the Medici, Chianti' },
     acts: ROME_ACTS,
-    locked: true,
   },
   {
     id: 'milan',

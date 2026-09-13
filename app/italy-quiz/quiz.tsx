@@ -28,9 +28,14 @@ import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
 import { getPlace, pickText, useItalyPlace } from '@/constants/italy-quiz/places';
 import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
-import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
 import { useTourProgress } from '@/hooks/italy-quiz/use-tour-progress';
-import { MAX_STARS, starsFor, usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
+import {
+  CIRCLES_PER_PLACE,
+  MAX_STARS,
+  starsFor,
+  usePlaceProgress,
+  type CircleOutcome,
+} from '@/hooks/italy-quiz/use-place-progress';
 import { useLocale } from '@/hooks/use-locale';
 import { getStoreLinks } from '@/lib/store-links';
 
@@ -47,11 +52,14 @@ const CORRECT = { light: '#3FBF6A', dark: '#12703B', rim: '#0A4223' };
 const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
 
 /**
- * Italy Quiz gameplay — one TOUR of one place (place picker → here).
+ * Italy Quiz gameplay — one CIRCLE of one place (place picker → here).
  *
- * A tour is twenty questions split into four acts by time: antiquity → middle
+ * A circle is twenty questions split into four acts by time: antiquity → middle
  * ages → renaissance → today, five questions each, with an interlude card
- * between acts. Inside an act the disciplines are mixed on purpose, which is what
+ * between acts. Which twenty is decided ONCE, by the progress record, and frozen
+ * — replaying circle 3 asks the same twenty in the same order, and new material
+ * is what the next circle is for. This screen never draws; it asks
+ * `ensureCircle` for the set and walks it. Inside an act the disciplines are mixed on purpose, which is what
  * replaced the old subject subcategories: the player is not tested on "History",
  * they walk one city from its founding to its football derby.
  *
@@ -66,7 +74,10 @@ const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
  * in the app. Nothing here reads the backend content snapshot.
  */
 export default function ItalyQuizGame() {
-  const { place: placeId } = useLocalSearchParams<{ place?: string }>();
+  const { place: placeId, circle: circleParam } = useLocalSearchParams<{
+    place?: string;
+    circle?: string;
+  }>();
   const t = useItalyLabels();
   const { locale } = useLocale();
   const place = useItalyPlace(placeId);
@@ -74,8 +85,17 @@ export default function ItalyQuizGame() {
   const questions = useMemo(() => getTourQuestions(placeId), [placeId]);
   const byId = useMemo(() => new Map(questions.map((q) => [q.id, q])), [questions]);
 
-  const [helpOpen, setHelpOpen] = useFirstRunHelp();
+  // The first-run sheet belongs to the MAP, which every player reaches first —
+  // two owners would race on mount and could auto-open it twice.
+  const [helpOpen, setHelpOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+
+  /** A deep link can say anything; a circle number is 1..10 or it is 1. */
+  const circleIndex = useMemo(() => {
+    const n = Number.parseInt(String(circleParam ?? ''), 10);
+    if (!Number.isFinite(n)) return 1;
+    return Math.min(CIRCLES_PER_PLACE, Math.max(1, n));
+  }, [circleParam]);
 
   const [epoch, setEpoch] = useState(0);
   const [retryIds, setRetryIds] = useState<number[] | null>(null);
@@ -101,14 +121,37 @@ export default function ItalyQuizGame() {
 
   const isRetry = !!(retryIds && retryIds.length > 0);
 
-  const { recordTour, recordFor } = usePlaceProgress();
-  const best = recordFor(placeId);
+  const { ensureCircle, recordCircle, circleFor } = usePlaceProgress();
+  const best = circleFor(placeId, circleIndex);
+
+  /** The circle's fixed twenty, or the reason there are none to walk. */
+  const [circleIds, setCircleIds] = useState<number[] | null>(null);
+  const [blocked, setBlocked] = useState<'soon' | 'locked' | 'no-content' | null>(null);
+  const [outcome, setOutcome] = useState<CircleOutcome | null>(null);
+
+  useEffect(() => {
+    if (!placeId) {
+      setBlocked('no-content');
+      return;
+    }
+    let cancelled = false;
+    setCircleIds(null);
+    setBlocked(null);
+    (async () => {
+      const res = await ensureCircle(placeId, circleIndex);
+      if (cancelled) return;
+      if (res.ok) setCircleIds(res.ids);
+      else setBlocked(res.reason);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [placeId, circleIndex, ensureCircle]);
 
   const { hydrated, ids, pos, wrong, setPos, addWrong, clear } = useTourProgress({
-    placeId,
-    key: isRetry || !placeId ? null : `italy.tour.${placeId}`,
-    place: rawPlace,
-    questions,
+    // Per circle, so an abandoned circle 3 cannot resume inside circle 1.
+    key: isRetry || !placeId ? null : `italy.tour.${placeId}.c${circleIndex}`,
+    ids: circleIds,
     retry: retryIds,
     epoch,
   });
@@ -163,7 +206,15 @@ export default function ItalyQuizGame() {
   // and could only ever lower the score, so it earns nothing and marks nothing.
   useEffect(() => {
     if (!done || isRetry || !placeId || ids.length === 0) return;
-    recordTour(placeId, ids, Math.max(0, ids.length - wrong.length), ids.length);
+    let cancelled = false;
+    recordCircle(placeId, circleIndex, Math.max(0, ids.length - wrong.length), ids.length).then(
+      (o) => {
+        if (!cancelled) setOutcome(o);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
 
@@ -204,6 +255,7 @@ export default function ItalyQuizGame() {
     setPicked(null);
     setNotch(null);
     setDone(false);
+    setOutcome(null);
     setInterludeSeen(null);
     setIntroDone(idsForRetry != null);
     setEpoch((e) => e + 1);
@@ -310,11 +362,23 @@ export default function ItalyQuizGame() {
     </View>
   );
 
-  // --- Empty (a locked place opened directly) --------------------------------
+  // --- Nothing to walk -------------------------------------------------------
+  // "soon" gets its own sentence rather than the generic empty state: with
+  // today's content a Rome player meets it on circle 2, so it is the common
+  // case, not an edge one. `locked` and `no-content` are only reachable by deep
+  // link, and the generic line is the honest answer to both.
+  if (blocked) {
+    return Shell(
+      <View style={styles.centre}>
+        <Text style={styles.note}>{blocked === 'soon' ? t.circleSoon : t.noQuestions}</Text>
+      </View>,
+    );
+  }
+
   if (!rawPlace || ids.length === 0 || !hydrated) {
     return Shell(
       <View style={styles.centre}>
-        <Text style={styles.note}>{t.noQuestions}</Text>
+        <Text style={styles.note}>{t.loadingContent}</Text>
       </View>,
     );
   }
@@ -343,7 +407,11 @@ export default function ItalyQuizGame() {
           : t.resultKeepGoing;
     // Snapshot the misses now — starting the review resets the live list.
     const misses = [...wrong];
-    const earned = isRetry ? 0 : starsFor(score, total);
+    const earned = isRetry ? 0 : (outcome?.earned ?? starsFor(score, total));
+    const passed = earned >= 1;
+    const unlocked = isRetry ? null : outcome?.unlocked;
+    const unlockedCity = unlocked?.kind === 'city' ? getPlace(unlocked.placeId) : null;
+    const circleLine = `${place?.title ?? ''} · ${t.circleLabel.replace('{n}', String(circleIndex))}`;
 
     return (
       <View style={styles.fill}>
@@ -355,6 +423,9 @@ export default function ItalyQuizGame() {
           <ScrollView contentContainerStyle={styles.resultScroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.emoji}>{emoji}</Text>
             <Text style={styles.resultTitle}>{t.resultTitle}</Text>
+            {/* Which circle this was. Without it the stars below are ambiguous:
+                a place now has ten sets of three. */}
+            {!isRetry ? <Text style={styles.circleLine}>{circleLine}</Text> : null}
 
             <LinearGradient
               colors={[ItalyColors.tileLight, ItalyColors.tileDark]}
@@ -390,17 +461,38 @@ export default function ItalyQuizGame() {
             ) : null}
 
             <Text style={styles.message}>{message}</Text>
-            {!isRetry && earned < MAX_STARS ? (
-              <Text style={styles.starHint}>
-                {earned < 1 ? t.starHint1 : earned < 2 ? t.starHint2 : t.starHint3}
+
+            {/* Everything below is suppressed on a review, because a review
+                changes nothing: no stars, no gate, no unlock, no best. */}
+            {!isRetry ? (
+              <Text style={[styles.passLine, !passed && styles.passLineMissed]}>
+                {passed ? t.circlePassed : t.circleNotPassed}
               </Text>
             ) : null}
-            {!isRetry && best.stars > 0 ? (
+            {!isRetry && passed && earned < MAX_STARS ? (
+              <Text style={styles.starHint}>{earned < 2 ? t.starHint2 : t.starHint3}</Text>
+            ) : null}
+            {/* When a circle AND a city open at once, the city gets the line:
+                the new circle is visible on the strip anyway. */}
+            {unlocked ? (
+              <Text style={styles.unlockLine}>
+                {unlocked.kind === 'city'
+                  ? t.unlockedCity.replace(
+                      '{place}',
+                      unlockedCity ? pickText(unlockedCity.label, locale) : '',
+                    )
+                  : t.unlockedCircle.replace('{n}', String(unlocked.n))}
+              </Text>
+            ) : null}
+            {!isRetry && best && best.stars > 0 ? (
               <Text style={styles.bestLine}>
                 {t.bestResult.replace('{stars}', String(best.stars)).replace('{pct}', String(best.bestPct))}
               </Text>
             ) : null}
 
+            {/* "Play again" is gone on purpose: under circles it replays the
+                identical twenty, and the choice of WHICH circle to farm belongs
+                on the map, where the strip shows what each one is worth. */}
             <View style={styles.resultButtons}>
               {misses.length > 0 ? (
                 <GlossyButton
@@ -411,13 +503,7 @@ export default function ItalyQuizGame() {
                 />
               ) : null}
               <GlossyButton
-                label={t.playAgain}
-                fontSize={22}
-                paddingVertical={18}
-                onPress={() => startTour(null)}
-              />
-              <GlossyButton
-                label={t.whereTo}
+                label={t.continueOn}
                 fontSize={22}
                 paddingVertical={18}
                 onPress={() => router.dismissTo('/italy-quiz/places')}
@@ -480,7 +566,12 @@ export default function ItalyQuizGame() {
   // --- Question --------------------------------------------------------------
   const answered = picked !== null;
   const answeredRight = answered && picked === question.correct;
-  const callbackQuestion = question.callback ? byId.get(question.callback) : undefined;
+  // Belt and braces on top of the draw's whole-pairs-only rule: a ribbon may
+  // only point at a question that is in THIS circle.
+  const callbackQuestion =
+    question.callback != null && ids.includes(question.callback)
+      ? byId.get(question.callback)
+      : undefined;
 
   const ActStrip = (
     <View style={styles.actStrip}>
@@ -949,6 +1040,30 @@ const styles = StyleSheet.create({
     color: '#FFD54A',
     fontSize: 14,
     fontWeight: '800',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  // Pulled up against the scroll's gap so it reads as a subtitle of the heading.
+  circleLine: {
+    color: '#C3CEF5',
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: -10,
+  },
+  passLine: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  /** Missing the gate states the rule instead of celebrating, so it is quieter. */
+  passLineMissed: { color: '#C3CEF5', fontSize: 14, fontWeight: '700' },
+  unlockLine: {
+    color: '#FFD54A',
+    fontSize: 16,
+    fontWeight: '900',
     textAlign: 'center',
     paddingHorizontal: 12,
   },

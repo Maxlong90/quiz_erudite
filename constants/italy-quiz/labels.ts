@@ -25,12 +25,30 @@ export interface ItalyLabels {
   startTour: string;
   /** Header of the ribbon reminding the player of an earlier question. */
   callbackThen: string;
+  // Circles
+  /** The place card's entry button — `{n}` is the circle number. */
+  circleLabel: string;
+  /** Same, when the circle has already been cleared. */
+  circleReplayLabel: string;
+  /** Entry button when the place is open but has no circle left to draw. */
+  circlesSoonCta: string;
+  /** Entry button on a city the chain has not opened yet — `{place}` substituted. */
+  cityLockedCta: string;
+  /** Shown instead of the tour when a circle's questions are not written yet. */
+  circleSoon: string;
+  /** Result screen — whether the 10-of-20 gate was met. */
+  circlePassed: string;
+  circleNotPassed: string;
+  /** Result screen — what clearing the circle opened. `{n}` / `{place}`. */
+  unlockedCircle: string;
+  unlockedCity: string;
+  /** Result screen — back to the map. */
+  continueOn: string;
   // Stars
   /** Nudges toward the next star band, by how many are already earned. */
-  starHint1: string;
   starHint2: string;
   starHint3: string;
-  /** Best result so far — `{stars}` and `{pct}` are substituted. */
+  /** Best on this circle — `{stars}` and `{pct}` are substituted. */
   bestResult: string;
   // Estimate questions (notched slider)
   /** Locks in the notch the player stopped on. */
@@ -59,11 +77,18 @@ export interface ItalyLabels {
   resultExcellent: string;
   resultGood: string;
   resultKeepGoing: string;
-  playAgain: string;
-  backToCategories: string;
   retryMistakes: string;
+  // Help sheet — a lede plus four titled sections.
   helpTitle: string;
   helpBody: string;
+  helpCirclesTitle: string;
+  helpCirclesBody: string;
+  helpStarsTitle: string;
+  helpStarsBody: string;
+  helpUnlockTitle: string;
+  helpUnlockBody: string;
+  helpMistakesTitle: string;
+  helpMistakesBody: string;
   gotIt: string;
   shareInvite: string;
 }
@@ -79,10 +104,22 @@ const EN: ItalyLabels = {
   comingSoon: 'coming soon',
   startTour: "Let's go",
   callbackThen: 'BACK THEN',
-  starHint1: 'Half right earns your first star.',
-  starHint2: '80% earns a second star.',
-  starHint3: 'A clean run earns all three.',
-  bestResult: 'Best here: {stars}★ · {pct}%',
+  circleLabel: 'Circle {n}',
+  circleReplayLabel: 'Circle {n} · again',
+  circlesSoonCta: 'Questions still being written',
+  // An em-dash apposition, not a verb object: "{place}" is always a nominative
+  // name, and "clear {place}" would need a case the label cannot produce.
+  cityLockedCta: 'First clear circle 1 — {place}',
+  circleSoon: 'The questions for this circle are still being written.',
+  circlePassed: 'Circle cleared!',
+  circleNotPassed: 'You need 10 correct out of 20 to clear a circle.',
+  unlockedCircle: 'Circle {n} unlocked',
+  // Never inflects around the name — see the Russian note below.
+  unlockedCity: 'New city on the map: {place}',
+  continueOn: 'Continue',
+  starHint2: '80% correct earns a second star.',
+  starHint3: 'A clean run earns all three stars.',
+  bestResult: 'Best on this circle: {stars}★ · {pct}%',
   scaleConfirm: 'Answer',
   axisEarlier: 'earlier',
   axisLater: 'later',
@@ -104,12 +141,22 @@ const EN: ItalyLabels = {
   resultExcellent: 'Excellent! You really know Italy.',
   resultGood: 'Nicely done — keep it up!',
   resultKeepGoing: 'Keep practising, you’ll get there!',
-  playAgain: 'Play again',
-  backToCategories: 'Categories',
   retryMistakes: 'Review mistakes',
-  helpTitle: 'Review your mistakes',
+  helpTitle: 'How it works',
   helpBody:
-    'A wrong answer never reveals the right one — you simply move on to the next question. Every question you miss is remembered, and at the end of the run you can tap “Review mistakes” to replay just those. Nothing is lost: you can always come back and master the ones you missed.',
+    'The map of Italy is a set of cities. Each city holds 10 circles, and each circle is one tour of 20 questions.',
+  helpCirclesTitle: 'A circle is 20 questions',
+  helpCirclesBody:
+    'A circle is twenty questions — five from each of the four acts: antiquity, the Middle Ages, the Renaissance and today. A circle’s set is fixed: however many times you replay it, it is the same twenty. New questions wait in the next circle.',
+  helpStarsTitle: 'Stars and the pass mark',
+  helpStarsBody:
+    'Get ten of twenty right and the circle is cleared — that is your first star. Sixteen of twenty (80%) earns a second, a clean twenty earns a third. Stars are kept at your best, so a weak replay can never take away what you already won. On the map each city carries the sum of the stars of all its circles — thirty at most.',
+  helpUnlockTitle: 'What opens next',
+  helpUnlockBody:
+    'Clearing a circle opens the next one. And clearing a city’s first circle puts a new city on the map: Rome opens Florence, Florence opens Venice. A circle with a padlock is simply waiting for you to clear the one before it. A faded circle with no padlock is not a restriction — its questions are still being written, and it will open by itself once they are ready.',
+  helpMistakesTitle: 'Review your mistakes',
+  helpMistakesBody:
+    'A wrong answer never reveals the right one — you simply move on. Every question you miss is remembered, and at the end of a circle you can tap “Review mistakes” to replay just those. It is practice: it earns no stars and does not change the circle’s result.',
   gotIt: 'Got it',
   shareInvite: 'How well do you know Italy? Play Italy Quiz: {url}',
 };
@@ -125,10 +172,23 @@ const RU: ItalyLabels = {
   comingSoon: 'скоро',
   startTour: 'Поехали',
   callbackThen: 'ТОГДА',
-  starHint1: 'Половина правильных — первая звезда.',
-  starHint2: '80% правильных — вторая звезда.',
-  starHint3: 'Без единой ошибки — все три.',
-  bestResult: 'Лучший результат: {stars}★ · {pct}%',
+  circleLabel: 'Круг {n}',
+  circleReplayLabel: 'Круг {n} · ещё раз',
+  circlesSoonCta: 'Вопросы ещё пишутся',
+  // Приложение через тире, а не дополнение: «пройдите {place}» потребовало бы
+  // винительного падежа («Флоренцию»), а в {place} всегда именительный.
+  cityLockedCta: 'Сначала пройдите круг 1 — {place}',
+  circleSoon: 'Вопросы для этого круга ещё готовятся.',
+  circlePassed: 'Круг пройден!',
+  circleNotPassed: 'Чтобы пройти круг, нужно 10 правильных из 20.',
+  unlockedCircle: 'Открылся круг {n}',
+  // НЕ «Открылась {place}»: род привязан к названию, и на «Рим» фраза ломается.
+  // Именительный после двоеточия работает для любого города.
+  unlockedCity: 'Новый город на карте: {place}',
+  continueOn: 'Дальше',
+  starHint2: '80% правильных — и будет вторая звезда.',
+  starHint3: 'Без единой ошибки — все три звезды.',
+  bestResult: 'Лучший результат круга: {stars}★ · {pct}%',
   scaleConfirm: 'Ответить',
   axisEarlier: 'раньше',
   axisLater: 'позже',
@@ -150,12 +210,22 @@ const RU: ItalyLabels = {
   resultExcellent: 'Отлично! Вы прекрасно знаете Италию.',
   resultGood: 'Хорошо — так держать!',
   resultKeepGoing: 'Продолжайте тренироваться, всё получится!',
-  playAgain: 'Играть снова',
-  backToCategories: 'Категории',
   retryMistakes: 'Работа над ошибками',
-  helpTitle: 'Работа над ошибками',
+  helpTitle: 'Как это устроено',
   helpBody:
-    'При неправильном ответе правильный не показывается — вы просто переходите к следующему вопросу. Все вопросы, в которых вы ошиблись, запоминаются, и в конце игры можно нажать «Работа над ошибками», чтобы пройти именно их заново. Ничего не теряется: вы всегда сможете вернуться и закрепить то, что не угадали.',
+    'Италия на карте — это города. В каждом городе 10 кругов, и каждый круг — это одна экскурсия на 20 вопросов.',
+  helpCirclesTitle: 'Круг — это 20 вопросов',
+  helpCirclesBody:
+    'Круг состоит из двадцати вопросов: по пять в каждом из четырёх актов — античность, Средние века, Возрождение и сегодня. Набор у круга постоянный: сколько бы раз вы его ни переиграли, это будут те же двадцать вопросов. Новые ждут в следующем круге.',
+  helpStarsTitle: 'Звёзды и проходной балл',
+  helpStarsBody:
+    'Десять правильных из двадцати — круг пройден, это первая звезда. Шестнадцать из двадцати (80%) — вторая, все двадцать — третья. Звёзды сохраняются по лучшему результату, поэтому слабая переигровка никогда не отнимет заработанное. На карте у каждого города стоит сумма звёзд всех его кругов — максимум тридцать.',
+  helpUnlockTitle: 'Что открывается дальше',
+  helpUnlockBody:
+    'Пройденный круг открывает следующий. А первый пройденный круг города открывает на карте новый город: Рим открывает Флоренцию, Флоренция — Венецию. Кружок с замком просто ждёт, пока вы пройдёте предыдущий. А блёклый кружок без замка — это не запрет: вопросы для него ещё пишутся, и он откроется сам, когда они будут готовы.',
+  helpMistakesTitle: 'Работа над ошибками',
+  helpMistakesBody:
+    'При неправильном ответе правильный не показывается — вы просто идёте дальше. Все вопросы, где вы ошиблись, запоминаются, и в конце круга можно нажать «Работа над ошибками» и пройти именно их. Это тренировка: звёзд она не даёт и результат круга не меняет.',
   gotIt: 'Понятно',
   shareInvite: 'Хорошо знаешь Италию? Играй в Italy Quiz: {url}',
 };
@@ -171,10 +241,20 @@ const ES: ItalyLabels = {
   comingSoon: 'próximamente',
   startTour: 'Vamos',
   callbackThen: 'ENTONCES',
-  starHint1: 'La mitad acertada da la primera estrella.',
-  starHint2: 'El 80% da la segunda estrella.',
-  starHint3: 'Sin fallos, las tres.',
-  bestResult: 'Mejor aquí: {stars}★ · {pct}%',
+  circleLabel: 'Círculo {n}',
+  circleReplayLabel: 'Círculo {n} · otra vez',
+  circlesSoonCta: 'Preguntas en preparación',
+  cityLockedCta: 'Primero supera el círculo 1 — {place}',
+  circleSoon: 'Las preguntas de este círculo aún se están escribiendo.',
+  circlePassed: '¡Círculo superado!',
+  circleNotPassed: 'Necesitas 10 aciertos de 20 para superar el círculo.',
+  unlockedCircle: 'Círculo {n} desbloqueado',
+  // Dos puntos y el nombre: evita tener que concordar «abierta/abierto».
+  unlockedCity: 'Nueva ciudad en el mapa: {place}',
+  continueOn: 'Continuar',
+  starHint2: 'Un 80% de aciertos da la segunda estrella.',
+  starHint3: 'Sin fallos, las tres estrellas.',
+  bestResult: 'Mejor en este círculo: {stars}★ · {pct}%',
   scaleConfirm: 'Responder',
   axisEarlier: 'antes',
   axisLater: 'después',
@@ -196,12 +276,22 @@ const ES: ItalyLabels = {
   resultExcellent: '¡Excelente! Conoces muy bien Italia.',
   resultGood: '¡Bien hecho, sigue así!',
   resultKeepGoing: '¡Sigue practicando, lo lograrás!',
-  playAgain: 'Jugar de nuevo',
-  backToCategories: 'Categorías',
   retryMistakes: 'Repasar errores',
-  helpTitle: 'Repaso de errores',
+  helpTitle: 'Cómo funciona',
   helpBody:
-    'Una respuesta incorrecta nunca revela la correcta: simplemente pasas a la siguiente pregunta. Cada pregunta que falles se guarda y, al terminar la partida, puedes pulsar «Repasar errores» para jugar solo esas. Nada se pierde: siempre podrás volver y dominar las que fallaste.',
+    'El mapa de Italia son ciudades. Cada ciudad tiene 10 círculos, y cada círculo es un recorrido de 20 preguntas.',
+  helpCirclesTitle: 'Un círculo son 20 preguntas',
+  helpCirclesBody:
+    'Un círculo son veinte preguntas: cinco de cada uno de los cuatro actos — la Antigüedad, la Edad Media, el Renacimiento y hoy. El conjunto de un círculo es fijo: por muchas veces que lo repitas, serán las mismas veinte. Las preguntas nuevas te esperan en el círculo siguiente.',
+  helpStarsTitle: 'Estrellas y el aprobado',
+  helpStarsBody:
+    'Con diez aciertos de veinte el círculo queda superado: esa es la primera estrella. Dieciséis de veinte (80%) dan la segunda, y un veinte de veinte impecable da la tercera. Las estrellas se guardan por tu mejor resultado, así que una repetición floja nunca te quita lo ya ganado. En el mapa, cada ciudad lleva la suma de las estrellas de todos sus círculos: treinta como máximo.',
+  helpUnlockTitle: 'Qué se abre después',
+  helpUnlockBody:
+    'Superar un círculo abre el siguiente. Y superar el primer círculo de una ciudad pone una ciudad nueva en el mapa: Roma abre Florencia, y Florencia abre Venecia. Un círculo con candado solo espera a que superes el anterior. Un círculo apagado y sin candado no es una restricción: sus preguntas aún se están escribiendo y se abrirá solo cuando estén listas.',
+  helpMistakesTitle: 'Repaso de errores',
+  helpMistakesBody:
+    'Una respuesta incorrecta nunca revela la correcta: simplemente sigues adelante. Cada pregunta que falles se guarda y, al terminar el círculo, puedes pulsar «Repasar errores» para jugar solo esas. Es entrenamiento: no da estrellas ni cambia el resultado del círculo.',
   gotIt: 'Entendido',
   shareInvite: '¿Conoces bien Italia? Juega a Italy Quiz: {url}',
 };
@@ -217,10 +307,20 @@ const FR: ItalyLabels = {
   comingSoon: 'bientôt',
   startTour: 'C’est parti',
   callbackThen: 'À L’ÉPOQUE',
-  starHint1: 'La moitié donne la première étoile.',
-  starHint2: '80% donne la deuxième étoile.',
-  starHint3: 'Sans faute, les trois.',
-  bestResult: 'Meilleur ici : {stars}★ · {pct}%',
+  circleLabel: 'Cercle {n}',
+  circleReplayLabel: 'Cercle {n} · encore',
+  circlesSoonCta: 'Questions en préparation',
+  cityLockedCta: 'Réussissez d’abord le cercle 1 — {place}',
+  circleSoon: 'Les questions de ce cercle sont encore en cours d’écriture.',
+  circlePassed: 'Cercle réussi !',
+  circleNotPassed: 'Il faut 10 bonnes réponses sur 20 pour réussir le cercle.',
+  unlockedCircle: 'Cercle {n} débloqué',
+  // Deux-points puis le nom : évite d’accorder « ouvert/ouverte ».
+  unlockedCity: 'Nouvelle ville sur la carte : {place}',
+  continueOn: 'Continuer',
+  starHint2: '80 % de bonnes réponses donnent la deuxième étoile.',
+  starHint3: 'Sans faute, les trois étoiles.',
+  bestResult: 'Meilleur sur ce cercle : {stars}★ · {pct}%',
   scaleConfirm: 'Répondre',
   axisEarlier: 'plus tôt',
   axisLater: 'plus tard',
@@ -242,12 +342,22 @@ const FR: ItalyLabels = {
   resultExcellent: 'Excellent ! Vous connaissez bien l’Italie.',
   resultGood: 'Bien joué — continuez comme ça !',
   resultKeepGoing: 'Continuez à vous entraîner, vous y arriverez !',
-  playAgain: 'Rejouer',
-  backToCategories: 'Catégories',
   retryMistakes: 'Revoir les erreurs',
-  helpTitle: 'Travail sur les erreurs',
+  helpTitle: 'Comment ça marche',
   helpBody:
-    'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la question suivante. Chaque question ratée est mémorisée et, à la fin de la partie, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. Rien n’est perdu : vous pourrez toujours revenir et maîtriser celles que vous avez ratées.',
+    'La carte d’Italie, ce sont des villes. Chaque ville compte 10 cercles, et chaque cercle est une visite de 20 questions.',
+  helpCirclesTitle: 'Un cercle, c’est 20 questions',
+  helpCirclesBody:
+    'Un cercle, ce sont vingt questions : cinq dans chacun des quatre actes — l’Antiquité, le Moyen Âge, la Renaissance et aujourd’hui. Le contenu d’un cercle est figé : peu importe combien de fois vous le rejouez, ce sont les mêmes vingt. Les nouvelles questions vous attendent au cercle suivant.',
+  helpStarsTitle: 'Les étoiles et la barre de réussite',
+  helpStarsBody:
+    'Dix bonnes réponses sur vingt et le cercle est réussi : c’est votre première étoile. Seize sur vingt (80 %) en donnent une deuxième, un sans-faute de vingt en donne une troisième. Les étoiles sont conservées à votre meilleur score : une reprise ratée ne vous enlèvera jamais ce qui est acquis. Sur la carte, chaque ville porte la somme des étoiles de tous ses cercles — trente au maximum.',
+  helpUnlockTitle: 'Ce qui s’ouvre ensuite',
+  helpUnlockBody:
+    'Réussir un cercle ouvre le suivant. Et réussir le premier cercle d’une ville fait apparaître une nouvelle ville sur la carte : Rome ouvre Florence, Florence ouvre Venise. Un cercle avec un cadenas attend simplement que vous réussissiez le précédent. Un cercle pâle et sans cadenas n’est pas un verrou : ses questions sont encore en cours d’écriture, et il s’ouvrira tout seul quand elles seront prêtes.',
+  helpMistakesTitle: 'Revoir les erreurs',
+  helpMistakesBody:
+    'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la suite. Chaque question ratée est mémorisée et, à la fin du cercle, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. C’est de l’entraînement : cela ne rapporte pas d’étoiles et ne change pas le résultat du cercle.',
   gotIt: 'Compris',
   shareInvite: 'Connaissez-vous bien l’Italie ? Jouez à Italy Quiz : {url}',
 };

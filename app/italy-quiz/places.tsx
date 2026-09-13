@@ -1,18 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AppBackground, BG_BASE, useItalyBgReady } from '@/components/italy-quiz/app-background';
+import { CircleStrip } from '@/components/italy-quiz/circle-strip';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
-import { useItalyPlaces } from '@/constants/italy-quiz/places';
+import { HelpModal } from '@/components/italy-quiz/help-modal';
+import { getPlace, useItalyPlaces } from '@/constants/italy-quiz/places';
+import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
 import { useItalyLabels } from '@/constants/italy-quiz/labels';
 import { ITALY_PATHS, ITALY_VIEWBOX, PLACE_PINS } from '@/constants/italy-quiz/map-geometry';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
-import { MAX_STARS, usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
+import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
+import { usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
+import {
+  circleSlots,
+  isPlaceUnlocked,
+  nextCircleIndex,
+  placeStars,
+  unlockedBy,
+  type CircleSlot,
+} from '@/lib/italy-quiz/circles';
 
 /**
  * Italy Quiz place picker (Play → here) — the app's ONLY taxonomy screen, drawn
@@ -25,13 +38,19 @@ import { MAX_STARS, usePlaceProgress } from '@/hooks/italy-quiz/use-place-progre
  * glance — the country fills in with stars as it is played. That is the whole
  * argument for the map: it is the progress screen and the picker at once.
  *
- * Tapping a pin selects it and raises a card at the bottom; the card is what
- * starts the tour. Selection is a separate step from starting on purpose, because
- * a pin is a small target and an accidental tap should not throw the player into
- * twenty questions.
+ * Tapping a pin selects it and raises a card at the bottom; the card holds the
+ * place's ten CIRCLES and the way into one of them. Selection is a separate step
+ * from starting on purpose, because a pin is a small target and an accidental tap
+ * should not throw the player into twenty questions.
  *
- * Places with no questions yet are drawn hollow and cannot be selected, so the
- * shape of the finished app is visible from the first build.
+ * Three kinds of pin, and the difference is readable without words:
+ *
+ *  - **open** — solid, carrying the sum of the stars of all its circles (0..30).
+ *  - **chain-locked** — solid rim plus a padlock, and still SELECTABLE: a dead
+ *    pin cannot explain why it is dead, and the card one tap away has room for
+ *    the sentence that does.
+ *  - **not on the schedule** — hollow rim, nothing inside, not tappable. No
+ *    content is authored and no amount of play will open it.
  */
 export default function ItalyQuizPlaces() {
   const places = useItalyPlaces();
@@ -39,12 +58,68 @@ export default function ItalyQuizPlaces() {
   const bgReady = useItalyBgReady();
   const { progress } = usePlaceProgress();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Circle the player tapped in the strip; null means "whatever is live". */
+  const [pickedCircle, setPickedCircle] = useState<number | null>(null);
+  // The map owns the first-run sheet: it is the screen every player reaches
+  // before a tour, and the copy now explains circles BEFORE the first one.
+  const [helpOpen, setHelpOpen] = useFirstRunHelp();
 
   const selected = places.find((p) => p.id === selectedId) ?? null;
+  const rawSelected = useMemo(() => getPlace(selectedId ?? undefined), [selectedId]);
+  const selectedQuestions = useMemo(() => getTourQuestions(selectedId ?? undefined), [selectedId]);
+  const selectedUnlocked = selectedId ? isPlaceUnlocked(selectedId, progress) : false;
+
+  const slots = useMemo<CircleSlot[]>(() => {
+    if (!rawSelected || !selectedId) return [];
+    const drawn = circleSlots(rawSelected, selectedQuestions, progress[selectedId]);
+    // A city the chain has not opened yet has nothing enterable in it, whatever
+    // its content would otherwise allow.
+    if (selectedUnlocked) return drawn;
+    return drawn.map((s) => (s.playable ? { ...s, state: 'locked', playable: false } : s));
+  }, [rawSelected, selectedId, selectedQuestions, progress, selectedUnlocked]);
+
+  // A tapped circle wins, but only while it is still playable — otherwise the
+  // strip could keep pointing at a slot that a reload turned into "soon".
+  const autoIndex = useMemo(() => nextCircleIndex(slots), [slots]);
+  const activeIndex =
+    pickedCircle != null && slots[pickedCircle - 1]?.playable ? pickedCircle : autoIndex;
+  const activeSlot = activeIndex != null ? slots[activeIndex - 1] : null;
+
+  const selectPlace = (id: string) => {
+    setSelectedId(id);
+    setPickedCircle(null);
+  };
 
   if (!bgReady) {
     return <View style={[styles.fill, { backgroundColor: BG_BASE }]} />;
   }
+
+  // The button IS the status line — which is what pays for having no extra hint
+  // row under the strip. It is always present, so the card's height never moves.
+  const gateCity = selectedId ? unlockedBy(selectedId) : null;
+  const cta = !selected
+    ? null
+    : !selectedUnlocked
+      ? {
+          label: t.cityLockedCta.replace(
+            '{place}',
+            places.find((p) => p.id === gateCity)?.title ?? '',
+          ),
+          locked: true,
+          inactive: false,
+          start: false,
+        }
+      : !activeSlot
+        ? { label: t.circlesSoonCta, locked: false, inactive: true, start: false }
+        : {
+            label: (activeSlot.state === 'done' ? t.circleReplayLabel : t.circleLabel).replace(
+              '{n}',
+              String(activeSlot.index),
+            ),
+            locked: false,
+            inactive: false,
+            start: true,
+          };
 
   return (
     <View style={styles.fill}>
@@ -61,13 +136,23 @@ export default function ItalyQuizPlaces() {
           >
             <GlossyIconButton glyph="chevron-back" size={44} />
           </Pressable>
-          <Pressable
-            onPress={() => router.push('/italy-quiz/settings')}
-            hitSlop={8}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <GlossyIconButton glyph="settings-sharp" size={44} />
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setHelpOpen(true)}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+              testID="places-help-button"
+            >
+              <GlossyIconButton glyph="help" size={44} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/italy-quiz/settings')}
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <GlossyIconButton glyph="settings-sharp" size={44} />
+            </Pressable>
+          </View>
         </View>
 
         <Text style={styles.title}>{t.whereTo}</Text>
@@ -99,13 +184,14 @@ export default function ItalyQuizPlaces() {
             {places.map((p) => {
               const pin = PLACE_PINS[p.id];
               if (!pin) return null;
-              const stars = progress[p.id]?.stars ?? 0;
+              const stars = placeStars(progress[p.id]);
+              const chainLocked = !p.locked && !isPlaceUnlocked(p.id, progress);
               const isSelected = p.id === selectedId;
               return (
                 <Pressable
                   key={p.id}
                   disabled={p.locked}
-                  onPress={() => setSelectedId(p.id)}
+                  onPress={() => selectPlace(p.id)}
                   hitSlop={10}
                   style={[
                     styles.pinWrap,
@@ -120,10 +206,21 @@ export default function ItalyQuizPlaces() {
                       styles.pin,
                       ItalyShadow.card,
                       p.locked && styles.pinLocked,
+                      chainLocked && styles.pinChainLocked,
                       isSelected && styles.pinSelected,
                     ]}
                   >
-                    {stars > 0 ? <Text style={styles.pinStars}>{stars}</Text> : null}
+                    {chainLocked ? (
+                      <Ionicons
+                        name="lock-closed"
+                        size={13}
+                        color={isSelected ? ItalyColors.tileGlyph : 'rgba(255,255,255,0.8)'}
+                      />
+                    ) : stars > 0 ? (
+                      <Text style={[styles.pinStars, isSelected && styles.pinStarsSelected]}>
+                        {stars}
+                      </Text>
+                    ) : null}
                   </View>
                   {/* The label leans away from the coastline so the two northern
                       pins and the two central ones do not collide. */}
@@ -143,9 +240,9 @@ export default function ItalyQuizPlaces() {
           </View>
         </ScrollView>
 
-        {/* Bottom card — what the selected pin is, and the way in. */}
+        {/* Bottom card — what the selected pin is, its ten circles, and the way in. */}
         <View style={styles.cardSlot}>
-          {selected ? (
+          {selected && cta ? (
             <View style={styles.card}>
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {selected.title}
@@ -153,26 +250,24 @@ export default function ItalyQuizPlaces() {
               <Text style={styles.cardTagline} numberOfLines={2}>
                 {selected.tagline}
               </Text>
-              <View style={styles.cardStars}>
-                {Array.from({ length: MAX_STARS }, (_, i) => (
-                  <Text
-                    key={i}
-                    style={[
-                      styles.cardStar,
-                      i >= (progress[selected.id]?.stars ?? 0) && styles.cardStarEmpty,
-                    ]}
-                  >
-                    {i < (progress[selected.id]?.stars ?? 0) ? '★' : '☆'}
-                  </Text>
-                ))}
-              </View>
+              <CircleStrip
+                slots={slots}
+                activeIndex={activeIndex}
+                onSelect={setPickedCircle}
+              />
               <GlossyButton
-                label={t.startTour}
-                fontSize={22}
+                label={cta.label}
+                fontSize={20}
                 paddingVertical={14}
-                onPress={() =>
-                  router.push({ pathname: '/italy-quiz/quiz', params: { place: selected.id } })
-                }
+                locked={cta.locked}
+                inactive={cta.inactive}
+                onPress={() => {
+                  if (!cta.start || activeIndex == null) return;
+                  router.push({
+                    pathname: '/italy-quiz/quiz',
+                    params: { place: selected.id, circle: String(activeIndex) },
+                  });
+                }}
               />
             </View>
           ) : (
@@ -180,6 +275,8 @@ export default function ItalyQuizPlaces() {
           )}
         </View>
       </SafeAreaView>
+
+      <HelpModal visible={helpOpen} onClose={() => setHelpOpen(false)} />
     </View>
   );
 }
@@ -204,6 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: {
     textAlign: 'center',
     color: '#FFFFFF',
@@ -242,16 +340,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Not on the schedule: hollow rim, nothing inside. */
   pinLocked: {
     backgroundColor: 'rgba(12, 26, 70, 0.55)',
     borderColor: 'rgba(255,255,255,0.45)',
+  },
+  /** On the schedule, behind a door: SOLID rim plus a padlock. */
+  pinChainLocked: {
+    backgroundColor: 'rgba(12, 26, 70, 0.72)',
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   pinSelected: {
     backgroundColor: '#FFD54A',
     borderColor: '#FFFFFF',
     transform: [{ scale: 1.25 }],
   },
-  pinStars: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  // Tabular figures because the count now runs to two digits (up to 30).
+  pinStars: { color: '#FFFFFF', fontSize: 12, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  /** The selected pin is painted gold, so white would vanish on it. */
+  pinStarsSelected: { color: ItalyColors.tileGlyph },
 
   pinLabel: {
     position: 'absolute',
@@ -268,8 +375,9 @@ const styles = StyleSheet.create({
   pinLabelLeft: { right: PIN / 2 + 4, textAlign: 'right' },
   pinLabelLocked: { color: 'rgba(255,255,255,0.55)' },
 
-  // Fixed height so selecting a pin does not make the map jump.
-  cardSlot: { minHeight: 190, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 18 },
+  // Fixed height so selecting a pin does not make the map jump. The map lives in
+  // a centred flexGrow ScrollView, so it gives the room up without a jolt.
+  cardSlot: { minHeight: 232, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 18 },
   card: {
     backgroundColor: 'rgba(8, 22, 66, 0.72)',
     borderRadius: 20,
@@ -280,9 +388,6 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '900', textAlign: 'center' },
   cardTagline: { color: '#D6DEFF', fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  cardStars: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 2 },
-  cardStar: { fontSize: 20, color: '#FFD54A' },
-  cardStarEmpty: { color: 'rgba(255,255,255,0.35)' },
 
   prompt: {
     color: '#D6DEFF',

@@ -1,6 +1,6 @@
 # Italy Quiz
 
-Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, what makes a place worth entering twice, and why four of its twenty questions ask for a range instead of a fact.
+Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, how a place's ten fixed **circles** and the chain between cities carry progression, and why four of its twenty questions ask for a range instead of a fact.
 
 ## Why a Sixth App
 
@@ -28,25 +28,73 @@ The replacement has a **single level**, and it is drawn as the **map of Italy**.
 
 The map earns its place by being the progress screen and the picker at once: stars accumulate on the pins, so the country visibly fills in as it is played. Its outline is a checked-in SVG path (`constants/italy-quiz/map-geometry.ts`) rather than a fetched or bundled picture — it must draw instantly and offline, and the shape of Italy is not going to change. The disciplines that used to be categories are now mixed *inside* a tour, so the last act of Rome asks about Vatican statehood, the Trevi fountain's takings, carbonara and the Rome derby in a row. A player who knows no Renaissance painting still knows the football clubs.
 
-Places without authored questions render **hollow rather than hidden**, so the shape of the finished app is visible from the first build. Only Rome has content today.
+Tapping a pin also raises that place's **circle strip** — see [Circles](#circles-ten-fixed-sets-per-place). The strip scrolls rather than fits: ten chips squeezed into the card's content width on a 360dp phone would be about 22dp each, below any usable touch target and far too small for a number plus stars. At 36dp with a 6dp `hitSlop` each chip is a 48dp target, about six and a half are visible, and the half-cut seventh is the scroll affordance.
 
-## Why a Place Is Worth Entering Twice
+The card's entry button **is** the status line — "Circle 3", "Circle 1 · again", "Questions still being written", "First clear circle 1 — Rome" — which is what pays for having no extra hint row under the strip. It is always present, so the card's height never moves.
 
-A tour that plays the same twenty questions in the same order is finished the moment it ends. Two mechanisms in `hooks/italy-quiz/use-place-progress.ts` make a place worth returning to, and they solve different halves of the problem.
+Places outside the chain render **hollow rather than hidden**, so the shape of the finished app is visible from the first build. Only Rome has authored questions today.
 
-**Stars** give a reason to replay at all: 50% of a tour earns one, 80% earns two, and only a clean run earns three. They are kept at their BEST, so a lazy second attempt can never cost what was already won — the player is free to experiment. A mistakes review earns none: it is a sub-tour, it could only ever lower a score, and counting it would inflate the play count.
+## Circles: Ten Fixed Sets Per Place
 
-**The seen set** makes that replay worth playing. Each place remembers which questions it has already asked, and the draw prefers ones it has not. Rome carries 32 questions and a tour takes 20, so a second visit is materially different rather than the same set reshuffled. Nothing resets when the pool is exhausted — the draw simply falls back to shuffling everything, which is correct: at that point the player has seen the place and repetition is the point.
+A place is not one endlessly reshuffled tour. It is **ten circles**, and a circle is a **fixed set of twenty questions** — five from each of the four acts. The pure logic lives in `lib/italy-quiz/circles.ts`; `hooks/italy-quiz/use-place-progress.ts` owns only persistence.
 
-Both live under one storage key (`italy.progress.v1`) so a single read hydrates the whole map.
+The set is drawn once, on first entry, and then frozen. Replaying circle 3 asks the same twenty in the same order; new material is what the *next* circle is for. That promise is kept by exactly one rule: a circle's `ids` are written by `upsertCircle` and only while still empty. Everything else — resume, replay, the strip — reads them.
+
+Freezing the set is what makes a replay legible. Under the old draw a second visit was a different twenty, so a worse score could mean either "I got worse" or "I got a harder shuffle", and the stars measured neither. Now a replay is the same exam.
+
+**Stars are per circle**, on the unchanged scale: 50% earns one, 80% two, a clean run three. They are kept at their BEST, so going back for a third star can only ever add. The circle's **pass mark is deliberately not a new number** — ten of twenty *is* the first star, so "cleared" and "earned something" are one event. A mistakes review earns none: it is a sub-tour, it could only ever lower a score, and counting it would inflate the play count.
+
+The map pin carries the **sum of the stars of every circle** of that place, 0..30.
+
+### Two ways a circle can be shut
+
+The strip on the place card draws all ten slots, and the load-bearing distinction is between its two closed states:
+
+| state | looks like | means |
+|---|---|---|
+| `done` | filled, numbered, stars under it | cleared; still playable, for a better star |
+| `current` | outlined, numbered | the one live circle |
+| `locked` | a padlock | the circle before it has not been cleared — a door with a key you can earn |
+| `soon` | no border, no icon, a hole in the row | not enough authored content to draw twenty more |
+
+`soon` must never be mistaken for the padlock, because nothing the player does will open it. It is drawn borderless rather than dashed on purpose: `borderStyle: 'dashed'` combined with a `borderRadius` renders as solid on iOS in several RN versions, which would silently collapse the two states into one on exactly one platform.
+
+Only the **first** blocked slot gets `soon`; everything behind it is `locked`. "You have not cleared the one before" is knowable, while "will content ever exist for circle 7" is not.
 
 ### What the draw protects
 
-`orderTour` picks at random, so three things that used to be guaranteed by the authored order now have to be enforced, and each is covered by a test:
+`drawCircle` picks at random from what no earlier circle has claimed, so three things that used to be guaranteed by the authored order have to be enforced, and each is covered by a test:
 
-- **Callback pairs come whole.** Half a pair is worse than none — the ribbon would point at a question the player never saw — so both halves are pulled in before any random pick. A pair authored in the wrong direction (the second half in an earlier act) is dropped rather than shown broken.
-- **The warm-up is pinned, not sorted.** An early version merely moved it to the front of whatever was drawn, which meant it was often not drawn at all and the tour opened on a hard question. It is now taken before the shuffle.
-- **Unseen before seen**, per act, as described above.
+- **Callback pairs come whole, or not at all.** Half a pair is worse than none — the ribbon would point at a question the player never saw. A pair is forced only when BOTH halves are still unused, which makes it structurally impossible for one to straddle two circles. A pair authored in the wrong direction (the second half in an earlier act) is dropped rather than shown broken, and one that will not fit an act's five-slot quota waits whole for a later circle.
+- **The warm-up opens the circle — when it is still available.** Rome's warm-up is consumed by circle 1 and never returns, so circle 2 simply opens on a shuffled antiquity question rather than failing to fill.
+- **A circle is refused, not stunted.** `drawCircle` returns `null` when ANY act is short, not when the total is. Twenty spare questions all sitting in antiquity is not a circle, and the UI shows `soon` instead of a lopsided tour. `canDrawCircle` is literally that same predicate, so the strip's idea of playable and the draw's idea of possible cannot drift apart.
+
+### Cities open in a chain
+
+`ITALY_CHAIN` in `constants/italy-quiz/places.ts` is the whole progression, in one line: `rome → florence → venice`. Clearing a city's **first** circle puts the next city on the map. It is an ordered array rather than a `requires` field on each place because reordering is then a single edit and a cycle is not expressible.
+
+That gives three kinds of pin, readable without words: **open** (solid, carrying its star count), **chain-locked** (solid rim plus a padlock, and still *selectable* — a dead pin cannot explain why it is dead, and the card one tap away has room for the sentence that does), and **not on the schedule** (hollow, empty, untappable — Naples, Milan, Sicily and All of Italy, which are waiting for content and which no amount of play will open).
+
+### What is "soon" with today's content
+
+Rome holds 32 questions — **exactly eight per act**. A circle needs five *per act*, so circle 1 takes five from each and leaves three. **Rome supplies exactly one circle**, not the one and a half the raw total suggests: the five-per-act rule binds before the twenty-per-circle total does. Circle 2 needs ten per act, so Rome is short by eight questions (two per act). `availableCircles(rome, ROME_QUESTIONS) === 1` is the tripwire that says so, and it moves on its own when questions are added.
+
+So on today's content: Rome's circles 2–10 are `soon`; Florence is chain-locked until Rome's circle 1 is cleared and then shows ten `soon` slots; Venice sits behind Florence. `soon` is therefore the *dominant* state on day one, not an edge case — which is why it gets real copy rather than the generic empty line.
+
+### Storage
+
+Progress lives under `italy.progress.v2`:
+
+```ts
+interface CircleRecord { index: number; ids: number[]; stars: number; bestPct: number; plays: number }
+interface PlaceRecordV2 { circles: CircleRecord[]; seen?: number[] }
+```
+
+The **v1 record migrates into circle 1**, carrying `stars`/`bestPct`/`plays` verbatim. Its `seen` list becomes the circle's fixed set when it is exactly one tour's worth — in v1 that is precisely what it was — and otherwise the circle still counts as passed and is re-fixed on next entry. The old `italy.progress.v1` key is **read and then left alone**, so an app rollback still finds the player's stars.
+
+The surviving `seen` is a **soft preference for the draw, never a filter**. A migrated player who had already been served every question would otherwise be unable to have their circle fixed at all, and would meet `soon` sitting on top of stars they had already earned.
+
+Every write goes through one serialised promise chain, each mutation re-reading storage inside its own link. Fixing a set is a read-modify-write, so the old fire-and-forget `setItem` would lose whichever of two overlapping writes landed first — a player finishing a circle while its ids were being fixed would silently lose a star. The same serialisation makes a double-tap on the strip harmless: the second `ensureCircle` sees the first one's commit and hands back the same twenty.
 
 ## A Tour Is Four Acts of Time
 
@@ -60,7 +108,7 @@ The acts are chronological on purpose: the player does not *choose* "Ancient Rom
 
 The Renaissance gets its own act rather than sitting inside a broader "centuries" bucket because it is the single thing Italy is best known for; folded into a wider act it disappeared.
 
-`orderTour` in `hooks/italy-quiz/use-tour-progress.ts` builds the order act by act, shuffling inside each act — see [What the draw protects](#what-the-draw-protects) for the three guarantees that survive the shuffle. The acts themselves must always stay in sequence, because a callback pair is authored across them.
+`drawCircle` in `lib/italy-quiz/circles.ts` builds the order act by act, shuffling inside each act — see [What the draw protects](#what-the-draw-protects) for the three guarantees that survive the shuffle. The acts themselves must always stay in sequence, because a callback pair is authored across them.
 
 ### Interludes carry the jump
 
@@ -98,19 +146,22 @@ It is how the app connects antiquity to the present without filing them as two s
 
 Callbacks are why **acts may never be reordered**. A pair is authored across acts so the first half always plays before the second; shuffling acts, or drawing questions across act boundaries, would show a player a ribbon referring to a question they have not seen.
 
-## Resuming a Tour
+## Resuming a Circle
 
-`useTourProgress` owns a tour's position and mistakes and persists them under a per-place key (`italy.tour.{placeId}`). Leaving the app mid-tour and coming back resumes on the same question with the same score, and skips the intro card.
+`useTourProgress` no longer draws anything. It owns a circle's position and mistakes and persists them under a **per-circle** key (`italy.tour.{placeId}.c{n}`) — per place would let an abandoned circle 3 resume inside circle 1. Leaving the app mid-circle and coming back resumes on the same question with the same score, and skips the intro card.
 
-Because `orderTour` is deterministic, the order itself is not stored — only `pos`, `wrong`, and the question count the tour was saved at. A changed count retires the save rather than replaying a tour against content that moved.
+A save resumes only when its stored ids are the **same set in the same order** as the circle being entered. Under the old model the check could only ask "are these ids known to this place", because the order was redrawn on every entry; now that it is fixed upstream the strict comparison is both possible and necessary, and it is what stops a blob left by another draw from resurrecting a half-finished tour under a different twenty.
 
 The score is derived rather than stored (`pos - wrong.length`): every answered question is either right or wrong, so a stored score would be a second source of truth that could disagree with the mistakes list. A mistakes-only retry tour is handed its ids directly and is **never persisted**, so a player who abandons a review returns to a clean slate.
 
 ```
-place tapped
+circle tapped on the strip
       │
       ↓
-saved tour for this place? ──yes──→ resume at pos (intro skipped)
+ensureCircle → fixed ids ─── soon / locked ──→ "questions still being written"
+      │
+      ↓
+saved position for THIS circle? ──yes──→ resume at pos (intro skipped)
       │ no
       ↓
  intro card → act 1 ──act ends──→ interlude ──tap──→ act 2 → …
@@ -120,9 +171,15 @@ saved tour for this place? ──yes──→ resume at pos (intro skipped)
                                     "Review mistakes" → retry tour (not saved)
 ```
 
+The result screen names the circle, states whether the 10-of-20 gate was met, and announces what opened — the new **city** in preference to the new circle, since the circle is visible on the strip anyway. Everything in that block is suppressed on a mistakes review, which changes nothing. There is no "Play again": under fixed sets it would replay the identical twenty, and the choice of *which* circle to farm belongs on the map, where the strip shows what each one is worth.
+
 ## Teaching the Rule Once
 
-The mistakes flow is not discoverable from the question screen: a player who answers wrong sees the question vanish with no explanation and no correct answer, which reads as a punishment unless they know it is coming back. So a help sheet auto-opens **once per install**, on the first tour a player ever opens. The seen flag is persisted (`italy.help.seen.v1`); afterwards the sheet is on-demand from the "?" button in the quiz header, next to Report and Share.
+Circles are not guessable from the strip: the fixed set, the pass mark, the chain, and the difference between the padlock and the faded slot all have to be said once. So a help sheet auto-opens **once per install**, from the **map** — the screen every player reaches before a tour, and the one where the explanation arrives before it is needed. Exactly one screen may own this; two would race on mount and could open the sheet twice.
+
+The sheet is a lede plus four titled sections (circles, stars, unlocking, mistakes) in a `ScrollView`, because the copy it now has to carry is about twenty lines and an undifferentiated wall of that length is unreadable even where it fits. Its scroll indicator is deliberately left on — it is off everywhere else in the app — since it is the only signal that there is more below the fold.
+
+The seen flag is persisted under `italy.help.seen.v2`; the bump is so installs that had already seen the old mistakes-only paragraph get told the new rules once. Afterwards the sheet is on-demand from the "?" button, which now sits on both the map header and the quiz HUD.
 
 ## Artwork Gating
 
