@@ -36,4 +36,8 @@ export const PLACE_PINS: Record<string, { x: number; y: number }> = {
   rome: { x: 49.0, y: 59.8 },
   naples: { x: 64.1, y: 71.9 },
   sicily: { x: 61.9, y: 109.2 },
+  // Deliberately NOT a real coordinate: the country-wide tour is pinned in open
+  // water off the Adriatic coast, clear of every city pin, because it stands for
+  // the whole boot rather than a spot on it.
+  'all-italy': { x: 86.0, y: 22.0 },
 };

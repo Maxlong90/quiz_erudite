@@ -120,6 +120,60 @@ const ROME_ACTS: ItalyAct[] = [
   },
 ];
 
+/**
+ * The one tour that is not a city. Its acts run by THEME rather than by time,
+ * because the material — food, football, cinema, the way Italians actually are —
+ * has no chronology worth walking. It is the home for everything true of Italy
+ * as a whole, which a city tour has nowhere to put.
+ */
+const ALL_ITALY_ACTS: ItalyAct[] = [
+  {
+    id: 'table',
+    icon: '🍝',
+    label: { ru: 'За столом', en: 'At the table' },
+    interlude: null,
+  },
+  {
+    id: 'calcio',
+    icon: '⚽',
+    label: { ru: 'Кальчо', en: 'Calcio' },
+    interlude: {
+      headline: { ru: 'Со стола — на трибуну', en: 'From the table to the terraces' },
+      body: {
+        ru: 'Есть только одна вещь, ради которой итальянец встанет из-за стола недоевшим. В воскресенье страна делится не на север и юг, а на цвета клубов.',
+        en: 'There is only one thing that gets an Italian up from the table mid-meal. On Sunday the country splits not into north and south but into club colours.',
+      },
+      cta: { ru: 'К футболу', en: 'To the football' },
+    },
+  },
+  {
+    id: 'dolce-vita',
+    icon: '🎬',
+    label: { ru: 'Дольче вита', en: 'La dolce vita' },
+    interlude: {
+      headline: { ru: 'Италия на экране', en: 'Italy on screen' },
+      body: {
+        ru: 'В пятидесятых мир влюбился в итальянцев через кино и моду: скутер, тёмные очки, костюм. Образ оказался долговечнее фильмов.',
+        en: 'In the fifties the world fell for Italy through cinema and fashion: the scooter, the sunglasses, the suit. The image outlived the films.',
+      },
+      cta: { ru: 'К дольче вита', en: 'To la dolce vita' },
+    },
+  },
+  {
+    id: 'people',
+    icon: '🤌',
+    label: { ru: 'Как устроены итальянцы', en: 'How Italians work' },
+    interlude: {
+      headline: { ru: 'А теперь — про людей', en: 'And now — the people' },
+      body: {
+        ru: 'Кофе после обеда, но никогда после ужина. Жесты, которые понимают без слов. Правила, которых нет ни в одном путеводителе.',
+        en: 'Coffee after lunch, never after dinner. Gestures that need no words. Rules no guidebook prints.',
+      },
+      cta: { ru: 'К привычкам', en: 'To the habits' },
+    },
+  },
+];
+
 export const ITALY_PLACES: ItalyPlace[] = [
   {
     id: 'rome',
@@ -162,6 +216,15 @@ export const ITALY_PLACES: ItalyPlace[] = [
     label: { ru: 'Сицилия', en: 'Sicily' },
     tagline: { ru: 'Греки, норманны, Этна', en: 'Greeks, Normans, Etna' },
     acts: ROME_ACTS,
+    locked: true,
+  },
+  // Not a city: the country itself, by theme instead of by century. Its pin sits
+  // off the coast so it reads as "all of this", not as one more place to visit.
+  {
+    id: 'all-italy',
+    label: { ru: 'Вся Италия', en: 'All of Italy' },
+    tagline: { ru: 'Еда, кальчо, кино, привычки', en: 'Food, calcio, cinema, habits' },
+    acts: ALL_ITALY_ACTS,
     locked: true,
   },
 ];
