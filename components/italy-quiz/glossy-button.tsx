@@ -14,6 +14,11 @@ import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
  * - `icon`      — optional leading node (e.g. a language flag).
  * - `locked`    — dims the button, shows a trailing padlock, and disables it.
  * - `inactive`  — dims + disables without the padlock.
+ *
+ * `label` may contain "\n": the title honours as many lines as the string asks
+ * for and shrinks them together (`adjustsFontSizeToFit`), which is what lets a
+ * two-line caption survive a narrow phone and system font enlargement without
+ * changing the button's height contract.
  */
 export function GlossyButton({
   label,
@@ -35,6 +40,12 @@ export function GlossyButton({
   paddingVertical?: number;
 }) {
   const disabled = locked || inactive;
+  // The padlock is absolutely positioned, so the flex layout does not know it is
+  // there and a centred label simply runs underneath it — which is exactly how
+  // the tail of the locked-city caption used to disappear. Reserve the icon's
+  // width as padding on BOTH sides: symmetric, so the text stays optically
+  // centred, and derived from `fontSize` because the icon is drawn at that size.
+  const lockGutter = locked ? Math.round(fontSize) + 12 : 0;
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -44,7 +55,12 @@ export function GlossyButton({
         colors={[ItalyColors.tileLight, ItalyColors.tileDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.btn, { paddingVertical }, ItalyShadow.card, disabled && styles.dimmed]}
+        style={[
+          styles.btn,
+          { paddingVertical, paddingHorizontal: 18 + lockGutter },
+          ItalyShadow.card,
+          disabled && styles.dimmed,
+        ]}
       >
         <LinearGradient
           colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}

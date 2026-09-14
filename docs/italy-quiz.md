@@ -30,9 +30,9 @@ The map earns its place by being the progress screen and the picker at once: sta
 
 Tapping a pin also raises that place's **circle strip** — see [Circles](#circles-ten-fixed-sets-per-place). The strip scrolls rather than fits: ten chips squeezed into the card's content width on a 360dp phone would be about 22dp each, below any usable touch target and far too small for a number plus stars. At 36dp with a 6dp `hitSlop` each chip is a 48dp target, about six and a half are visible, and the half-cut seventh is the scroll affordance.
 
-The card's entry button **is** the status line — "Circle 3", "Circle 1 · again", "Questions still being written", "First clear circle 1 — Rome" — which is what pays for having no extra hint row under the strip. It is always present, so the card's height never moves.
+The card's entry button **is** the status line — "Circle 3", "Circle 1 · again", "Questions still being written", and — on a city the chain has not opened — a two-line "Clear 4 more circles" over the gate city's name — which is what pays for having no extra hint row under the strip. It is always present, so the card's height never moves.
 
-Places outside the chain render **hollow rather than hidden**, so the shape of the finished app is visible from the first build. Only Rome has authored questions today.
+Every place is on the chain, so every pin is reachable by play; a place flagged `locked` would render **hollow rather than hidden**, and one flagged `alwaysOpen` is a side trip that needs no key at all. Nothing carries either flag today. Only Rome has authored questions.
 
 ## Circles: Ten Fixed Sets Per Place
 
@@ -47,7 +47,8 @@ Freezing the set is what makes a replay legible. Under the old draw a second vis
 The map pin carries the **sum of the stars of every circle** of that place, 0..30.
 
 ```
-ITALY_CHAIN:  rome ──clear circle 1──→ florence ──clear circle 1──→ venice
+ITALY_CHAIN:  rome ──clear 5 circles──→ florence ──clear 5 circles──→ venice ──→
+              sicily ──→ naples ──→ milan ──→ all-italy
 
   Place (rome)
     ├── acts: antiquity → middle-ages → renaissance → today
@@ -84,15 +85,19 @@ Only the **first** blocked slot gets `soon`; everything behind it is `locked`. "
 
 ### Cities open in a chain
 
-`ITALY_CHAIN` in `constants/italy-quiz/places.ts` is the whole progression, in one line: `rome → florence → venice`. Clearing a city's **first** circle puts the next city on the map. It is an ordered array rather than a `requires` field on each place because reordering is then a single edit and a cycle is not expressible.
+`ITALY_CHAIN` in `constants/italy-quiz/places.ts` is the whole progression, in one line: `rome → florence → venice → sicily → naples → milan → all-italy`, ordered by how much content each place is likely to get rather than by geography. Clearing **`CIRCLES_TO_UNLOCK_NEXT` (5)** circles of a city puts the next city on the map — the number is a named constant in `lib/italy-quiz/circles.ts` because it is expected to be tuned. It is an ordered array rather than a `requires` field on each place because reordering is then a single edit and a cycle is not expressible.
 
-That gives three kinds of pin, readable without words: **open** (solid, carrying its star count), **chain-locked** (solid rim plus a padlock, and still *selectable* — a dead pin cannot explain why it is dead, and the card one tap away has room for the sentence that does), and **not on the schedule** (hollow, empty, untappable — Naples, Milan, Sicily and All of Italy, which are waiting for content and which no amount of play will open).
+The gate counts *passes* rather than asking whether circle 5 specifically is cleared. Circles are strictly sequential, so the two say the same thing — but a count lets the constant move without touching the label, and `circlesLeftToUnlock` gives the locked pin's caption the same arithmetic the gate enforces, so the button can never promise a number nothing checks.
+
+That gives three kinds of pin, readable without words: **open** (solid, carrying its star count), **chain-locked** (solid rim plus a padlock, and still *selectable* — a dead pin cannot explain why it is dead, and the card one tap away has room for the sentence that does), and **not on the schedule** (hollow, empty, untappable — a `locked` place waiting for content that no amount of play will open). Nothing is in that third state today: Naples, Milan, Sicily and All of Italy joined the chain and now open by play like the rest. A place flagged `alwaysOpen` draws as an ordinary open pin.
+
+No city has five circles of content yet, so **nothing opens by play at present** — that is expected, and the reason the locked caption counts down («Clear 4 more circles») instead of restating the target. Questions are being written under a separate task.
 
 ### What is "soon" with today's content
 
 Rome holds 32 questions — **exactly eight per act**. A circle needs five *per act*, so circle 1 takes five from each and leaves three. **Rome supplies exactly one circle**, not the one and a half the raw total suggests: the five-per-act rule binds before the twenty-per-circle total does. Circle 2 needs ten per act, so Rome is short by eight questions (two per act). `availableCircles(rome, ROME_QUESTIONS) === 1` is the tripwire that says so, and it moves on its own when questions are added.
 
-So on today's content: Rome's circles 2–10 are `soon`; Florence is chain-locked until Rome's circle 1 is cleared and then shows ten `soon` slots; Venice sits behind Florence. `soon` is therefore the *dominant* state on day one, not an edge case — which is why it gets real copy rather than the generic empty line.
+So on today's content: Rome's circles 2–10 are `soon`; Florence is chain-locked behind five cleared Rome circles, which today's single circle cannot supply, and every city behind Florence sits behind that. `soon` is therefore the *dominant* state on day one, not an edge case — which is why it gets real copy rather than the generic empty line.
 
 ### Storage
 
@@ -190,9 +195,11 @@ The result screen names the circle, states whether the 10-of-20 gate was met, an
 
 Circles are not guessable from the strip: the fixed set, the pass mark, the chain, and the difference between the padlock and the faded slot all have to be said once. So a help sheet auto-opens **once per install**, from the **map** — the screen every player reaches before a tour, and the one where the explanation arrives before it is needed. Exactly one screen may own this; two would race on mount and could open the sheet twice.
 
-The sheet is a lede plus four titled sections (circles, stars, unlocking, mistakes) in a `ScrollView`, because the copy it now has to carry is about twenty lines and an undifferentiated wall of that length is unreadable even where it fits. Its scroll indicator is deliberately left on — it is off everywhere else in the app — since it is the only signal that there is more below the fold.
+The sheet is a lede plus four titled sections (circles, stars, unlocking, mistakes) in a `ScrollView`, because the copy it now has to carry is about twenty lines and an undifferentiated wall of that length is unreadable even where it fits. Its scroll indicator is deliberately left on — it is off everywhere else in the app — since it is the only signal that there is more below the fold, and fades at the top and bottom edges appear exactly while copy continues past them.
 
-The seen flag is persisted under `italy.help.seen.v2`; the bump is so installs that had already seen the old mistakes-only paragraph get told the new rules once. Afterwards the sheet is on-demand from the "?" button, which now sits on both the map header and the quiz HUD.
+The card's height is a **number of points** (70% of the live window, bounded to 300–560), never a percentage `maxHeight`. It used to be `maxHeight: '84%'` around a `flexShrink: 1` ScrollView and it did not scroll at all. Yoga clamps a node's available *inner* dimension to min/max only when that dimension is already defined (`calculateAvailableInnerDimension` guards the whole clamp behind `isDefined`), and on Android a Modal's host node starts at `Size{0,0}` and learns the screen size through an asynchronous state round-trip — so the first pass under every Modal has no usable owner height, there is no free space to distribute, and `flexShrink` is inert while the card's own box still gets clamped. The result was a short box wrapped around full-height children: the ScrollView's frame ended up as tall as its content, so there was nothing to scroll, no indicator, and "Got it" was laid out past the card edge and off the screen. A numeric `maxHeight` would hit the same guard; only a definite `height` gives the children a main size, and with it the body can simply `flex: 1`.
+
+The seen flag is persisted under `italy.help.seen.v3`; each bump is so installs that were told a rule which is no longer true (v1 → v2 when circles arrived, v2 → v3 when the city gate went from one circle to five and the chain grew to cover every place) get the new rules once. Afterwards the sheet is on-demand from the "?" button, which now sits on both the map header and the quiz HUD.
 
 ## Artwork Gating
 

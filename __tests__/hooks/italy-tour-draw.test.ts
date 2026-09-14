@@ -1,12 +1,16 @@
 import {
+  CIRCLES_PER_PLACE,
+  CIRCLES_TO_UNLOCK_NEXT,
   availableCircles,
   canDrawCircle,
   circleSlots,
+  circlesLeftToUnlock,
   drawCircle,
   isPlaceUnlocked,
   nextCircleIndex,
   placeStars,
   type PlaceRecordV2,
+  type ProgressMapV2,
 } from '@/lib/italy-quiz/circles';
 import { ITALY_CHAIN, ITALY_PLACES, QUESTIONS_PER_ACT, getPlace } from '@/constants/italy-quiz/places';
 import { hasTourContent } from '@/constants/italy-quiz/tour-content';
@@ -258,8 +262,15 @@ describe('circleSlots', () => {
 });
 
 describe('the city chain', () => {
-  const passed = (stars: number): PlaceRecordV2 => ({
-    circles: [{ index: 1, ids: [], stars, bestPct: stars ? 60 : 45, plays: 3 }],
+  /** A record with `count` circles, each worth `stars`. */
+  const cleared = (count: number, stars = 1): PlaceRecordV2 => ({
+    circles: Array.from({ length: count }, (_, i) => ({
+      index: i + 1,
+      ids: [],
+      stars,
+      bestPct: stars ? 60 : 45,
+      plays: 3,
+    })),
   });
 
   it('opens only the head of the chain on a fresh install', () => {
@@ -268,27 +279,48 @@ describe('the city chain', () => {
     }
   });
 
-  it('hands the key on when a city’s FIRST circle is cleared', () => {
-    const map = { rome: passed(1) };
+  it('hands the key on only once FIVE circles are cleared', () => {
+    for (let n = 0; n < CIRCLES_TO_UNLOCK_NEXT; n++) {
+      const map = { rome: cleared(n) };
+      expect(isPlaceUnlocked('florence', map)).toBe(false);
+      expect(circlesLeftToUnlock('florence', map)).toBe(CIRCLES_TO_UNLOCK_NEXT - n);
+    }
+
+    const map = { rome: cleared(CIRCLES_TO_UNLOCK_NEXT) };
     expect(isPlaceUnlocked('florence', map)).toBe(true);
+    expect(circlesLeftToUnlock('florence', map)).toBe(0);
+    // One key at a time: Rome's five say nothing about Venice.
     expect(isPlaceUnlocked('venice', map)).toBe(false);
-    expect(isPlaceUnlocked('venice', { ...map, florence: passed(1) })).toBe(true);
+    expect(
+      isPlaceUnlocked('venice', { ...map, florence: cleared(CIRCLES_TO_UNLOCK_NEXT) }),
+    ).toBe(true);
   });
 
   it('gates on the star, not on having played', () => {
-    expect(isPlaceUnlocked('florence', { rome: passed(0) })).toBe(false);
+    // Ten circles played and not one cleared is still a shut gate.
+    const map = { rome: cleared(CIRCLES_PER_PLACE, 0) };
+    expect(isPlaceUnlocked('florence', map)).toBe(false);
+    expect(circlesLeftToUnlock('florence', map)).toBe(CIRCLES_TO_UNLOCK_NEXT);
   });
 
-  it('never opens a place that is not in the chain', () => {
-    const everything = {
-      rome: passed(3),
-      florence: passed(3),
-      venice: passed(3),
-      naples: passed(3),
-    };
-    for (const id of ['naples', 'milan', 'sicily', 'all-italy']) {
-      expect(isPlaceUnlocked(id, everything)).toBe(false);
+  it('runs the chain to its end, one city at a time', () => {
+    // Every place is on the chain now, so a full sweep is the whole progression.
+    const map: ProgressMapV2 = {};
+    for (const [i, id] of ITALY_CHAIN.entries()) {
+      expect(isPlaceUnlocked(id, map)).toBe(true);
+      const next = ITALY_CHAIN[i + 1];
+      if (!next) break;
+      expect(isPlaceUnlocked(next, map)).toBe(false);
+      map[id] = cleared(CIRCLES_TO_UNLOCK_NEXT);
     }
+  });
+
+  it('never opens a place that is off the chain and not alwaysOpen', () => {
+    const everything = Object.fromEntries(
+      ITALY_CHAIN.map((id) => [id, cleared(CIRCLES_PER_PLACE, 3)]),
+    );
+    expect(isPlaceUnlocked('sardinia', everything)).toBe(false);
+    expect(isPlaceUnlocked('', everything)).toBe(false);
   });
 });
 
@@ -301,11 +333,13 @@ describe('places', () => {
     expect(ITALY_PLACES.filter((p) => hasTourContent(p.id)).map((p) => p.id)).toEqual(['rome']);
   });
 
-  it('marks only the places outside the chain as locked-by-content', () => {
-    // Florence and Venice are NOT `locked`: they are opened by play, and their
+  it('puts every place on the chain, none locked-by-content', () => {
+    // No place is `locked` any more: all of them are opened by play, and their
     // circles read "soon" until their questions exist.
+    expect([...ITALY_CHAIN].sort()).toEqual(ITALY_PLACES.map((p) => p.id).sort());
     for (const p of ITALY_PLACES) {
-      expect(!!p.locked).toBe(!ITALY_CHAIN.includes(p.id));
+      expect(!!p.locked).toBe(false);
+      expect(!!p.alwaysOpen).toBe(false);
     }
   });
 

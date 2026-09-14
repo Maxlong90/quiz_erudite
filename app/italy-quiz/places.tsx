@@ -13,13 +13,15 @@ import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { HelpModal } from '@/components/italy-quiz/help-modal';
 import { getPlace, useItalyPlaces } from '@/constants/italy-quiz/places';
 import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
-import { useItalyLabels } from '@/constants/italy-quiz/labels';
+import { pickPlural, useItalyLabels } from '@/constants/italy-quiz/labels';
 import { ITALY_PATHS, ITALY_VIEWBOX, PLACE_PINS } from '@/constants/italy-quiz/map-geometry';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 import { useFirstRunHelp } from '@/hooks/italy-quiz/use-first-run-help';
 import { usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
+import { useLocale } from '@/hooks/use-locale';
 import {
   circleSlots,
+  circlesLeftToUnlock,
   isPlaceUnlocked,
   nextCircleIndex,
   placeStars,
@@ -48,13 +50,20 @@ import {
  *  - **open** — solid, carrying the sum of the stars of all its circles (0..30).
  *  - **chain-locked** — solid rim plus a padlock, and still SELECTABLE: a dead
  *    pin cannot explain why it is dead, and the card one tap away has room for
- *    the sentence that does.
+ *    the sentence that does. Its caption names the number of circles still
+ *    owed, so the pin stays honest even while no city has content for five.
  *  - **not on the schedule** — hollow rim, nothing inside, not tappable. No
- *    content is authored and no amount of play will open it.
+ *    content is authored and no amount of play will open it. Nothing is in this
+ *    state today — every place is on the chain — but the drawing stays, because
+ *    `locked` is still the only way to say it.
+ *
+ * A place flagged `alwaysOpen` is off the chain and open from the first run; it
+ * draws as an ordinary open pin and never shows the padlock.
  */
 export default function ItalyQuizPlaces() {
   const places = useItalyPlaces();
   const t = useItalyLabels();
+  const { locale } = useLocale();
   const bgReady = useItalyBgReady();
   const { progress } = usePlaceProgress();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -97,14 +106,18 @@ export default function ItalyQuizPlaces() {
   // The button IS the status line — which is what pays for having no extra hint
   // row under the strip. It is always present, so the card's height never moves.
   const gateCity = selectedId ? unlockedBy(selectedId) : null;
+  const circlesLeft = selectedId ? circlesLeftToUnlock(selectedId, progress) : 0;
   const cta = !selected
     ? null
     : !selectedUnlocked
       ? {
-          label: t.cityLockedCta.replace(
-            '{place}',
-            places.find((p) => p.id === gateCity)?.title ?? '',
-          ),
+          // Two lines: the requirement, then WHERE to go and do it. One line ran
+          // under the padlock, and the count is read off the same function the
+          // gate uses, so the button cannot promise a number nothing enforces.
+          label:
+            pickPlural(locale, circlesLeft, t.cityLockedNeed).replace('{n}', String(circlesLeft)) +
+            '\n' +
+            (places.find((p) => p.id === gateCity)?.title ?? ''),
           locked: true,
           inactive: false,
           start: false,
@@ -185,7 +198,10 @@ export default function ItalyQuizPlaces() {
               const pin = PLACE_PINS[p.id];
               if (!pin) return null;
               const stars = placeStars(progress[p.id]);
-              const chainLocked = !p.locked && !isPlaceUnlocked(p.id, progress);
+              // `alwaysOpen` is redundant here once isPlaceUnlocked short-circuits
+              // on it, and named anyway so a side-trip pin reads as one on sight.
+              const chainLocked =
+                !p.locked && !p.alwaysOpen && !isPlaceUnlocked(p.id, progress);
               const isSelected = p.id === selectedId;
               return (
                 <Pressable
@@ -376,8 +392,9 @@ const styles = StyleSheet.create({
   pinLabelLocked: { color: 'rgba(255,255,255,0.55)' },
 
   // Fixed height so selecting a pin does not make the map jump. The map lives in
-  // a centred flexGrow ScrollView, so it gives the room up without a jolt.
-  cardSlot: { minHeight: 232, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 18 },
+  // a centred flexGrow ScrollView, so it gives the room up without a jolt. The
+  // reserve covers the TALLEST card, which is the two-line locked-city CTA.
+  cardSlot: { minHeight: 256, justifyContent: 'flex-end', paddingHorizontal: 24, paddingBottom: 18 },
   card: {
     backgroundColor: 'rgba(8, 22, 66, 0.72)',
     borderRadius: 20,

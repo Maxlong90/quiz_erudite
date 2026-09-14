@@ -327,31 +327,65 @@ export function placeStars(rec: PlaceRecordV2 | undefined): number {
 }
 
 /**
- * Whether a place is open on the map.
+ * How many cleared circles of a city hand the key to the next one.
  *
- * The chain lives in one array (`ITALY_CHAIN`), so the whole progression reads
- * as a single line, reordering is one edit, and a cycle is not expressible. A
- * place outside the chain is never opened by play — it is waiting for content,
- * which is a different kind of shut.
+ * The product wants the player to settle in a city rather than sprint through
+ * the map, so one circle is not enough. The number is a named constant because
+ * it is expected to be tuned: nothing else in the app — not the gate, not the
+ * label on the locked pin — hardcodes a five.
  */
-export function isPlaceUnlocked(placeId: string, map: ProgressMapV2): boolean {
-  const i = ITALY_CHAIN.indexOf(placeId);
-  if (i < 0) return false;
-  if (i === 0) return true;
-  const prev = map[ITALY_CHAIN[i - 1]];
-  return isCirclePassed(prev?.circles.find((c) => c.index === 1));
+export const CIRCLES_TO_UNLOCK_NEXT = 5;
+
+/** How many circles of this place have been cleared (>= 1 star). */
+export function passedCircles(rec: PlaceRecordV2 | undefined): number {
+  return (rec?.circles ?? []).filter(isCirclePassed).length;
 }
 
-/** The place whose first circle opens this one, or null for the head of the chain. */
+/** The place whose circles open this one, or null for the head of the chain. */
 export function unlockedBy(placeId: string): string | null {
   const i = ITALY_CHAIN.indexOf(placeId);
   return i > 0 ? ITALY_CHAIN[i - 1] : null;
 }
 
-/** The place this one's first circle opens, or null at the end of the chain. */
+/** The place this one's circles open, or null at the end of the chain. */
 export function unlocksNext(placeId: string): string | null {
   const i = ITALY_CHAIN.indexOf(placeId);
   return i >= 0 && i + 1 < ITALY_CHAIN.length ? ITALY_CHAIN[i + 1] : null;
+}
+
+/**
+ * How many more circles of the GATE city are still to be cleared before this
+ * place opens. Zero when the place is already open, at the head of the chain,
+ * or off the chain entirely.
+ *
+ * Counting passes rather than looking for "circle N is passed" is deliberate:
+ * circles are strictly sequential, so the two say the same thing, but a count
+ * lets CIRCLES_TO_UNLOCK_NEXT move without touching the gate OR the label, and
+ * it makes it structurally impossible for the CTA to promise a number the gate
+ * does not actually enforce.
+ */
+export function circlesLeftToUnlock(placeId: string, map: ProgressMapV2): number {
+  const gate = unlockedBy(placeId);
+  if (gate == null) return 0;
+  return Math.max(0, CIRCLES_TO_UNLOCK_NEXT - passedCircles(map[gate]));
+}
+
+/**
+ * Whether a place is open on the map.
+ *
+ * The chain lives in one array (`ITALY_CHAIN`), so the whole progression reads
+ * as a single line, reordering is one edit, and a cycle is not expressible. A
+ * place outside the chain is never opened by play — it is waiting for content,
+ * which is a different kind of shut — UNLESS it is flagged `alwaysOpen`, which
+ * is how a side trip off the tour says "I am not a stop on the schedule, and I
+ * do not need a key".
+ */
+export function isPlaceUnlocked(placeId: string, map: ProgressMapV2): boolean {
+  if (getPlace(placeId)?.alwaysOpen) return true;
+  const i = ITALY_CHAIN.indexOf(placeId);
+  if (i < 0) return false;
+  if (i === 0) return true;
+  return circlesLeftToUnlock(placeId, map) === 0;
 }
 
 /**

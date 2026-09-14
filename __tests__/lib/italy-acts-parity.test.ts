@@ -128,12 +128,13 @@ describe('the app act ids vs the backend vocabulary', () => {
   });
 
   it('keeps naples, milan and sicily on rome’s placeholder acts', () => {
-    // A locked placeholder acquiring a contracted act id would make the backend
-    // look like it owed that city content it has never been asked for.
+    // A placeholder acquiring a contracted act id would make the backend look
+    // like it owed that city content it has never been asked for. These three
+    // are on ITALY_CHAIN now and open by play, which changes nothing here: the
+    // contract is about act IDS, not about whether the pin has a padlock.
     for (const placeId of APP_PLACEHOLDER_PLACES) {
       const place = getPlace(placeId)!;
       expect(place.acts.map((a) => a.id)).toEqual(APP_ROME_ACTS);
-      expect(place.locked).toBe(true);
     }
   });
 

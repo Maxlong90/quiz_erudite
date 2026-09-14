@@ -7,7 +7,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Bumped to v2 when the sheet was rewritten around circles: an install that had
 // already seen the old mistakes-only paragraph has not been told any of the
 // rules it now needs, so it is worth one more automatic showing.
-const HELP_SEEN_KEY = 'italy.help.seen.v2';
+//
+// Bumped to v3 for the same reason when the city gate moved from one cleared
+// circle to five and the chain grew to cover every place on the map: an install
+// carrying v2 was told a rule that is no longer true.
+const HELP_SEEN_KEY = 'italy.help.seen.v3';
 
 /**
  * Drives the Italy Quiz help sheet — the same pattern as the Flags Quiz hook.

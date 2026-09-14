@@ -4,7 +4,8 @@
  * the hooks underneath them. It walks the exact scenario the feature was
  * specified against:
  *
- *   fresh player → Rome circle 1 → 10 of 20 → circle cleared, Florence opens
+ *   fresh player → Rome circle 1 → 10 of 20 → circle cleared, Florence still
+ *     four circles away (the city gate costs five)
  *   → re-entering circle 1 serves the SAME twenty in the same order
  *   → a mistakes review changes no stars
  *   → circle 2 reads "soon", because Rome's content is one circle deep
@@ -121,6 +122,20 @@ const ItalyQuizGame = require('@/app/italy-quiz/quiz').default;
 // --- helpers -----------------------------------------------------------------
 
 const byId = new Map(ROME_QUESTIONS.map((q) => [q.id, q]));
+
+/**
+ * The locked-city caption, keyed by the GATE city — the one whose circles hold
+ * the key. It is a single text node carrying two lines: the requirement, then
+ * where to go and meet it. Spelled out in full rather than assembled from the
+ * label table, the way every other RU string in this suite is, so that a change
+ * to the copy shows up here as a diff and not as a silently passing assertion.
+ */
+const GATE_CTA: Record<string, string> = {
+  rome: 'Пройдите ещё 5 кругов\nРим',
+  venice: 'Пройдите ещё 5 кругов\nВенеция',
+  milan: 'Пройдите ещё 5 кругов\nМилан и Север',
+};
+
 const ACT_CTA: Record<string, string> = {
   'middle-ages': 'В Средние века',
   renaissance: 'В Возрождение',
@@ -193,7 +208,7 @@ async function openMap() {
 beforeEach(async () => {
   await AsyncStorage.clear();
   // Silence the first-run help sheet except where it is the thing under test.
-  await AsyncStorage.setItem('italy.help.seen.v2', '1');
+  await AsyncStorage.setItem('italy.help.seen.v3', '1');
   mockParams = {};
   jest.clearAllMocks();
   jest.useFakeTimers();
@@ -224,28 +239,35 @@ describe('the map on a fresh install', () => {
     });
   });
 
-  it('shows Florence locked by the chain, with the reason on the card', async () => {
+  it('shows Florence locked by the chain, with the count and the city on two lines', async () => {
     await openMap();
 
     fireEvent.press(screen.getByText('Флоренция и Тоскана'));
     await flush();
 
-    // Selectable on purpose: a dead pin cannot explain why it is dead.
-    expect(screen.getByText('Сначала пройдите круг 1 — Рим')).toBeTruthy();
-    fireEvent.press(screen.getByText('Сначала пройдите круг 1 — Рим'));
+    // Selectable on purpose: a dead pin cannot explain why it is dead. The
+    // caption is ONE text node holding two lines — requirement, then where.
+    expect(screen.getByText(GATE_CTA.rome)).toBeTruthy();
+    fireEvent.press(screen.getByText(GATE_CTA.rome));
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('leaves the places outside the chain untappable', async () => {
+  it('puts every other place on the chain too, each naming its own gate', async () => {
     await openMap();
 
+    // Sicily used to be untappable dead weight; it is now a stop on the tour,
+    // three cities along, and says so.
     fireEvent.press(screen.getByText('Сицилия'));
     await flush();
-    expect(screen.getByText('Выберите точку на карте')).toBeTruthy();
+    expect(screen.getByText(GATE_CTA.venice)).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Вся Италия'));
+    await flush();
+    expect(screen.getByText(GATE_CTA.milan)).toBeTruthy();
   });
 
   it('auto-opens the help sheet once, explaining circles before the first tour', async () => {
-    await AsyncStorage.removeItem('italy.help.seen.v2');
+    await AsyncStorage.removeItem('italy.help.seen.v3');
     await openMap();
     await waitFor(() => expect(screen.getByText('Как это устроено')).toBeTruthy());
 
@@ -270,7 +292,7 @@ describe('playing Rome circle 1', () => {
     return view;
   }
 
-  it('clears the circle at 10 of 20 and puts Florence on the map', async () => {
+  it('clears the circle at 10 of 20 without yet opening Florence', async () => {
     await enterCircle();
     const ids = await readCircleIds();
     expect(ids).toHaveLength(20);
@@ -281,8 +303,10 @@ describe('playing Rome circle 1', () => {
     expect(screen.getByText('10/20')).toBeTruthy();
     expect(screen.getByText('Рим · Круг 1')).toBeTruthy();
     expect(screen.getByText('Круг пройден!')).toBeTruthy();
-    // The city wins the announcement over the circle.
-    expect(screen.getByText('Новый город на карте: Флоренция и Тоскана')).toBeTruthy();
+    // One circle of five: no city yet, and no next circle either, because Rome's
+    // content is exactly one circle deep.
+    expect(screen.queryByText(/Новый город на карте/)).toBeNull();
+    expect(screen.queryByText(/Открылся круг/)).toBeNull();
     expect(screen.getByText('Дальше')).toBeTruthy();
     expect(screen.queryByText('Играть снова')).toBeNull();
 
@@ -330,7 +354,7 @@ describe('after clearing Rome circle 1', () => {
     expect(screen.getByText(byId.get(ids[0])!.question.ru)).toBeTruthy();
   });
 
-  it('shows the map with one star, circle 2 "soon", and Florence open', async () => {
+  it('shows the map with one star, circle 2 "soon", and Florence still shut', async () => {
     await clearCircleOne();
     await openMap();
 
@@ -342,11 +366,13 @@ describe('after clearing Rome circle 1', () => {
     // Circle 2 exists but cannot be entered — its questions are not written.
     expect(screen.getByTestId('italy-circle-2').props.accessibilityState?.disabled).toBe(true);
 
-    // Florence is now a real destination rather than a locked one.
+    // Florence still costs four more circles, and the caption counts down rather
+    // than repeating the target — that is what keeps the locked pin honest while
+    // no city has content for five.
     fireEvent.press(screen.getByText('Флоренция и Тоскана'));
     await flush();
-    expect(screen.queryByText('Сначала пройдите круг 1 — Рим')).toBeNull();
-    expect(screen.getByText('Вопросы ещё пишутся')).toBeTruthy();
+    expect(screen.queryByText(GATE_CTA.rome)).toBeNull();
+    expect(screen.getByText('Пройдите ещё 4 круга\nРим')).toBeTruthy();
   });
 
   it('refuses circle 2 with "soon" rather than a crash when deep-linked', async () => {
@@ -424,14 +450,16 @@ describe('a player upgrading from the v1 record', () => {
     fireEvent.press(screen.getByText('Рим'));
     await waitFor(() => expect(screen.getByText('Круг 1 · ещё раз')).toBeTruthy());
 
-    // Their two stars became circle 1's, and they opened Florence retroactively.
+    // Their two stars became circle 1's.
     expect(JSON.parse((await AsyncStorage.getItem('italy.progress.v2'))!).rome.circles).toEqual([
       { index: 1, ids: seen, stars: 2, bestPct: 85, plays: 3 },
     ]);
     expect(await AsyncStorage.getItem('italy.progress.v1')).toBe(v1);
 
+    // Two stars is still ONE cleared circle, so Florence stays shut with four
+    // owed — a v1 record can never have held more than one circle's worth.
     fireEvent.press(screen.getByText('Флоренция и Тоскана'));
     await flush();
-    expect(screen.queryByText('Сначала пройдите круг 1 — Рим')).toBeNull();
+    expect(screen.getByText('Пройдите ещё 4 круга\nРим')).toBeTruthy();
   });
 });

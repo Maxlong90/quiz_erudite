@@ -75,23 +75,46 @@ export interface ItalyPlace {
    * `ITALY_CHAIN`, nothing the player can do to reach them. They render hollow
    * and are not tappable. A place that IS in the chain is never marked here —
    * its state is computed from the player's progress instead.
+   *
+   * Nothing sets this today — every place is on the schedule now — but the flag
+   * stays because it is the only way to express "waiting for content", and the
+   * pin already knows how to draw that state.
    */
   locked?: boolean;
+  /**
+   * A place that is NOT on the chain and is open from the very first run — a
+   * side trip rather than a stop on the tour. Mutually exclusive with `locked`
+   * and with membership of `ITALY_CHAIN`. Nothing sets it yet; the Sardinia
+   * point will.
+   */
+  alwaysOpen?: boolean;
 }
 
 /** How many questions a circle draws from each act. Four acts × five = twenty. */
 export const QUESTIONS_PER_ACT = 5;
 
 /**
- * The order cities open in. Clearing a city's FIRST circle hands the key to the
- * next one along.
+ * The order cities open in. Clearing CIRCLES_TO_UNLOCK_NEXT circles of a city
+ * hands the key to the next one along (see lib/italy-quiz/circles).
  *
  * An ordered array rather than a `requires`/`unlocks` field on each place: the
  * whole progression reads as one line, reordering it is a single edit, and a
  * cycle is not expressible. A place that is not in here is never opened by play
- * — it is waiting for content, which is a different kind of shut (see `locked`).
+ * — it is either waiting for content (`locked`) or a side trip that needs no
+ * key at all (`alwaysOpen`).
+ *
+ * Every place is on the chain now, ordered by how much content each is likely
+ * to get rather than by geography.
  */
-export const ITALY_CHAIN: readonly string[] = ['rome', 'florence', 'venice'];
+export const ITALY_CHAIN: readonly string[] = [
+  'rome',
+  'florence',
+  'venice',
+  'sicily',
+  'naples',
+  'milan',
+  'all-italy',
+];
 
 const ROME_ACTS: ItalyAct[] = [
   {
@@ -312,8 +335,7 @@ export const ITALY_PLACES: ItalyPlace[] = [
     tagline: { ru: '2000 лет за 20 вопросов', en: '2000 years in 20 questions' },
     acts: ROME_ACTS,
   },
-  // Locked until their question sets are authored, EXCEPT the two that are in
-  // ITALY_CHAIN — Florence and Venice open by play, and their circles show
+  // Every place below is on ITALY_CHAIN and opens by play; their circles show
   // "soon" until their questions exist. They keep the four-act COUNT, which the
   // twenty-question draw depends on, but not Rome's acts: ids, icons, labels and
   // interludes are their own, because their centuries are their own. A place
@@ -323,7 +345,6 @@ export const ITALY_PLACES: ItalyPlace[] = [
     label: { ru: 'Неаполь и Везувий', en: 'Naples & Vesuvius' },
     tagline: { ru: 'Помпеи, Бурбоны и пицца', en: 'Pompeii, the Bourbons and pizza' },
     acts: ROME_ACTS,
-    locked: true,
   },
   {
     id: 'venice',
@@ -342,14 +363,12 @@ export const ITALY_PLACES: ItalyPlace[] = [
     label: { ru: 'Милан и Север', en: 'Milan & the North' },
     tagline: { ru: 'Медиоланум, Ла Скала, мода', en: 'Mediolanum, La Scala, fashion' },
     acts: ROME_ACTS,
-    locked: true,
   },
   {
     id: 'sicily',
     label: { ru: 'Сицилия', en: 'Sicily' },
     tagline: { ru: 'Греки, норманны, Этна', en: 'Greeks, Normans, Etna' },
     acts: ROME_ACTS,
-    locked: true,
   },
   // Not a city: the country itself, by theme instead of by century. Its pin sits
   // off the coast so it reads as "all of this", not as one more place to visit.
@@ -358,7 +377,6 @@ export const ITALY_PLACES: ItalyPlace[] = [
     label: { ru: 'Вся Италия', en: 'All of Italy' },
     tagline: { ru: 'Еда, кальчо, кино, привычки', en: 'Food, calcio, cinema, habits' },
     acts: ALL_ITALY_ACTS,
-    locked: true,
   },
 ];
 
@@ -367,6 +385,7 @@ export interface LocalizedPlace {
   title: string;
   tagline: string;
   locked: boolean;
+  alwaysOpen: boolean;
   acts: { id: string; icon: string; title: string }[];
 }
 
@@ -376,6 +395,7 @@ function localizePlace(place: ItalyPlace, locale: SupportedLocale): LocalizedPla
     title: pickText(place.label, locale),
     tagline: pickText(place.tagline, locale),
     locked: !!place.locked,
+    alwaysOpen: !!place.alwaysOpen,
     acts: place.acts.map((a) => ({
       id: a.id,
       icon: a.icon,

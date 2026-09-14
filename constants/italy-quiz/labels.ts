@@ -32,8 +32,17 @@ export interface ItalyLabels {
   circleReplayLabel: string;
   /** Entry button when the place is open but has no circle left to draw. */
   circlesSoonCta: string;
-  /** Entry button on a city the chain has not opened yet — `{place}` substituted. */
-  cityLockedCta: string;
+  /**
+   * Line 1 of the entry button on a city the chain has not opened yet: how many
+   * circles of the GATE city are still to be cleared, `{n}` substituted. Line 2
+   * is the gate city's name, appended by the caller with a "\n" — two lines
+   * because one ran under the padlock, and because the requirement and the
+   * place to go are two different facts.
+   *
+   * Three forms, not one string, because the count is live (1..5) and Russian
+   * inflects "круг" on it. Pick with pickPlural() below.
+   */
+  cityLockedNeed: { one: string; few: string; many: string };
   /** Shown instead of the tour when a circle's questions are not written yet. */
   circleSoon: string;
   /** Result screen — whether the 10-of-20 gate was met. */
@@ -107,9 +116,11 @@ const EN: ItalyLabels = {
   circleLabel: 'Circle {n}',
   circleReplayLabel: 'Circle {n} · again',
   circlesSoonCta: 'Questions still being written',
-  // An em-dash apposition, not a verb object: "{place}" is always a nominative
-  // name, and "clear {place}" would need a case the label cannot produce.
-  cityLockedCta: 'First clear circle 1 — {place}',
+  cityLockedNeed: {
+    one: 'Clear {n} more circle',
+    few: 'Clear {n} more circles',
+    many: 'Clear {n} more circles',
+  },
   circleSoon: 'The questions for this circle are still being written.',
   circlePassed: 'Circle cleared!',
   circleNotPassed: 'You need 10 correct out of 20 to clear a circle.',
@@ -153,7 +164,7 @@ const EN: ItalyLabels = {
     'Get ten of twenty right and the circle is cleared — that is your first star. Sixteen of twenty (80%) earns a second, a clean twenty earns a third. Stars are kept at your best, so a weak replay can never take away what you already won. On the map each city carries the sum of the stars of all its circles — thirty at most.',
   helpUnlockTitle: 'What opens next',
   helpUnlockBody:
-    'Clearing a circle opens the next one. And clearing a city’s first circle puts a new city on the map: Rome opens Florence, Florence opens Venice. A circle with a padlock is simply waiting for you to clear the one before it. A faded circle with no padlock is not a restriction — its questions are still being written, and it will open by itself once they are ready.',
+    'Clearing a circle opens the next one. And clearing five circles of a city puts a new city on the map, along the route Rome → Florence → Venice → Sicily → Naples → Milan → All of Italy. A circle with a padlock is simply waiting for you to clear the one before it. A faded circle with no padlock is not a restriction — its questions are still being written, and it will open by itself once they are ready.',
   helpMistakesTitle: 'Review your mistakes',
   helpMistakesBody:
     'A wrong answer never reveals the right one — you simply move on. Every question you miss is remembered, and at the end of a circle you can tap “Review mistakes” to replay just those. It is practice: it earns no stars and does not change the circle’s result.',
@@ -175,9 +186,13 @@ const RU: ItalyLabels = {
   circleLabel: 'Круг {n}',
   circleReplayLabel: 'Круг {n} · ещё раз',
   circlesSoonCta: 'Вопросы ещё пишутся',
-  // Приложение через тире, а не дополнение: «пройдите {place}» потребовало бы
-  // винительного падежа («Флоренцию»), а в {place} всегда именительный.
-  cityLockedCta: 'Сначала пройдите круг 1 — {place}',
+  // Название города здесь не склоняется вовсе: оно уезжает на вторую строку
+  // кнопки отдельной подписью, в именительном падеже, как на карте.
+  cityLockedNeed: {
+    one: 'Пройдите ещё {n} круг',
+    few: 'Пройдите ещё {n} круга',
+    many: 'Пройдите ещё {n} кругов',
+  },
   circleSoon: 'Вопросы для этого круга ещё готовятся.',
   circlePassed: 'Круг пройден!',
   circleNotPassed: 'Чтобы пройти круг, нужно 10 правильных из 20.',
@@ -222,7 +237,7 @@ const RU: ItalyLabels = {
     'Десять правильных из двадцати — круг пройден, это первая звезда. Шестнадцать из двадцати (80%) — вторая, все двадцать — третья. Звёзды сохраняются по лучшему результату, поэтому слабая переигровка никогда не отнимет заработанное. На карте у каждого города стоит сумма звёзд всех его кругов — максимум тридцать.',
   helpUnlockTitle: 'Что открывается дальше',
   helpUnlockBody:
-    'Пройденный круг открывает следующий. А первый пройденный круг города открывает на карте новый город: Рим открывает Флоренцию, Флоренция — Венецию. Кружок с замком просто ждёт, пока вы пройдёте предыдущий. А блёклый кружок без замка — это не запрет: вопросы для него ещё пишутся, и он откроется сам, когда они будут готовы.',
+    'Пройденный круг открывает следующий. А пять пройденных кругов города открывают на карте новый город — по маршруту Рим → Флоренция → Венеция → Сицилия → Неаполь → Милан → Вся Италия. Кружок с замком просто ждёт, пока вы пройдёте предыдущий. А блёклый кружок без замка — это не запрет: вопросы для него ещё пишутся, и он откроется сам, когда они будут готовы.',
   helpMistakesTitle: 'Работа над ошибками',
   helpMistakesBody:
     'При неправильном ответе правильный не показывается — вы просто идёте дальше. Все вопросы, где вы ошиблись, запоминаются, и в конце круга можно нажать «Работа над ошибками» и пройти именно их. Это тренировка: звёзд она не даёт и результат круга не меняет.',
@@ -244,7 +259,11 @@ const ES: ItalyLabels = {
   circleLabel: 'Círculo {n}',
   circleReplayLabel: 'Círculo {n} · otra vez',
   circlesSoonCta: 'Preguntas en preparación',
-  cityLockedCta: 'Primero supera el círculo 1 — {place}',
+  cityLockedNeed: {
+    one: 'Supera {n} círculo más',
+    few: 'Supera {n} círculos más',
+    many: 'Supera {n} círculos más',
+  },
   circleSoon: 'Las preguntas de este círculo aún se están escribiendo.',
   circlePassed: '¡Círculo superado!',
   circleNotPassed: 'Necesitas 10 aciertos de 20 para superar el círculo.',
@@ -288,7 +307,7 @@ const ES: ItalyLabels = {
     'Con diez aciertos de veinte el círculo queda superado: esa es la primera estrella. Dieciséis de veinte (80%) dan la segunda, y un veinte de veinte impecable da la tercera. Las estrellas se guardan por tu mejor resultado, así que una repetición floja nunca te quita lo ya ganado. En el mapa, cada ciudad lleva la suma de las estrellas de todos sus círculos: treinta como máximo.',
   helpUnlockTitle: 'Qué se abre después',
   helpUnlockBody:
-    'Superar un círculo abre el siguiente. Y superar el primer círculo de una ciudad pone una ciudad nueva en el mapa: Roma abre Florencia, y Florencia abre Venecia. Un círculo con candado solo espera a que superes el anterior. Un círculo apagado y sin candado no es una restricción: sus preguntas aún se están escribiendo y se abrirá solo cuando estén listas.',
+    'Superar un círculo abre el siguiente. Y superar cinco círculos de una ciudad pone una ciudad nueva en el mapa, siguiendo la ruta Roma → Florencia → Venecia → Sicilia → Nápoles → Milán → Toda Italia. Un círculo con candado solo espera a que superes el anterior. Un círculo apagado y sin candado no es una restricción: sus preguntas aún se están escribiendo y se abrirá solo cuando estén listas.',
   helpMistakesTitle: 'Repaso de errores',
   helpMistakesBody:
     'Una respuesta incorrecta nunca revela la correcta: simplemente sigues adelante. Cada pregunta que falles se guarda y, al terminar el círculo, puedes pulsar «Repasar errores» para jugar solo esas. Es entrenamiento: no da estrellas ni cambia el resultado del círculo.',
@@ -310,7 +329,11 @@ const FR: ItalyLabels = {
   circleLabel: 'Cercle {n}',
   circleReplayLabel: 'Cercle {n} · encore',
   circlesSoonCta: 'Questions en préparation',
-  cityLockedCta: 'Réussissez d’abord le cercle 1 — {place}',
+  cityLockedNeed: {
+    one: 'Réussissez encore {n} cercle',
+    few: 'Réussissez encore {n} cercles',
+    many: 'Réussissez encore {n} cercles',
+  },
   circleSoon: 'Les questions de ce cercle sont encore en cours d’écriture.',
   circlePassed: 'Cercle réussi !',
   circleNotPassed: 'Il faut 10 bonnes réponses sur 20 pour réussir le cercle.',
@@ -354,7 +377,7 @@ const FR: ItalyLabels = {
     'Dix bonnes réponses sur vingt et le cercle est réussi : c’est votre première étoile. Seize sur vingt (80 %) en donnent une deuxième, un sans-faute de vingt en donne une troisième. Les étoiles sont conservées à votre meilleur score : une reprise ratée ne vous enlèvera jamais ce qui est acquis. Sur la carte, chaque ville porte la somme des étoiles de tous ses cercles — trente au maximum.',
   helpUnlockTitle: 'Ce qui s’ouvre ensuite',
   helpUnlockBody:
-    'Réussir un cercle ouvre le suivant. Et réussir le premier cercle d’une ville fait apparaître une nouvelle ville sur la carte : Rome ouvre Florence, Florence ouvre Venise. Un cercle avec un cadenas attend simplement que vous réussissiez le précédent. Un cercle pâle et sans cadenas n’est pas un verrou : ses questions sont encore en cours d’écriture, et il s’ouvrira tout seul quand elles seront prêtes.',
+    'Réussir un cercle ouvre le suivant. Et réussir cinq cercles d’une ville fait apparaître une nouvelle ville sur la carte, le long de l’itinéraire Rome → Florence → Venise → Sicile → Naples → Milan → Toute l’Italie. Un cercle avec un cadenas attend simplement que vous réussissiez le précédent. Un cercle pâle et sans cadenas n’est pas un verrou : ses questions sont encore en cours d’écriture, et il s’ouvrira tout seul quand elles seront prêtes.',
   helpMistakesTitle: 'Revoir les erreurs',
   helpMistakesBody:
     'Une mauvaise réponse ne révèle jamais la bonne : vous passez simplement à la suite. Chaque question ratée est mémorisée et, à la fin du cercle, vous pouvez appuyer sur « Revoir les erreurs » pour rejouer uniquement celles-ci. C’est de l’entraînement : cela ne rapporte pas d’étoiles et ne change pas le résultat du cercle.',
@@ -367,4 +390,27 @@ const TABLE: Record<SupportedLocale, ItalyLabels> = { en: EN, ru: RU, es: ES, fr
 export function useItalyLabels(): ItalyLabels {
   const { locale } = useLocale();
   return TABLE[locale] ?? EN;
+}
+
+/**
+ * Pick the right form of a counted string for the active locale.
+ *
+ * Hand-rolled rather than `Intl.PluralRules`, which is absent from the default
+ * Hermes build unless the app opts into the full ICU payload — a several-MB
+ * price for one label. The three languages that ship here besides Russian all
+ * split at one, so `one`/`many` covers them and `few` is simply never asked for;
+ * Russian gets the real rule (1, 21, 31 → one; 2-4, 22-24 → few; the rest,
+ * including the whole 11-14 band, → many).
+ */
+export function pickPlural(
+  locale: SupportedLocale,
+  n: number,
+  forms: { one: string; few: string; many: string },
+): string {
+  if (locale !== 'ru') return n === 1 ? forms.one : forms.many;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms.one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms.few;
+  return forms.many;
 }

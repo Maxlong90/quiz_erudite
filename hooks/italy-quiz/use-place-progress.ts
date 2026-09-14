@@ -6,6 +6,7 @@ import { ITALY_PLACES, getPlace } from '@/constants/italy-quiz/places';
 import { getTourQuestions } from '@/constants/italy-quiz/tour-content';
 import {
   CIRCLES_PER_PLACE,
+  CIRCLES_TO_UNLOCK_NEXT,
   applyResult,
   canDrawCircle,
   drawCircle,
@@ -13,6 +14,7 @@ import {
   isCirclePassed,
   isPlaceUnlocked,
   migrateV1,
+  passedCircles,
   sanitize,
   starsFor,
   unlocksNext,
@@ -230,7 +232,13 @@ export function usePlaceProgress() {
 
         let unlocked: CircleOutcome['unlocked'] = null;
         if (!wasPassed && passed) {
-          const city = index === 1 ? unlocksNext(placeId) : null;
+          // The city is announced on the crossing, not on a particular circle:
+          // exactly one circle can flip from unpassed to passed per call (that
+          // is what the `!wasPassed && passed` guard buys), so the count rises
+          // by exactly one and `===` fires the line once, ever. `>=` would
+          // re-announce the same city on every later circle.
+          const city =
+            passedCircles(next[placeId]) === CIRCLES_TO_UNLOCK_NEXT ? unlocksNext(placeId) : null;
           if (city) {
             unlocked = { kind: 'city', placeId: city };
           } else if (

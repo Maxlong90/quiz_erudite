@@ -3,8 +3,19 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { usePlaceProgress } from '@/hooks/italy-quiz/use-place-progress';
 import { ROME_QUESTIONS } from '@/constants/italy-quiz/questions/rome';
-import { QUESTIONS_PER_ACT, getPlace } from '@/constants/italy-quiz/places';
-import { drawCircle, type ProgressMapV2 } from '@/lib/italy-quiz/circles';
+import {
+  ITALY_PLACES,
+  QUESTIONS_PER_ACT,
+  getPlace,
+  type ItalyPlace,
+} from '@/constants/italy-quiz/places';
+import {
+  CIRCLES_TO_UNLOCK_NEXT,
+  circlesLeftToUnlock,
+  drawCircle,
+  isPlaceUnlocked,
+  type ProgressMapV2,
+} from '@/lib/italy-quiz/circles';
 
 /**
  * The REAL useFocusEffect runs its callback on focus and whenever the callback's
@@ -227,18 +238,61 @@ describe('recordCircle', () => {
     });
   });
 
-  it('announces the new city when a first circle is cleared', async () => {
+  it('announces nothing on the first circle: the city costs five', async () => {
     const view = await mount();
     await run(() => view.result.current.ensureCircle('rome', 1));
     const outcome = await run(() => view.result.current.recordCircle('rome', 1, CIRCLE / 2, CIRCLE));
 
+    // No city (four circles still owed) and no next circle either, because Rome's
+    // thirty-two questions cannot fill a second one.
+    expect(outcome).toEqual({ earned: 1, passed: true, unlocked: null });
+    expect(view.result.current.progress.rome.circles[0].stars).toBe(1);
+    expect(isPlaceUnlocked('florence', view.result.current.progress)).toBe(false);
+    expect(circlesLeftToUnlock('florence', view.result.current.progress)).toBe(
+      CIRCLES_TO_UNLOCK_NEXT - 1,
+    );
+  });
+
+  it('announces the new city on the fifth cleared circle, once', async () => {
+    // Seeded rather than played: five circles is a hundred questions and Rome has
+    // thirty-two. The ids are left empty on purpose — sanitize() blanks a set it
+    // cannot verify but KEEPS the stars, and the gate only ever reads stars.
+    await AsyncStorage.setItem(
+      KEY_V2,
+      JSON.stringify({
+        rome: {
+          circles: [
+            ...Array.from({ length: CIRCLES_TO_UNLOCK_NEXT - 1 }, (_, i) => ({
+              index: i + 1,
+              ids: [],
+              stars: 1,
+              bestPct: 55,
+              plays: 1,
+            })),
+            { index: CIRCLES_TO_UNLOCK_NEXT, ids: [], stars: 0, bestPct: 0, plays: 0 },
+          ],
+        },
+      }),
+    );
+
+    const view = await mount();
+    await waitFor(() => expect(view.result.current.progress.rome).toBeDefined());
+
+    const outcome = await run(() =>
+      view.result.current.recordCircle('rome', CIRCLES_TO_UNLOCK_NEXT, CIRCLE / 2, CIRCLE),
+    );
     expect(outcome).toEqual({
       earned: 1,
       passed: true,
       unlocked: { kind: 'city', placeId: 'florence' },
     });
-    // …and that is what actually opens Florence on the map.
-    expect(view.result.current.progress.rome.circles[0].stars).toBe(1);
+    expect(isPlaceUnlocked('florence', view.result.current.progress)).toBe(true);
+
+    // …and never again: the crossing happens once, a replay is not a crossing.
+    const again = await run(() =>
+      view.result.current.recordCircle('rome', CIRCLES_TO_UNLOCK_NEXT, CIRCLE, CIRCLE),
+    );
+    expect(again).toMatchObject({ passed: true, unlocked: null });
   });
 
   it('announces nothing the second time the same circle is cleared', async () => {
@@ -254,6 +308,46 @@ describe('recordCircle', () => {
     const outcome = await run(() => view.result.current.recordCircle('rome', 4, CIRCLE, CIRCLE));
     expect(outcome).toEqual({ earned: 3, passed: true, unlocked: null });
     expect(await AsyncStorage.getItem(KEY_V2)).toBeNull();
+  });
+});
+
+describe('an alwaysOpen place', () => {
+  /**
+   * Nothing carries the flag yet — the Sardinia point will — so the case is
+   * exercised against a synthetic place pushed onto ITALY_PLACES. getPlace() is
+   * a plain find() over that array, so this is enough and needs no module mock;
+   * Jest gives every test FILE its own module registry, so the push cannot leak
+   * into another suite.
+   */
+  const SARDINIA: ItalyPlace = {
+    id: 'sardinia',
+    label: { ru: 'Сардиния', en: 'Sardinia' },
+    tagline: { ru: 'Нураги и море', en: 'Nuraghi and the sea' },
+    acts: rome.acts,
+    alwaysOpen: true,
+  };
+
+  beforeAll(() => {
+    ITALY_PLACES.push(SARDINIA);
+  });
+  afterAll(() => {
+    ITALY_PLACES.pop();
+  });
+
+  it('is open on a fresh install, off the chain and with no progress', async () => {
+    expect(isPlaceUnlocked('sardinia', {})).toBe(true);
+    // Off the chain, so nothing gates it and nothing is owed.
+    expect(circlesLeftToUnlock('sardinia', {})).toBe(0);
+  });
+
+  it('is refused for want of CONTENT, never for want of a key', async () => {
+    const view = await mount();
+    // The distinction is the point: 'locked' would mean the chain shut it, and
+    // an alwaysOpen place is never shut by the chain.
+    expect(await run(() => view.result.current.ensureCircle('sardinia', 1))).toEqual({
+      ok: false,
+      reason: 'no-content',
+    });
   });
 });
 
