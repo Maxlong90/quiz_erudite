@@ -6,6 +6,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
 
 /**
+ * How far the title may shrink to fit, and how far the SYSTEM font setting may
+ * inflate it first. The pair has to be solved together, because
+ * `adjustsFontSizeToFit` shrinks relative to the already system-scaled size:
+ * the floor is `MIN_FONT_SCALE × fontSize × systemScale`, so a large enough
+ * system scale drags the floor back above the width of the pill and the label
+ * ellipsizes no matter how low the minimum goes.
+ *
+ * Measured on the real 360dp place card (~162dp of text width at the two-line
+ * size of 17dp): the widest requirement line, Russian «Пройдите ещё 5 кругов»,
+ * needs 0.827 of that size. So the constraint is
+ * `MIN_FONT_SCALE × MAX_FONT_SCALE <= 0.827`; 0.6 × 1.3 = 0.78 clears it with
+ * room to spare. Capping at 1.3 is a deliberate trade: this is a short action
+ * label in a fixed-width pill, and a clipped label serves a low-vision reader
+ * worse than a bounded one. Body copy elsewhere is NOT capped.
+ */
+const MIN_FONT_SCALE = 0.6;
+const MAX_FONT_SCALE = 1.3;
+
+/**
  * Wide glossy action button — the Flags Quiz GlossyButton recoloured to Italy
  * Quiz's saturated deep navy (same design as the home Play button and the Settings
  * gear tile): navy gradient, top gloss band, dark-navy rim, white label.
@@ -73,7 +92,8 @@ export function GlossyButton({
             style={[styles.text, { fontSize }]}
             numberOfLines={label.split('\n').length}
             adjustsFontSizeToFit
-            minimumFontScale={0.7}
+            minimumFontScale={MIN_FONT_SCALE}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
           >
             {label}
           </Text>

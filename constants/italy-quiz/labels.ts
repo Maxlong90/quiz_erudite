@@ -329,10 +329,13 @@ const FR: ItalyLabels = {
   circleLabel: 'Cercle {n}',
   circleReplayLabel: 'Cercle {n} · encore',
   circlesSoonCta: 'Questions en préparation',
+  // «Encore …» rather than «Réussissez encore …»: the verb pushed the line past
+  // what the button can shrink to on a 360dp phone, and a countdown reads
+  // naturally without it. The other three locales keep their verb — they fit.
   cityLockedNeed: {
-    one: 'Réussissez encore {n} cercle',
-    few: 'Réussissez encore {n} cercles',
-    many: 'Réussissez encore {n} cercles',
+    one: 'Encore {n} cercle',
+    few: 'Encore {n} cercles',
+    many: 'Encore {n} cercles',
   },
   circleSoon: 'Les questions de ce cercle sont encore en cours d’écriture.',
   circlePassed: 'Cercle réussi !',

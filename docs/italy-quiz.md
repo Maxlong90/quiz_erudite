@@ -30,9 +30,21 @@ The map earns its place by being the progress screen and the picker at once: sta
 
 Tapping a pin also raises that place's **circle strip** — see [Circles](#circles-ten-fixed-sets-per-place). The strip scrolls rather than fits: ten chips squeezed into the card's content width on a 360dp phone would be about 22dp each, below any usable touch target and far too small for a number plus stars. At 36dp with a 6dp `hitSlop` each chip is a 48dp target, about six and a half are visible, and the half-cut seventh is the scroll affordance.
 
-The card's entry button **is** the status line — "Circle 3", "Circle 1 · again", "Questions still being written", and — on a city the chain has not opened — a two-line "Clear 4 more circles" over the gate city's name — which is what pays for having no extra hint row under the strip. It is always present, so the card's height never moves.
+The card's entry button **is** the status line — "Circle 3", "Circle 1 · again", "Questions still being written", and — on a city the chain has not opened — a two-line "Clear 4 more circles" over the gate city's name — which is what pays for having no extra hint row under the strip. It is always present, so the card's height never moves. Fitting that longest caption into a fixed pill takes three separate concessions — see [Making the locked caption fit](#making-the-locked-caption-fit).
 
 Every place is on the chain, so every pin is reachable by play; a place flagged `locked` would render **hollow rather than hidden**, and one flagged `alwaysOpen` is a side trip that needs no key at all. Nothing carries either flag today. Only Rome has authored questions.
+
+### Making the locked caption fit
+
+That two-line caption is the hardest string in the app to fit, and each of its three constraints was a visible defect first.
+
+The caption used to be one line — "Clear one circle — Rome" — and its tail simply vanished. `GlossyButton` draws the padlock **absolutely positioned**, so the flex layout does not know the icon is there and a centred label runs underneath it. The fix reserves the icon's width as padding on *both* sides, derived from the font size, so the text stays optically centred rather than shoved left.
+
+Splitting the requirement and the city name onto two lines is the second half. It also changes how the label shrinks: `adjustsFontSizeToFit` scales the whole block down to whatever its **worst** line needs, then stops at `minimumFontScale` and ellipsizes. The longest requirement line — French «Réussissez encore 5 cercles» — blew past that floor at the one-line size, so the two-line caption is rendered a few points smaller than the ordinary "Circle 3". The button's height is unchanged, because the shrink was already happening.
+
+The third constraint is the system font setting, and it is the non-obvious one. `adjustsFontSizeToFit` shrinks relative to the **already system-scaled** size, so the real floor is `minimumFontScale × fontSize × systemScale`. A large enough accessibility scale drags that floor back above the pill's width and the label clips again, however low the minimum goes. The two therefore have to be solved as a pair: `GlossyButton` caps enlargement with `maxFontSizeMultiplier` and keeps the product of the two below the widest measured line's need. A test asserts that product directly, so raising either constant re-breaks the build rather than the screen.
+
+Capping enlargement on this button is a deliberate trade. It is a short action label in a fixed-width pill, and a clipped label serves a low-vision reader worse than a bounded one. **Body copy elsewhere in the app is not capped.** Where copy alone was still too long, the copy moved: the French `cityLockedNeed` drops its verb («Encore 5 cercles») because a countdown reads naturally without it, while the other three locales keep theirs.
 
 ## Circles: Ten Fixed Sets Per Place
 

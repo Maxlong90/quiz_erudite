@@ -60,6 +60,21 @@ import {
  * A place flagged `alwaysOpen` is off the chain and open from the first run; it
  * draws as an ordinary open pin and never shows the padlock.
  */
+/**
+ * Type size for the card's entry button.
+ *
+ * The two-line locked caption gets a smaller size than the one-line "Circle 3",
+ * because `adjustsFontSizeToFit` shrinks a block to whatever its WORST line
+ * needs and then stops at `minimumFontScale` (0.7) — past that it ellipsizes.
+ * Measured against the real 360dp card (≈174dp of text width), the longest
+ * requirement line, French «Réussissez encore 5 cercles», needed 0.64 of 20dp
+ * and so lost its tail — the exact defect the two-line caption exists to fix.
+ * At 17dp every locale's worst line fits inside the 0.7 floor with room spare,
+ * and the button's height is unchanged because the shrink was happening anyway.
+ */
+const CTA_FONT = 20;
+const CTA_FONT_TWO_LINE = 17;
+
 export default function ItalyQuizPlaces() {
   const places = useItalyPlaces();
   const t = useItalyLabels();
@@ -273,7 +288,7 @@ export default function ItalyQuizPlaces() {
               />
               <GlossyButton
                 label={cta.label}
-                fontSize={20}
+                fontSize={cta.label.includes('\n') ? CTA_FONT_TWO_LINE : CTA_FONT}
                 paddingVertical={14}
                 locked={cta.locked}
                 inactive={cta.inactive}

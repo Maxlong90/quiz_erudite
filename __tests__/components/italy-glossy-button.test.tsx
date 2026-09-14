@@ -42,6 +42,20 @@ it('gives a multi-line label as many lines as it asks for, and shrinks them', ()
   expect(StyleSheet.flatten(title.props.style).lineHeight).toBeUndefined();
 });
 
+it('bounds system font enlargement so the shrink floor still fits the pill', () => {
+  render(<GlossyButton label={LONG_TWO_LINER} locked onPress={() => {}} />);
+  const title = screen.getByText(LONG_TWO_LINER);
+
+  // adjustsFontSizeToFit shrinks relative to the ALREADY system-scaled size, so
+  // the real floor is minimumFontScale × fontSize × systemScale. Measured on the
+  // 360dp place card (~162dp of text at the two-line size), the widest line —
+  // Russian «Пройдите ещё 5 кругов» — needs 0.827 of that size. If this product
+  // ever climbs above it, the caption starts losing its tail again.
+  const floor = title.props.minimumFontScale * title.props.maxFontSizeMultiplier;
+  expect(title.props.maxFontSizeMultiplier).toBeGreaterThan(1); // still allows enlargement
+  expect(floor).toBeLessThanOrEqual(0.827);
+});
+
 it('still gives a single-line label exactly one line', () => {
   render(<GlossyButton label="Круг 1" onPress={() => {}} />);
   expect(screen.getByText('Круг 1').props.numberOfLines).toBe(1);
