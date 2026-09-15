@@ -201,6 +201,23 @@ describe('coat reveal — correct answer', () => {
 
     expect(screen.getByTestId('share-card').props.accessibilityLabel).toBe(CLEAN_URI);
   });
+
+  it('fills the middle with the Explanation and pins the "Next" bar to the bottom', async () => {
+    // The explanation must GROW to fill the space between the coat and the button
+    // (flex:1) while the "Next" bar never shrinks (flexShrink:0), so the button is
+    // glued to the bottom on every device instead of floating under the text.
+    const screen = await renderQuiz();
+
+    fireEvent.press(screen.getByText('Angola'));
+    await waitFor(() => screen.getByTestId('coat-image-original'));
+
+    const explanation = StyleSheet.flatten(screen.getByTestId('coat-reveal-explanation').props.style);
+    const nextBar = StyleSheet.flatten(screen.getByTestId('coat-reveal-next-bar').props.style);
+    expect(explanation.flex).toBe(1);
+    expect(nextBar.flexShrink).toBe(0);
+    // "Next" stays reachable and the button lives inside the pinned bar.
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
 });
 
 describe('coat reveal — a coat with no original (131 of 195)', () => {

@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { GradientBackground } from '@/components/flags-quiz/app-background';
@@ -96,6 +96,10 @@ export default function CoatOfArmsGame() {
   // Hooks), and re-evaluated as the window resizes — this screen has to survive
   // being dragged to any size in an iPad window.
   const m = useCoatQuizMetrics();
+  // Bottom safe-area inset for the pinned "Next" bar. The main return's
+  // SafeAreaView drops its 'bottom' edge (see below), so the bar owns the inset —
+  // applied exactly once, never doubled.
+  const insets = useSafeAreaInsets();
   const [reportOpen, setReportOpen] = useState(false);
   // Off-screen composition (coat + prompt + options) captured to a PNG for Share.
   const shareCardRef = useRef<View>(null);
@@ -229,7 +233,11 @@ export default function CoatOfArmsGame() {
       <GradientBackground />
       <StatusBar style="light" />
 
-      <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
+      {/* The bottom edge is intentionally NOT insetted here: the pinned "Next"
+          bar in the reveal panel applies `insets.bottom` itself, so keeping the
+          edge would double the gap. The pre-answer content is top-anchored, so
+          dropping the edge doesn't move it. */}
+      <SafeAreaView style={styles.fill} edges={['top']}>
         {/* Content column. On a phone `m.column` is null and this is just a
             `flex: 1` pass-through — layout-identical to having no wrapper. On a
             wide window it becomes a centred, fixed-width column so the buttons
@@ -384,7 +392,7 @@ export default function CoatOfArmsGame() {
             {revealing ? (
               <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
                 {historyText ? (
-                  <View style={[styles.historyBox, FQShadow.card]}>
+                  <View style={[styles.historyBox, FQShadow.card]} testID="coat-reveal-explanation">
                     <ScrollView
                       style={styles.historyScroll}
                       showsVerticalScrollIndicator
@@ -394,8 +402,13 @@ export default function CoatOfArmsGame() {
                     </ScrollView>
                   </View>
                 ) : null}
-                <View style={styles.nextWrap}>
-                  <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
+                <View
+                  style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
+                  testID="coat-reveal-next-bar"
+                >
+                  <View style={styles.nextWrap}>
+                    <GlossyButton label={t.next} onPress={onContinue} fontSize={23} paddingVertical={18} />
+                  </View>
                 </View>
               </Animated.View>
             ) : null}
@@ -524,9 +537,11 @@ const styles = StyleSheet.create({
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 
   page: { flex: 1, paddingBottom: 16 },
-  // Reveal panel takes all the space left under the options; its note shrinks to
-  // fit and scrolls internally, so the "Next" button stays on screen everywhere.
-  reveal: { flex: 1, minHeight: 0, width: '100%' },
+  // Reveal panel takes all the space left under the options: a vertical column
+  // whose Explanation fills the middle and whose "Next" bar is pinned to the
+  // bottom. `justifyContent: 'flex-end'` keeps "Next" at the bottom even when
+  // there is no explanation (the flex:1 historyBox is then absent).
+  reveal: { flex: 1, minHeight: 0, width: '100%', justifyContent: 'flex-end' },
 
   // Sits right above the coat inside the coat block.
   progress: {
@@ -611,19 +626,23 @@ const styles = StyleSheet.create({
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    // Hug the text: the box is only as tall as its content, so short notes have
-    // no empty white space. It never GROWS; it only SHRINKS (and its inner
-    // ScrollView scrolls) when a long note would exceed the space available.
-    flexShrink: 1,
+    // Fill the whole middle band between the answer and the pinned "Next" bar.
+    // The text sits at the top; the inner ScrollView is the ONLY scrollable
+    // region on the screen and scrolls only when the note is taller than the box.
+    flex: 1,
   },
-  historyScroll: { flexShrink: 1 },
+  historyScroll: { flex: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 21,
   },
-  nextWrap: { width: '48%', alignSelf: 'center', marginTop: 18 },
+  // Bottom bar pinned under the Explanation: never shrinks, so the button is
+  // always fully visible; `paddingTop` restores the gap the old nextWrap.marginTop
+  // gave, and `paddingBottom` (applied inline) clears the bottom safe-area inset.
+  bottomBar: { flexShrink: 0, paddingTop: 18 },
+  nextWrap: { width: '48%', alignSelf: 'center' },
 
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });
