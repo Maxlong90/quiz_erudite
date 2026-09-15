@@ -228,18 +228,23 @@ describe('continent reveal — correct answer', () => {
     expect(shared).not.toContain(EGYPT_ORIGINAL);
   });
 
-  it('fills the middle with the Explanation and pins the "Next" bar to the bottom', async () => {
-    // The explanation must GROW to fill the space between the coat and the button
-    // (flex:1) while the "Next" bar never shrinks (flexShrink:0), so the button is
-    // glued to the bottom on every device instead of floating under the text.
+  it('hugs the text with the white box while a transparent filler pins "Next"', async () => {
+    // The TRANSPARENT explanationArea grows to fill the band (flex:1) and pins the
+    // "Next" bar to the bottom; the WHITE box hugs its text (flexShrink:1, never
+    // grows) so a short note no longer paints a full-height white void. "Next"
+    // still never shrinks (flexShrink:0).
     const screen = await renderGame();
 
     fireEvent.press(screen.getByTestId('coat-option-3'));
     await waitFor(() => screen.getByTestId('coat-image-original'));
 
-    const explanation = StyleSheet.flatten(screen.getByTestId('coat-reveal-explanation').props.style);
+    const area = StyleSheet.flatten(screen.getByTestId('coat-reveal-explanation-area').props.style);
+    const box = StyleSheet.flatten(screen.getByTestId('coat-reveal-explanation').props.style);
     const nextBar = StyleSheet.flatten(screen.getByTestId('coat-reveal-next-bar').props.style);
-    expect(explanation.flex).toBe(1);
+    // The filler grows; the white box only hugs/shrinks (no flexGrow).
+    expect(area.flex).toBe(1);
+    expect(box.flexShrink).toBe(1);
+    expect(box.flex).toBeUndefined();
     expect(nextBar.flexShrink).toBe(0);
     // "Next" stays reachable and the button lives inside the pinned bar.
     expect(screen.getByText('Next')).toBeTruthy();

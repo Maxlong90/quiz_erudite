@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,10 +11,24 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { CATEGORY_ICON, useCategoryIconsReady } from '@/constants/coat-of-arms/category-icons';
 import { useResponsive } from '@/hooks/use-responsive';
+import { getDeveloperLinks } from '@/lib/store-links';
 
 // Soften the busy coats artwork behind the mode buttons so the glossy buttons
 // read clearly. A light blur (~15%) — tune this single number up/down to taste.
 const PLAY_BG_BLUR = 15;
+
+/**
+ * "Other apps" opens the PUBLISHER's page (every app we ship) rather than one
+ * hardcoded sibling listing, so new releases surface there with no app update.
+ * Tries the store-app deep link first and falls back to the web URL when no store
+ * app can handle it. Mirrors app/sport-quiz/play.tsx.
+ */
+function openOtherApps() {
+  const { url, deepLink } = getDeveloperLinks(Platform.OS);
+  Linking.openURL(deepLink).catch(() => {
+    Linking.openURL(url).catch(() => {});
+  });
+}
 
 /**
  * Coat of Arms Play screen. Opens from the home Play button and mirrors the
@@ -141,11 +155,7 @@ export default function CoatOfArmsPlay() {
             <Pressable
               hitSlop={8}
               style={({ pressed }) => [styles.bottomItem, pressed && styles.pressed]}
-              onPress={() => {
-                Linking.openURL(
-                  'https://apps.apple.com/us/app/erudite-quiz-trivia-crac-daily/id6787385686',
-                ).catch(() => {});
-              }}
+              onPress={openOtherApps}
             >
               <GlossyIconButton glyph="phone-portrait" size={70} />
               <Text style={styles.bottomLabel}>{t.otherApps}</Text>

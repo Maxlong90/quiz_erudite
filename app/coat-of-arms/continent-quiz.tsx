@@ -379,17 +379,24 @@ export default function CoatOfArmsContinentGame() {
                 once the answer glide lands. */}
             {revealing ? (
               <Animated.View style={styles.reveal} entering={FadeIn.delay(MOVE_MS).duration(UI_FADE_MS)}>
-                {historyText ? (
-                  <View style={[styles.historyBox, FQShadow.card]} testID="coat-reveal-explanation">
-                    <ScrollView
-                      style={styles.historyScroll}
-                      showsVerticalScrollIndicator
-                      nestedScrollEnabled
-                    >
-                      <Text style={styles.historyText}>{historyText}</Text>
-                    </ScrollView>
-                  </View>
-                ) : null}
+                {/* Transparent flexible filler: it — not the white box — grows to
+                    fill the band and pushes the "Next" bar to the bottom. The
+                    white historyBox is top-anchored (justifyContent:flex-start) and
+                    hugs its text, so a short note no longer paints a full-height
+                    white void. */}
+                <View style={styles.explanationArea} testID="coat-reveal-explanation-area">
+                  {historyText ? (
+                    <View style={[styles.historyBox, FQShadow.card]} testID="coat-reveal-explanation">
+                      <ScrollView
+                        style={styles.historyScroll}
+                        showsVerticalScrollIndicator
+                        nestedScrollEnabled
+                      >
+                        <Text style={styles.historyText}>{historyText}</Text>
+                      </ScrollView>
+                    </View>
+                  ) : null}
+                </View>
                 <View
                   style={[styles.bottomBar, { paddingBottom: insets.bottom }]}
                   testID="coat-reveal-next-bar"
@@ -459,10 +466,15 @@ const styles = StyleSheet.create({
 
   page: { flex: 1, paddingBottom: 16 },
   // Reveal panel takes the space left under the options: a vertical column whose
-  // Explanation fills the middle and whose "Next" bar is pinned to the bottom.
-  // `justifyContent: 'flex-end'` keeps "Next" at the bottom even when there is no
-  // explanation (the flex:1 historyBox is then absent).
-  reveal: { flex: 1, minHeight: 0, width: '100%', justifyContent: 'flex-end' },
+  // (transparent) explanationArea fills the middle and whose "Next" bar is pinned
+  // to the bottom. The flex:1 filler does the pinning now, so "Next" stays at the
+  // bottom whether or not there is an explanation.
+  reveal: { flex: 1, minHeight: 0, width: '100%' },
+  // Transparent flexible filler between the answer and the "Next" bar. It grows
+  // to fill the band (flex:1) and top-anchors the white box (flex-start) so the
+  // backing hugs its text instead of stretching down. No backgroundColor — the
+  // gradient shows through the empty space below a short note.
+  explanationArea: { flex: 1, minHeight: 0, justifyContent: 'flex-start' },
 
   head: { alignItems: 'center', marginTop: 16 },
   progress: {
@@ -526,12 +538,14 @@ const styles = StyleSheet.create({
     borderColor: FQColors.tileRim,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    // Fill the whole middle band between the answer and the pinned "Next" bar.
-    // The text sits at the top; the inner ScrollView is the ONLY scrollable
-    // region on the screen and scrolls only when the note is taller than the box.
-    flex: 1,
+    // Hug the text: the box's height is its content's height (no flexGrow), so a
+    // short note gets a short white plate. It only shrinks — capped at the
+    // filler's height — when the note is taller than the available band, and the
+    // inner ScrollView is then the ONLY scrollable region on the screen.
+    flexShrink: 1,
+    maxHeight: '100%',
   },
-  historyScroll: { flex: 1 },
+  historyScroll: { flexShrink: 1 },
   historyText: {
     color: FQColors.tileGlyph,
     fontSize: 15,
