@@ -89,6 +89,16 @@ A **correct** pick starts a three-beat reveal, and the timings are chosen so the
 
 The wrong options are cleared without an exit animation on purpose: an exit fade would linger over the *next* question's options after a wrong pick advances the run. Answering locks on the first pick, so a double-tap cannot register two answers, and both outcomes fire a matching haptic. There is no auto-advance after a correct answer — the player controls when the reveal ends by tapping "Next".
 
+### The reveal panel is a pinned column
+
+The reveal panel (`styles.reveal`, `flex: 1`) is a vertical column with two jobs it must keep separate: show the explanation and keep "Next" reachable. It solves both by pinning the button to the screen's bottom edge on **every** device, phone and iPad window alike, so the player never hunts for it mid-screen.
+
+The explanation box (`historyBox`) fills the whole middle band with `flex: 1`, its text top-aligned, and its inner `ScrollView` is the **only** scrollable region anywhere on the gameplay screen. A long note scrolls inside that box; nothing else — not the page, not the coat, not the answer — ever moves. A short note leaves the box tall and mostly empty rather than floating the button up, because the button's position must not depend on note length.
+
+The "Next" bar (`bottomBar`) sits below the explanation with `flexShrink: 0`, so it is always fully drawn and tappable and a long note can never push it off-screen. When a question has no explanation the box is absent entirely, and `justifyContent: 'flex-end'` on the panel keeps the bar at the bottom anyway.
+
+The bottom safe-area inset is owned by this bar alone. The screen's `SafeAreaView` drops its `bottom` edge and the bar applies `insets.bottom` itself, so the gap above the home indicator is applied exactly once and never doubled. Dropping the edge is safe because the pre-answer content is top-anchored and does not move. Both gameplay screens share this structure identically, and `__tests__/app/coat-of-arms-reveal.test.tsx` and `coat-of-arms-continent-reveal.test.tsx` assert the panel renders the pinned bar with the scrollable explanation above it.
+
 ## Content, Caching, and Offline Play
 
 `CoatContentProvider` (`hooks/coat-of-arms/use-coat-content.tsx`) wraps the whole feature so both content sources are fetched once and shared across screens. It always targets the `coat-of-arms` slug regardless of the build's `APP_SLUG`, and skips the erudite-only answer-statistics side effects. Each sync pulls the snapshot (surfacing the JSON early so gameplay is usable before images finish), then fetches the image-answer payload, downloads its option images through `cacheImages`, and persists the raw payload under `coat.imageAnswer.v1`.
@@ -177,7 +187,7 @@ Every size the layout functions return is rounded. Fractional widths make expo-i
 All three are load-bearing:
 
 - **`CONTENT_MAX_W` is one number (520) for every screen.** Two different caps make the column visibly jump width when navigating play → quiz. 520 also sits above 440, which is what keeps `min(width, cap) === width` on phones.
-- **The column carries a definite pixel `width`, never a bare `maxWidth`.** `alignSelf: 'center'` removes the default `stretch`, so a `maxWidth`-only child shrinks to its content and the `width: '48%'` option cells stop resolving. For the same reason the wrapper must carry `flex: 1` **unconditionally** — write `style={isWide ? column : undefined}` and the page → reveal → historyBox → ScrollView chain collapses, dropping "Next" off-screen on phones.
+- **The column carries a definite pixel `width`, never a bare `maxWidth`.** `alignSelf: 'center'` removes the default `stretch`, so a `maxWidth`-only child shrinks to its content and the `width: '48%'` option cells stop resolving. For the same reason the wrapper must carry `flex: 1` **unconditionally** — write `style={isWide ? column : undefined}` and the page → reveal → historyBox chain collapses, so the explanation loses its flex height and the pinned "Next" bar rides up off the bottom on phones.
 - **`scale` never touches the continent grid cell.** `optW` is a *packing* value: two cells plus 32pt of chrome each plus an 8pt gutter must fit the content box. Scale it and the row overflows, and Yoga silently collapses the 2×2 grid into one column. On that screen `scale` governs vertical rhythm only.
 
 ### Closing the dead band
