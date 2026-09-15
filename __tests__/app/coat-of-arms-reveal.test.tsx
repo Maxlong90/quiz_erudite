@@ -242,6 +242,29 @@ describe('coat reveal — a coat with no original (131 of 195)', () => {
     fireEvent.press(screen.getByText('Mali'));
     expect(screen.queryByTestId('coat-image-original')).toBeNull();
   });
+
+  it('pins "Next" to the bottom even with no explanation (no white box)', async () => {
+    // Mali (question 1) has explanation: null. On its reveal the white historyBox
+    // is absent, but the transparent filler still occupies the band and keeps the
+    // "Next" bar pinned to the bottom.
+    const screen = await renderQuiz();
+
+    fireEvent.press(screen.getByText('Angola'));
+    await waitFor(() => screen.getByTestId('coat-image-original'));
+    fireEvent.press(screen.getByText('Next'));
+    await waitFor(() => expect(screen.getByTestId('coat-image').props.source.uri).toBe(PLAIN_URI));
+
+    fireEvent.press(screen.getByText('Mali')); // correct → reveal, but no explanation
+
+    // No white box for an empty note...
+    expect(screen.queryByTestId('coat-reveal-explanation')).toBeNull();
+    // ...but the filler still grows to pin the bottom bar, and "Next" is reachable.
+    const area = StyleSheet.flatten(screen.getByTestId('coat-reveal-explanation-area').props.style);
+    const nextBar = StyleSheet.flatten(screen.getByTestId('coat-reveal-next-bar').props.style);
+    expect(area.flex).toBe(1);
+    expect(nextBar.flexShrink).toBe(0);
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
 });
 
 describe('coat reveal — in an iPad-sized window', () => {
