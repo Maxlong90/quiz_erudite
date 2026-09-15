@@ -520,9 +520,11 @@ const makeStyles = (c: EruditePalette) => StyleSheet.create({
   },
   table: {
     marginHorizontal: 20,
-    // Pushed down by roughly one subscription-button height so the benefits
-    // block sits lower on the (yearly-default) paywall.
-    marginTop: 84,
+    // A small breathing gap under the hero. This used to be a fixed 84 (roughly
+    // one subscription-button height) to sit the block lower on tall screens,
+    // but on shorter devices (e.g. iPhone 11) that read as a large empty gap
+    // above the benefits table, so it is trimmed to a modest, device-neutral gap.
+    marginTop: 24,
     marginBottom: 14,
     borderRadius: 18,
     // Highlighted in a vivid purple close to the CTA button (#7c5cff) so the
