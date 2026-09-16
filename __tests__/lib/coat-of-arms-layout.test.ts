@@ -1,38 +1,61 @@
 /**
- * The acceptance test for "Coat of Arms gameplay is unchanged on phones".
+ * The acceptance test for the two Coat of Arms gameplay-metric functions.
  *
- * The adaptive-layout work replaced a set of module-level constants — frozen at
- * import from `Dimensions.get('window')` — with functions of the LIVE window size.
- * That is the fix for the iPad Guideline 4 reject, but it is also the moment a
- * phone layout could drift by a point or two without anyone noticing.
+ * Two contracts live here, and they pull in opposite directions:
  *
- * So this pins the shipped numbers directly: across every real iPhone size, the
- * metrics functions must return the exact literals that were hard-coded before.
- * No renderer, no snapshots — just the arithmetic, which is the thing that changed.
+ *  1. TALL-PHONE IDENTITY. On a real iPhone (393x852, 430x932, ...) the metrics
+ *     must still be the exact literals that shipped: coat 190 / option 68 /
+ *     prompt 26 / gap 68, and the 140pt continent cell. This is the "iPhone is
+ *     visually unchanged" promise, machine-checked.
+ *
+ *  2. HEIGHT FIT. On a SHORT or NARROW window (an iPhone-only binary running in a
+ *     resized iPad window, reproduced at 360x610) the answer grid is the anchor:
+ *     it stays fully visible with no page scroll, and the coat gives up height to
+ *     it. So there the coat MUST shrink below 190 (but never below COAT_MIN), and
+ *     the continent cell MUST shrink below its width-packing value.
+ *
+ * The signature now takes safe-area insets; the pure tests pass explicit insets.
  */
 import { coatContinentMetrics, coatQuizMetrics } from '@/lib/coat-of-arms/layout';
 
-const PHONE_WIDTHS = [320, 360, 375, 390, 393, 402, 414, 428, 430, 440];
-const PHONE_HEIGHTS = [568, 667, 736, 812, 844, 852, 874, 896, 926, 932, 956];
-const PHONE_SIZES = PHONE_WIDTHS.flatMap((w) => PHONE_HEIGHTS.map((h) => [w, h]));
+const NO_INSETS = { top: 0, bottom: 0 };
+const NOTCH_INSETS = { top: 47, bottom: 34 };
 
-describe('coatQuizMetrics — phone values are the shipped constants', () => {
-  it.each(PHONE_SIZES)('%i x %i keeps COAT_SIZE 190 / OPTION_H 68 / prompt 26', (width, height) => {
-    const m = coatQuizMetrics(width, height);
+const PHONE_WIDTHS = [320, 360, 375, 390, 393, 402, 414, 428, 430, 440];
+// Only TALL phone heights: these leave ample free height, so the height cap never
+// binds and the shipped constants must survive. Short heights (568, 610, ...) are
+// the windows the fit is ALLOWED to change and are covered separately below.
+const TALL_HEIGHTS = [812, 844, 852, 874, 896, 926, 932, 956];
+const TALL_PHONES = PHONE_WIDTHS.flatMap((w) => TALL_HEIGHTS.map((h) => [w, h]));
+
+// Frame chrome around the coat plate: imageFrame borderWidth 3 + padding 10, both
+// sides. Mirrors the constant inside layout.ts.
+const FRAME_CHROME = (3 + 10) * 2;
+const COAT_MIN = 110;
+
+describe('coatQuizMetrics — tall phones keep the shipped constants', () => {
+  it.each(TALL_PHONES)('%i x %i keeps COAT_SIZE 190 / OPTION_H 68 / prompt 26 (no insets)', (width, height) => {
+    const m = coatQuizMetrics(width, height, NO_INSETS);
 
     expect(m.coatSize).toBe(190);
     expect(m.optionH).toBe(68);
     expect(m.promptFont).toBe(26);
-    // The gap that used to be `styles.options.marginTop: OPTION_H * 1.0`.
     expect(m.gapHeight).toBe(68);
-    // The original OPTION_TEXT_W formula, now fed the live content width.
     expect(m.optionTextW).toBeCloseTo(0.48 * (width - 40) - 24, 10);
+  });
+
+  it.each(TALL_PHONES)('%i x %i still keeps coat 190 under realistic notch insets', (width, height) => {
+    // A notch eats ~81pt of height, but a tall phone still has room to spare, so
+    // the coat must not shrink there either.
+    const m = coatQuizMetrics(width, height, NOTCH_INSETS);
+    expect(m.coatSize).toBe(190);
+    expect(m.optionH).toBe(68);
   });
 });
 
-describe('coatContinentMetrics — phone values are the shipped constants', () => {
-  it.each(PHONE_SIZES)('%i x %i keeps the original OPT_W packing', (width, height) => {
-    const m = coatContinentMetrics(width, height);
+describe('coatContinentMetrics — tall phones keep the shipped packing', () => {
+  it.each(TALL_PHONES)('%i x %i keeps the original OPT_W packing', (width, height) => {
+    const m = coatContinentMetrics(width, height, NO_INSETS);
 
     expect(m.optW).toBe(Math.floor((width - 40 - 64 - 8) / 2));
     expect(m.titleTextW).toBe(width - 48);
@@ -40,36 +63,83 @@ describe('coatContinentMetrics — phone values are the shipped constants', () =
   });
 
   it('still yields the 140pt cell that shipped on a 393pt phone', () => {
-    expect(coatContinentMetrics(393, 852).optW).toBe(140);
+    expect(coatContinentMetrics(393, 852, NO_INSETS).optW).toBe(140);
+    // ...and under a realistic notch, too — a tall phone still has the height.
+    expect(coatContinentMetrics(393, 852, NOTCH_INSETS).optW).toBe(140);
   });
 });
 
-describe('coatQuizMetrics — adaptive branch', () => {
-  it('grows the coat on a tall iPad window without exceeding the column', () => {
-    const m = coatQuizMetrics(820, 1180);
+describe('coatQuizMetrics — height fit on short/narrow windows', () => {
+  it('shrinks the coat below 190 on the 360x610 window that used to clip', () => {
+    const m = coatQuizMetrics(360, 610, NO_INSETS);
 
-    expect(m.coatSize).toBeGreaterThan(190);
-    // The plate plus its frame chrome must still fit the 520pt content column.
-    expect(m.coatSize + (3 + 10) * 2).toBeLessThanOrEqual(m.contentWidth);
+    // The coat gave up height to the grid, but is still recognisable.
+    expect(m.coatSize).toBeLessThan(190);
+    expect(m.coatSize).toBeGreaterThanOrEqual(COAT_MIN);
+    // The buttons are the anchor — they do NOT shrink on a compact window.
+    expect(m.optionH).toBe(68);
   });
 
-  it('never grows the coat past its readability cap', () => {
-    expect(coatQuizMetrics(2048, 2732).coatSize).toBeLessThanOrEqual(320);
+  it('leaves the whole stack fitting the 360x610 window (grid not clipped)', () => {
+    const height = 610;
+    const m = coatQuizMetrics(360, height, NO_INSETS);
+    // Reconstruct the fixed reserve (everything that is NOT the coat plate) and
+    // assert the coat plus its reserve fit the window — i.e. the grid is on screen.
+    const gridH = 2 * m.optionH + 14;
+    const reserve = 64 + 16 + 48 + 90 + m.gapHeight + gridH + 16 + FRAME_CHROME;
+    expect(reserve + m.coatSize).toBeLessThanOrEqual(height);
+  });
+
+  it('never shrinks the coat below COAT_MIN on an extreme short window', () => {
+    expect(coatQuizMetrics(360, 400, NO_INSETS).coatSize).toBe(COAT_MIN);
   });
 
   it('shrinks the coat on a short, wide window instead of overflowing', () => {
-    expect(coatQuizMetrics(1024, 568).coatSize).toBeLessThan(190);
+    expect(coatQuizMetrics(1024, 568, NO_INSETS).coatSize).toBeLessThan(190);
+  });
+});
+
+describe('coatContinentMetrics — height fit on short/narrow windows', () => {
+  it('shrinks the cell below its width-packing value on a short window', () => {
+    const widthPack = Math.floor((393 - 40 - 64 - 8) / 2);
+    const m = coatContinentMetrics(393, 560, NO_INSETS);
+
+    expect(m.optW).toBeLessThan(widthPack);
+    expect(m.optW).toBeGreaterThanOrEqual(96);
+  });
+
+  it('keeps two cells fitting one row even when the height cap binds', () => {
+    // The height cap only ever LOWERS optW, so two cells must always still fit —
+    // the grid can never collapse to a single column.
+    for (const [width, height] of [[360, 560], [393, 560], [500, 680], [820, 568]]) {
+      const m = coatContinentMetrics(width, height, NO_INSETS);
+      const rowWidth = (m.optW + 32) * 2 + 20 * 2 + 8;
+      expect(rowWidth).toBeLessThanOrEqual(m.contentWidth);
+    }
+  });
+});
+
+describe('coatQuizMetrics — adaptive branch (roomy windows)', () => {
+  it('grows the coat on a tall iPad window without exceeding the column', () => {
+    const m = coatQuizMetrics(820, 1180, NO_INSETS);
+
+    expect(m.coatSize).toBeGreaterThan(190);
+    expect(m.coatSize + FRAME_CHROME).toBeLessThanOrEqual(m.contentWidth);
+  });
+
+  it('never grows the coat past its readability cap', () => {
+    expect(coatQuizMetrics(2048, 2732, NO_INSETS).coatSize).toBeLessThanOrEqual(320);
   });
 
   it('sizes answer text from the capped column, not the raw window width', () => {
-    // Without the cap a 1024pt window would fit labels for a 470pt-wide button
-    // that does not exist — the button is inside a 520pt column.
-    expect(coatQuizMetrics(1024, 1180).optionTextW).toBe(coatQuizMetrics(820, 1180).optionTextW);
+    expect(coatQuizMetrics(1024, 1180, NO_INSETS).optionTextW).toBe(
+      coatQuizMetrics(820, 1180, NO_INSETS).optionTextW,
+    );
   });
 
   it('returns integers, so expo-image is not re-rasterised on sub-pixel drift', () => {
     for (const [width, height] of [[700, 900], [820, 1180], [1024, 768], [1366, 1024]]) {
-      const m = coatQuizMetrics(width, height);
+      const m = coatQuizMetrics(width, height, NO_INSETS);
       expect(Number.isInteger(m.coatSize)).toBe(true);
       expect(Number.isInteger(m.optionH)).toBe(true);
       expect(Number.isInteger(m.promptFont)).toBe(true);
@@ -77,27 +147,24 @@ describe('coatQuizMetrics — adaptive branch', () => {
   });
 });
 
-describe('coatContinentMetrics — adaptive branch', () => {
-  it('keeps two coat options per row at every window size', () => {
-    // The bug this guards: applying `scale` to optW overflows the row and Yoga
-    // silently collapses the 2x2 grid into a single column.
+describe('coatContinentMetrics — adaptive branch (roomy windows)', () => {
+  it('keeps two coat options per row at every roomy window size', () => {
     for (const [width, height] of [[600, 800], [820, 1180], [1024, 768], [1366, 1024], [2048, 2732]]) {
-      const m = coatContinentMetrics(width, height);
-      // Two cells, each wearing 32pt of ring/border/plate chrome, plus the grid's
-      // 20pt side padding and the 8pt gutter between the columns.
+      const m = coatContinentMetrics(width, height, NO_INSETS);
       const rowWidth = (m.optW + 32) * 2 + 20 * 2 + 8;
       expect(rowWidth).toBeLessThanOrEqual(m.contentWidth);
     }
   });
 
-  it('grows the coat cell on an iPad window but caps it with the column', () => {
-    const m = coatContinentMetrics(820, 1180);
+  it('grows the coat cell on a tall iPad window but caps it with the column', () => {
+    const m = coatContinentMetrics(820, 1180, NO_INSETS);
     expect(m.optW).toBe(Math.floor((520 - 40 - 64 - 8) / 2));
     expect(m.optW).toBeGreaterThan(140);
   });
 
-  it('does not let window height change the grid packing', () => {
-    // optW is horizontal packing only — height must not enter it.
-    expect(coatContinentMetrics(820, 1180).optW).toBe(coatContinentMetrics(820, 568).optW);
+  it('returns integer cell sizes', () => {
+    for (const [width, height] of [[600, 800], [820, 1180], [1024, 768]]) {
+      expect(Number.isInteger(coatContinentMetrics(width, height, NO_INSETS).optW)).toBe(true);
+    }
   });
 });

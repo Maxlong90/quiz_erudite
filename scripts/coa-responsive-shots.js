@@ -51,10 +51,16 @@ const LABEL = process.argv[2] || 'after';
 const MODE = process.argv[3] || 'all';
 const CHROME = process.env.CHROME_BIN || '/opt/google/chrome/chrome';
 
-/** Phone widths must stay identical; the rest are the adaptive branch. */
+/**
+ * Phone widths must stay identical; the rest are the adaptive branch. The
+ * short/narrow windows (360x610, 500x680, 700x560, 1024x700) are the ones the
+ * answer-grid height fit exists for — 360x610 is where the bottom row used to
+ * clip off screen.
+ */
 const SIZES = [
-  [320, 568], [393, 852], [430, 932],
-  [540, 720], [700, 900], [820, 1180], [1024, 768],
+  [320, 568], [360, 610], [393, 852], [430, 932],
+  [500, 680], [540, 720], [700, 560], [700, 900],
+  [820, 1180], [1024, 700], [1024, 768],
 ];
 
 const SCREENS = [

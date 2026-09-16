@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   coatContinentMetrics,
@@ -24,11 +25,23 @@ import {
 /** Metrics for the "All countries" screen. */
 export function useCoatQuizMetrics(): CoatQuizMetrics {
   const { width, height } = useWindowDimensions();
-  return useMemo(() => coatQuizMetrics(width, height), [width, height]);
+  // The height fit subtracts the safe-area insets, so the coat gives up exactly
+  // the right amount of room for the pinned answer grid on a notched device.
+  const insets = useSafeAreaInsets();
+  return useMemo(
+    () => coatQuizMetrics(width, height, insets),
+    // Key on the scalar inset values — the insets object identity can change every
+    // render even when the numbers don't.
+    [width, height, insets.top, insets.bottom],
+  );
 }
 
 /** Metrics for the "By continent" screen. */
 export function useCoatContinentMetrics(): CoatContinentMetrics {
   const { width, height } = useWindowDimensions();
-  return useMemo(() => coatContinentMetrics(width, height), [width, height]);
+  const insets = useSafeAreaInsets();
+  return useMemo(
+    () => coatContinentMetrics(width, height, insets),
+    [width, height, insets.top, insets.bottom],
+  );
 }

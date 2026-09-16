@@ -21,6 +21,17 @@
  */
 import { computeResponsive, type Responsive } from '@/hooks/use-responsive';
 
+/**
+ * Safe-area insets the height fit has to subtract. Defaulted to zero so the pure
+ * unit tests (and web, where there are no insets) can call the metric functions
+ * with two arguments exactly as before.
+ */
+export interface LayoutInsets {
+  top: number;
+  bottom: number;
+}
+const NO_INSETS: LayoutInsets = { top: 0, bottom: 0 };
+
 // --- "All countries" (quiz.tsx) ---------------------------------------------
 
 /** The shipped square coat plate. The phone value, and the base the plate grows from. */
@@ -36,6 +47,44 @@ const COAT_SIZE_MAX = 320;
 /** Breathing room between the coat frame and the edge of the content column. */
 const COAT_COLUMN_MARGIN = 32;
 
+// --- Height-fit reserves (shared shape, both screens) -----------------------
+//
+// The answer grid is the ANCHOR: it must always be fully visible with no page
+// scroll, and the coat/pictures give up height to it. So the coat is capped not
+// only by width (as before) but by the free height LEFT once everything below
+// and around it has been reserved. These constants are the heights of those
+// fixed regions, measured from the two screens' stylesheets; they are estimates
+// tuned so a tall iPhone (393x852 / 430x932) still yields the shipped coat while
+// a short/narrow window (360x610) shrinks the coat instead of clipping the grid.
+//
+// The coat is NEVER allowed below COAT_MIN — a coat smaller than that stops being
+// recognisable — which on the very tightest windows is the floor that binds.
+
+/** Coat never shrinks below this, even when free height runs out. */
+const COAT_MIN = 110;
+/** Continent cell never shrinks below this (a coat picture has to stay legible). */
+const OPT_MIN = 96;
+/** styles.options.rowGap on the "All countries" grid. */
+const ROW_GAP_QUIZ = 14;
+/** styles.options.rowGap on the "By continent" grid. */
+const ROW_GAP_CONT = 16;
+/** styles.hud: paddingVertical 10 both sides + the 44pt icon button. */
+const HUD_H = 64;
+/** styles.page.paddingBottom. */
+const PAGE_PAD_BOTTOM = 16;
+/** styles.imageArea.marginTop (quiz) / styles.head.marginTop (continent). */
+const IMAGE_AREA_MT = 16;
+/** quiz progress: fontSize 22 line (~26) + marginBottom 22. */
+const PROGRESS_H_QUIZ = 48;
+/** Room kept for the (up-to-two-line) prompt: ~2 lines of promptFont + marginTop 16. */
+const PROMPT_RESERVE_H = 90;
+/** continent progress: fontSize 22 line (~26) + marginBottom 40. */
+const PROGRESS_H_CONT = 66;
+/** Room kept for the (up-to-two-line) country title. */
+const TITLE_RESERVE_H = 80;
+/** Per-cell vertical chrome on the continent grid: optionWrap (4+3)*2 + optionFrame (3+6)*2. */
+const CELL_CHROME = 32;
+
 export interface CoatQuizMetrics extends Responsive {
   /** Side of the square coat plate. Feeds the base image, its box AND the reveal overlay. */
   coatSize: number;
@@ -50,26 +99,63 @@ export interface CoatQuizMetrics extends Responsive {
 }
 
 /**
- * Metrics for the "All countries" screen. On any phone this returns exactly the
+ * Metrics for the "All countries" screen.
+ *
+ * On a tall phone (393x852, 430x932, ...) this still returns exactly the
  * constants that shipped: `{coatSize: 190, optionH: 68, promptFont: 26,
- * gapHeight: 68}` and the original `optionTextW` formula.
+ * gapHeight: 68}` and the original `optionTextW` formula — there the free height
+ * is ample, so the new height cap never binds. On a SHORT or NARROW window (an
+ * iPhone-only binary in a resized iPad window, e.g. 360x610) the coat gives up
+ * height so the 2x2 answer grid stays fully on screen: `coatSize` is capped by
+ * the height left over once the HUD, progress, prompt, gap and the grid itself
+ * are reserved, and never falls below `COAT_MIN`.
+ *
+ * The order matters: `optionH` depends only on `scale`, so the grid height is
+ * known first; the leftover height then feeds `coatSize`.
  */
-export function coatQuizMetrics(width: number, height: number): CoatQuizMetrics {
+export function coatQuizMetrics(
+  width: number,
+  height: number,
+  insets: LayoutInsets = NO_INSETS,
+): CoatQuizMetrics {
   const r = computeResponsive(width, height);
-  return {
-    ...r,
-    coatSize: Math.round(
+  const optionH = Math.round(OPTION_H_BASE * r.scale);
+  const gapHeight = OPTION_H_BASE;
+  const gridH = 2 * optionH + ROW_GAP_QUIZ;
+  // Everything above/below/around the coat that holds a fixed height. The coat
+  // block's own frame chrome is in here too, so `freeH` is exactly what the coat
+  // plate itself may occupy.
+  const reserve =
+    insets.top +
+    insets.bottom +
+    HUD_H +
+    IMAGE_AREA_MT +
+    PROGRESS_H_QUIZ +
+    PROMPT_RESERVE_H +
+    gapHeight +
+    gridH +
+    PAGE_PAD_BOTTOM +
+    FRAME_CHROME;
+  const freeH = height - reserve;
+  const coatSize = Math.round(
+    Math.max(
+      COAT_MIN,
       Math.min(
         COAT_SIZE_BASE * r.scale,
+        freeH, // NEW height cap — makes the answer grid the anchor.
         // Never let the plate push its frame past the content column.
         r.contentWidth - FRAME_CHROME - COAT_COLUMN_MARGIN,
         COAT_SIZE_MAX,
       ),
     ),
-    optionH: Math.round(OPTION_H_BASE * r.scale),
+  );
+  return {
+    ...r,
+    coatSize,
+    optionH,
     optionTextW: 0.48 * (r.contentWidth - 40) - 24,
     promptFont: Math.round(PROMPT_FONT_BASE * r.scale),
-    gapHeight: OPTION_H_BASE,
+    gapHeight,
   };
 }
 
@@ -100,20 +186,46 @@ export interface CoatContinentMetrics extends Responsive {
 }
 
 /**
- * Metrics for the "By continent" screen. On any phone this returns exactly the
- * constants that shipped.
+ * Metrics for the "By continent" screen. On a tall phone this returns exactly the
+ * constants that shipped (140pt cell at 393x852); on a short/narrow window the
+ * cell shrinks so both rows of the coat grid stay on screen.
  *
- * NOTE `optW` is deliberately NOT multiplied by `scale`. It is a PACKING value:
- * two cells plus their chrome and a gutter have to fit the content box exactly.
- * Scaling it overflows the row and Yoga collapses the 2x2 grid into one column.
- * On this screen `scale` governs vertical rhythm only.
+ * `optW` has two independent caps. The WIDTH cap (`widthPack`) is the packing
+ * value: two cells plus their chrome and a gutter have to fit the content box
+ * exactly — it must NEVER be multiplied by `scale`, or the row overflows and Yoga
+ * collapses the 2x2 grid into one column. The HEIGHT cap (`heightCap`) is the
+ * largest cell that lets both rows fit the free height. Taking the MIN of the two
+ * keeps `optW <= widthPack`, so two cells always still fit one row — the grid can
+ * never collapse — while the coat pictures shrink on a short window.
  */
-export function coatContinentMetrics(width: number, height: number): CoatContinentMetrics {
+export function coatContinentMetrics(
+  width: number,
+  height: number,
+  insets: LayoutInsets = NO_INSETS,
+): CoatContinentMetrics {
   const r = computeResponsive(width, height);
+  const gapHeight = CONTINENT_GAP_BASE;
+  const widthPack = Math.floor(
+    (r.contentWidth - GRID_PAD * 2 - WRAP_EXTRA * 2 - GRID_GUTTER) / 2,
+  );
+  // Height left for the whole 2xN coat grid once the fixed regions are reserved.
+  const availGrid =
+    height -
+    insets.top -
+    insets.bottom -
+    HUD_H -
+    IMAGE_AREA_MT -
+    PROGRESS_H_CONT -
+    TITLE_RESERVE_H -
+    gapHeight -
+    PAGE_PAD_BOTTOM;
+  // Two rows of cells + one row-gap between them, each cell wearing CELL_CHROME.
+  const heightCap = Math.floor((availGrid - ROW_GAP_CONT) / 2 - CELL_CHROME);
+  const optW = Math.max(OPT_MIN, Math.min(widthPack, heightCap));
   return {
     ...r,
-    optW: Math.floor((r.contentWidth - GRID_PAD * 2 - WRAP_EXTRA * 2 - GRID_GUTTER) / 2),
+    optW,
     titleTextW: r.contentWidth - TITLE_PAD,
-    gapHeight: CONTINENT_GAP_BASE,
+    gapHeight,
   };
 }
