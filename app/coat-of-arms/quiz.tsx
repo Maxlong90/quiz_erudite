@@ -23,6 +23,7 @@ import { FQColors, FQShadow } from '@/constants/flags-quiz/theme';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
+import { useWarmAheadImages } from '@/hooks/coat-of-arms/use-warm-coat-images';
 import { useCoatQuizMetrics } from '@/hooks/coat-of-arms/use-coat-layout';
 import { fitPromptFontSize } from '@/lib/coat-of-arms/layout';
 import { CONTENT_MAX_W } from '@/hooks/use-responsive';
@@ -132,6 +133,18 @@ export default function CoatOfArmsGame() {
   const { helpOpen, setHelpOpen } = useCoatHelp(!!question);
   const answered = picked !== null;
   const isCorrectPick = answered && question != null && picked === question.correctIndex;
+
+  // Keep the front of the image load ahead of the player: warm the current
+  // coat + reveal original first, then the next few questions in play order.
+  const warmUris = useMemo(
+    () =>
+      order.map((qi) => {
+        const q = countryQuestions[qi];
+        return q ? [q.imageUri, q.originalImageUri] : [];
+      }),
+    [order, countryQuestions],
+  );
+  useWarmAheadImages(warmUris, pos);
 
   const finish = useCallback(
     (finalWrong: number[]) => {

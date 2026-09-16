@@ -1,17 +1,18 @@
 /**
- * Tests the OFFLINE + WARM-CACHE wiring for the "By continent" reveal in
+ * Tests the OFFLINE download-set guard for the "By continent" reveal in
  * hooks/coat-of-arms/use-coat-content.tsx.
  *
  * The reveal starts the instant a correct answer lands, so the original's bytes
- * must already be downloaded (offline play) and DECODED in the memory cache (a
- * warm disk file alone still costs a decode frame). Two collaborators carry that:
- *
- *   - cacheImages(): downloads into the namespaced offline cache;
- *   - Image.prefetch(): warms the memory+disk cache.
- *
- * Both must receive the CORRECT option's original and NEITHER may receive the
+ * must already be downloaded for offline play. That download happens through
+ * cacheImages(), which must receive the CORRECT option's original and NEVER the
  * other three — pre-caching all four would quadruple the transfer for images the
  * player can never see, and a wrong option's original is a spoiler.
+ *
+ * The hook deliberately no longer BULK-prefetches the whole catalogue up-front
+ * (that unordered fire-all contended with the ordered sync downloader and had no
+ * readiness signal); decode-warming now lives in the look-ahead hook and the
+ * splash. These tests lock the download-layer guard and that the bulk prefetch
+ * stays gone.
  */
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
@@ -22,7 +23,7 @@ const WRONG_ORIGINAL_A = 'https://api/questions/1111/image?variant=original&v=aa
 const WRONG_ORIGINAL_B = 'https://api/questions/2222/image?variant=original&v=bbb';
 
 // One coat question: correct_index 3 carries an original; options 0 and 1 carry
-// decoy originals that must never be downloaded or prefetched.
+// decoy originals that must never be downloaded.
 //
 // The URLs are written out LITERALLY rather than referencing the consts above:
 // jest.mock() hoisting lifts this declaration above them, so referencing them
@@ -75,7 +76,8 @@ jest.mock('@/lib/content-cache', () => ({
 
 jest.mock('@/hooks/use-locale', () => ({ useLocale: () => ({ locale: 'en' }) }));
 
-// expo-image's Image.prefetch is a static on the same object the hook imports.
+// expo-image's Image.prefetch is a static on the same object the look-ahead hook
+// imports. The content hook no longer touches it; this guards that it stays so.
 jest.mock('expo-image', () => ({
   Image: { prefetch: (...args: unknown[]) => mockPrefetch(...args) },
 }));
@@ -114,23 +116,22 @@ describe('use-coat-content — original artwork caching', () => {
     expect(downloaded).not.toContain(WRONG_ORIGINAL_B);
   });
 
-  it('prefetches the CORRECT option original so the reveal has decoded bytes', async () => {
+  it('no longer bulk-prefetches the whole catalogue up-front', async () => {
     render(
       <CoatContentProvider>
         <Text>child</Text>
       </CoatContentProvider>,
     );
 
-    await waitFor(() => {
-      expect(urlsFrom(mockPrefetch)).toContain(CORRECT_ORIGINAL);
-    });
+    // Let the sync + image-answer fetch settle.
+    await waitFor(() => expect(mockCacheImages).toHaveBeenCalled());
 
+    // Decode-warming moved to the look-ahead hook / splash. The provider must
+    // NOT fire the old unordered Image.prefetch that contended with the sync
+    // downloader — in particular it must never touch a wrong option's original.
     const prefetched = urlsFrom(mockPrefetch);
     expect(prefetched).not.toContain(WRONG_ORIGINAL_A);
     expect(prefetched).not.toContain(WRONG_ORIGINAL_B);
-    // Prefetch warms the memory cache, not just disk.
-    expect(mockPrefetch).toHaveBeenCalledWith(expect.any(Array), {
-      cachePolicy: 'memory-disk',
-    });
+    expect(mockPrefetch).not.toHaveBeenCalled();
   });
 });

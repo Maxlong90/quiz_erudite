@@ -16,6 +16,15 @@ import {
 /** App slug the Coat of Arms quiz always syncs. */
 export const COAT_QUIZ_SLUG = 'coat-of-arms';
 
+/**
+ * How many "All countries" coats (in stable backend order) to download to disk
+ * BEFORE the splash releases the player into the game. The first questions the
+ * player sees are ready with no load flicker; everything else keeps downloading
+ * in the background. `buildCountryQuestions` maps the snapshot 1:1 in order, so
+ * these are the first `PRIORITY_COUNT` `countryQuestions`.
+ */
+export const PRIORITY_COUNT = 15;
+
 /** Backend coat continent category slug → frontend ContinentKey. */
 export const COAT_CONTINENT_BY_SLUG: Record<string, ContinentKey> = {
   'coat-of-arms-africa': 'africa',

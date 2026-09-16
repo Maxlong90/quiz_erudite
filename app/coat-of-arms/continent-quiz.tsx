@@ -28,6 +28,7 @@ import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
+import { useWarmAheadImages } from '@/hooks/coat-of-arms/use-warm-coat-images';
 import { useCoatContinentMetrics } from '@/hooks/coat-of-arms/use-coat-layout';
 import { CONTENT_MAX_W } from '@/hooks/use-responsive';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
@@ -122,6 +123,18 @@ export default function CoatOfArmsContinentGame() {
   const { helpOpen, setHelpOpen } = useCoatHelp(!!q);
   const answered = picked !== null;
   const isCorrectPick = answered && q != null && picked === q.correctIndex;
+
+  // Keep the front of the image load ahead of the player: warm the current
+  // question's 4 coat options + correct original first, then the next few.
+  const warmUris = useMemo(
+    () =>
+      order.map((qi) => {
+        const question = questions[qi];
+        return question ? [...question.optionImageUris, question.correctOriginalImageUri] : [];
+      }),
+    [order, questions],
+  );
+  useWarmAheadImages(warmUris, pos);
 
   const finish = useCallback(
     (finalWrong: number[]) => {

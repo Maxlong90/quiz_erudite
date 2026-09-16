@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from 'expo-image';
 
 import { apiClient } from '@/api/client';
 import {
@@ -28,7 +27,7 @@ import {
   type FlagPictureQuestion,
   type ImageAnswerApiQuestion,
 } from '@/lib/flags-quiz/content';
-import { COAT_QUIZ_SLUG, buildCoatPictureQuestions } from '@/lib/coat-of-arms/content';
+import { COAT_QUIZ_SLUG, PRIORITY_COUNT, buildCoatPictureQuestions } from '@/lib/coat-of-arms/content';
 import type { ContinentKey } from '@/constants/flags-quiz/continent-flags';
 import { useLocale } from '@/hooks/use-locale';
 
@@ -54,6 +53,13 @@ interface CoatContentValue {
   countsByContinent: Partial<Record<ContinentKey, number>>;
   status: Status;
   error: string | null;
+  /**
+   * One-way latch: `true` once the first `PRIORITY_COUNT` "All countries" coats
+   * are on disk (fresh install), or immediately for a returning player whose
+   * snapshot is already cached. The splash gates on it; only ever set `true`, so
+   * a re-sync / locale flip can never re-trap the player behind the splash.
+   */
+  priorityReady: boolean;
 }
 
 const CoatContentContext = createContext<CoatContentValue | null>(null);
@@ -83,6 +89,8 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   const [imageAnswer, setImageAnswer] = useState<ImageAnswerCache | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+  // One-way latch — see CoatContentValue.priorityReady. Never reset to false.
+  const [priorityReady, setPriorityReady] = useState(false);
   // Tracks the locale the running sync is for, so a fast locale flip supersedes
   // an in-flight sync.
   const inflightLocale = useRef<string | null>(null);
@@ -94,6 +102,9 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
     const isCurrent = () => inflightLocale.current === forLocale;
     try {
       // 1. Snapshot (coat → text). Surface JSON early, then refresh with images.
+      //    The first PRIORITY_COUNT coats download FIRST, in play order, as their
+      //    own batch — the splash gates on that batch finishing (priorityReady),
+      //    while the rest of the catalogue trails as a background batch.
       const fresh = await syncContent({
         locale: forLocale,
         appSlug: COAT_QUIZ_SLUG,
@@ -104,8 +115,23 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
             setStatus('ready');
           }
         },
+        // Reads the RAW remote urls (this snapshot has no imageMap yet), so key
+        // off `image_url`, not a resolved `imageUri`.
+        imageBatches: (data) => [
+          data.questions
+            .slice(0, PRIORITY_COUNT)
+            .map((q) => q.image_url)
+            .filter((u): u is string => !!u),
+        ],
+        onBatchImages: (_map, batchIndex) => {
+          if (isCurrent() && batchIndex === 0) setPriorityReady(true);
+        },
       });
       if (isCurrent()) setSnapshot(fresh);
+      // Belt-and-suspenders: the full sync is done, so the priority coats are
+      // definitely on disk. Covers the dropped-empty-batch-0 edge and web, where
+      // the batch "download" is a no-op that still needs to open the gate.
+      if (isCurrent()) setPriorityReady(true);
 
       // 2. Image-answer questions (country name → 4 coat images). Own endpoint +
       //    own image download into the shared namespaced cache.
@@ -158,6 +184,9 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
       if (cachedSnap && cachedSnap.locale === locale) {
         setSnapshot(cachedSnap);
         setStatus('ready');
+        // Returning player: the priority coats are already on disk, so open the
+        // splash gate at the 3s floor rather than making them wait out a re-sync.
+        setPriorityReady(true);
       }
       if (cachedIaRaw) {
         try {
@@ -185,27 +214,14 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
   const pictureByContinent = useMemo(() => groupByContinent(pictureQuestions), [pictureQuestions]);
   const countsByContinent = useMemo(() => continentCounts(pictureQuestions), [pictureQuestions]);
 
-  // Preload EVERY gameplay image up-front (both modes) into the memory+disk
-  // cache, so nothing streams in mid-game and a fast run of answer taps never
-  // flashes empty white tiles. Fire-and-forget and fail-open; re-runs as the
-  // question sets — or their warmed local URIs — change.
-  useEffect(() => {
-    const urls = [
-      ...countryQuestions.map((q) => q.imageUri),
-      // The reward originals too: the reveal starts the instant a correct answer
-      // lands, so the bytes must already be DECODED in the memory cache — a warm
-      // disk file alone still costs a decode frame. On web (no local cache) this
-      // is what makes the reveal work at all, pre-pulling the remote original
-      // into the browser cache (served immutable, so it sticks).
-      ...countryQuestions.map((q) => q.originalImageUri),
-      ...pictureQuestions.flatMap((q) => q.optionImageUris),
-      // "By continent" reveals its original on exactly the same beat, so its
-      // bytes need to be decoded up-front for the same reason.
-      ...pictureQuestions.map((q) => q.correctOriginalImageUri),
-    ].filter((u): u is string => !!u);
-    if (urls.length === 0) return;
-    Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});
-  }, [countryQuestions, pictureQuestions]);
+  // NOTE: there is deliberately NO bulk `Image.prefetch` of the whole catalogue
+  // here any more. Firing ~844 unordered downloads at once contended with the
+  // ordered `syncContent` downloader on a fresh install and had no readiness
+  // signal. Bytes now arrive in play order (batch 0 = the priority coats), the
+  // splash warms the first porción on the way out, and the game screens warm the
+  // next few questions as the player advances (useWarmAheadImages). The spoiler
+  // guard is unchanged — only the CORRECT option's original is ever fetched, at
+  // the download layer (correctOptionOriginalUrls → cacheImages, above).
 
   const value: CoatContentValue = {
     snapshot,
@@ -214,6 +230,7 @@ export function CoatContentProvider({ children }: { children: ReactNode }) {
     countsByContinent,
     status,
     error,
+    priorityReady,
   };
 
   return (
