@@ -16,7 +16,12 @@
  *
  * The signature now takes safe-area insets; the pure tests pass explicit insets.
  */
-import { coatContinentMetrics, coatQuizMetrics } from '@/lib/coat-of-arms/layout';
+import {
+  coatContinentMetrics,
+  coatQuizMetrics,
+  fitPromptFontSize,
+  PROMPT_FONT_MIN,
+} from '@/lib/coat-of-arms/layout';
 
 const NO_INSETS = { top: 0, bottom: 0 };
 const NOTCH_INSETS = { top: 47, bottom: 34 };
@@ -154,6 +159,76 @@ describe('coatQuizMetrics — adaptive branch (roomy windows)', () => {
       expect(Number.isInteger(m.coatSize)).toBe(true);
       expect(Number.isInteger(m.optionH)).toBe(true);
       expect(Number.isInteger(m.promptFont)).toBe(true);
+    }
+  });
+});
+
+describe('fitPromptFontSize — the two-line question fit', () => {
+  // The shipped RU prompt: the exact string that used to clip to «Какой стране …».
+  const RU_PROMPT = 'Какой стране принадлежит этот герб?';
+  // The bound the metric caps the prompt at (26pt on a phone, larger on tall iPads).
+  const MAX = 26;
+  // What styles.prompt leaves the text on a phone: contentWidth minus 24pt padding
+  // each side. 320px → 272, 360px → 312, 430px → 382.
+  const NARROW_W = 320 - 48; // 272
+
+  it('returns maxFont when there is nothing to fit (empty text or non-positive width)', () => {
+    expect(fitPromptFontSize('', 300, MAX)).toBe(MAX);
+    expect(fitPromptFontSize('   ', 300, MAX)).toBe(MAX);
+    expect(fitPromptFontSize(RU_PROMPT, 0, MAX)).toBe(MAX);
+    expect(fitPromptFontSize(RU_PROMPT, -10, MAX)).toBe(MAX);
+  });
+
+  it('shrinks the RU prompt below maxFont on a narrow column, but never below the floor', () => {
+    const f = fitPromptFontSize(RU_PROMPT, NARROW_W, MAX);
+    expect(f).toBeLessThan(MAX);
+    expect(f).toBeGreaterThanOrEqual(PROMPT_FONT_MIN);
+    expect(Number.isInteger(f)).toBe(true);
+  });
+
+  it('keeps the RU prompt at full maxFont when the column is wide enough', () => {
+    // 472 = the 520pt content column minus 24pt padding each side — a wide window.
+    expect(fitPromptFontSize(RU_PROMPT, 472, MAX)).toBe(MAX);
+  });
+
+  it('gives a Latin string a larger font than an equal-length Cyrillic one (narrower glyphs)', () => {
+    // Same character count, only the script differs; the cap is out of the way so
+    // the per-script advance is what decides.
+    const cyrillic = 'аб аб аб аб аб аб аб аб аб аб аб аб аб'; // 38 chars
+    const latin = 'ab ab ab ab ab ab ab ab ab ab ab ab ab'; // 38 chars
+    expect(latin.length).toBe(cyrillic.length);
+    const fLatin = fitPromptFontSize(latin, 300, 60);
+    const fCyr = fitPromptFontSize(cyrillic, 300, 60);
+    expect(fLatin).toBeGreaterThan(fCyr);
+  });
+
+  it('never returns below PROMPT_FONT_MIN even for a very long string in a tiny column', () => {
+    const long = 'a '.repeat(100).trim(); // 199 chars of short words
+    expect(fitPromptFontSize(long, 200, MAX)).toBe(PROMPT_FONT_MIN);
+  });
+
+  it('shrinks harder when one very long word must fit a single line (byWord constraint)', () => {
+    // Same total length; the single 20-char word forces a smaller font than the
+    // short-word version, because a word can never wrap onto a second line.
+    const shortWords = 'ab ab ab ab ab ab ab'; // 20 chars, longest word 2
+    const oneLongWord = 'a'.repeat(20); // 20 chars, longest word 20
+    expect(oneLongWord.length).toBe(shortWords.length);
+    const fShort = fitPromptFontSize(shortWords, 200, 40);
+    const fLong = fitPromptFontSize(oneLongWord, 200, 40);
+    expect(fLong).toBeLessThan(fShort);
+    expect(fLong).toBeGreaterThanOrEqual(PROMPT_FONT_MIN);
+  });
+
+  it('fits fully within the two-line height the metric reserves at every phone width', () => {
+    // At each phone width the prompt takes styles.prompt padding (24 each side);
+    // the fit must land in [PROMPT_FONT_MIN, promptFont] and be an integer so the
+    // rendered height never exceeds the two-line reserve that feeds coatSize.
+    for (const width of [320, 360, 393, 430]) {
+      const m = coatQuizMetrics(width, 852, NO_INSETS);
+      const f = fitPromptFontSize(RU_PROMPT, m.contentWidth - 48, m.promptFont);
+      expect(f).toBeGreaterThanOrEqual(PROMPT_FONT_MIN);
+      expect(f).toBeLessThanOrEqual(m.promptFont);
+      expect(Number.isInteger(f)).toBe(true);
     }
   });
 });

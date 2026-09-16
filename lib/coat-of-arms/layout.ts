@@ -175,6 +175,50 @@ export function coatQuizMetrics(
   };
 }
 
+// --- Prompt font-fitting ("All countries") ----------------------------------
+//
+// The question Text is capped at TWO lines (numberOfLines={2}) because the
+// answer-grid height fit above reserves exactly two lines' worth of height
+// (PROMPT_RESERVE_H) for it. Yet the FULL question must stay visible in every
+// locale and at every width. `adjustsFontSizeToFit` can't be trusted here:
+// react-native-web ignores it entirely (a long prompt just clips to two lines on
+// web), and on iOS a hard "\n" made it drop the second line — the original bug.
+// So the prompt font is chosen DETERMINISTICALLY: the largest size at which the
+// whole string word-wraps inside two lines, exactly like the answer labels'
+// fitFontSize, only across two lines of one string rather than one pre-wrapped
+// line. The result is always <= the metric's promptFont, so the two-line height
+// bound (and thus coatSize) is unchanged. Kept here — pure, renderer-free — so it
+// is unit-tested alongside the other quiz metrics.
+
+/** Prompt never shrinks below this — smaller stops being comfortably legible. */
+export const PROMPT_FONT_MIN = 15;
+// Average glyph advance as a fraction of the font size, measured from the bold
+// (900-weight) prompt in react-native-web. Cyrillic renders noticeably wider than
+// Latin; both are padded a touch so the two-line fit never clips.
+const PROMPT_ADV_CYRILLIC = 0.72;
+const PROMPT_ADV_LATIN = 0.56;
+// Word wrapping can't fill each line to its full width — this is the usable
+// fraction of one line, applied to both lines of the budget.
+const PROMPT_LINE_FILL = 0.9;
+const CYRILLIC_RE = /[Ѐ-ӿ]/;
+
+/**
+ * Largest font size (<= maxFont) at which `text` word-wraps within TWO lines of
+ * `textWidth`, also guaranteeing the single longest word fits one line. Returns
+ * maxFont for an empty/whitespace string or a non-positive width (nothing to fit).
+ */
+export function fitPromptFontSize(text: string, textWidth: number, maxFont: number): number {
+  const trimmed = text.trim();
+  if (!trimmed || textWidth <= 0) return maxFont;
+  const adv = CYRILLIC_RE.test(trimmed) ? PROMPT_ADV_CYRILLIC : PROMPT_ADV_LATIN;
+  // Width the whole string needs per 1pt of font size, vs. what two lines hold.
+  const unitWidth = trimmed.length * adv;
+  const byBudget = Math.floor((2 * textWidth * PROMPT_LINE_FILL) / unitWidth);
+  const longestWord = trimmed.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
+  const byWord = longestWord > 0 ? Math.floor(textWidth / (longestWord * adv)) : maxFont;
+  return Math.max(PROMPT_FONT_MIN, Math.min(maxFont, byBudget, byWord));
+}
+
 // --- "By continent" (continent-quiz.tsx) ------------------------------------
 
 const GRID_PAD = 20;

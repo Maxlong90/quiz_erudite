@@ -24,6 +24,7 @@ import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useLocale } from '@/hooks/use-locale';
 import { useCoatContent } from '@/hooks/coat-of-arms/use-coat-content';
 import { useCoatQuizMetrics } from '@/hooks/coat-of-arms/use-coat-layout';
+import { fitPromptFontSize } from '@/lib/coat-of-arms/layout';
 import { CONTENT_MAX_W } from '@/hooks/use-responsive';
 import { useRunProgress } from '@/hooks/flags-quiz/use-run-progress';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
@@ -59,47 +60,6 @@ const COAT_REVEAL_DELAY_MS = MOVE_MS;
 const OPTION_FONT_MAX = 23;
 const OPTION_FONT_MIN = 8;
 const CHAR_ADV = 0.72;
-
-// --- Prompt font-fitting -----------------------------------------------------
-//
-// The question is capped at TWO lines (styles.prompt + numberOfLines={2}), which
-// the answer-grid height fit from the layout metrics depends on. We must never
-// exceed that cap, yet the FULL question has to stay visible in every locale and
-// at every width. `adjustsFontSizeToFit` can't be trusted here: react-native-web
-// ignores it entirely (so a long prompt just clips to two lines on web), and on
-// iOS a hard "\n" made it drop the second line — the original bug. So instead we
-// DETERMINISTICALLY shrink the font until the whole string word-wraps inside two
-// lines, exactly like `fitFontSize` does for the answer labels, only across two
-// lines of a single string rather than one pre-wrapped line. Because the result is
-// always <= m.promptFont, the two-line height bound (and thus coatSize) is
-// unchanged.
-const PROMPT_FONT_MIN = 15;
-// Average glyph advance as a fraction of the font size, measured from the bold
-// (900-weight) prompt in react-native-web. Cyrillic renders noticeably wider than
-// Latin; both are padded a touch so the two-line fit never clips.
-const PROMPT_ADV_CYRILLIC = 0.72;
-const PROMPT_ADV_LATIN = 0.56;
-// Word wrapping can't fill each line to its full width — this is the usable
-// fraction of one line, applied to both lines of the budget.
-const PROMPT_LINE_FILL = 0.9;
-const CYRILLIC_RE = /[Ѐ-ӿ]/;
-
-/**
- * Largest font size (<= maxFont) at which `text` word-wraps within TWO lines of
- * `textWidth`. Also guarantees the single longest word fits one line. Returns
- * maxFont for an empty string or a zero width (nothing to fit).
- */
-function fitPromptFontSize(text: string, textWidth: number, maxFont: number): number {
-  const trimmed = text.trim();
-  if (!trimmed || textWidth <= 0) return maxFont;
-  const adv = CYRILLIC_RE.test(trimmed) ? PROMPT_ADV_CYRILLIC : PROMPT_ADV_LATIN;
-  // Width the whole string needs per 1pt of font size, vs. what two lines hold.
-  const unitWidth = trimmed.length * adv;
-  const byBudget = Math.floor((2 * textWidth * PROMPT_LINE_FILL) / unitWidth);
-  const longestWord = trimmed.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
-  const byWord = longestWord > 0 ? Math.floor(textWidth / (longestWord * adv)) : maxFont;
-  return Math.max(PROMPT_FONT_MIN, Math.min(maxFont, byBudget, byWord));
-}
 
 type OptionState = 'idle' | 'correct' | 'wrong';
 
