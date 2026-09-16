@@ -1,6 +1,6 @@
 # Italy Quiz
 
-Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, how a place's ten fixed **circles** and the chain between cities carry progression, and why four of its twenty questions ask for a range instead of a fact.
+Italy Quiz is the sixth app built from this tree: a single-topic quiz about Italy, played as a **tour of one place**. It has no economy at all — no lives, no coins, no premium — so the only thing shaping a session is the tour itself. This document explains why the app dropped subject categories entirely, how a tour is built out of four acts of time, and how a place's ten fixed **circles** and the chain between cities carry progression.
 
 ## Why a Sixth App
 
@@ -87,13 +87,14 @@ The strip on the place card draws all ten slots, and the load-bearing distinctio
 
 Only the **first** blocked slot gets `soon`; everything behind it is `locked`. "You have not cleared the one before" is knowable, while "will content ever exist for circle 7" is not.
 
-### What the draw protects
+### What the draw enforces
 
-`drawCircle` picks at random from what no earlier circle has claimed, so three things that used to be guaranteed by the authored order have to be enforced, and each is covered by a test:
+`drawCircle` picks at random from what no earlier circle has claimed. One ordering rule shapes each act's five picks, and one refusal rule shapes the circle as a whole; each is covered by a test:
 
-- **Callback pairs come whole, or not at all.** Half a pair is worse than none — the ribbon would point at a question the player never saw. A pair is forced only when BOTH halves are still unused, which makes it structurally impossible for one to straddle two circles. A pair authored in the wrong direction (the second half in an earlier act) is dropped rather than shown broken, and one that will not fit an act's five-slot quota waits whole for a later circle.
-- **The warm-up opens the circle — when it is still available.** Rome's warm-up is consumed by circle 1 and never returns, so circle 2 simply opens on a shuffled antiquity question rather than failing to fill.
+- **Unseen questions come before seen ones.** `seen` is only a tie-breaker inside an act's pool, never an exclusion — it is migration residue (see [Storage](#storage)) and must never make a circle undrawable. Both groups are shuffled independently, so a replay of the same fixed set still varies the order.
 - **A circle is refused, not stunted.** `drawCircle` returns `null` when ANY act is short, not when the total is. Twenty spare questions all sitting in antiquity is not a circle, and the UI shows `soon` instead of a lopsided tour. `canDrawCircle` is literally that same predicate, so the strip's idea of playable and the draw's idea of possible cannot drift apart.
+
+Earlier versions of the draw also had to protect two hand-authored mechanics — a "warm-up" question pinned first and "callback" pairs that had to be drawn whole — that the backend never supplied. Both mechanics were removed, so the draw no longer special-cases either; questions are just the one shape described under [One Question Shape](#one-question-shape).
 
 ### Cities open in a chain
 
@@ -138,7 +139,7 @@ The acts are chronological on purpose: the player does not *choose* "Ancient Rom
 
 The Renaissance gets its own act rather than sitting inside a broader "centuries" bucket because it is the single thing Italy is best known for; folded into a wider act it disappeared.
 
-`drawCircle` in `lib/italy-quiz/circles.ts` builds the order act by act, shuffling inside each act — see [What the draw protects](#what-the-draw-protects) for the three guarantees that survive the shuffle. The acts themselves must always stay in sequence, because a callback pair is authored across them.
+`drawCircle` in `lib/italy-quiz/circles.ts` builds the order act by act, shuffling inside each act — see [What the draw enforces](#what-the-draw-enforces) for the ordering and refusal rules that survive the shuffle. The acts themselves always play in sequence because the chronology *is* the point: the player travels through time rather than shuffling it.
 
 ### Interludes carry the jump
 
@@ -148,33 +149,17 @@ It **waits for a tap** rather than auto-advancing, so the player controls the pa
 
 Interludes are **suppressed during a mistakes review**, where the questions jump between acts by definition and an interlude would fire on almost every question.
 
-## One Question Shape, Two Ways to Answer It
+## One Question Shape
 
-There is one question shape: four options, one right, with an optional bundled image — a photo question and a text question are the same thing with and without `image`.
+There is exactly one question shape: four options, one right, with an optional bundled image — a photo question and a text question are the same thing with and without `image`. Both answer through the same grid of four buttons. The app carries no bespoke input widget, so every question in every act is answered the same way.
 
-Four of Rome's twenty carry an `estimate` flag. Their options are **ranges** rather than facts — "800–600 BC", "about 120 years", "about 1.5 million €" — and they exist because a tour of twenty facts is otherwise a pure pass/fail on what the player happens to have read. The exact founding year of Rome is knowledge; "older than Athens, younger than Egypt" is reasoning, and everyone can do the second. The explanation still gives the exact number, so nothing is lost by not asking for it.
+Some of Rome's questions ask for a **range** rather than a single fact — "800–600 BC", "about 120 years", "about 1.5 million €". These are ordinary four-option questions whose options happen to be spans; they are authored as plain text options and scored like any other. They exist because a tour of twenty exact facts is otherwise pure pass/fail on what the player happens to have read. The exact founding year of Rome is knowledge; "older than Athens, younger than Egypt" is reasoning, and everyone can do the second. The explanation still gives the exact number, so nothing is lost by not asking for it.
 
-### The notched slider
-
-`estimate` changes only the INPUT, never the scoring. Because ranges are inherently ordered, the four options are laid along a line and answered with `NotchedSlider`: the thumb snaps to one of four notches, the reading above names whichever option it is resting on, and confirming reports that option's index down the ordinary answer path. `options` must therefore be authored smallest-to-largest, and a small hint pair under the track ("earlier ◀ ▶ later" or "less ◀ ▶ more", picked by the question's `axis`) says which way the line runs.
-
-The snapping is the whole point. A first version of this was a continuous slider that asked the player to hit one year out of eleven centuries — a target nobody can hit. With four stops each target is a quarter of the track wide, so a sloppy drag still lands where it was aimed, and there is exactly one right notch and three wrong ones like any other question.
-
-That first version was also outright broken in a way worth recording, because the failure is easy to repeat. It measured where its track sat on screen **once, in a ref callback at mount**, before layout had settled; the measurement came back near zero and every touch afterwards mapped about thirty pixels off — a constant error of nearly a century, for the life of the screen. `NotchedSlider` measures nothing global: the grant event's own `locationX` is already relative to the component, and each move is that anchor plus the page-space delta. It is exact by construction and cannot drift when the surrounding `ScrollView` moves. For the same reason it refuses `onPanResponderTerminationRequest` — once a drag starts, the scroll view may not take the gesture away mid-stroke.
-
-The thumb stays dim and the confirm button inactive until the player first touches the track, so the starting notch is never mistaken for a pre-selected answer.
+An earlier prototype turned these range questions into a **notched slider** and paired some questions across acts as a "then → now" callback ribbon — both hand-authored mechanics the backend was never going to feed. They were removed to leave the two shapes above, so a range question is now just four ordered text options in the standard grid. Do not reintroduce a per-question input mode or a cross-question ribbon without a backend that actually supplies the metadata.
 
 ### A miss reveals nothing
 
 Only the option the player taps changes colour, a wrong pick never highlights where the correct answer was, and the tour moves on by itself after a brief pause. This mirrors [Flags Quiz](flags-quiz.md#the-answer-flow) and exists to protect the mistakes review: a question whose answer was just shown is worthless to replay. A correct pick behaves the opposite way — it does not auto-advance, the explanation appears, and a Next button lets the player control the pace of the thing actually worth reading.
-
-## Callbacks: Then → Now
-
-A question may carry `callback`, the id of an **earlier question in the same tour**. The quiz screen then draws a ribbon above the question with that earlier question's text and thumbnail.
-
-It is how the app connects antiquity to the present without filing them as two subcategories. In the Rome tour, question 5 asks what Domitian's thirty-thousand-seat stadium hosted; question 16, three acts and nineteen centuries later, shows Piazza Navona and asks what that stadium turned into — the square is long and narrow because it is the stadium's running field. The second Rome pair does the same with the Pantheon (question 2) whose bronze was stripped for Bernini's baldachin (question 15).
-
-Callbacks are why **acts may never be reordered**. A pair is authored across acts so the first half always plays before the second; shuffling acts, or drawing questions across act boundaries, would show a player a ribbon referring to a question they have not seen.
 
 ## Resuming a Circle
 
