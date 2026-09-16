@@ -289,3 +289,157 @@ export function coatContinentMetrics(
     gapHeight,
   };
 }
+
+// --- Play menu (play.tsx) ---------------------------------------------------
+//
+// The Play screen is a MENU, not gameplay: a header, a stack of five glossy mode
+// buttons, then a flex:1 spacer, then a bottom "Other apps" tile. There is no
+// scroll, so everything must fit. On a tall phone the stack has slack and the
+// spacer absorbs it, so the shipped numbers stand. On a SHORT or ZOOMED window
+// (Display Zoom shrinks the logical height) the fixed header + five buttons +
+// tile can exceed the window: the spacer collapses to 0 and the tile draws over
+// the last ("Bonus level") button. So the button stack's vertical rhythm is
+// fitted to the height LEFT once the header, the tile and a minimum spacer are
+// reserved.
+//
+// This CANNOT lean on Responsive.scale: computeResponsive gates scale to exactly
+// 1 on every phone (<=480x960), which is every window this bug appears on. The
+// fit is computed from the real available height instead — the same shape the two
+// gameplay screens above use.
+
+/** styles.header: paddingVertical 10 both sides + the 44pt icon button. */
+const PLAY_HEADER_H = 64;
+/**
+ * Bottom "Other apps" tile: the 70pt phone tile + styles.bottomItem gap 6 + one
+ * 14pt label line (~18) + styles.bottom paddingBottom 12. Reserved whole and never
+ * scaled — only the button stack gives up height.
+ */
+const PLAY_BOTTOM_H = 106;
+/** Guaranteed gap between the button stack and the bottom tile (never negative). */
+const PLAY_MIN_SPACER = 12;
+/** styles.actions.paddingTop above the first button. */
+const PLAY_PAD_TOP = 8;
+/** Shipped GlossyButton paddingVertical on this screen. */
+const PLAY_PAD_V_BASE = 22;
+/** Shipped gap between mode buttons (styles.actions.gap). */
+const PLAY_GAP_BASE = 16;
+/** Shipped mode-button label font. */
+const PLAY_FONT_BASE = 24;
+/** Shipped mode-button icon side (styles.icon). */
+const PLAY_ICON_BASE = 46;
+/** Padding floor — the button never drops below this vertical padding. */
+const PLAY_PAD_V_MIN = 8;
+/** Inter-button gap floor. */
+const PLAY_GAP_MIN = 8;
+/** Label font floor — smaller stops being comfortably legible. */
+const PLAY_FONT_MIN = 16;
+/** Icon floor. */
+const PLAY_ICON_MIN = 32;
+/** GlossyButton borderWidth 2, both sides. */
+const PLAY_BTN_BORDER = 4;
+
+/**
+ * Tallest content a mode button can hold. The WORST case is a locked button whose
+ * sublabel ("Будет доступно в скором времени" in RU) wraps to TWO lines — the
+ * styles.sub Text has no numberOfLines, so it does. Modelling every button at that
+ * height makes the fit locale-stable (RU and EN lay out identically) and never
+ * under-reserves against the real render. GlossyButton centres a [icon | textCol]
+ * row, so the content height is the taller of the icon and the text column.
+ */
+function playButtonContent(fontSize: number, iconSize: number): number {
+  const titleLine = Math.ceil(fontSize * 1.2);
+  // styles.sub: 13pt, up to two wrapped lines, + marginTop 2.
+  const sublabelBlock = 2 * Math.ceil(13 * 1.25) + 2;
+  return Math.max(iconSize, titleLine + sublabelBlock);
+}
+
+function playButtonHeight(padV: number, fontSize: number, iconSize: number): number {
+  return PLAY_BTN_BORDER + playButtonContent(fontSize, iconSize) + 2 * padV;
+}
+
+/**
+ * Height of the whole button block: the stack sits half a button below the header
+ * (styles.actions marginTop = btnH/2, measured at runtime), then paddingTop, five
+ * buttons and four inter-button gaps.
+ */
+function playStackHeight(padV: number, gap: number, fontSize: number, iconSize: number): number {
+  const btnH = playButtonHeight(padV, fontSize, iconSize);
+  return btnH / 2 + PLAY_PAD_TOP + 5 * btnH + 4 * gap;
+}
+
+export interface CoatPlayMetrics extends Responsive {
+  /** GlossyButton paddingVertical for the five mode buttons. */
+  buttonPadV: number;
+  /** Gap between mode buttons (overrides styles.actions.gap). */
+  buttonGap: number;
+  /** Mode-button label font size. */
+  buttonFont: number;
+  /** Mode-button icon side. */
+  iconSize: number;
+}
+
+/**
+ * Metrics for the Play menu.
+ *
+ * On a tall phone (393x852, 430x932, 440x956, ...) this returns exactly the
+ * constants that shipped: `{buttonPadV: 22, buttonGap: 16, buttonFont: 24,
+ * iconSize: 46}` — the fit is inert while the shipped stack still leaves a
+ * non-negative spacer (the same "enough room -> old numbers" gate computeResponsive
+ * uses). On a SHORT or ZOOMED window the button padding and gaps shrink so the
+ * whole stack fits with a `PLAY_MIN_SPACER` gap before the tile, and only in an
+ * extreme case (padding already at its floor) does the font/icon shrink too. The
+ * button never drops below a comfortable tap target: the border + content alone is
+ * already >= 44pt, so `buttonHeight >= 44` at any padding.
+ */
+export function coatPlayMetrics(
+  width: number,
+  height: number,
+  insets: LayoutInsets = NO_INSETS,
+): CoatPlayMetrics {
+  const r = computeResponsive(width, height);
+  // iconSize keeps its existing `* scale` behaviour (=46 on every phone, larger on
+  // a tall iPad window) so wide-window width adaptation is unchanged.
+  const baseIcon = Math.round(PLAY_ICON_BASE * r.scale);
+
+  // Room the header + shipped stack + tile leave with a zero spacer. While that is
+  // still non-negative the shipped stack does not overlap, so keep the old numbers.
+  const availNoMin = height - insets.top - insets.bottom - PLAY_HEADER_H - PLAY_BOTTOM_H;
+  const naturalStack = playStackHeight(PLAY_PAD_V_BASE, PLAY_GAP_BASE, PLAY_FONT_BASE, baseIcon);
+  if (naturalStack <= availNoMin) {
+    return {
+      ...r,
+      buttonPadV: PLAY_PAD_V_BASE,
+      buttonGap: PLAY_GAP_BASE,
+      buttonFont: PLAY_FONT_BASE,
+      iconSize: baseIcon,
+    };
+  }
+
+  // Compress so the stack fits with a real gap before the tile. buttonHeight is
+  // linear in the scale `f` (only padding/gap/topMargin scale; border + content are
+  // fixed), so `f` is a closed-form solve, not a search. NOTE: scaling padding by
+  // `availStack/naturalStack` would NOT fit — the fixed part does not scale — hence
+  // the explicit fixed/scalable split.
+  const availStack = availNoMin - PLAY_MIN_SPACER;
+  const contentBase = playButtonContent(PLAY_FONT_BASE, baseIcon);
+  const fixedPart = 5.5 * (PLAY_BTN_BORDER + contentBase) + PLAY_PAD_TOP;
+  const scalablePart = 5.5 * 2 * PLAY_PAD_V_BASE + 4 * PLAY_GAP_BASE;
+  const f = Math.max(0, Math.min(1, (availStack - fixedPart) / scalablePart));
+
+  let buttonPadV = Math.max(PLAY_PAD_V_MIN, Math.round(PLAY_PAD_V_BASE * f));
+  let buttonGap = Math.max(PLAY_GAP_MIN, Math.round(PLAY_GAP_BASE * f));
+  let buttonFont = PLAY_FONT_BASE;
+  let iconSize = baseIcon;
+
+  // Extreme zoom: if the floored padding/gap still overflow, shrink font + icon —
+  // which lowers the fixed content height — toward their floors until it fits.
+  if (playStackHeight(buttonPadV, buttonGap, buttonFont, iconSize) > availStack) {
+    const btnExtras = PLAY_BTN_BORDER + 2 * buttonPadV;
+    const maxContent = (availStack - PLAY_PAD_TOP - 4 * buttonGap) / 5.5 - btnExtras;
+    const cRatio = Math.max(0, Math.min(1, maxContent / contentBase));
+    buttonFont = Math.max(PLAY_FONT_MIN, Math.round(PLAY_FONT_BASE * cRatio));
+    iconSize = Math.max(PLAY_ICON_MIN, Math.round(baseIcon * cRatio));
+  }
+
+  return { ...r, buttonPadV, buttonGap, buttonFont, iconSize };
+}

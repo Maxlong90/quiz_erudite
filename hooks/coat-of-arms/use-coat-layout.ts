@@ -4,8 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   coatContinentMetrics,
+  coatPlayMetrics,
   coatQuizMetrics,
   type CoatContinentMetrics,
+  type CoatPlayMetrics,
   type CoatQuizMetrics,
 } from '@/lib/coat-of-arms/layout';
 
@@ -42,6 +44,20 @@ export function useCoatContinentMetrics(): CoatContinentMetrics {
   const insets = useSafeAreaInsets();
   return useMemo(
     () => coatContinentMetrics(width, height, insets),
+    [width, height, insets.top, insets.bottom],
+  );
+}
+
+/**
+ * Metrics for the Play menu. Subtracts the safe-area insets so the button stack
+ * gives up exactly the right amount of room on a notched device and the bottom
+ * "Other apps" tile never overlaps the last mode button.
+ */
+export function useCoatPlayMetrics(): CoatPlayMetrics {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  return useMemo(
+    () => coatPlayMetrics(width, height, insets),
     [width, height, insets.top, insets.bottom],
   );
 }

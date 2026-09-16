@@ -10,6 +10,8 @@ import React from 'react';
 import { Linking } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 
+import { PHONE_WINDOW, pinWindow, unpinWindow } from '../helpers/window';
+
 const DEV_ID = '6787385688';        // publisher (Maryia Pyzhyk)
 const ERUDITE_APP_ID = '6787385686'; // a specific app — must NOT be opened here
 
@@ -21,7 +23,8 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
-  return { SafeAreaView: View };
+  // useSafeAreaInsets is now read via the Play height-fit hook (useCoatPlayMetrics).
+  return { SafeAreaView: View, useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
 });
 jest.mock('@/components/coat-of-arms/app-background', () => ({
   AppBackground: () => null,
@@ -55,11 +58,15 @@ import CoatOfArmsPlay from '@/app/coat-of-arms/play';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // RN's jest preset reports 750x1334 — not a phone — so pin a phone window to
+  // exercise the shipped (identity) Play layout.
+  pinWindow(PHONE_WINDOW.width, PHONE_WINDOW.height);
   jest.spyOn(Linking, 'openURL').mockResolvedValue(true as unknown as boolean);
 });
 
 afterEach(() => {
   (Linking.openURL as jest.Mock).mockRestore();
+  unpinWindow();
 });
 
 describe('Coat of Arms Play — "Other apps"', () => {

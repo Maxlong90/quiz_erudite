@@ -10,7 +10,7 @@ import { GlossyButton } from '@/components/flags-quiz/glossy-button';
 import { useFQLabels } from '@/constants/flags-quiz/labels';
 import { useCoaLabels } from '@/constants/coat-of-arms/labels';
 import { CATEGORY_ICON, useCategoryIconsReady } from '@/constants/coat-of-arms/category-icons';
-import { useResponsive } from '@/hooks/use-responsive';
+import { useCoatPlayMetrics } from '@/hooks/coat-of-arms/use-coat-layout';
 import { getDeveloperLinks } from '@/lib/store-links';
 
 // Soften the busy coats artwork behind the mode buttons so the glossy buttons
@@ -45,16 +45,17 @@ export default function CoatOfArmsPlay() {
   const c = useCoaLabels();
   const bgReady = useCoatBgReady();
   const iconsReady = useCategoryIconsReady();
-  // Live window metrics — this screen's five mode buttons were the worst offender
-  // in the iPad reject, stretching into full-width stripes on a wide window.
-  const r = useResponsive();
+  // Live window metrics. r.column keeps the five buttons from stretching into
+  // full-width stripes on a wide window (the iPad reject); the vertical fields
+  // (buttonPadV/buttonGap/buttonFont/iconSize) shrink the button stack on a short
+  // or Display-Zoomed window so the bottom "Other apps" tile never overlaps the
+  // last mode button. On a tall phone every field is the shipped value.
+  const r = useCoatPlayMetrics();
   // Measured height of a single mode button — the whole stack is nudged down by
-  // half of it, widening ONLY the gap under the header (mirrors Flags Quiz).
+  // half of it, widening ONLY the gap under the header (mirrors Flags Quiz). It
+  // tracks the fitted button height, so on a short window the top gap shrinks too.
   const [btnH, setBtnH] = useState(0);
-  // Safe to scale: the icon feeds the MEASURED button's height, which feeds a
-  // SIBLING's marginTop. The measured node's own height never depends on btnH,
-  // so there is no onLayout → setState → relayout loop.
-  const iconSize = Math.round(46 * r.scale);
+  const iconSize = r.iconSize;
 
   // While the (already home-warmed) coats artwork + category icons finish
   // caching, render the SAME coats background (over the blue base) rather than a
@@ -100,29 +101,30 @@ export default function CoatOfArmsPlay() {
             </Pressable>
           </View>
 
-          {/* Mode buttons — the stack sits half a button lower than the header. */}
-          <View style={[styles.actions, btnH ? { marginTop: btnH / 2 } : null]}>
+          {/* Mode buttons — the stack sits half a button lower than the header,
+              and its padding/gap/font shrink to fit a short or zoomed window. */}
+          <View style={[styles.actions, { gap: r.buttonGap }, btnH ? { marginTop: btnH / 2 } : null]}>
             <View onLayout={(e) => setBtnH(e.nativeEvent.layout.height)}>
               <GlossyButton
                 label={t.allCountries}
-                fontSize={24}
-                paddingVertical={22}
+                fontSize={r.buttonFont}
+                paddingVertical={r.buttonPadV}
                 icon={<Image source={CATEGORY_ICON.allCountries} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
                 onPress={() => router.push('/coat-of-arms/quiz')}
               />
             </View>
             <GlossyButton
               label={t.byContinents}
-              fontSize={24}
-              paddingVertical={22}
+              fontSize={r.buttonFont}
+              paddingVertical={r.buttonPadV}
               icon={<Image source={CATEGORY_ICON.byContinents} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
               onPress={() => router.push('/coat-of-arms/continents')}
             />
             <GlossyButton
               label={t.challenge}
               sublabel={t.comingSoon}
-              fontSize={24}
-              paddingVertical={22}
+              fontSize={r.buttonFont}
+              paddingVertical={r.buttonPadV}
               locked
               icon={<Image source={CATEGORY_ICON.challenge} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
               onPress={() => {}}
@@ -130,8 +132,8 @@ export default function CoatOfArmsPlay() {
             <GlossyButton
               label={c.cities}
               sublabel={t.comingSoon}
-              fontSize={24}
-              paddingVertical={22}
+              fontSize={r.buttonFont}
+              paddingVertical={r.buttonPadV}
               locked
               icon={<Image source={CATEGORY_ICON.cities} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
               onPress={() => {}}
@@ -139,8 +141,8 @@ export default function CoatOfArmsPlay() {
             <GlossyButton
               label={c.bonusLevel}
               sublabel={t.comingSoon}
-              fontSize={24}
-              paddingVertical={22}
+              fontSize={r.buttonFont}
+              paddingVertical={r.buttonPadV}
               locked
               icon={<Image source={CATEGORY_ICON.bonus} style={[styles.icon, { width: iconSize, height: iconSize }]} resizeMode="contain" fadeDuration={0} />}
               onPress={() => {}}
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  actions: { paddingHorizontal: 24, paddingTop: 8, gap: 16 },
+  actions: { paddingHorizontal: 24, paddingTop: 8 },
   icon: { width: 46, height: 46 },
   spacer: { flex: 1 },
   bottom: {

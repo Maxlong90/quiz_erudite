@@ -18,6 +18,7 @@
  */
 import {
   coatContinentMetrics,
+  coatPlayMetrics,
   coatQuizMetrics,
   fitPromptFontSize,
   PROMPT_FONT_MIN,
@@ -252,5 +253,104 @@ describe('coatContinentMetrics — adaptive branch (roomy windows)', () => {
     for (const [width, height] of [[600, 800], [820, 1180], [1024, 768]]) {
       expect(Number.isInteger(coatContinentMetrics(width, height, NO_INSETS).optW)).toBe(true);
     }
+  });
+});
+
+describe('coatPlayMetrics — the Play menu height fit', () => {
+  // Reserves mirrored from lib/coat-of-arms/layout.ts. The Play screen is a menu
+  // with no scroll: header + 5 mode buttons + a bottom "Other apps" tile all have
+  // to fit, and the "Bonus level" button must never be overlapped by the tile.
+  const HEADER_H = 64;
+  const BOTTOM_H = 106;
+  const MIN_SPACER = 12;
+  const PAD_TOP = 8;
+  const BORDER = 4;
+  // Worst-case (RU, 2-line sublabel) button content, same model the metric uses.
+  const SUBLABEL_BLOCK = 2 * Math.ceil(13 * 1.25) + 2;
+  const content = (font: number, icon: number) =>
+    Math.max(icon, Math.ceil(font * 1.2) + SUBLABEL_BLOCK);
+
+  // The full on-screen stack rebuilt from the metric's own outputs: header + the
+  // button block (top margin = btnH/2, paddingTop, 5 buttons, 4 gaps) + tile +
+  // insets. If this is <= height, the tile does not overlap the last button.
+  function fullStack(width: number, height: number, insets: { top: number; bottom: number }) {
+    const m = coatPlayMetrics(width, height, insets);
+    const btnH = BORDER + content(m.buttonFont, m.iconSize) + 2 * m.buttonPadV;
+    const block = btnH / 2 + PAD_TOP + 5 * btnH + 4 * m.buttonGap;
+    return insets.top + insets.bottom + HEADER_H + block + BOTTOM_H;
+  }
+
+  // Heights tall enough that even the worst-case (RU, 2-line sublabel) shipped
+  // stack fits with a non-negative spacer — there the menu stays pixel-identical to
+  // what shipped. (Shorter phones like 852 genuinely overlap in RU today, so the
+  // fit is ALLOWED to compress them; those are covered by the short-window block.)
+  const IDENTITY_PHONES = PHONE_WIDTHS.flatMap((w) => [874, 896, 926, 932, 956].map((h) => [w, h]));
+
+  describe('tall phones keep the shipped constants (identity)', () => {
+    it.each(IDENTITY_PHONES)('%i x %i keeps padV 22 / gap 16 / font 24 / icon 46 (no insets)', (width, height) => {
+      const m = coatPlayMetrics(width, height, NO_INSETS);
+      expect(m.buttonPadV).toBe(22);
+      expect(m.buttonGap).toBe(16);
+      expect(m.buttonFont).toBe(24);
+      expect(m.iconSize).toBe(46);
+    });
+
+    it('keeps the shipped constants on the tallest phone even under a notch', () => {
+      // 956 (16/17 Pro Max) is the acceptance "identity" height — a notch still
+      // leaves room for the shipped stack.
+      for (const width of [393, 430, 440]) {
+        const m = coatPlayMetrics(width, 956, NOTCH_INSETS);
+        expect(m.buttonPadV).toBe(22);
+        expect(m.buttonGap).toBe(16);
+        expect(m.buttonFont).toBe(24);
+        expect(m.iconSize).toBe(46);
+      }
+    });
+  });
+
+  describe('short / Display-Zoomed windows compress so nothing overlaps', () => {
+    const SHORT = [812, 780, 740, 700];
+    const WIDTHS = [393, 430];
+    const cases = SHORT.flatMap((h) => WIDTHS.map((w) => [w, h]));
+
+    it.each(cases)('%i x %i fits the whole stack with a real gap (web, no insets)', (width, height) => {
+      const m = coatPlayMetrics(width, height, NO_INSETS);
+      // The stack shrank, but the buttons are still comfortably tappable and legible.
+      expect(m.buttonPadV).toBeLessThan(22);
+      expect(m.buttonPadV).toBeGreaterThanOrEqual(8);
+      expect(m.buttonFont).toBeGreaterThanOrEqual(16);
+      const btnH = BORDER + content(m.buttonFont, m.iconSize) + 2 * m.buttonPadV;
+      expect(btnH).toBeGreaterThanOrEqual(44);
+      // ...and the "Other apps" tile keeps a non-negative gap to "Bonus level".
+      expect(fullStack(width, height, NO_INSETS)).toBeLessThanOrEqual(height - MIN_SPACER + 1);
+    });
+
+    it('fits on a genuinely short device height under a realistic notch (812 + insets)', () => {
+      for (const width of WIDTHS) {
+        expect(fullStack(width, 812, NOTCH_INSETS)).toBeLessThanOrEqual(812);
+        const m = coatPlayMetrics(width, 812, NOTCH_INSETS);
+        const btnH = BORDER + content(m.buttonFont, m.iconSize) + 2 * m.buttonPadV;
+        expect(btnH).toBeGreaterThanOrEqual(44);
+      }
+    });
+
+    it('drops the font/icon only as a last resort, once padding hits its floor', () => {
+      // A tall enough short window compresses padding/gap but leaves the text at 24.
+      expect(coatPlayMetrics(393, 780, NO_INSETS).buttonFont).toBe(24);
+      // An extreme squeeze eventually shrinks the font too, but never below its floor.
+      const extreme = coatPlayMetrics(393, 560, NO_INSETS);
+      expect(extreme.buttonFont).toBeGreaterThanOrEqual(16);
+      expect(extreme.buttonPadV).toBe(8);
+    });
+
+    it('returns integer dimensions (no sub-pixel image re-rasterisation)', () => {
+      for (const [width, height] of cases) {
+        const m = coatPlayMetrics(width, height, NO_INSETS);
+        expect(Number.isInteger(m.buttonPadV)).toBe(true);
+        expect(Number.isInteger(m.buttonGap)).toBe(true);
+        expect(Number.isInteger(m.buttonFont)).toBe(true);
+        expect(Number.isInteger(m.iconSize)).toBe(true);
+      }
+    });
   });
 });
