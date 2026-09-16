@@ -61,7 +61,7 @@ Like Flags Quiz, the app runs two modes backed by two *different* question shape
 
 ### All countries — coat picture, text answers
 
-`app/coat-of-arms/quiz.tsx` shows one coat and four country names. These are ordinary snapshot `image_questions` from `GET /apps/coat-of-arms/snapshot`, transformed by Flags Quiz's own `buildCountryQuestions` — the shape is identical, so the transform is shared rather than duplicated. Only the artwork differs: a coat is portrait or square where a flag is wide, so the picture sits in a square frame on a white plate and is *contained*, never cropped, so a transparent crest still reads clearly. That frame is 190 points on any phone and grows with the window elsewhere — see [Laying Out for a Window That Can Change Size](#laying-out-for-a-window-that-can-change-size).
+`app/coat-of-arms/quiz.tsx` shows one coat and four country names. These are ordinary snapshot `image_questions` from `GET /apps/coat-of-arms/snapshot`, transformed by Flags Quiz's own `buildCountryQuestions` — the shape is identical, so the transform is shared rather than duplicated. Only the artwork differs: a coat is portrait or square where a flag is wide, so the picture sits in a square frame on a white plate and is *contained*, never cropped, so a transparent crest still reads clearly. That frame is 190 points on a normal tall phone. It grows on a larger window and *shrinks* on a short or narrow one, always giving up height so the answer buttons stay on screen — see [Laying Out for a Window That Can Change Size](#laying-out-for-a-window-that-can-change-size).
 
 Russian is the one locale that overrides the backend prompt. The single-line wrap of "Какой стране принадлежит этот герб?" looked wrong on a phone, so `constants/coat-of-arms/labels.ts` supplies a two-line `quizPrompt`; every other locale keeps the backend question, whose wrap is already fine.
 
@@ -148,9 +148,34 @@ The whole fix hangs off one branch, in `computeResponsive` (`hooks/use-responsiv
       └───────────────────────┘        └────────────────────────────┘
 ```
 
-**`isCompact` is the load-bearing invariant.** The widest phone is 440 × 956, so every real phone takes the identity branch. That turns "phones are unchanged" from a review claim into one machine-checked table: `__tests__/hooks/use-responsive.test.ts` walks every iPhone size, and `__tests__/lib/coat-of-arms-layout.test.ts` pins `coatSize: 190`, `optionH: 68`, and the original option-width packing. Any future scaling curve that starts touching phones fails those suites.
+**`isCompact` is the load-bearing invariant.** The widest phone is 440 × 956, so every real phone takes the identity branch and `scale` stays 1. But identity alone no longer guarantees the shipped numbers, because the coat metrics apply a second cap on top of the gate — see [The answer grid is the anchor](#the-answer-grid-is-the-anchor). The guarantee is now narrower and precise: on a *tall* phone the coat is still exactly `coatSize: 190` with `optionH: 68` and the original option-width packing. `__tests__/lib/coat-of-arms-layout.test.ts` pins those literals across every phone width at tall heights (812 pt and up), even under a realistic notch inset. A short phone or a resized window, where the height cap bites, is tested separately.
 
 The hook deliberately exports no `isTablet` flag. There is no iPad layout here — there is one layout that survives any window size.
+
+### The answer grid is the anchor
+
+The compact gate fixed labels and packing but left one thing unsolved: on a short or narrow window the coat had a *fixed* size, and the 2×2 answer grid flowed below it with no scroll, so the bottom row of buttons slid off the edge. Reproduced at 360 × 610 — an iPhone-only binary in a resized iPad window — the lower pair of answers was clipped and unreachable.
+
+The principle behind the fix inverts the old height priority: **the answer grid is the anchor and is always fully visible; the coat gives up height to it.** No page scroll is ever introduced on the question screen — the only scrollable region stays the reveal explanation. Instead the coat is sized from whatever vertical room is left over.
+
+`coatQuizMetrics` (`lib/coat-of-arms/layout.ts`) does this analytically, as a pure function of width, height, and the safe-area insets — no `onLayout` measurement, no flicker. It reserves the fixed regions first (the HUD, the progress line, a two-line prompt allowance, the coat-frame chrome, the gap, and the grid's own height), subtracts them and the insets from the window height, and caps `coatSize` at the leftover `freeH`:
+
+```
+coatSize = round( clamp(
+    COAT_MIN,                                  ← floor: 110 pt, still recognisable
+    min( COAT_SIZE_BASE × scale,               ← the shipped 190 curve
+         freeH,                                ← NEW: what height is left over
+         contentWidth − FRAME_CHROME − COAT_COLUMN_MARGIN,
+         COAT_SIZE_MAX ) ) )
+```
+
+Order matters. `optionH` depends only on `scale`, so the grid's height is known first; the leftover then feeds `coatSize`. On a tall phone `freeH` is ample, so `min(...)` returns the shipped 190 and the phone is visually unchanged. On a short or narrow window `freeH` binds and the coat shrinks — down to but never below `COAT_MIN` (110 pt), the point past which a coat stops being identifiable.
+
+Crucially, this height cap is applied **unconditionally**, even inside the compact gate's identity branch. That is deliberate: the gate returns `scale: 1` before any arithmetic, which is exactly why an iPad-sized window that happens to be phone-*shaped* used to escape adaptation entirely — the original bug. Applying `freeH` after the gate closes that hole while leaving tall phones untouched. The buttons themselves stay the anchor and do not shrink on a compact window; only in an extremely tight window does `optionH` follow `scale` down, and never below a comfortable 44 pt tap target.
+
+The insets reach the pure functions through the metric hooks, which now read `useSafeAreaInsets` and key their memo on the scalar `top`/`bottom` values (the insets object identity churns every render). The functions default insets to zero, so the unit tests and the web build — which has no insets — call them exactly as before.
+
+The continent screen mirrors all of this, with one packing subtlety carried in [Three rules that are easy to break](#three-rules-that-are-easy-to-break).
 
 ### How a screen reads its metrics
 
@@ -178,7 +203,7 @@ Screens never do the arithmetic themselves. The two gameplay screens read named 
                 └──────────────────────────────┘
 ```
 
-The split between `hooks/coat-of-arms/use-coat-layout.ts` and `lib/coat-of-arms/layout.ts` is not ceremony. The hooks are only the wire from the live window size (`useWindowDimensions`, which subscribes to `Dimensions.change`) to pure functions of width and height. Keeping the arithmetic pure is what lets the phone-identity table be a unit test with no renderer. It also respects an expo-router constraint: a route file may export only its screen component, so the numbers cannot live next to the screen that uses them. Call the hooks *above* either screen's content-loading early return, or the hook order breaks.
+The split between `hooks/coat-of-arms/use-coat-layout.ts` and `lib/coat-of-arms/layout.ts` is not ceremony. The hooks are only the wire from the live window size (`useWindowDimensions`, which subscribes to `Dimensions.change`) and the safe-area insets to pure functions of width, height, and insets. Keeping the arithmetic pure is what lets the phone-identity table be a unit test with no renderer. It also respects an expo-router constraint: a route file may export only its screen component, so the numbers cannot live next to the screen that uses them. Call the hooks *above* either screen's content-loading early return, or the hook order breaks.
 
 Every size the layout functions return is rounded. Fractional widths make expo-image re-rasterise on each sub-pixel change, and a resize drag produces a great many of those.
 
@@ -188,7 +213,7 @@ All three are load-bearing:
 
 - **`CONTENT_MAX_W` is one number (520) for every screen.** Two different caps make the column visibly jump width when navigating play → quiz. 520 also sits above 440, which is what keeps `min(width, cap) === width` on phones.
 - **The column carries a definite pixel `width`, never a bare `maxWidth`.** `alignSelf: 'center'` removes the default `stretch`, so a `maxWidth`-only child shrinks to its content and the `width: '48%'` option cells stop resolving. For the same reason the wrapper must carry `flex: 1` **unconditionally** — write `style={isWide ? column : undefined}` and the page → reveal → historyBox chain collapses, so the explanation loses its flex height and the pinned "Next" bar rides up off the bottom on phones.
-- **`scale` never touches the continent grid cell.** `optW` is a *packing* value: two cells plus 32pt of chrome each plus an 8pt gutter must fit the content box. Scale it and the row overflows, and Yoga silently collapses the 2×2 grid into one column. On that screen `scale` governs vertical rhythm only.
+- **`scale` never touches the continent grid cell — but free height may.** `optW` now takes the *minimum* of two independent caps. The **width** cap (`widthPack`) is the packing value: two cells plus 32pt of chrome each plus an 8pt gutter must fit the content box. It must never be multiplied by `scale`, or the row overflows and Yoga silently collapses the 2×2 grid into one column. The **height** cap (`heightCap`) is the largest cell that lets both rows fit the leftover height, computed the same anchor-first way as `coatSize`. Because `optW` is the min, it can only ever be *smaller* than `widthPack`, so two cells still fit one row and the grid can never collapse — the coat pictures merely shrink (down to a 96pt floor) on a short window. `scale` still governs vertical rhythm only.
 
 ### Closing the dead band
 

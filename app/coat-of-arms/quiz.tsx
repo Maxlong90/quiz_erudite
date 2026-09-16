@@ -333,7 +333,19 @@ export default function CoatOfArmsGame() {
               {/* The prompt is hidden once answered — on reveal we show only the
                   coat, the correct answer and the (expanded) explanation. */}
               {!revealing ? (
-                <Text style={[styles.prompt, { fontSize: m.promptFont }]}>{promptText}</Text>
+                // Capped at two lines (font shrinks to fit) so the prompt's height
+                // is bounded and known in EVERY locale — that bound is what lets the
+                // height fit guarantee the answer grid stays on screen. The shipped
+                // prompts already fit two lines at full size on a phone, so this
+                // does not change the tall-phone layout.
+                <Text
+                  style={[styles.prompt, { fontSize: m.promptFont }]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.6}
+                >
+                  {promptText}
+                </Text>
               ) : null}
             </View>
 

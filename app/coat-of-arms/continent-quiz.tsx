@@ -366,7 +366,15 @@ export default function CoatOfArmsContinentGame() {
                     {cell}
                   </Animated.View>
                 ) : (
-                  <View key={optIdx}>{cell}</View>
+                  // On a WIDE window the coat cell can be height-shrunk small
+                  // enough that three would fit one row and the 2×2 grid would
+                  // re-pack to 3+1. A half-width column pins it to exactly two per
+                  // row (the square cell is centred inside). Phones are narrow
+                  // enough that two always pack naturally, so they keep the shipped
+                  // spacing untouched (no wrapper).
+                  <View key={optIdx} style={m.isCompact ? undefined : styles.optionCol}>
+                    {cell}
+                  </View>
                 );
               })}
             </View>
@@ -507,6 +515,9 @@ const styles = StyleSheet.create({
     rowGap: 16,
   },
   optionsRevealing: { justifyContent: 'center' },
+  // Half-width column that pins the coat grid to exactly two cells per row on a
+  // wide window (see the note at the call site). The square cell is centred inside.
+  optionCol: { width: '50%', alignItems: 'center' },
   optionWrap: {
     borderWidth: 4,
     borderColor: 'transparent',

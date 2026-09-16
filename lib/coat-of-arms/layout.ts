@@ -76,14 +76,24 @@ const PAGE_PAD_BOTTOM = 16;
 const IMAGE_AREA_MT = 16;
 /** quiz progress: fontSize 22 line (~26) + marginBottom 22. */
 const PROGRESS_H_QUIZ = 48;
-/** Room kept for the (up-to-two-line) prompt: ~2 lines of promptFont + marginTop 16. */
-const PROMPT_RESERVE_H = 90;
+/**
+ * Room kept for the prompt. The screen caps the prompt at TWO lines
+ * (adjustsFontSizeToFit), so this is a HARD upper bound: 2 lines of the 26pt
+ * font (~33 each) + marginTop 16, with a few points of slack. Because the prompt
+ * can never exceed two lines, this reserve is guaranteed >= the real prompt
+ * height in every locale — which is what makes the answer grid provably visible.
+ */
+const PROMPT_RESERVE_H = 96;
 /** continent progress: fontSize 22 line (~26) + marginBottom 40. */
 const PROGRESS_H_CONT = 66;
 /** Room kept for the (up-to-two-line) country title. */
 const TITLE_RESERVE_H = 80;
 /** Per-cell vertical chrome on the continent grid: optionWrap (4+3)*2 + optionFrame (3+6)*2. */
 const CELL_CHROME = 32;
+/** The shipped coat->grid gap, kept until the coat would drop below its floor. */
+const GAP_MAX_QUIZ = OPTION_H_BASE; // 68
+/** Minimum coat->grid gap on a window too short to keep the full gap. */
+const GAP_MIN_QUIZ = 24;
 
 export interface CoatQuizMetrics extends Responsive {
   /** Side of the square coat plate. Feeds the base image, its box AND the reveal overlay. */
@@ -120,42 +130,48 @@ export function coatQuizMetrics(
 ): CoatQuizMetrics {
   const r = computeResponsive(width, height);
   const optionH = Math.round(OPTION_H_BASE * r.scale);
-  const gapHeight = OPTION_H_BASE;
   const gridH = 2 * optionH + ROW_GAP_QUIZ;
-  // Everything above/below/around the coat that holds a fixed height. The coat
-  // block's own frame chrome is in here too, so `freeH` is exactly what the coat
-  // plate itself may occupy.
-  const reserve =
+  // Everything with a fixed height EXCEPT the coat plate and the coat->grid gap.
+  // The coat block's own frame chrome is in here, so what is left over is shared
+  // between the coat plate and the gap.
+  const fixedReserve =
     insets.top +
     insets.bottom +
     HUD_H +
     IMAGE_AREA_MT +
     PROGRESS_H_QUIZ +
     PROMPT_RESERVE_H +
-    gapHeight +
     gridH +
     PAGE_PAD_BOTTOM +
     FRAME_CHROME;
-  const freeH = height - reserve;
-  const coatSize = Math.round(
-    Math.max(
-      COAT_MIN,
-      Math.min(
-        COAT_SIZE_BASE * r.scale,
-        freeH, // NEW height cap — makes the answer grid the anchor.
-        // Never let the plate push its frame past the content column.
-        r.contentWidth - FRAME_CHROME - COAT_COLUMN_MARGIN,
-        COAT_SIZE_MAX,
-      ),
-    ),
+  const avail = height - fixedReserve; // budget for coat plate + gap
+  const desiredCoat = Math.min(
+    COAT_SIZE_BASE * r.scale,
+    // Never let the plate push its frame past the content column.
+    r.contentWidth - FRAME_CHROME - COAT_COLUMN_MARGIN,
+    COAT_SIZE_MAX,
   );
+  // The answer grid is the anchor. Keep the SHIPPED gap while the coat can still
+  // meet its readable floor with it; on a shorter window let the gap give its
+  // slack to the coat (down to GAP_MIN) so the coat stays as large as possible,
+  // and only then does the coat itself shrink. On a tall phone `avail` is ample,
+  // so this yields the shipped coat 190 / gap 68.
+  let coatSize: number;
+  let gapHeight: number;
+  if (Math.min(desiredCoat, avail - GAP_MAX_QUIZ) >= COAT_MIN) {
+    gapHeight = GAP_MAX_QUIZ;
+    coatSize = Math.min(desiredCoat, avail - GAP_MAX_QUIZ);
+  } else {
+    coatSize = Math.max(COAT_MIN, Math.min(desiredCoat, avail - GAP_MIN_QUIZ));
+    gapHeight = Math.max(GAP_MIN_QUIZ, Math.min(GAP_MAX_QUIZ, avail - coatSize));
+  }
   return {
     ...r,
-    coatSize,
+    coatSize: Math.round(coatSize),
     optionH,
     optionTextW: 0.48 * (r.contentWidth - 40) - 24,
     promptFont: Math.round(PROMPT_FONT_BASE * r.scale),
-    gapHeight,
+    gapHeight: Math.round(gapHeight),
   };
 }
 

@@ -70,6 +70,16 @@ describe('coatContinentMetrics — tall phones keep the shipped packing', () => 
 });
 
 describe('coatQuizMetrics — height fit on short/narrow windows', () => {
+  // The whole coat block + gap + grid stack, reconstructed from the SAME reserve
+  // the metric uses. If this is <= height, the answer grid is fully on screen.
+  const PROMPT_RESERVE = 96;
+  function stackHeight(w: number, h: number) {
+    const m = coatQuizMetrics(w, h, NO_INSETS);
+    const gridH = 2 * m.optionH + 14;
+    const fixedReserve = 64 + 16 + 48 + PROMPT_RESERVE + gridH + 16 + FRAME_CHROME;
+    return fixedReserve + m.coatSize + m.gapHeight;
+  }
+
   it('shrinks the coat below 190 on the 360x610 window that used to clip', () => {
     const m = coatQuizMetrics(360, 610, NO_INSETS);
 
@@ -78,16 +88,17 @@ describe('coatQuizMetrics — height fit on short/narrow windows', () => {
     expect(m.coatSize).toBeGreaterThanOrEqual(COAT_MIN);
     // The buttons are the anchor — they do NOT shrink on a compact window.
     expect(m.optionH).toBe(68);
+    // And the whole stack fits the window.
+    expect(stackHeight(360, 610)).toBeLessThanOrEqual(610);
   });
 
-  it('leaves the whole stack fitting the 360x610 window (grid not clipped)', () => {
-    const height = 610;
-    const m = coatQuizMetrics(360, height, NO_INSETS);
-    // Reconstruct the fixed reserve (everything that is NOT the coat plate) and
-    // assert the coat plus its reserve fit the window — i.e. the grid is on screen.
-    const gridH = 2 * m.optionH + 14;
-    const reserve = 64 + 16 + 48 + 90 + m.gapHeight + gridH + 16 + FRAME_CHROME;
-    expect(reserve + m.coatSize).toBeLessThanOrEqual(height);
+  it('fits the whole stack on the 320x568 window (the grid no longer clips)', () => {
+    // 320x568 was the tightest required size and used to clip the bottom row.
+    const m = coatQuizMetrics(320, 568, NO_INSETS);
+    expect(m.coatSize).toBeGreaterThanOrEqual(COAT_MIN);
+    // The gap gave its slack to keep the grid on screen.
+    expect(m.gapHeight).toBeLessThan(68);
+    expect(stackHeight(320, 568)).toBeLessThanOrEqual(568);
   });
 
   it('never shrinks the coat below COAT_MIN on an extreme short window', () => {
