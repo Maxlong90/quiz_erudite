@@ -75,7 +75,7 @@ The reverse mode has **no** original-coat reward. Its option images are the four
 
 ### What the Play screen offers
 
-The Play screen (`app/coat-of-arms/play.tsx`) lists five categories. "All countries" and "By continents" are live; Challenge, Cities, and Bonus level are locked "coming soon" tiles with no handler. Their crest icons are preloaded from the feature layout before any screen mounts, so opening Play does not flash empty tiles while icons decode.
+The Play screen (`app/coat-of-arms/play.tsx`) lists five categories. "All countries" and "By continents" are live; Challenge, Cities, and Bonus level are locked "coming soon" tiles with no handler. Their crest icons are preloaded from the feature layout before any screen mounts, so opening Play does not flash empty tiles while icons decode. The five buttons and the bottom "Other apps" tile all fit without scrolling on any window height — see [The Play menu fits by height too](#the-play-menu-fits-by-height-too).
 
 ## The Answer Flow and Reveal Choreography
 
@@ -179,22 +179,42 @@ The insets reach the pure functions through the metric hooks, which now read `us
 
 The continent screen mirrors all of this, with one packing subtlety carried in [Three rules that are easy to break](#three-rules-that-are-easy-to-break).
 
+### The Play menu fits by height too
+
+The same short-window pressure that clipped the answer grid also broke the Play menu, for a different reason. Play is not gameplay — it is a header, a stack of five glossy mode buttons, a `flex: 1` spacer, then the bottom "Other apps" tile. The button padding, gap, and font were all fixed constants. When the fixed header, five buttons, and tile together exceeded the window height, the spacer collapsed to zero and the tile drew straight over the last button, "Bonus level".
+
+Three things converge to make the stack too tall: a physically short phone, iOS **Display Zoom** set to "Larger" (which lowers the logical resolution, so everything is bigger and there is less height), and a long localized `sublabel` — the Russian "Будет доступно в скором времени" wraps to two lines where the English "Coming soon" does not. Each on its own is survivable; together they overflow.
+
+`coatPlayMetrics` (`lib/coat-of-arms/layout.ts`) fixes this the same anchor-first way as the gameplay screens, but with the priority reversed: on Play the **bottom tile is the anchor** and the button stack gives up height. It reserves the header, the tile, and a guaranteed non-negative spacer, then fits the stack into what is left, returning a `buttonPadV`, `buttonGap`, `buttonFont`, and `iconSize` for the screen to apply.
+
+The fit deliberately does **not** lean on `Responsive.scale`. That scale is gated to exactly 1 on every phone-sized window (≤ 480 × 960), which is precisely the window this bug lives on, so it would never bite. The function computes a compression factor from the real available height instead — the same shape the quiz and continent metrics use.
+
+Two properties keep the result correct:
+
+- **Inert on a tall phone.** While the shipped stack still leaves a non-negative spacer, `coatPlayMetrics` returns the exact constants that shipped — `buttonPadV: 22`, `buttonGap: 16`, `buttonFont: 24`, `iconSize: 46`. This is the same "enough room → old numbers" gate the responsive hook uses, so iPhone 16/17 Pro Max and friends look identical to before.
+- **Locale-stable.** The fit models every button at its worst-case height — a locked button whose two-line sublabel wraps — so Russian and English lay out identically and the reserve can never fall short of the real render.
+
+Compression runs in two stages. First the padding and gap shrink toward their floors; because button height is linear in a single scale factor (only padding, gap, and the top margin scale — the border and text content are fixed), that factor is a closed-form solve, not a search. Only in an extreme zoom, where floored padding still overflows, does a second stage shrink the font and icon toward their own floors. Throughout, a mode button stays a comfortable tap target: its border plus content height alone already exceeds 44 pt, so no amount of padding compression drops it below the minimum. There is still no scroll on Play — the menu always fits.
+
 ### How a screen reads its metrics
 
-Screens never do the arithmetic themselves. The two gameplay screens read named metrics; the calmer screens read the raw window values.
+Screens never do the arithmetic themselves. The two gameplay screens and the Play menu read named metrics; the calmer screens read the raw window values.
 
 ```
 ┌───────────────────────────────┐   ┌──────────────────────────────┐
-│ gameplay screens              │   │ home · play · continents ·   │
+│ metric screens                │   │ home · continents ·          │
 │  quiz.tsx                     │   │ result · settings            │
 │  continent-quiz.tsx           │   │                              │
+│  play.tsx                     │   │                              │
 └───────────────┬───────────────┘   └──────────────┬───────────────┘
                 │ useCoatQuizMetrics /             │ useResponsive
-                │ useCoatContinentMetrics          │
+                │ useCoatContinentMetrics /        │
+                │ useCoatPlayMetrics               │
                 ↓                                  │
 ┌───────────────────────────────┐                  │
 │ coatQuizMetrics /             │                  │
-│ coatContinentMetrics          │                  │
+│ coatContinentMetrics /        │                  │
+│ coatPlayMetrics               │                  │
 │ (lib/coat-of-arms/layout.ts)  │                  │
 └───────────────┬───────────────┘                  │
                 └──────────────┬───────────────────┘
