@@ -60,6 +60,47 @@ const OPTION_FONT_MAX = 23;
 const OPTION_FONT_MIN = 8;
 const CHAR_ADV = 0.72;
 
+// --- Prompt font-fitting -----------------------------------------------------
+//
+// The question is capped at TWO lines (styles.prompt + numberOfLines={2}), which
+// the answer-grid height fit from the layout metrics depends on. We must never
+// exceed that cap, yet the FULL question has to stay visible in every locale and
+// at every width. `adjustsFontSizeToFit` can't be trusted here: react-native-web
+// ignores it entirely (so a long prompt just clips to two lines on web), and on
+// iOS a hard "\n" made it drop the second line — the original bug. So instead we
+// DETERMINISTICALLY shrink the font until the whole string word-wraps inside two
+// lines, exactly like `fitFontSize` does for the answer labels, only across two
+// lines of a single string rather than one pre-wrapped line. Because the result is
+// always <= m.promptFont, the two-line height bound (and thus coatSize) is
+// unchanged.
+const PROMPT_FONT_MIN = 15;
+// Average glyph advance as a fraction of the font size, measured from the bold
+// (900-weight) prompt in react-native-web. Cyrillic renders noticeably wider than
+// Latin; both are padded a touch so the two-line fit never clips.
+const PROMPT_ADV_CYRILLIC = 0.72;
+const PROMPT_ADV_LATIN = 0.56;
+// Word wrapping can't fill each line to its full width — this is the usable
+// fraction of one line, applied to both lines of the budget.
+const PROMPT_LINE_FILL = 0.9;
+const CYRILLIC_RE = /[Ѐ-ӿ]/;
+
+/**
+ * Largest font size (<= maxFont) at which `text` word-wraps within TWO lines of
+ * `textWidth`. Also guarantees the single longest word fits one line. Returns
+ * maxFont for an empty string or a zero width (nothing to fit).
+ */
+function fitPromptFontSize(text: string, textWidth: number, maxFont: number): number {
+  const trimmed = text.trim();
+  if (!trimmed || textWidth <= 0) return maxFont;
+  const adv = CYRILLIC_RE.test(trimmed) ? PROMPT_ADV_CYRILLIC : PROMPT_ADV_LATIN;
+  // Width the whole string needs per 1pt of font size, vs. what two lines hold.
+  const unitWidth = trimmed.length * adv;
+  const byBudget = Math.floor((2 * textWidth * PROMPT_LINE_FILL) / unitWidth);
+  const longestWord = trimmed.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
+  const byWord = longestWord > 0 ? Math.floor(textWidth / (longestWord * adv)) : maxFont;
+  return Math.max(PROMPT_FONT_MIN, Math.min(maxFont, byBudget, byWord));
+}
+
 type OptionState = 'idle' | 'correct' | 'wrong';
 
 function fitFontSize(lines: string[], textWidth: number): number {
@@ -224,9 +265,15 @@ export default function CoatOfArmsGame() {
 
   const historyText = question.explanation;
   const revealing = isCorrectPick;
-  // RU splits the prompt onto two lines (its single-line wrap looked wrong);
-  // every other locale keeps the backend question, which already wraps nicely.
+  // RU overrides the prompt with its own wording; every other locale keeps the
+  // backend question. Both are single strings that wrap NATURALLY within the
+  // two-line cap below — no hard "\n" (it broke adjustsFontSizeToFit on iOS).
   const promptText = c.quizPrompt || question.prompt;
+  // Deterministically size the prompt so the WHOLE question fits two lines at this
+  // width, in every locale — fitted DOWN from m.promptFont, so the two-line height
+  // bound (and coatSize) is unchanged. styles.prompt reserves paddingHorizontal 24
+  // each side inside the content column.
+  const promptFont = fitPromptFontSize(promptText, m.contentWidth - 48, m.promptFont);
 
   return (
     <View style={styles.fill}>
@@ -333,17 +380,12 @@ export default function CoatOfArmsGame() {
               {/* The prompt is hidden once answered — on reveal we show only the
                   coat, the correct answer and the (expanded) explanation. */}
               {!revealing ? (
-                // Capped at two lines (font shrinks to fit) so the prompt's height
-                // is bounded and known in EVERY locale — that bound is what lets the
-                // height fit guarantee the answer grid stays on screen. The shipped
-                // prompts already fit two lines at full size on a phone, so this
-                // does not change the tall-phone layout.
-                <Text
-                  style={[styles.prompt, { fontSize: m.promptFont }]}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.6}
-                >
+                // Capped at two lines (font deterministically shrunk to fit — see
+                // fitPromptFontSize) so the prompt's height is bounded and known in
+                // EVERY locale; that bound is what lets the height fit guarantee the
+                // answer grid stays on screen. The fitted size is always <=
+                // m.promptFont, so this never changes the tall-phone height.
+                <Text style={[styles.prompt, { fontSize: promptFont }]} numberOfLines={2}>
                   {promptText}
                 </Text>
               ) : null}

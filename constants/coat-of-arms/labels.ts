@@ -14,8 +14,9 @@ export interface CoaLabels {
   version: string;
   /** App name shown as the share-card header. */
   appName: string;
-  /** RU-only two-line quiz prompt override; empty in other locales (which keep
-   *  the backend question, whose single-line wrap already looks right). */
+  /** RU-only quiz prompt override; empty in other locales (which keep the backend
+   *  question). A single string that wraps NATURALLY within the screen's two-line
+   *  cap — no hard "\n", which on iOS made adjustsFontSizeToFit drop the 2nd line. */
   quizPrompt: string;
   /** Help modal (the "?" button on the game screen): title, body, dismiss CTA. */
   helpTitle: string;
@@ -50,7 +51,7 @@ const RU: CoaLabels = {
   bonusLevel: 'Бонус-уровень',
   version: 'Версия',
   appName: 'Гербы',
-  quizPrompt: 'Какой стране\nпринадлежит этот герб?',
+  quizPrompt: 'Какой стране принадлежит этот герб?',
   helpTitle: 'Работа над ошибками',
   helpBody:
     'В игре много вопросов. Все вопросы, на которые вы ответили неправильно, запоминаются — в конце игры нажмите «Повторить ошибки», чтобы пройти именно их заново и сделать работу над ошибками. Ничего не теряется: вы всегда сможете вернуться и закрепить то, в чём ошиблись.',
