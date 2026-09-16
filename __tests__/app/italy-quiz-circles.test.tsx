@@ -90,30 +90,6 @@ jest.mock('@/components/italy-quiz/app-background', () => ({
 jest.mock('@/components/logo-quiz/quiz-menu-modal', () => ({ QuizMenuModal: () => null }));
 jest.mock('@/lib/store-links', () => ({ getStoreLinks: () => ({ storeUrl: 'https://example' }) }));
 jest.mock('@/hooks/use-locale', () => ({ useLocale: () => ({ locale: 'ru' }) }));
-/**
- * The slider is a PanResponder surface that RNTL cannot drag. Replaced by four
- * plain taps that report the same notch index down the same `onChange`, so the
- * ANSWER path under test is the real one. The gesture itself is covered by its
- * own suite and verified visually.
- */
-jest.mock('@/components/italy-quiz/notched-slider', () => {
-  const ReactModule = require('react');
-  const { Pressable, View: RNView } = require('react-native');
-  return {
-    NotchedSlider: ({ count, onChange }: { count: number; onChange: (n: number) => void }) =>
-      ReactModule.createElement(
-        RNView,
-        null,
-        Array.from({ length: count }, (_, i) =>
-          ReactModule.createElement(Pressable, {
-            key: i,
-            testID: `notch-${i}`,
-            onPress: () => onChange(i),
-          }),
-        ),
-      ),
-  };
-});
 
 // jest.mock is hoisted above these, so the screens close over the stubs above.
 const ItalyQuizPlaces = require('@/app/italy-quiz/places').default;
@@ -174,13 +150,7 @@ async function playCircle(ids: number[], correctCount: number) {
     const wantCorrect = i < correctCount;
     const pick = wantCorrect ? q.correct : (q.correct + 1) % q.options.length;
 
-    if (q.estimate) {
-      fireEvent.press(screen.getByTestId(`notch-${pick}`));
-      await flush();
-      fireEvent.press(screen.getByText('Ответить'));
-    } else {
-      fireEvent.press(screen.getByText(q.options[pick].ru));
-    }
+    fireEvent.press(screen.getByText(q.options[pick].ru));
     await flush();
 
     if (wantCorrect) {
@@ -413,13 +383,7 @@ describe('the mistakes review', () => {
     for (let i = 0; i < misses.length; i++) {
       const q = byId.get(misses[i])!;
       const pick = q.correct;
-      if (q.estimate) {
-        fireEvent.press(screen.getByTestId(`notch-${pick}`));
-        await flush();
-        fireEvent.press(screen.getByText('Ответить'));
-      } else {
-        fireEvent.press(screen.getByText(q.options[pick].ru));
-      }
+      fireEvent.press(screen.getByText(q.options[pick].ru));
       await flush();
       fireEvent.press(screen.getByText(i + 1 >= misses.length ? 'Завершить' : 'Далее'));
       await flush();

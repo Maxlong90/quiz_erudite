@@ -7,19 +7,12 @@
  *
  * How the twenty are composed, and why:
  *
- * - Twenty multiple-choice questions: six carry a photo and four are `estimate`
- *   questions answered from ranges rather than recall. Roughly every third
- *   question changes the shape of the screen, so a twenty-question tour never
- *   settles into one rhythm.
- * - Question 1 is a deliberate warm-up everyone gets right. A tour that opens
- *   with a miss reads as "this is not for me".
+ * - Twenty multiple-choice questions, four options each, one right. Six carry a
+ *   photo; the rest are plain text. A photo question and a text question are the
+ *   same thing with and without a picture.
  * - Disciplines are MIXED inside each act, which is the whole reason the subject
  *   categories were dropped: act 4 asks about Vatican statehood, the Trevi
  *   fountain's takings, carbonara and the Rome derby in a row.
- * - Two callback pairs run across the acts: the Pantheon (2 → 15, its bronze was
- *   stripped for Bernini's baldachin) and Domitian's stadium (5 → 16, its outline
- *   survives as Piazza Navona). They are what fuses "geography of the Roman
- *   empire" with "modern geography" instead of filing them as two subcategories.
  *
  * Images live in `assets/italy-quiz/questions/` with their licences recorded in
  * CREDITS.md there.
@@ -31,7 +24,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 1,
     act: 'antiquity',
-    warmup: true,
     question: {
       ru: 'Какое сооружение Древнего Рима до сих пор стоит в центре города?',
       en: 'Which building of ancient Rome still stands in the city centre today?',
@@ -90,8 +82,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 4,
     act: 'antiquity',
-    estimate: true,
-    axis: 'time',
     question: {
       ru: 'По легенде Рим основал Ромул. В каком году?',
       en: 'Legend says Romulus founded Rome. In which year?',
@@ -152,8 +142,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 7,
     act: 'middle-ages',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'На пике империи в Риме жил примерно миллион человек. До скольких упало население в худшие годы Средневековья?',
       en: 'At the empire’s peak about a million people lived in Rome. How low did the population fall in the worst medieval years?',
@@ -252,8 +240,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 12,
     act: 'renaissance',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'Сколько лет строили Собор Святого Петра?',
       en: 'How many years did it take to build St Peter’s Basilica?',
@@ -312,7 +298,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 15,
     act: 'renaissance',
-    callback: 2,
     question: {
       ru: 'На балдахин над алтарём Собора Святого Петра Бернини потребовалось шестьдесят тонн бронзы. Откуда её взяли?',
       en: 'Bernini needed sixty tonnes of bronze for the canopy over the altar of St Peter’s. Where did it come from?',
@@ -334,7 +319,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 16,
     act: 'today',
-    callback: 5,
     image: require('../../../assets/italy-quiz/questions/piazza-navona.jpg'),
     question: {
       ru: 'Стадион Домициана давно исчез — но его контур сохранился до наших дней. Во что он превратился?',
@@ -374,8 +358,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 18,
     act: 'today',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'Сколько евро туристы бросают в фонтан Треви за год?',
       en: 'How many euros do tourists throw into the Trevi fountain in a year?',
@@ -473,8 +455,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 23,
     act: 'antiquity',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'Колизей вмещал 50 тысяч зрителей. А сколько вмещал Большой цирк, где гоняли колесницы?',
       en: 'The Colosseum held fifty thousand. How many did the Circus Maximus, where the chariots raced, hold?',
@@ -532,8 +512,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 26,
     act: 'middle-ages',
-    estimate: true,
-    axis: 'time',
     question: {
       ru: 'Когда папы вернулись в Рим из Авиньона окончательно?',
       en: 'When did the popes finally return to Rome from Avignon?',
@@ -591,8 +569,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 29,
     act: 'renaissance',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'Колоннада Бернини обнимает площадь Святого Петра. Сколько статуй святых стоит на её верху?',
       en: 'Bernini’s colonnade embraces St Peter’s Square. How many statues of saints stand along its top?',
@@ -650,8 +626,6 @@ export const ROME_QUESTIONS: ItalyQuestion[] = [
   {
     id: 32,
     act: 'today',
-    estimate: true,
-    axis: 'amount',
     question: {
       ru: 'Сколько человек живёт в Риме сегодня?',
       en: 'How many people live in Rome today?',

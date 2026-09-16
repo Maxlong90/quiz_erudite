@@ -23,8 +23,6 @@ export interface ItalyLabels {
   comingSoon: string;
   /** Starts the tour from the intro card. */
   startTour: string;
-  /** Header of the ribbon reminding the player of an earlier question. */
-  callbackThen: string;
   // Circles
   /** The place card's entry button — `{n}` is the circle number. */
   circleLabel: string;
@@ -59,15 +57,6 @@ export interface ItalyLabels {
   starHint3: string;
   /** Best on this circle — `{stars}` and `{pct}` are substituted. */
   bestResult: string;
-  // Estimate questions (notched slider)
-  /** Locks in the notch the player stopped on. */
-  scaleConfirm: string;
-  /** Hints under a slider whose axis is time. */
-  axisEarlier: string;
-  axisLater: string;
-  /** Hints under a slider whose axis is a quantity. */
-  axisLess: string;
-  axisMore: string;
   // Settings screen
   selectLanguage: string;
   rateApp: string;
@@ -112,7 +101,6 @@ const EN: ItalyLabels = {
   pickOnMap: 'Tap a pin on the map',
   comingSoon: 'coming soon',
   startTour: "Let's go",
-  callbackThen: 'BACK THEN',
   circleLabel: 'Circle {n}',
   circleReplayLabel: 'Circle {n} · again',
   circlesSoonCta: 'Questions still being written',
@@ -131,11 +119,6 @@ const EN: ItalyLabels = {
   starHint2: '80% correct earns a second star.',
   starHint3: 'A clean run earns all three stars.',
   bestResult: 'Best on this circle: {stars}★ · {pct}%',
-  scaleConfirm: 'Answer',
-  axisEarlier: 'earlier',
-  axisLater: 'later',
-  axisLess: 'less',
-  axisMore: 'more',
   selectLanguage: 'Language',
   rateApp: 'Rate the App',
   contactSupport: 'Contact Support',
@@ -182,7 +165,6 @@ const RU: ItalyLabels = {
   pickOnMap: 'Выберите точку на карте',
   comingSoon: 'скоро',
   startTour: 'Поехали',
-  callbackThen: 'ТОГДА',
   circleLabel: 'Круг {n}',
   circleReplayLabel: 'Круг {n} · ещё раз',
   circlesSoonCta: 'Вопросы ещё пишутся',
@@ -204,11 +186,6 @@ const RU: ItalyLabels = {
   starHint2: '80% правильных — и будет вторая звезда.',
   starHint3: 'Без единой ошибки — все три звезды.',
   bestResult: 'Лучший результат круга: {stars}★ · {pct}%',
-  scaleConfirm: 'Ответить',
-  axisEarlier: 'раньше',
-  axisLater: 'позже',
-  axisLess: 'меньше',
-  axisMore: 'больше',
   selectLanguage: 'Язык',
   rateApp: 'Оценить приложение',
   contactSupport: 'Связаться с поддержкой',
@@ -255,7 +232,6 @@ const ES: ItalyLabels = {
   pickOnMap: 'Toca un punto del mapa',
   comingSoon: 'próximamente',
   startTour: 'Vamos',
-  callbackThen: 'ENTONCES',
   circleLabel: 'Círculo {n}',
   circleReplayLabel: 'Círculo {n} · otra vez',
   circlesSoonCta: 'Preguntas en preparación',
@@ -274,11 +250,6 @@ const ES: ItalyLabels = {
   starHint2: 'Un 80% de aciertos da la segunda estrella.',
   starHint3: 'Sin fallos, las tres estrellas.',
   bestResult: 'Mejor en este círculo: {stars}★ · {pct}%',
-  scaleConfirm: 'Responder',
-  axisEarlier: 'antes',
-  axisLater: 'después',
-  axisLess: 'menos',
-  axisMore: 'más',
   selectLanguage: 'Idioma',
   rateApp: 'Valorar la app',
   contactSupport: 'Contactar soporte',
@@ -325,7 +296,6 @@ const FR: ItalyLabels = {
   pickOnMap: 'Touchez un point sur la carte',
   comingSoon: 'bientôt',
   startTour: 'C’est parti',
-  callbackThen: 'À L’ÉPOQUE',
   circleLabel: 'Cercle {n}',
   circleReplayLabel: 'Cercle {n} · encore',
   circlesSoonCta: 'Questions en préparation',
@@ -347,11 +317,6 @@ const FR: ItalyLabels = {
   starHint2: '80 % de bonnes réponses donnent la deuxième étoile.',
   starHint3: 'Sans faute, les trois étoiles.',
   bestResult: 'Meilleur sur ce cercle : {stars}★ · {pct}%',
-  scaleConfirm: 'Répondre',
-  axisEarlier: 'plus tôt',
-  axisLater: 'plus tard',
-  axisLess: 'moins',
-  axisMore: 'plus',
   selectLanguage: 'Langue',
   rateApp: 'Noter l’application',
   contactSupport: 'Contacter le support',

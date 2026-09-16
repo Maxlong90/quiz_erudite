@@ -21,7 +21,6 @@ import { ActInterlude } from '@/components/italy-quiz/act-interlude';
 import { GlossyIconButton } from '@/components/italy-quiz/glossy-icon-button';
 import { GlossyButton } from '@/components/italy-quiz/glossy-button';
 import { HelpModal } from '@/components/italy-quiz/help-modal';
-import { NotchedSlider } from '@/components/italy-quiz/notched-slider';
 import { QuizMenuModal } from '@/components/logo-quiz/quiz-menu-modal';
 import type { LogoQuizQuestion } from '@/lib/logo-quiz/content';
 import { ItalyColors, ItalyShadow } from '@/constants/italy-quiz/theme';
@@ -67,10 +66,9 @@ const WRONG = { light: '#E2606A', dark: '#8E1B27', rim: '#4E0D14' };
  *
  * Every question is four options, one right. A wrong pick lights only the tapped
  * option, reveals nothing, and auto-advances; a correct one shows the explanation
- * and waits for Next, so the player sets the pace of the part worth reading.
- * Questions flagged `estimate` offer ordered RANGES instead of facts and are
- * answered on a four-notch slider rather than the 2×2 grid — same options, same
- * scoring, different input. See constants/italy-quiz/question.
+ * and waits for Next, so the player sets the pace of the part worth reading. A
+ * question with an image is the same thing with a picture above it. See
+ * constants/italy-quiz/question.
  *
  * Questions come from `constants/italy-quiz/tour-content` — hand-authored files
  * in the app. Nothing here reads the backend content snapshot.
@@ -109,8 +107,6 @@ export default function ItalyQuizGame() {
 
   // Answer state for the current question, reset whenever the question changes.
   const [picked, setPicked] = useState<number | null>(null);
-  /** Notch the slider is resting on for an `estimate` question, null until touched. */
-  const [notch, setNotch] = useState<number | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,7 +171,6 @@ export default function ItalyQuizGame() {
 
   useEffect(() => {
     setPicked(null);
-    setNotch(null);
   }, [question?.id]);
 
   // The explanation is rendered under the options, which on a photo question puts
@@ -261,20 +256,11 @@ export default function ItalyQuizGame() {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     setRetryIds(idsForRetry);
     setPicked(null);
-    setNotch(null);
     setDone(false);
     setOutcome(null);
     setInterludeSeen(null);
     setIntroDone(idsForRetry != null);
     setEpoch((e) => e + 1);
-  }, []);
-
-  /** Each notch the thumb crosses ticks, so the snap is felt as well as seen. */
-  const onNotch = useCallback((next: number) => {
-    setNotch((prev) => {
-      if (prev !== next) Haptics.selectionAsync().catch(() => {});
-      return next;
-    });
   }, []);
 
   const onShare = useCallback(() => {
@@ -574,12 +560,6 @@ export default function ItalyQuizGame() {
   // --- Question --------------------------------------------------------------
   const answered = picked !== null;
   const answeredRight = answered && picked === question.correct;
-  // Belt and braces on top of the draw's whole-pairs-only rule: a ribbon may
-  // only point at a question that is in THIS circle.
-  const callbackQuestion =
-    question.callback != null && ids.includes(question.callback)
-      ? byId.get(question.callback)
-      : undefined;
 
   const ActStrip = (
     <View style={styles.actStrip}>
@@ -628,21 +608,6 @@ export default function ItalyQuizGame() {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        {/* "Then" ribbon — the earlier question this one answers back to. */}
-        {callbackQuestion ? (
-          <View style={styles.callback}>
-            {callbackQuestion.image ? (
-              <Image source={callbackQuestion.image} style={styles.callbackThumb} />
-            ) : null}
-            <View style={styles.callbackText}>
-              <Text style={styles.callbackLabel}>↩ {t.callbackThen}</Text>
-              <Text style={styles.callbackBody} numberOfLines={3}>
-                {pickText(callbackQuestion.question, locale)}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
         {question.image ? (
           <View style={styles.imageFrame}>
             <Image source={question.image} style={styles.image} resizeMode="cover" />
@@ -653,53 +618,6 @@ export default function ItalyQuizGame() {
           <Text style={styles.questionText}>{pickText(question.question, locale)}</Text>
         </View>
 
-        {/* An `estimate` question's four options are ordered ranges, so they are
-            answered by sliding along them rather than tapping one of four tiles.
-            The thumb snaps to a notch, the reading above names the option it is
-            resting on, and confirming sends that index down the ordinary answer
-            path — same scoring, same colours, same mistakes review. */}
-        {question.estimate ? (
-          <View style={styles.estimateBlock}>
-            <Text
-              style={[styles.estimateReading, notch === null && styles.estimateReadingDim]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
-            >
-              {pickText(question.options[notch ?? 0], locale)}
-            </Text>
-
-            <NotchedSlider
-              count={question.options.length}
-              value={notch ?? 0}
-              onChange={onNotch}
-              disabled={answered}
-              dim={notch === null}
-              state={answered ? (answeredRight ? 'correct' : 'wrong') : null}
-            />
-
-            <View style={styles.axisRow}>
-              <Text style={styles.axisLabel}>
-                ◀ {question.axis === 'time' ? t.axisEarlier : t.axisLess}
-              </Text>
-              <Text style={styles.axisLabel}>
-                {question.axis === 'time' ? t.axisLater : t.axisMore} ▶
-              </Text>
-            </View>
-
-            {!answered ? (
-              <View style={styles.confirmWrap}>
-                <GlossyButton
-                  label={t.scaleConfirm}
-                  fontSize={20}
-                  paddingVertical={14}
-                  inactive={notch === null}
-                  onPress={() => onPick(notch as number)}
-                />
-              </View>
-            ) : null}
-          </View>
-        ) : (
         <View style={styles.options}>
           {question.options.map((opt, i) => {
             // ONLY the tapped option lights up — a wrong pick never reveals
@@ -746,7 +664,6 @@ export default function ItalyQuizGame() {
             );
           })}
         </View>
-        )}
 
         {answeredRight ? (
           <View style={styles.explainCard}>
@@ -813,29 +730,6 @@ const styles = StyleSheet.create({
 
   body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, gap: 14 },
 
-  // --- Callback ribbon -------------------------------------------------------
-  callback: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(8, 22, 66, 0.45)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderColor: 'rgba(210, 224, 255, 0.4)',
-    borderLeftColor: ItalyColors.tileLight,
-    padding: 10,
-  },
-  callbackThumb: { width: 54, height: 54, borderRadius: 10 },
-  callbackText: { flex: 1, gap: 2 },
-  callbackLabel: {
-    color: ItalyColors.tileLight,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  callbackBody: { color: '#E7ECFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-
   imageFrame: {
     width: '100%',
     aspectRatio: 4 / 3,
@@ -870,28 +764,6 @@ const styles = StyleSheet.create({
     rowGap: 14,
   },
   optionWrap: { width: '48%' },
-  // --- Estimate question (notched slider) ------------------------------------
-  estimateBlock: { gap: 2, paddingHorizontal: 4 },
-  estimateReading: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    textAlign: 'center',
-    minHeight: 62,
-    textAlignVertical: 'center',
-    textShadowColor: 'rgba(0,0,0,0.4)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-  },
-  /** Before the first touch the reading is a placeholder, not a choice. */
-  estimateReadingDim: { opacity: 0.45 },
-  axisRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-  },
-  axisLabel: { color: '#C3CEF5', fontSize: 13, fontWeight: '700' },
-  confirmWrap: { width: '55%', alignSelf: 'center', marginTop: 14 },
   option: {
     height: OPTION_H,
     alignItems: 'center',

@@ -138,23 +138,12 @@ export function canDrawCircle(
 /**
  * Draw one circle: `QUESTIONS_PER_ACT` questions from each act, acts in order.
  *
- * Three rules shape the draw, and each protects something the circle would
- * otherwise lose to randomness:
+ * One rule shapes the draw within an act:
  *
- * 1. **Callback pairs are taken whole, or not at all.** A question that refers
- *    back to an earlier one is the best moment in a tour, and half a pair is
- *    worse than none — the ribbon would point at a question the player never
- *    saw. A pair is forced only when BOTH halves are still unused, which makes
- *    it structurally impossible for a pair to straddle two circles. A pair whose
- *    halves are authored in the wrong order (later act first) is ignored rather
- *    than shown broken, and a pair that would not fit an act's quota is dropped
- *    whole and waits for a later circle.
- * 2. **Questions the player has not seen come before ones they have.** Only ever
- *    a tie-breaker inside the free pool — `seen` is migration residue and must
- *    never be able to make a circle undrawable.
- * 3. **The warm-up opens the circle — when it is still available.** Rome's
- *    warm-up is consumed by circle 1 and never comes back, so circle 2 simply
- *    opens on whatever antiquity question the shuffle produced.
+ * - **Questions the player has not seen come before ones they have.** Only ever
+ *   a tie-breaker inside the pool — `seen` is migration residue and must never
+ *   be able to make a circle undrawable. Both halves are shuffled, so replaying
+ *   a circle varies the order.
  *
  * `used` is the hard exclusion: every id already committed to another circle of
  * this place. Returns null when any act is short, so the caller shows "soon"
@@ -168,51 +157,14 @@ export function drawCircle(
 ): number[] | null {
   if (!canDrawCircle(place, questions, used)) return null;
 
-  const actIndex = new Map(place.acts.map((a, i) => [a.id, i]));
   const available = questions.filter((q) => !used.has(q.id));
-  const byId = new Map(available.map((q) => [q.id, q]));
-
-  // Rule 3 first — the warm-up occupies a slot, so the quota accounting below
-  // has to know about it before any pair is admitted.
-  const pinned = new Set<number>();
-  const perAct = new Map<string, number>();
-  const pin = (q: ItalyQuestion) => {
-    if (pinned.has(q.id)) return;
-    pinned.add(q.id);
-    perAct.set(q.act, (perAct.get(q.act) ?? 0) + 1);
-  };
-  for (const q of available) if (q.warmup) pin(q);
-
-  // Rule 1 — whole pairs only, and only while they still fit.
-  for (const q of available) {
-    if (q.callback == null) continue;
-    const partner = byId.get(q.callback);
-    if (!partner) continue;
-    const here = actIndex.get(q.act);
-    const there = actIndex.get(partner.act);
-    if (here == null || there == null || there >= here) continue;
-
-    const fresh = [partner, q].filter((p) => !pinned.has(p.id));
-    const tentative = new Map(perAct);
-    const fits = fresh.every((p) => {
-      const n = (tentative.get(p.act) ?? 0) + 1;
-      tentative.set(p.act, n);
-      return n <= QUESTIONS_PER_ACT;
-    });
-    if (fits) fresh.forEach(pin);
-  }
 
   const picks = place.acts.map((act) => {
     const pool = available.filter((q) => q.act === act.id);
-    const warm = pool.filter((q) => q.warmup);
-    const rest = pool.filter((q) => !q.warmup);
-    const free = rest.filter((q) => !pinned.has(q.id));
     return [
-      ...warm,
-      ...rest.filter((q) => pinned.has(q.id)),
-      // Rule 2 — fresh questions first, then the rest; never an exclusion.
-      ...shuffle(free.filter((q) => !seen.has(q.id))),
-      ...shuffle(free.filter((q) => seen.has(q.id))),
+      // Fresh questions first, then the rest; never an exclusion.
+      ...shuffle(pool.filter((q) => !seen.has(q.id))),
+      ...shuffle(pool.filter((q) => seen.has(q.id))),
     ]
       .slice(0, QUESTIONS_PER_ACT)
       .map((q) => q.id);

@@ -24,13 +24,13 @@ const CIRCLE = rome.acts.length * QUESTIONS_PER_ACT;
 
 /**
  * Rome supplies exactly ONE circle today, so every multi-circle guarantee needs
- * a deeper pool. Same four acts, same warm-up and callback shapes, just enough
- * of them that a second and third circle exist.
+ * a deeper pool. Same four acts, just enough questions of each that a second and
+ * third circle exist.
  */
 function makePool(perAct: number): ItalyQuestion[] {
   const out: ItalyQuestion[] = [];
   let id = 1;
-  rome.acts.forEach((act, a) => {
+  rome.acts.forEach((act) => {
     for (let i = 0; i < perAct; i++) {
       out.push({
         id: id++,
@@ -44,15 +44,9 @@ function makePool(perAct: number): ItalyQuestion[] {
         ],
         correct: 0,
         explanation: { ru: 'e', en: 'e' },
-        ...(a === 0 && i === 0 ? { warmup: true as const } : {}),
       });
     }
   });
-  // One callback pair running from the first act into the third, the same shape
-  // Rome's Pantheon pair has.
-  const earlier = out.find((q) => q.act === rome.acts[0].id && !q.warmup)!;
-  const later = out.find((q) => q.act === rome.acts[2].id)!;
-  later.callback = earlier.id;
   return out;
 }
 
@@ -75,44 +69,6 @@ describe('drawCircle', () => {
 
   it('never repeats a question inside one circle', () => {
     for (const ids of draws()) expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it('opens on the warm-up question', () => {
-    const warmup = ROME_QUESTIONS.find((q) => q.warmup)!;
-    for (const ids of draws()) expect(ids[0]).toBe(warmup.id);
-  });
-
-  it('still draws a full circle once the warm-up has been used up', () => {
-    // The warm-up is consumed by circle 1 and never comes back, so circle 2 has
-    // to open on an ordinary question rather than fail to fill.
-    const pool = makePool(10);
-    const first = drawCircle(rome, pool, new Set())!;
-    const second = drawCircle(rome, pool, new Set(first))!;
-    expect(second).toHaveLength(CIRCLE);
-    expect(second).not.toContain(pool.find((q) => q.warmup)!.id);
-  });
-
-  it('always includes BOTH halves of a callback pair, first half first', () => {
-    // Half a pair is worse than none: the ribbon would point at a question the
-    // player never saw.
-    for (const ids of draws()) {
-      for (const id of ids) {
-        const q = byId.get(id)!;
-        if (q.callback == null) continue;
-        expect(ids).toContain(q.callback);
-        expect(ids.indexOf(q.callback)).toBeLessThan(ids.indexOf(id));
-      }
-    }
-  });
-
-  it('never splits a callback pair across two circles', () => {
-    const pool = makePool(10);
-    const pair = pool.find((q) => q.callback != null)!;
-    const first = drawCircle(rome, pool, new Set())!;
-    const second = drawCircle(rome, pool, new Set(first))!;
-    for (const ids of [first, second]) {
-      expect(ids.includes(pair.id)).toBe(ids.includes(pair.callback!));
-    }
   });
 
   it('returns null when ONE act is short, even though the total is not', () => {
@@ -151,10 +107,7 @@ describe('drawCircle', () => {
   });
 
   it('prefers questions the player has not seen yet', () => {
-    const forced = new Set(
-      ROME_QUESTIONS.flatMap((q) => (q.callback != null ? [q.id, q.callback] : [])),
-    );
-    const antiquity = ROME_QUESTIONS.filter((q) => q.act === 'antiquity' && !forced.has(q.id));
+    const antiquity = ROME_QUESTIONS.filter((q) => q.act === 'antiquity');
     const fresh = antiquity.slice(0, 2).map((q) => q.id);
     const seen = new Set(ROME_QUESTIONS.map((q) => q.id).filter((id) => !fresh.includes(id)));
 
@@ -343,14 +296,13 @@ describe('places', () => {
     }
   });
 
-  it('orders every estimate question smallest to largest', () => {
-    // The notched slider lays the options along a line, so a reversed set would
-    // read as a bug on screen rather than in the data.
-    const estimates = ROME_QUESTIONS.filter((q) => q.estimate);
-    expect(estimates.length).toBeGreaterThan(0);
-    for (const q of estimates) {
+  it('gives every Rome question four options and a valid correct index', () => {
+    // Two shapes remain — plain text and text+image — both answered as a 4×4
+    // grid, so every question must offer exactly four options.
+    for (const q of ROME_QUESTIONS) {
       expect(q.options).toHaveLength(4);
-      expect(q.axis === 'time' || q.axis === 'amount').toBe(true);
+      expect(q.correct).toBeGreaterThanOrEqual(0);
+      expect(q.correct).toBeLessThan(q.options.length);
     }
   });
 });
